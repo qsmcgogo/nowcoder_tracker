@@ -29,10 +29,11 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/nowcoder-tracker.git"
+    "url": "https://github.com/qsmcgogo/nowcoder_tracker.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/nowcoder-tracker/issues"
+    "url": "https://github.com/qsmcgogo/nowcoder_tracker/issues"
   },
-  "homepage": "https://github.com/yourusername/nowcoder-tracker#readme"
+  "homepage": "https://github.com/qsmcgogo/nowcoder_tracker#readme"
 }
+
