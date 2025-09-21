@@ -1,0 +1,879 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+    color: #333;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    min-height: 100vh;
+}
+
+.container {
+    max-width: none;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+header {
+    text-align: left;
+    padding: 20px 0;
+    color: white;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    margin: 0;
+    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+}
+
+.nav-tabs {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.tab-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 25px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    backdrop-filter: blur(10px);
+}
+
+.tab-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-2px);
+}
+
+.tab-btn.active {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: white;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+main {
+    flex: 1;
+    background: white;
+    border-radius: 15px;
+    padding: 40px;
+    margin: 20px 0;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.5s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.tab-content h2 {
+    color: #667eea;
+    font-size: 2rem;
+    margin-bottom: 30px;
+    text-align: center;
+}
+
+.loading {
+    text-align: center;
+    padding: 40px;
+    color: #666;
+    font-size: 1.1rem;
+}
+
+/* Problems Tab Styles */
+.problems-header {
+    margin-bottom: 30px;
+}
+
+.search-section {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.input-group {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.input-group label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.input-group input {
+    padding: 10px 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+    min-width: 200px;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.search-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+    margin-top: 20px;
+}
+
+.search-btn:hover {
+    background: #5a6fd8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+/* Contest Tabs */
+.contest-tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e9ecef;
+    padding-bottom: 10px;
+}
+
+.contest-tab {
+    background: none;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 500;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.contest-tab:hover {
+    background: #f8f9fa;
+    color: #667eea;
+}
+
+.contest-tab.active {
+    background: #667eea;
+    color: white;
+    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+}
+
+
+
+/* Problems Table */
+.problems-table-container {
+    overflow-x: auto;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.problems-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    table-layout: fixed; /* 确保各列等宽 */
+}
+
+.problems-table th {
+    background: #667eea;
+    color: white;
+    padding: 15px 10px;
+    text-align: center;
+    font-weight: 600;
+    border: none;
+}
+
+.problems-table th,
+.problems-table td {
+    width: 12.5%; /* 8列：Contest + A-G，每列等宽 */
+}
+
+.problems-table th:first-child {
+    text-align: left;
+    padding-left: 20px;
+}
+
+.problems-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #e9ecef;
+    text-align: center;
+    vertical-align: middle;
+    overflow: hidden;            /* 防止溢出 */
+    text-overflow: ellipsis;     /* 超出省略号 */
+    white-space: nowrap;         /* 单行显示 */
+}
+
+.problems-table td:first-child {
+    text-align: left;
+    padding-left: 20px;
+    font-weight: 600;
+    color: #333;
+}
+
+.problems-table tr:hover {
+    background: #f8f9fa;
+}
+
+.problem-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    justify-content: center;
+    overflow: hidden;            /* 配合省略号 */
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.problem-cell:first-child {
+    justify-content: flex-start;
+}
+
+/* Difficulty Circles */
+.difficulty-circle {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    flex-shrink: 0;
+    border: 2px solid;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.difficulty-circle:hover {
+    transform: scale(1.2);
+}
+
+/* 自定义提示框样式 */
+.custom-tooltip {
+    position: fixed;
+    background: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 10px 12px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 500;
+    z-index: 10000;
+    pointer-events: none;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.2s ease;
+    white-space: nowrap;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.custom-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: rgba(0, 0, 0, 0.9);
+}
+
+/* 灰色：0到699分 */
+.difficulty-circle.easy {
+    border-color: #6c757d;
+    background: #6c757d;
+}
+
+/* 紫色：700到1099分 */
+.difficulty-circle.medium {
+    border-color: #6f42c1;
+    background: #6f42c1;
+}
+
+/* 蓝色：1100到1499分 */
+.difficulty-circle.hard {
+    border-color: #007bff;
+    background: #007bff;
+}
+
+/* 绿色：1500到1999分 */
+.difficulty-circle.expert {
+    border-color: #28a745;
+    background: #28a745;
+}
+
+/* 黄色：2000到2399分 */
+.difficulty-circle.master {
+    border-color: #ffc107;
+    background: #ffc107;
+}
+
+/* 橙色：2400到2799分 */
+.difficulty-circle.grandmaster {
+    border-color: #fd7e14;
+    background: #fd7e14;
+}
+
+/* 红色：2800分以上 */
+.difficulty-circle.legend {
+    border-color: #dc3545;
+    background: #dc3545;
+}
+
+/* 基础圆圈样式 - 现在通过JavaScript动态设置 */
+
+/* Rankings Tab Styles */
+.rankings-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 30px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.rankings-header h2 {
+    margin: 0;
+    color: #667eea;
+    font-size: 2rem;
+}
+
+.rankings-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.rankings-search input {
+    padding: 10px 15px;
+    border: 2px solid #e9ecef;
+    border-radius: 8px;
+    font-size: 1rem;
+    transition: border-color 0.3s ease;
+    min-width: 200px;
+}
+
+.rankings-search input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.rankings-search-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    transition: all 0.3s ease;
+}
+
+.rankings-search-btn:hover {
+    background: #5a6fd8;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+}
+
+.rankings-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+/* 分页控制样式 */
+.rankings-controls {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 20px;
+    padding: 15px 0;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.page-size-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.page-size-control label {
+    font-weight: 600;
+    color: #333;
+    font-size: 0.9rem;
+}
+
+.page-size-control select {
+    padding: 8px 12px;
+    border: 2px solid #e9ecef;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: white;
+    cursor: pointer;
+    transition: border-color 0.3s ease;
+}
+
+.page-size-control select:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+/* 分页容器样式 */
+.pagination-container {
+    margin-top: 20px;
+    padding: 20px 0;
+    border-top: 1px solid #e9ecef;
+}
+
+.pagination-info {
+    text-align: center;
+    margin-bottom: 15px;
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.pagination-controls {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.pagination-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.pagination-btn:hover:not(:disabled) {
+    background: #5a6fd8;
+    transform: translateY(-1px);
+}
+
+.pagination-btn:disabled {
+    background: #ccc;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.page-numbers {
+    display: flex;
+    gap: 5px;
+    align-items: center;
+}
+
+.page-number {
+    background: white;
+    border: 2px solid #e9ecef;
+    color: #333;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    min-width: 40px;
+    text-align: center;
+}
+
+.page-number:hover {
+    border-color: #667eea;
+    background: #f8f9fa;
+}
+
+.page-number.active {
+    background: #667eea;
+    border-color: #667eea;
+    color: white;
+}
+
+.page-number.disabled {
+    background: #f8f9fa;
+    color: #ccc;
+    cursor: not-allowed;
+    border-color: #e9ecef;
+}
+
+.rankings-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.rankings-table th {
+    background: #667eea;
+    color: white;
+    padding: 15px 10px;
+    text-align: center;
+    font-weight: 600;
+    border: none;
+}
+
+.rankings-table th:first-child {
+    text-align: center;
+    width: 60px;
+}
+
+.rankings-table th:nth-child(2) {
+    text-align: left;
+    padding-left: 20px;
+}
+
+.rankings-table th:last-child {
+    text-align: center;
+    width: 100px;
+}
+
+.rankings-table td {
+    padding: 12px 10px;
+    border-bottom: 1px solid #e9ecef;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.rankings-table td:first-child {
+    text-align: center;
+    font-weight: 600;
+    color: #333;
+}
+
+.rankings-table td:nth-child(2) {
+    text-align: left;
+    padding-left: 20px;
+}
+
+.rankings-table td:last-child {
+    text-align: center;
+    font-weight: 600;
+    color: #28a745;
+}
+
+.rankings-table tr:hover {
+    background: #f8f9fa;
+}
+
+.rankings-table tr:nth-child(1) td:first-child {
+    color: #ffd700;
+    font-weight: bold;
+}
+
+.rankings-table tr:nth-child(2) td:first-child {
+    color: #c0c0c0;
+    font-weight: bold;
+}
+
+.rankings-table tr:nth-child(3) td:first-child {
+    color: #cd7f32;
+    font-weight: bold;
+}
+
+.rankings-table tr.highlighted {
+    background: #e3f2fd !important;
+    border-left: 4px solid #667eea;
+    animation: highlightRow 0.5s ease;
+}
+
+@keyframes highlightRow {
+    0% {
+        background: #fff3e0;
+        transform: scale(1.02);
+    }
+    100% {
+        background: #e3f2fd;
+        transform: scale(1);
+    }
+}
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.user-cell .username {
+    font-weight: 600;
+    transition: color 0.3s ease;
+}
+
+/* Rating Circles - 复用difficulty-circle的样式 */
+.rating-circle {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: inline-block;
+    position: relative;
+    flex-shrink: 0;
+    border: 2px solid;
+    cursor: pointer;
+    transition: transform 0.2s ease;
+}
+
+.rating-circle:hover {
+    transform: scale(1.2);
+}
+
+/* Submissions Tab Styles */
+.submissions-container {
+    max-width: 1000px;
+    margin: 0 auto;
+}
+
+.submission-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 15px 20px;
+    margin: 10px 0;
+    background: #f8f9fa;
+    border-radius: 8px;
+    border-left: 4px solid #17a2b8;
+}
+
+/* FAQ Tab Styles */
+.faq-container {
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.faq-item {
+    background: #f8f9fa;
+    border-radius: 10px;
+    padding: 25px;
+    margin: 20px 0;
+    border-left: 4px solid #667eea;
+}
+
+.faq-item h3 {
+    color: #667eea;
+    margin-bottom: 15px;
+    font-size: 1.3rem;
+}
+
+.faq-item p {
+    color: #666;
+    line-height: 1.6;
+}
+
+/* 按钮样式 */
+.view-btn {
+    background: #667eea;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: background 0.3s ease;
+    margin-top: 10px;
+}
+
+.view-btn:hover {
+    background: #5a6fd8;
+}
+
+/* 难度标签样式 */
+.difficulty {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.difficulty.简单 {
+    background: #d4edda;
+    color: #155724;
+}
+
+.difficulty.中等 {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.difficulty.困难 {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+/* 状态标签样式 */
+.status {
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.status.accepted {
+    background: #d4edda;
+    color: #155724;
+}
+
+.status.wrong-answer {
+    background: #f8d7da;
+    color: #721c24;
+}
+
+.status.time-limit-exceeded {
+    background: #fff3cd;
+    color: #856404;
+}
+
+.time {
+    color: #666;
+    font-size: 0.9rem;
+    margin-left: 10px;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+footer {
+    text-align: center;
+    padding: 20px 0;
+    color: white;
+    opacity: 0.8;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+    .container {
+        padding: 10px;
+    }
+    
+    header {
+        flex-direction: column;
+        gap: 20px;
+        text-align: center;
+    }
+    
+    header h1 {
+        font-size: 2rem;
+    }
+    
+    .nav-tabs {
+        justify-content: center;
+    }
+    
+    .tab-btn {
+        padding: 8px 16px;
+        font-size: 0.9rem;
+    }
+    
+    main {
+        padding: 20px;
+    }
+    
+    .tab-content h2 {
+        font-size: 1.5rem;
+    }
+    
+    .search-section {
+        flex-direction: column;
+        align-items: stretch;
+    }
+    
+    .input-group input {
+        min-width: auto;
+    }
+    
+    .contest-tabs {
+        flex-wrap: wrap;
+    }
+    
+    .contest-tab {
+        flex: 1;
+        min-width: 120px;
+    }
+    
+    .problems-table-container {
+        font-size: 0.9rem;
+    }
+    
+    .problem-cell {
+        flex-direction: column;
+        gap: 4px;
+    }
+    
+    .rankings-header {
+        flex-direction: column;
+        align-items: stretch;
+        text-align: center;
+    }
+    
+    .rankings-search {
+        justify-content: center;
+    }
+    
+    .rankings-search input {
+        min-width: auto;
+        flex: 1;
+    }
+    
+    .rankings-controls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 15px;
+    }
+    
+    .page-size-control {
+        justify-content: center;
+    }
+    
+    .pagination-controls {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .page-numbers {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+}

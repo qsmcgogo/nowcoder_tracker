@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>nowcoder problems</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>nowcoder problems</h1>
+            <nav class="nav-tabs">
+                <button class="tab-btn active" data-tab="problems">problems</button>
+                <button class="tab-btn" data-tab="rankings">rankings</button>
+                <button class="tab-btn" data-tab="submissions">submissions</button>
+                <button class="tab-btn" data-tab="faq">FAQ</button>
+            </nav>
+        </header>
+        
+        <main>
+            <!-- Problems Tab -->
+            <section id="problems" class="tab-content active">
+                <div class="problems-header">
+                    <div class="search-section">
+                        <div class="input-group">
+                            <label for="userId">User ID:</label>
+                            <input type="text" id="userId" placeholder="输入您的ID">
+                        </div>
+                        <div class="input-group">
+                            <label for="rivalId">Rival ID:</label>
+                            <input type="text" id="rivalId" placeholder="输入对比用户ID">
+                        </div>
+                        <button class="search-btn">Search</button>
+                    </div>
+                </div>
+                
+                <div class="contest-tabs">
+                    <button class="contest-tab active" data-contest="all">全部比赛</button>
+                    <button class="contest-tab" data-contest="weekly">牛客周赛</button>
+                    <button class="contest-tab" data-contest="monthly">牛客小白月赛</button>
+                    <button class="contest-tab" data-contest="practice">牛客练习赛</button>
+                    <button class="contest-tab" data-contest="challenge">牛客挑战赛</button>
+                </div>
+                
+                    <div class="contest-content">
+        <div class="problems-table-container">
+                        <table class="problems-table">
+                            <thead>
+                                <tr>
+                                    <th>Contest</th>
+                                    <th>A</th>
+                                    <th>B</th>
+                                    <th>C</th>
+                                    <th>D</th>
+                                    <th>E</th>
+                                    <th>F</th>
+                                    <th>G</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>牛客周赛100</td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle medium"></span>A. 小红的字符串</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle hard"></span>B. 小红的数组</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle expert"></span>C. 小红的树</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle master"></span>D. 小红的图</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle grandmaster"></span>E. 小红的DP</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle legend"></span>F. 小红的数学</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle legend"></span>G. 小红的算法</div></td>
+                                </tr>
+                                <tr>
+                                    <td>牛客周赛99</td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle medium"></span>A. 字符串匹配</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle hard"></span>B. 数组排序</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle expert"></span>C. 二叉树遍历</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle master"></span>D. 图论算法</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle grandmaster"></span>E. 动态规划</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle legend"></span>F. 数论问题</div></td>
+                                    <td><div class="problem-cell"><span class="difficulty-circle legend"></span>G. 高级算法</div></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Rankings Tab -->
+            <section id="rankings" class="tab-content">
+                <div class="rankings-header">
+                    <h2>刷题排行榜</h2>
+                    <div class="rankings-search">
+                        <input type="text" id="rankingsSearch" placeholder="搜索用户ID">
+                        <button class="rankings-search-btn">Search</button>
+                    </div>
+                </div>
+                <div class="rankings-container">
+                    <div class="rankings-controls">
+                        <div class="page-size-control">
+                            <label for="pageSize">每页显示:</label>
+                            <select id="pageSize">
+                                <option value="10">10</option>
+                                <option value="20">20</option>
+                                <option value="200">200</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="rankings-table-container"></div>
+                    <div class="pagination-container">
+                        <div class="pagination-info">
+                            <span id="paginationInfo">显示 1-10 条，共 0 条</span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button id="prevPage" class="pagination-btn" disabled>上一页</button>
+                            <div class="page-numbers" id="pageNumbers"></div>
+                            <button id="nextPage" class="pagination-btn" disabled>下一页</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+            
+            <!-- Submissions Tab -->
+            <section id="submissions" class="tab-content">
+                <h2>实时提交记录</h2>
+                <div class="submissions-container">
+                </div>
+            </section>
+            
+            <!-- FAQ Tab -->
+            <section id="faq" class="tab-content">
+                <h2>常见问题解答</h2>
+                <div class="faq-container">
+                    <div class="faq-item">
+                        <h3>如何使用这个工具？</h3>
+                        <p>这是一个用于追踪牛客网相关信息的工具，包括题目、排行榜、提交记录等功能。</p>
+                    </div>
+                    <div class="faq-item">
+                        <h3>数据来源是什么？</h3>
+                        <p>数据来源于牛客网公开的竞赛和题目信息。</p>
+                    </div>
+                    <div class="faq-item">
+                        <h3>如何查看具体题目？</h3>
+                        <p>在problems页面可以浏览所有可用的竞赛题目。</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+        
+        <footer>
+            <p>&copy; 2024 nowcoder problems</p>
+        </footer>
+    </div>
+    
+    <script src="script.js"></script>
+</body>
+</html>

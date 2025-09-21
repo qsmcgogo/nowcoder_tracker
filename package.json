@@ -1,0 +1,38 @@
+{
+  "name": "nowcoder-tracker",
+  "version": "1.0.0",
+  "description": "一个用于追踪牛客网竞赛题目的Web应用，支持实时数据爬取和可视化展示",
+  "main": "index.html",
+  "scripts": {
+    "start": "node crawler.js",
+    "crawl": "node crawler.js",
+    "dev": "python -m http.server 8000"
+  },
+  "keywords": [
+    "nowcoder",
+    "crawler",
+    "web-scraping",
+    "competitive-programming",
+    "tracker",
+    "javascript",
+    "nodejs"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "cheerio": "^1.0.0-rc.12",
+    "puppeteer": "^24.18.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/nowcoder-tracker.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/nowcoder-tracker/issues"
+  },
+  "homepage": "https://github.com/yourusername/nowcoder-tracker#readme"
+}
