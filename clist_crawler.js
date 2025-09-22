@@ -136,6 +136,88 @@ class ClistNowcoderCrawler {
 	}
 }
 
+async function generateXlsTable() {
+    const inputFile = 'clist_nowcoder_problems.json';
+    const outputFile = '牛客竞赛题目汇总.xlsx';
+    const keywords = ['牛客周赛', '牛客小白月赛', '牛客练习赛', '牛客挑战赛'];
+
+    console.log(`正在从 ${inputFile} 生成筛选后的 Excel 表格...`);
+
+    if (!fs.existsSync(inputFile)) {
+        console.error(`错误: 输入文件 ${inputFile} 不存在。请先运行爬虫。`);
+        return;
+    }
+
+    const xlsx = require('xlsx');
+    const rawData = fs.readFileSync(inputFile, 'utf8');
+    const data = JSON.parse(rawData);
+    const items = data.items || [];
+
+    const filteredItems = items.filter(item =>
+        keywords.some(keyword => (item.contest_name || '').includes(keyword))
+    );
+
+    if (filteredItems.length === 0) {
+        console.log('没有找到符合条件的题目数据。');
+        return;
+    }
+
+    const worksheetData = filteredItems.map(item => ({
+        '题目名称': item.problem_name,
+        '题目链接': item.problem_url,
+        '所属比赛': item.contest_name
+    }));
+
+    const worksheet = xlsx.utils.json_to_sheet(worksheetData);
+    const workbook = xlsx.utils.book_new();
+    xlsx.utils.book_append_sheet(workbook, worksheet, '题目列表');
+
+    // Adjust column widths
+    worksheet['!cols'] = [
+        { wch: 50 }, // "题目名称" width
+        { wch: 60 }, // "题目链接" width
+        { wch: 40 }  // "所属比赛" width
+    ];
+
+    xlsx.writeFile(workbook, outputFile);
+    console.log(`成功生成表格，共 ${filteredItems.length} 条数据，已保存到 ${outputFile}`);
+}
+
+async function generateMarkdownTable() {
+    const inputFile = 'clist_nowcoder_problems.json';
+    const outputFile = '题目链接汇总.md';
+    
+    console.log(`正在从 ${inputFile} 生成 Markdown 表格...`);
+    
+    if (!fs.existsSync(inputFile)) {
+        console.error(`错误: 输入文件 ${inputFile} 不存在。请先运行爬虫。`);
+        return;
+    }
+    
+    const rawData = fs.readFileSync(inputFile, 'utf8');
+    const data = JSON.parse(rawData);
+    const items = data.items || [];
+    
+    if (items.length === 0) {
+        console.log('文件中没有找到题目数据。');
+        return;
+    }
+    
+    let markdownContent = '# 题目链接汇总\n\n';
+    markdownContent += '| 题目名称 | 题目链接 |\n';
+    markdownContent += '| :--- | :--- |\n';
+    
+    items.forEach(item => {
+        const name = item.problem_name || 'N/A';
+        const url = item.problem_url || '#';
+        markdownContent += `| ${name} | [${url}](${url}) |\n`;
+    });
+    
+    fs.writeFileSync(outputFile, markdownContent, 'utf8');
+    console.log(`成功生成表格，并已保存到 ${outputFile}`);
+}
+
+
 async function main() {
 	const crawler = new ClistNowcoderCrawler();
 	const items = await crawler.crawlAll();
@@ -144,10 +226,24 @@ async function main() {
 }
 
 if (require.main === module) {
-	main().catch(err => {
-		console.error('抓取失败:', err);
-		process.exit(1);
-	});
+    // Check for command line argument to decide what to do
+    const args = process.argv.slice(2);
+    if (args.includes('--generate-table')) {
+        generateMarkdownTable().catch(err => {
+            console.error('生成表格失败:', err);
+            process.exit(1);
+        });
+    } else if (args.includes('--generate-xls')) {
+        generateXlsTable().catch(err => {
+            console.error('生成 Excel 失败:', err);
+            process.exit(1);
+        });
+    } else {
+        main().catch(err => {
+            console.error('抓取失败:', err);
+            process.exit(1);
+        });
+    }
 }
 
 module.exports = ClistNowcoderCrawler;

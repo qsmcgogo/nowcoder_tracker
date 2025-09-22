@@ -384,6 +384,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 将题目标题渲染为可点击链接（当提供 url 时）
     function renderProblemTitle(problem, contestUrl) {
         const text = problem.title || '';
+        const safeText = text.replace(/"/g, '&quot;'); // Sanitize for attribute
         let url = problem.url || '';
         // 如果爬虫未提供题目链接，则用比赛链接 + /题号 生成
         if (!url && contestUrl && problem.letter) {
@@ -391,9 +392,9 @@ document.addEventListener('DOMContentLoaded', function() {
             url = `${base}/${problem.letter}`;
         }
         if (url) {
-            return `<a class="problem-link" href="${url}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+            return `<a class="problem-link" href="${url}" target="_blank" rel="noopener noreferrer" title="${safeText}">${text}</a>`;
         }
-        return text;
+        return `<span class="problem-title-text" title="${safeText}">${text}</span>`;
     }
     
     // 获取圆圈样式

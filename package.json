@@ -23,7 +23,8 @@
   "dependencies": {
     "axios": "^1.6.0",
     "cheerio": "^1.0.0-rc.12",
-    "puppeteer": "^24.18.0"
+    "puppeteer": "^24.18.0",
+    "xlsx": "^0.18.5"
   },
   "engines": {
     "node": ">=18.0.0"
@@ -37,4 +38,3 @@
   },
   "homepage": "https://github.com/qsmcgogo/nowcoder_tracker#readme"
 }
-

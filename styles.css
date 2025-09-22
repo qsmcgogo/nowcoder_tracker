@@ -244,6 +244,18 @@ main {
     white-space: normal; /* Allow contest names to wrap */
 }
 
+a.contest-link,
+a.problem-link {
+    text-decoration: none;
+    color: #333;
+    transition: color 0.2s ease;
+}
+
+a.contest-link:hover,
+a.problem-link:hover {
+    color: #888;
+}
+
 .problems-table tr:hover {
     background: #f8f9fa;
 }
@@ -253,13 +265,22 @@ main {
     align-items: center;
     gap: 8px;
     justify-content: center;
-    overflow: hidden;            /* 配合省略号 */
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    min-width: 0; /* Allow flex item to shrink */
 }
 
 .problem-cell:first-child {
     justify-content: flex-start;
+}
+
+a.problem-link,
+span.problem-title-text {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: inline-block;
+    max-width: 200px; /* Adjust as needed */
+    vertical-align: middle;
+    font-size: 0.9rem;
 }
 
 /* Difficulty Circles */
@@ -271,12 +292,12 @@ main {
     position: relative;
     flex-shrink: 0;
     border: 2px solid;
-    cursor: pointer;
+    cursor: default;
     transition: transform 0.2s ease;
 }
 
 .difficulty-circle:hover {
-    transform: scale(1.2);
+    transform: none;
 }
 
 /* 自定义提示框样式 */
