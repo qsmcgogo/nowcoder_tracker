@@ -217,6 +217,78 @@ async function generateMarkdownTable() {
     console.log(`成功生成表格，并已保存到 ${outputFile}`);
 }
 
+async function parsePracticeMdToJson() {
+    const inputFile = '主站练习题目.md';
+    const outputFile = 'parsed_practice_problems.json';
+    console.log(`正在从 ${inputFile} 解析数据并生成 JSON...`);
+
+    if (!fs.existsSync(inputFile)) {
+        console.error(`错误: 输入文件 ${inputFile} 不存在。`);
+        return;
+    }
+
+    const text = fs.readFileSync(inputFile, 'utf8');
+    const parsedData = {};
+    const lines = text.split('\n');
+    let currentCategory = null;
+    let currentKnowledgePoint = null;
+
+    const categoryMap = {
+        '新手入门130': 'newbie130',
+        '算法入门': 'algo-starter',
+        '算法进阶': 'algo-advanced',
+        '算法登峰': 'algo-peak',
+        '牛客题霸-模板速刷TOP101': 'interview-top101',
+        '笔试模板必刷': 'templates',
+        '输入输出练习': 'io-practice',
+        '面试高频题目': 'interview-high-freq'
+    };
+    
+    // Regex to match a problem line, more robust to handle spaces around separators
+    const problemRegex = /-\s*\[(.+?)\]\((.+?)\)\s*\|\s*难度:\s*(\d+)\s*\|\s*通过:\s*([\d,]+)/;
+
+    // First line might be headers, so we can check it
+    const headers = lines[0].split('\t').map(h => h.trim());
+
+    for (const line of lines.slice(1)) { // Start from the second line
+        const parts = line.split('\t').map(p => p.trim());
+        if (parts.length < 4) continue;
+
+        const [title, url, categoryTitle, knowledgePoint] = parts;
+
+        const category = categoryMap[categoryTitle];
+        if (!category) continue;
+        
+        if (!parsedData[category]) {
+            parsedData[category] = { knowledge_points: [], problems: [] };
+        }
+        
+        // This format doesn't have difficulty/ac_count, so we'll add placeholders.
+        // In a real scenario, you'd need to decide how to source this data.
+        const problem = {
+            title: title,
+            url: url,
+            difficulty: 1000, // Placeholder
+            ac_count: 0 // Placeholder
+        };
+
+        if (knowledgePoint && knowledgePoint !== '') {
+            let kp = parsedData[category].knowledge_points.find(k => k.category === knowledgePoint);
+            if (!kp) {
+                kp = { category: knowledgePoint, problems: [] };
+                parsedData[category].knowledge_points.push(kp);
+            }
+            kp.problems.push(problem);
+        } else {
+             // For items like "面试高频题" that have no knowledge point
+            parsedData[category].problems.push(problem);
+        }
+    }
+
+    fs.writeFileSync(outputFile, JSON.stringify(parsedData, null, 2), 'utf8');
+    console.log(`成功解析数据，并已保存到 ${outputFile}`);
+}
+
 
 async function main() {
 	const crawler = new ClistNowcoderCrawler();
@@ -236,6 +308,11 @@ if (require.main === module) {
     } else if (args.includes('--generate-xls')) {
         generateXlsTable().catch(err => {
             console.error('生成 Excel 失败:', err);
+            process.exit(1);
+        });
+    } else if (args.includes('--parse-md')) {
+        parsePracticeMdToJson().catch(err => {
+            console.error('解析 MD 失败:', err);
             process.exit(1);
         });
     } else {

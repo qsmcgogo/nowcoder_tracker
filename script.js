@@ -68,6 +68,75 @@ document.addEventListener('DOMContentLoaded', function() {
         initSearchFunction();
     }
 
+    let practiceData = null; // To store parsed practice data from JSON file
+
+    async function loadPracticeProblems(practiceType) {
+        const tbody = document.querySelector('.practice-table tbody');
+        
+        if (!practiceData) {
+            tbody.innerHTML = `<tr><td colspan="2" class="loading">正在加载题目数据...</td></tr>`;
+            try {
+                const response = await fetch('parsed_practice_problems.json');
+                if (!response.ok) throw new Error('Network response was not ok');
+                practiceData = await response.json();
+                console.log('Successfully loaded practice problems from JSON.');
+            } catch (error) {
+                console.error('Failed to load practice problems JSON:', error);
+                tbody.innerHTML = `<tr><td colspan="2" class="loading">题目数据加载失败。</td></tr>`;
+                return;
+            }
+        }
+        
+        const categoryData = practiceData[practiceType];
+
+        if (!categoryData || (categoryData.knowledge_points.length === 0 && categoryData.problems.length === 0)) {
+            tbody.innerHTML = `<tr><td colspan="2" class="loading">暂无此分类的题目数据。</td></tr>`;
+            return;
+        }
+
+        let knowledgePointsToRender = [];
+        if (categoryData.knowledge_points.length > 0) {
+            knowledgePointsToRender = categoryData.knowledge_points;
+        } else if (categoryData.problems.length > 0) {
+            const categoryTitle = document.querySelector(`.contest-tab[data-practice-type="${practiceType}"]`).textContent;
+            knowledgePointsToRender = [{
+                category: categoryTitle,
+                problems: categoryData.problems
+            }];
+        }
+
+        const rowsHtml = knowledgePointsToRender.map(kp => {
+            if (!kp.problems || kp.problems.length === 0) return '';
+            const problemsHtml = (kp.problems || []).map(p => {
+                const difficultyInfo = getDifficultyInfo(p.difficulty);
+                const circleStyle = getCircleStyle(difficultyInfo);
+                const tooltip = `难度: ${p.difficulty}\n通过人数: ${(p.ac_count || 0).toLocaleString()}`;
+                const titleHtml = `<a href="${p.url}" target="_blank" rel="noopener noreferrer" class="problem-link" title="${(p.title || '').replace(/"/g, '&quot;')}">${p.title}</a>`;
+
+                return `
+                    <div class="practice-problem-item">
+                        <span class="difficulty-circle" style="${circleStyle}" data-tooltip="${tooltip}"></span>
+                        ${titleHtml}
+                    </div>
+                `;
+            }).join('');
+
+            return `
+                <tr>
+                    <td class="knowledge-point-cell">${kp.category}</td>
+                    <td class="problems-cell">
+                        <div class="problems-cell-container">
+                            ${problemsHtml}
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+
+        tbody.innerHTML = rowsHtml || `<tr><td colspan="2" class="loading">暂无题目。</td></tr>`;
+        initTooltips(); // Re-initialize tooltips for the new elements
+    }
+
     let currentCompanyFilter = 'all'; // Default company filter
 
     // 初始化比赛页签功能
@@ -129,26 +198,27 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initialize sub-tabs for practice view
         const practiceSubTabs = document.querySelectorAll('#practice-view .sub-tabs .contest-tab');
-        let practiceDataLoaded = false; // Flag to prevent multiple loads
         
         practiceSubTabs.forEach(tab => {
             tab.addEventListener('click', function() {
                 const practiceType = this.getAttribute('data-practice-type');
                 practiceSubTabs.forEach(t => t.classList.remove('active'));
                 this.classList.add('active');
-                
-                // For now, it just re-renders the same mock data.
-                // In the future, this could filter the data based on practiceType.
                 loadPracticeProblems(practiceType); 
             });
         });
 
-        // Trigger initial load when practice view is first shown
+        // Trigger initial load for the default active tab when practice view is first shown
         const practiceViewTab = document.querySelector('.view-type-tab[data-view="practice"]');
         practiceViewTab.addEventListener('click', () => {
-            if (!practiceDataLoaded) {
-                loadPracticeProblems('newbie130'); // Load initial tab
-                practiceDataLoaded = true;
+            // Check if the practice view is already populated by checking for element children
+            const practiceTbody = document.querySelector('.practice-table tbody');
+            if (practiceTbody.children.length === 0 || practiceTbody.querySelector('.loading')) {
+                // Find the default active sub-tab and trigger its data load
+                const activePracticeTab = document.querySelector('#practice-view .sub-tabs .contest-tab.active');
+                if (activePracticeTab) {
+                    loadPracticeProblems(activePracticeTab.getAttribute('data-practice-type'));
+                }
             }
         });
         
@@ -195,117 +265,6 @@ document.addEventListener('DOMContentLoaded', function() {
         // Initially, "all" is selected, so this will render the default view
         updateContestView();
     }
-
-    const practiceFileMap = {
-        'newbie130': 'practice_problems_newbie.json',
-        // 'algo-starter': 'practice_problems_algo_starter.json', // Example for future
-        // ... add other mappings here
-    };
-
-    async function loadPracticeProblems(practiceType) {
-        const tbody = document.querySelector('.practice-table tbody');
-        const fileName = practiceFileMap[practiceType];
-
-        if (!fileName) {
-            tbody.innerHTML = `<tr><td colspan="2" class="loading">暂无此分类的题目数据。</td></tr>`;
-            return;
-        }
-
-        tbody.innerHTML = `<tr><td colspan="2" class="loading">Loading problems...</td></tr>`;
-
-        try {
-            const response = await fetch(fileName);
-            if (!response.ok) throw new Error(`Network response was not ok for ${fileName}`);
-            const data = await response.json();
-            
-            const knowledgePoints = data.knowledge_points || [];
-
-            if (knowledgePoints.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="2" class="loading">No problems found in this category.</td></tr>`;
-                return;
-            }
-
-            const rowsHtml = knowledgePoints.map(kp => {
-                const problemsHtml = (kp.problems || []).map(p => {
-                    const difficultyInfo = getDifficultyInfo(p.difficulty);
-                    const circleStyle = getCircleStyle(difficultyInfo);
-                    const tooltip = `难度: ${p.difficulty}\n通过人数: ${(p.ac_count || 0).toLocaleString()}`;
-                    const titleHtml = `<a href="${p.url}" target="_blank" rel="noopener noreferrer" class="problem-link" title="${(p.title || '').replace(/"/g, '&quot;')}">${p.title}</a>`;
-
-                    return `
-                        <div class="practice-problem-item">
-                            <span class="difficulty-circle" style="${circleStyle}" data-tooltip="${tooltip}"></span>
-                            ${titleHtml}
-                        </div>
-                    `;
-                }).join('');
-
-                return `
-                    <tr>
-                        <td class="knowledge-point-cell">${kp.category}</td>
-                        <td class="problems-cell">
-                            <div class="problems-cell-container">
-                                ${problemsHtml}
-                            </div>
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            tbody.innerHTML = rowsHtml;
-            initTooltips(); // Re-initialize tooltips for the new elements
-
-        } catch (error) {
-            console.error(`Failed to load practice problems from ${fileName}:`, error);
-            tbody.innerHTML = `<tr><td colspan="2" class="loading">Error loading problems.</td></tr>`;
-        }
-    }
-
-    function updateContestView() {
-        const activeMainTab = document.querySelector('.contest-tab:not(.sub-tabs .contest-tab).active');
-        const contestType = activeMainTab ? activeMainTab.getAttribute('data-contest') : 'all';
-
-        let contestsToDisplay = contestData[contestType] ? contestData[contestType].contests : [];
-
-        if (contestType === 'campus') {
-            const companyKeywords = {
-                meituan: ['美团'],
-                bytedance: ['字节'],
-                tencent: ['腾讯'],
-                alibaba: ['阿里', '阿里巴巴'],
-                baidu: ['百度'],
-                xiaomi: ['小米']
-            };
-
-            if (currentCompanyFilter !== 'all' && currentCompanyFilter !== 'other') {
-                contestsToDisplay = contestsToDisplay.filter(c => 
-                    companyKeywords[currentCompanyFilter].some(kw => c.name.includes(kw))
-                );
-            } else if (currentCompanyFilter === 'other') {
-                const allCompanyKeywords = Object.values(companyKeywords).flat();
-                contestsToDisplay = contestsToDisplay.filter(c => 
-                    !allCompanyKeywords.some(kw => c.name.includes(kw))
-                );
-            }
-        }
-        
-        if (contestsToDisplay.length > 0) {
-            updateProblemsTable(contestsToDisplay);
-        } else {
-            const tbody = document.querySelector('.problems-table tbody');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #666;">暂无数据</td></tr>';
-        }
-    }
-
-    // 全局变量存储比赛数据
-    let contestData = {
-        all: { contests: [] },
-        weekly: { contests: [] },
-        monthly: { contests: [] },
-        practice: { contests: [] },
-        challenge: { contests: [] },
-        campus: { contests: [] }
-    };
 
     // 加载真实比赛数据，以 clist.by 的数据为基础构建比赛列表
     async function loadRealContestData() {
@@ -373,11 +332,11 @@ document.addEventListener('DOMContentLoaded', function() {
             contestData.campus.contests = filteredContests.filter(c => c.name.includes('校招'));
 
             console.log('成功基于 clist 数据构建了比赛列表');
-            return true;
+                return true;
 
         } catch (error) {
             console.error('基于 clist 数据构建比赛列表时出错:', error);
-            return false;
+        return false;
         }
     }
 
@@ -514,6 +473,52 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         };
     }
+
+    function updateContestView() {
+        const activeMainTab = document.querySelector('.contest-tab:not(.sub-tabs .contest-tab).active');
+        const contestType = activeMainTab ? activeMainTab.getAttribute('data-contest') : 'all';
+
+        let contestsToDisplay = contestData[contestType] ? contestData[contestType].contests : [];
+
+        if (contestType === 'campus') {
+            const companyKeywords = {
+                meituan: ['美团'],
+                bytedance: ['字节'],
+                tencent: ['腾讯'],
+                alibaba: ['阿里', '阿里巴巴'],
+                baidu: ['百度'],
+                xiaomi: ['小米']
+            };
+
+            if (currentCompanyFilter !== 'all' && currentCompanyFilter !== 'other') {
+                contestsToDisplay = contestsToDisplay.filter(c => 
+                    companyKeywords[currentCompanyFilter].some(kw => c.name.includes(kw))
+                );
+            } else if (currentCompanyFilter === 'other') {
+                const allCompanyKeywords = Object.values(companyKeywords).flat();
+                contestsToDisplay = contestsToDisplay.filter(c => 
+                    !allCompanyKeywords.some(kw => c.name.includes(kw))
+                );
+            }
+        }
+        
+        if (contestsToDisplay.length > 0) {
+            updateProblemsTable(contestsToDisplay);
+        } else {
+            const tbody = document.querySelector('.problems-table tbody');
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #666;">暂无数据</td></tr>';
+        }
+    }
+
+    // 全局变量存储比赛数据
+    let contestData = {
+        all: { contests: [] },
+        weekly: { contests: [] },
+        monthly: { contests: [] },
+        practice: { contests: [] },
+        challenge: { contests: [] },
+        campus: { contests: [] }
+    };
 
     // 初始化页签事件
     function initContestTabEvents() {
