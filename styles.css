@@ -8,7 +8,7 @@ body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     line-height: 1.6;
     color: #333;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: #f7f8f9;
     min-height: 100vh;
 }
 
@@ -25,7 +25,8 @@ body {
 header {
     text-align: left;
     padding: 20px 0;
-    color: white;
+    color: #111;
+    background: #32ca99;
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -35,7 +36,8 @@ header {
 header h1 {
     font-size: 2.5rem;
     margin: 0;
-    text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    color: #111;
+    text-shadow: none;
 }
 
 .nav-tabs {
@@ -45,28 +47,28 @@ header h1 {
 }
 
 .tab-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    color: white;
-    padding: 10px 20px;
-    border-radius: 25px;
+    background: transparent;
+    border: none;
+    color: #333;
+    padding: 10px 16px;
+    border-radius: 0;
     cursor: pointer;
     font-size: 1rem;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    backdrop-filter: blur(10px);
+    font-weight: 600;
+    transition: color 0.2s ease;
+    backdrop-filter: none;
 }
 
 .tab-btn:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.5);
-    transform: translateY(-2px);
+    background: transparent;
+    transform: none;
+    color: #111;
 }
 
 .tab-btn.active {
-    background: rgba(255, 255, 255, 0.3);
-    border-color: white;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+    background: transparent;
+    border-bottom: 2px solid #111;
+    box-shadow: none;
 }
 
 main {
@@ -88,7 +90,7 @@ main {
 }
 
 .tab-content h2 {
-    color: #667eea;
+    color: #111;
     font-size: 2rem;
     margin-bottom: 30px;
     text-align: center;
@@ -136,12 +138,12 @@ main {
 
 .input-group input:focus {
     outline: none;
-    border-color: #667eea;
-    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    border-color: #c5cbd3;
+    box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.06);
 }
 
 .search-btn {
-    background: #667eea;
+    background: #32ca99;
     color: white;
     border: none;
     padding: 12px 24px;
@@ -154,9 +156,9 @@ main {
 }
 
 .search-btn:hover {
-    background: #5a6fd8;
+    background: #2ab88b;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 12px rgba(50, 202, 153, 0.3);
 }
 
 /* Contest Tabs */
@@ -182,13 +184,14 @@ main {
 
 .contest-tab:hover {
     background: #f8f9fa;
-    color: #667eea;
+    color: #111;
 }
 
 .contest-tab.active {
-    background: #667eea;
-    color: white;
-    box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+    background: transparent;
+    color: #111;
+    border-bottom: 2px solid #111;
+    box-shadow: none;
 }
 
 
@@ -208,12 +211,12 @@ main {
 }
 
 .problems-table th {
-    background: #667eea;
-    color: white;
+    background: #f7f8f9;
+    color: #333;
     padding: 15px 10px;
     text-align: center;
     font-weight: 600;
-    border: none;
+    border-bottom: 1px solid #e9ecef;
 }
 
 .problems-table th,
@@ -231,9 +234,6 @@ main {
     border-bottom: 1px solid #e9ecef;
     text-align: center;
     vertical-align: middle;
-    overflow: hidden;            /* 防止溢出 */
-    text-overflow: ellipsis;     /* 超出省略号 */
-    white-space: nowrap;         /* 单行显示 */
 }
 
 .problems-table td:first-child {
@@ -241,6 +241,7 @@ main {
     padding-left: 20px;
     font-weight: 600;
     color: #333;
+    white-space: normal; /* Allow contest names to wrap */
 }
 
 .problems-table tr:hover {
@@ -363,7 +364,7 @@ main {
 
 .rankings-header h2 {
     margin: 0;
-    color: #667eea;
+    color: #111;
     font-size: 2rem;
 }
 
@@ -389,7 +390,7 @@ main {
 }
 
 .rankings-search-btn {
-    background: #667eea;
+    background: #32ca99;
     color: white;
     border: none;
     padding: 10px 20px;
@@ -401,9 +402,9 @@ main {
 }
 
 .rankings-search-btn:hover {
-    background: #5a6fd8;
+    background: #2ab88b;
     transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+    box-shadow: 0 4px 12px rgba(50, 202, 153, 0.3);
 }
 
 .rankings-container {
@@ -472,7 +473,7 @@ main {
 }
 
 .pagination-btn {
-    background: #667eea;
+    background: #32ca99;
     color: white;
     border: none;
     padding: 8px 16px;
@@ -484,7 +485,7 @@ main {
 }
 
 .pagination-btn:hover:not(:disabled) {
-    background: #5a6fd8;
+    background: #2ab88b;
     transform: translateY(-1px);
 }
 
@@ -515,14 +516,14 @@ main {
 }
 
 .page-number:hover {
-    border-color: #667eea;
+    border-color: #c5cbd3;
     background: #f8f9fa;
 }
 
 .page-number.active {
-    background: #667eea;
-    border-color: #667eea;
-    color: white;
+    background: #e9ecef;
+    border-color: #e9ecef;
+    color: #333;
 }
 
 .page-number.disabled {
@@ -542,12 +543,12 @@ main {
 }
 
 .rankings-table th {
-    background: #667eea;
-    color: white;
+    background: #f7f8f9;
+    color: #333;
     padding: 15px 10px;
     text-align: center;
     font-weight: 600;
-    border: none;
+    border-bottom: 1px solid #e9ecef;
 }
 
 .rankings-table th:first-child {
@@ -586,7 +587,7 @@ main {
 .rankings-table td:last-child {
     text-align: center;
     font-weight: 600;
-    color: #28a745;
+    color: #333;
 }
 
 .rankings-table tr:hover {
@@ -609,8 +610,8 @@ main {
 }
 
 .rankings-table tr.highlighted {
-    background: #e3f2fd !important;
-    border-left: 4px solid #667eea;
+    background: #f3f4f6 !important;
+    border-left: 4px solid #e9ecef;
     animation: highlightRow 0.5s ease;
 }
 
@@ -665,9 +666,9 @@ main {
     align-items: center;
     padding: 15px 20px;
     margin: 10px 0;
-    background: #f8f9fa;
+    background: #ffffff;
     border-radius: 8px;
-    border-left: 4px solid #17a2b8;
+    border-left: 4px solid #e9ecef;
 }
 
 /* FAQ Tab Styles */
@@ -677,15 +678,15 @@ main {
 }
 
 .faq-item {
-    background: #f8f9fa;
+    background: #ffffff;
     border-radius: 10px;
     padding: 25px;
     margin: 20px 0;
-    border-left: 4px solid #667eea;
+    border-left: 4px solid #e9ecef;
 }
 
 .faq-item h3 {
-    color: #667eea;
+    color: #111;
     margin-bottom: 15px;
     font-size: 1.3rem;
 }
@@ -697,7 +698,7 @@ main {
 
 /* 按钮样式 */
 .view-btn {
-    background: #667eea;
+    background: #32ca99;
     color: white;
     border: none;
     padding: 8px 16px;
@@ -709,7 +710,7 @@ main {
 }
 
 .view-btn:hover {
-    background: #5a6fd8;
+    background: #2ab88b;
 }
 
 /* 难度标签样式 */
@@ -721,18 +722,18 @@ main {
 }
 
 .difficulty.简单 {
-    background: #d4edda;
-    color: #155724;
+    background: rgba(50, 202, 153, 0.08);
+    color: #32ca99;
 }
 
 .difficulty.中等 {
-    background: #fff3cd;
-    color: #856404;
+    background: rgba(50, 202, 153, 0.08);
+    color: #32ca99;
 }
 
 .difficulty.困难 {
-    background: #f8d7da;
-    color: #721c24;
+    background: rgba(50, 202, 153, 0.08);
+    color: #32ca99;
 }
 
 /* 状态标签样式 */
@@ -744,18 +745,18 @@ main {
 }
 
 .status.accepted {
-    background: #d4edda;
-    color: #155724;
+    background: rgba(50, 202, 153, 0.08);
+    color: #32ca99;
 }
 
 .status.wrong-answer {
-    background: #f8d7da;
-    color: #721c24;
+    background: rgba(50, 202, 153, 0.08);
+    color: #32ca99;
 }
 
 .status.time-limit-exceeded {
-    background: #fff3cd;
-    color: #856404;
+    background: rgba(50, 202, 153, 0.08);
+    color: #32ca99;
 }
 
 .time {
@@ -778,7 +779,7 @@ main {
 footer {
     text-align: center;
     padding: 20px 0;
-    color: white;
+    color: #999;
     opacity: 0.8;
 }
 

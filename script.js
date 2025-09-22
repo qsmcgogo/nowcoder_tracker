@@ -77,7 +77,8 @@ document.addEventListener('DOMContentLoaded', function() {
         weekly: { contests: [] },
         monthly: { contests: [] },
         practice: { contests: [] },
-        challenge: { contests: [] }
+        challenge: { contests: [] },
+        campus: { contests: [] }
     };
 
     // 初始化比赛页签功能
@@ -96,26 +97,97 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
 
-    // 加载真实比赛数据
+    // 加载真实比赛数据，以 clist.by 的数据为基础构建比赛列表
     async function loadRealContestData() {
         try {
-            const response = await fetch('nowcoder_weekly_contests.json');
-            if (response.ok) {
-                const data = await response.json();
-                
-                // 将真实数据分类
-                contestData.all.contests = data.contests;
-                contestData.weekly.contests = data.contests.filter(contest => 
-                    contest.name.includes('牛客周赛')
-                );
-                
-                console.log('成功加载真实比赛数据');
-                return true;
+            const response = await fetch('clist_nowcoder_problems.json');
+            if (!response.ok) {
+                console.log('无法加载 clist_nowcoder_problems.json，将使用模拟数据。');
+                return false;
             }
+
+            const clistData = await response.json();
+            const clistProblems = clistData.items || [];
+
+            if (clistProblems.length === 0) {
+                console.log('clist_nowcoder_problems.json 中没有找到题目数据。');
+                return false;
+            }
+
+            // 使用 clist 数据动态构建比赛结构
+            const contestsMap = new Map();
+
+            clistProblems.forEach(p => {
+                if (!p.contest_name || !p.letter) return;
+
+                // 标准化比赛名称，用于 Map 的 key
+                const contestKey = (p.contest_name || '').replace(/\s+/g, ' ').trim();
+
+                if (!contestsMap.has(contestKey)) {
+                    contestsMap.set(contestKey, {
+                        name: contestKey,
+                        url: p.contest_url || '',
+                        problems: []
+                    });
+                }
+
+                const contest = contestsMap.get(contestKey);
+                contest.problems.push({
+                    letter: p.letter,
+                    title: p.problem_name,
+                    difficulty: p.rating || 1200, // 使用 clist 的 rating 作为 difficulty
+                    url: p.problem_url
+                });
+            });
+            
+            // 将 Map 转换为数组并按题目号排序
+            const allContests = Array.from(contestsMap.values());
+            allContests.forEach(contest => {
+                contest.problems.sort((a, b) => a.letter.localeCompare(b.letter));
+            });
+            
+            // Helper to extract round number from contest name
+            const getRoundNumber = (name) => {
+                // Removes bracketed content like [IOI], then finds the number at the end of the string
+                const cleanName = (name || '').replace(/\[.*?\]/g, '').trim();
+                const match = cleanName.match(/(\d+)$/);
+                return match ? parseInt(match[1], 10) : 0;
+            };
+
+            // 按场次降序排序
+            allContests.sort((a, b) => {
+                const roundB = getRoundNumber(b.name);
+                const roundA = getRoundNumber(a.name);
+
+                // Primarily sort by round number descending
+                if (roundA !== roundB) {
+                    return roundB - roundA;
+                }
+
+                // If round numbers are the same (or both 0), fall back to name descending for stability
+                return b.name.localeCompare(a.name);
+            });
+
+            const keywords = ['牛客周赛', '牛客小白月赛', '牛客练习赛', '牛客挑战赛'];
+            const filteredContests = allContests.filter(contest => 
+                keywords.some(keyword => contest.name.includes(keyword))
+            );
+
+            // 将构建好的数据分类
+            contestData.all.contests = filteredContests;
+            contestData.weekly.contests = filteredContests.filter(c => c.name.includes('牛客周赛'));
+            contestData.monthly.contests = filteredContests.filter(c => c.name.includes('牛客小白月赛'));
+            contestData.practice.contests = filteredContests.filter(c => c.name.includes('牛客练习赛'));
+            contestData.challenge.contests = filteredContests.filter(c => c.name.includes('牛客挑战赛'));
+            contestData.campus.contests = filteredContests.filter(c => c.name.includes('校招'));
+
+            console.log('成功基于 clist 数据构建了比赛列表');
+            return true;
+
         } catch (error) {
-            console.log('无法加载真实数据，使用模拟数据:', error.message);
+            console.error('基于 clist 数据构建比赛列表时出错:', error);
+            return false;
         }
-        return false;
     }
 
     // 加载模拟比赛数据
