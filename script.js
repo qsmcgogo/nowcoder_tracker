@@ -412,22 +412,22 @@ document.addEventListener('DOMContentLoaded', function() {
         const color = colors[difficultyInfo.class];
         const percentage = difficultyInfo.percentage;
         
-        if (difficultyInfo.fill === 'hollow') {
+        // If the score is in the bottom 10% of its tier, show a hollow circle.
+        if (percentage <= 0.1) {
             return `background: transparent; border-color: ${color};`;
-        } else if (difficultyInfo.fill === 'half') {
-            // 计算半实心的角度，基于实际百分比
-            const angle = 180 + (percentage - 0.1) / 0.4 * 180; // 从180度开始，到360度结束
-            return `background: conic-gradient(${color} 180deg, ${color} ${angle}deg, transparent ${angle}deg, transparent 360deg); border-color: ${color};`;
-        } else {
-            // 计算实心的角度，基于实际百分比
-            const angle = 180 + (percentage - 0.5) / 0.5 * 180; // 从180度开始，到360度结束
-            return `background: conic-gradient(${color} 180deg, ${color} ${angle}deg, transparent ${angle}deg, transparent 360deg); border-color: ${color};`;
         }
+
+        // For scores > 10%, scale the percentage from [0.1, 1.0] to [0, 1.0] for the angle calculation.
+        const scaledPercentage = (percentage - 0.1) / 0.9;
+        const angle = scaledPercentage * 360;
+
+        // Use a conic gradient to show progress, starting from the top (12 o'clock).
+        return `background: conic-gradient(from 0deg, ${color} ${angle}deg, transparent ${angle}deg); border-color: ${color};`;
     }
     
     // 根据难度分数获取难度信息
     function getDifficultyInfo(score) {
-        let baseClass, fill;
+        let baseClass;
         
         if (score <= 699) {
             baseClass = 'easy';
@@ -449,18 +449,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const range = getScoreRange(baseClass);
         const minScore = range.min;
         const maxScore = range.max;
-        const percentage = (score - minScore) / (maxScore - minScore);
+        const percentage = Math.max(0, Math.min(1, (score - minScore) / (maxScore - minScore)));
         
-        // 根据百分比确定填充类型
-        if (percentage <= 0.1) {
-            fill = 'hollow'; // 空心
-        } else if (percentage <= 0.5) {
-            fill = 'half'; // 半实心
-        } else {
-            fill = 'solid'; // 实心
-        }
-        
-        return { class: baseClass, fill: fill, percentage: percentage };
+        return { class: baseClass, percentage: percentage };
     }
     
     // 获取分数范围
