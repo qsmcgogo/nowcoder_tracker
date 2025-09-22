@@ -53,9 +53,6 @@ document.addEventListener('DOMContentLoaded', function() {
             case 'rankings':
                 loadRankings();
                 break;
-            case 'submissions':
-                loadSubmissions();
-                break;
             case 'faq':
                 // FAQ内容已经在HTML中，无需加载
                 break;
@@ -77,6 +74,27 @@ document.addEventListener('DOMContentLoaded', function() {
     function initContestTabs() {
         const contestTabs = document.querySelectorAll('.contest-tab:not(.sub-tabs .contest-tab)');
         const campusSubTabs = document.getElementById('campus-sub-tabs');
+        const viewTypeTabs = document.querySelectorAll('.view-type-tab');
+        const contestsView = document.getElementById('contests-view');
+        const practiceView = document.getElementById('practice-view');
+
+        // Main view switcher (竞赛/笔试 vs 练习)
+        viewTypeTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const view = this.getAttribute('data-view');
+                viewTypeTabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+
+                if (view === 'contests') {
+                    contestsView.style.display = 'block';
+                    practiceView.style.display = 'none';
+                } else {
+                    contestsView.style.display = 'none';
+                    practiceView.style.display = 'block';
+                }
+            });
+        });
+
 
         contestTabs.forEach(tab => {
             tab.addEventListener('click', function() {
@@ -109,7 +127,32 @@ document.addEventListener('DOMContentLoaded', function() {
             });
         });
         
-        // Initial data load
+        // Initialize sub-tabs for practice view
+        const practiceSubTabs = document.querySelectorAll('#practice-view .sub-tabs .contest-tab');
+        let practiceDataLoaded = false; // Flag to prevent multiple loads
+        
+        practiceSubTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const practiceType = this.getAttribute('data-practice-type');
+                practiceSubTabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // For now, it just re-renders the same mock data.
+                // In the future, this could filter the data based on practiceType.
+                loadPracticeProblems(practiceType); 
+            });
+        });
+
+        // Trigger initial load when practice view is first shown
+        const practiceViewTab = document.querySelector('.view-type-tab[data-view="practice"]');
+        practiceViewTab.addEventListener('click', () => {
+            if (!practiceDataLoaded) {
+                loadPracticeProblems('newbie130'); // Load initial tab
+                practiceDataLoaded = true;
+            }
+        });
+        
+        // Initial data load for contests
         loadAndDisplayContests();
     }
 
@@ -151,6 +194,71 @@ document.addEventListener('DOMContentLoaded', function() {
         }
         // Initially, "all" is selected, so this will render the default view
         updateContestView();
+    }
+
+    const practiceFileMap = {
+        'newbie130': 'practice_problems_newbie.json',
+        // 'algo-starter': 'practice_problems_algo_starter.json', // Example for future
+        // ... add other mappings here
+    };
+
+    async function loadPracticeProblems(practiceType) {
+        const tbody = document.querySelector('.practice-table tbody');
+        const fileName = practiceFileMap[practiceType];
+
+        if (!fileName) {
+            tbody.innerHTML = `<tr><td colspan="2" class="loading">暂无此分类的题目数据。</td></tr>`;
+            return;
+        }
+
+        tbody.innerHTML = `<tr><td colspan="2" class="loading">Loading problems...</td></tr>`;
+
+        try {
+            const response = await fetch(fileName);
+            if (!response.ok) throw new Error(`Network response was not ok for ${fileName}`);
+            const data = await response.json();
+            
+            const knowledgePoints = data.knowledge_points || [];
+
+            if (knowledgePoints.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="2" class="loading">No problems found in this category.</td></tr>`;
+                return;
+            }
+
+            const rowsHtml = knowledgePoints.map(kp => {
+                const problemsHtml = (kp.problems || []).map(p => {
+                    const difficultyInfo = getDifficultyInfo(p.difficulty);
+                    const circleStyle = getCircleStyle(difficultyInfo);
+                    const tooltip = `难度: ${p.difficulty}\n通过人数: ${(p.ac_count || 0).toLocaleString()}`;
+                    const titleHtml = `<a href="${p.url}" target="_blank" rel="noopener noreferrer" class="problem-link" title="${(p.title || '').replace(/"/g, '&quot;')}">${p.title}</a>`;
+
+                    return `
+                        <div class="practice-problem-item">
+                            <span class="difficulty-circle" style="${circleStyle}" data-tooltip="${tooltip}"></span>
+                            ${titleHtml}
+                        </div>
+                    `;
+                }).join('');
+
+                return `
+                    <tr>
+                        <td class="knowledge-point-cell">${kp.category}</td>
+                        <td class="problems-cell">
+                            <div class="problems-cell-container">
+                                ${problemsHtml}
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+
+            tbody.innerHTML = rowsHtml;
+            initTooltips(); // Re-initialize tooltips for the new elements
+
+        } catch (error) {
+            console.error(`Failed to load practice problems from ${fileName}:`, error);
+            tbody.innerHTML = `<tr><td colspan="2" class="loading">Error loading problems.</td></tr>`;
+        }
     }
 
     function updateContestView() {
@@ -242,32 +350,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 });
             });
             
-            // 将 Map 转换为数组并按题目号排序
+            // The data from clist.by is already sorted by date descending.
+            // We can rely on Map preserving insertion order to keep this sort.
             const allContests = Array.from(contestsMap.values());
-            allContests.forEach(contest => {
-                contest.problems.sort((a, b) => a.letter.localeCompare(b.letter));
-            });
             
-            // Helper to extract round number from contest name
-            const getRoundNumber = (name) => {
-                // Removes bracketed content like [IOI], then finds the number at the end of the string
-                const cleanName = (name || '').replace(/\[.*?\]/g, '').trim();
-                const match = cleanName.match(/(\d+)$/);
-                return match ? parseInt(match[1], 10) : 0;
-            };
-
-            // 按场次降序排序
-            allContests.sort((a, b) => {
-                const roundB = getRoundNumber(b.name);
-                const roundA = getRoundNumber(a.name);
-
-                // Primarily sort by round number descending
-                if (roundA !== roundB) {
-                    return roundB - roundA;
-                }
-
-                // If round numbers are the same (or both 0), fall back to name descending for stability
-                return b.name.localeCompare(a.name);
+            allContests.forEach(contest => {
+                // Sort problems by letter within each contest
+                contest.problems.sort((a, b) => a.letter.localeCompare(b.letter));
             });
 
             const keywords = ['牛客周赛', '牛客小白月赛', '牛客练习赛', '牛客挑战赛'];
@@ -1013,31 +1102,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }
         });
-    }
-    
-    // 加载提交记录数据
-    function loadSubmissions() {
-        const container = document.querySelector('.submissions-container');
-        
-        const mockSubmissions = [
-            { id: 1, username: 'user001', problem: '两数之和', status: 'Accepted', time: '2分钟前' },
-            { id: 2, username: 'user002', problem: '最长回文子串', status: 'Wrong Answer', time: '5分钟前' },
-            { id: 3, username: 'user003', problem: '合并两个有序链表', status: 'Accepted', time: '8分钟前' },
-            { id: 4, username: 'user004', problem: '二叉树的中序遍历', status: 'Time Limit Exceeded', time: '12分钟前' },
-            { id: 5, username: 'user005', problem: '有效的括号', status: 'Accepted', time: '15分钟前' }
-        ];
-        
-        container.innerHTML = mockSubmissions.map(submission => `
-            <div class="submission-item">
-                <div>
-                    <strong>${submission.username}</strong> - ${submission.problem}
-                </div>
-                <div>
-                    <span class="status ${submission.status.toLowerCase().replace(' ', '-')}">${submission.status}</span>
-                    <span class="time">${submission.time}</span>
-                </div>
-            </div>
-        `).join('');
     }
     
     // 初始化加载第一个标签页的数据

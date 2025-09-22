@@ -170,6 +170,33 @@ main {
     padding-bottom: 10px;
 }
 
+.view-type-tabs {
+    display: flex;
+    gap: 15px;
+    margin-bottom: 20px;
+    border-bottom: 2px solid #e9ecef;
+}
+
+.view-type-tab {
+    background: none;
+    border: none;
+    padding: 10px 0;
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: #666;
+    transition: all 0.3s ease;
+}
+
+.view-type-tab:hover {
+    color: #111;
+}
+
+.view-type-tab.active {
+    color: #111;
+    border-bottom: 2px solid #111;
+}
+
 .contest-tab {
     background: none;
     border: none;
@@ -916,4 +943,35 @@ footer {
         justify-content: center;
         flex-wrap: wrap;
     }
+}
+
+/* Practice View Table Styles */
+.practice-table th.knowledge-point-header {
+    width: 15%;
+    text-align: left;
+    padding-left: 20px;
+}
+.practice-table th.problems-header {
+    width: 85%;
+}
+.practice-table td.knowledge-point-cell {
+    font-weight: 600;
+    vertical-align: top;
+    text-align: left;
+    padding-top: 15px;
+    padding-left: 20px;
+}
+.practice-table .problems-cell-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 5px 0;
+}
+.practice-problem-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 0 18%; /* Allows up to 5 items per row */
+    min-width: 150px;
+    padding: 5px;
 }

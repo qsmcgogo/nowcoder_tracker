@@ -1,0 +1,44 @@
+{
+  "knowledge_points": [
+    {
+      "category": "动态规划",
+      "problems": [
+        { "id": "DP1", "title": "01背包问题", "url": "#", "difficulty": 1350, "ac_count": 25031 },
+        { "id": "DP2", "title": "最长公共子序列", "url": "#", "difficulty": 1620, "ac_count": 18992 },
+        { "id": "DP3", "title": "最长上升子序列", "url": "#", "difficulty": 1550, "ac_count": 21043 },
+        { "id": "DP4", "title": "编辑距离", "url": "#", "difficulty": 1780, "ac_count": 14321 },
+        { "id": "DP5", "title": "数字三角形", "url": "#", "difficulty": 1200, "ac_count": 35011 },
+        { "id": "DP6", "title": "完全背包问题", "url": "#", "difficulty": 1450, "ac_count": 19876 },
+        { "id": "DP7", "title": "硬币找零", "url": "#", "difficulty": 1480, "ac_count": 17654 }
+      ]
+    },
+    {
+      "category": "数据结构",
+      "problems": [
+        { "id": "DS1", "title": "实现一个栈", "url": "#", "difficulty": 950, "ac_count": 45012 },
+        { "id": "DS2", "title": "实现一个队列", "url": "#", "difficulty": 980, "ac_count": 43210 },
+        { "id": "DS3", "title": "最小栈", "url": "#", "difficulty": 1400, "ac_count": 28765 },
+        { "id": "DS4", "title": "滑动窗口最大值", "url": "#", "difficulty": 1850, "ac_count": 15432 }
+      ]
+    },
+    {
+      "category": "字符串",
+      "problems": [
+        { "id": "STR1", "title": "KMP算法", "url": "#", "difficulty": 1800, "ac_count": 16789 },
+        { "id": "STR2", "title": "实现Trie树", "url": "#", "difficulty": 1900, "ac_count": 13456 },
+        { "id": "STR3", "title": "最长回文子串", "url": "#", "difficulty": 1700, "ac_count": 19876 }
+      ]
+    },
+    {
+        "category": "图论",
+        "problems": [
+          { "id": "GRAPH1", "title": "Dijkstra算法", "url": "#", "difficulty": 1950, "ac_count": 12345 },
+          { "id": "GRAPH2", "title": "Floyd算法", "url": "#", "difficulty": 1850, "ac_count": 14567 },
+          { "id": "GRAPH3", "title": "拓扑排序", "url": "#", "difficulty": 1750, "ac_count": 16789 },
+          { "id": "GRAPH4", "title": "最小生成树 (Prim)", "url": "#", "difficulty": 2050, "ac_count": 11234 },
+          { "id": "GRAPH5", "title": "最小生成树 (Kruskal)", "url": "#", "difficulty": 2000, "ac_count": 11567 },
+          { "id": "GRAPH6", "title": "二分图匹配", "url": "#", "difficulty": 2200, "ac_count": 9876 }
+        ]
+      }
+  ]
+}

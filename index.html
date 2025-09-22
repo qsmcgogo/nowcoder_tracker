@@ -13,7 +13,6 @@
             <nav class="nav-tabs">
                 <button class="tab-btn active" data-tab="problems">problems</button>
                 <button class="tab-btn" data-tab="rankings">rankings</button>
-                <button class="tab-btn" data-tab="submissions">submissions</button>
                 <button class="tab-btn" data-tab="faq">FAQ</button>
             </nav>
         </header>
@@ -35,62 +34,95 @@
                     </div>
                 </div>
                 
-                <div class="contest-tabs">
-                    <button class="contest-tab active" data-contest="all">全部比赛</button>
-                    <button class="contest-tab" data-contest="weekly">牛客周赛</button>
-                    <button class="contest-tab" data-contest="monthly">牛客小白月赛</button>
-                    <button class="contest-tab" data-contest="practice">牛客练习赛</button>
-                    <button class="contest-tab" data-contest="challenge">牛客挑战赛</button>
-                    <button class="contest-tab" data-contest="campus">校招</button>
-                </div>
-                
-                <div id="campus-sub-tabs" class="contest-tabs sub-tabs" style="display: none;">
-                    <button class="contest-tab active" data-company="all">所有公司</button>
-                    <button class="contest-tab" data-company="meituan">美团</button>
-                    <button class="contest-tab" data-company="bytedance">字节</button>
-                    <button class="contest-tab" data-company="tencent">腾讯</button>
-                    <button class="contest-tab" data-company="alibaba">阿里</button>
-                    <button class="contest-tab" data-company="baidu">百度</button>
-                    <button class="contest-tab" data-company="xiaomi">小米</button>
-                    <button class="contest-tab" data-company="other">其他公司</button>
+                <div class="view-type-tabs">
+                    <button class="view-type-tab active" data-view="contests">竞赛/笔试</button>
+                    <button class="view-type-tab" data-view="practice">练习</button>
                 </div>
 
-                <div class="contest-content">
-        <div class="problems-table-container">
-                        <table class="problems-table">
+                <div id="contests-view" class="view-content active">
+                    <div class="contest-tabs">
+                        <button class="contest-tab active" data-contest="all">全部比赛</button>
+                        <button class="contest-tab" data-contest="weekly">牛客周赛</button>
+                        <button class="contest-tab" data-contest="monthly">牛客小白月赛</button>
+                        <button class="contest-tab" data-contest="practice">牛客练习赛</button>
+                        <button class="contest-tab" data-contest="challenge">牛客挑战赛</button>
+                        <button class="contest-tab" data-contest="campus">校招</button>
+                    </div>
+                    
+                    <div id="campus-sub-tabs" class="contest-tabs sub-tabs" style="display: none;">
+                        <button class="contest-tab active" data-company="all">所有公司</button>
+                        <button class="contest-tab" data-company="meituan">美团</button>
+                        <button class="contest-tab" data-company="bytedance">字节</button>
+                        <button class="contest-tab" data-company="tencent">腾讯</button>
+                        <button class="contest-tab" data-company="alibaba">阿里</button>
+                        <button class="contest-tab" data-company="baidu">百度</button>
+                        <button class="contest-tab" data-company="xiaomi">小米</button>
+                        <button class="contest-tab" data-company="other">其他公司</button>
+                    </div>
+    
+                    <div class="contest-content">
+                        <div class="problems-table-container">
+                            <table class="problems-table">
+                                <thead>
+                                    <tr>
+                                        <th>Contest</th>
+                                        <th>A</th>
+                                        <th>B</th>
+                                        <th>C</th>
+                                        <th>D</th>
+                                        <th>E</th>
+                                        <th>F</th>
+                                        <th>G</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td>牛客周赛100</td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle medium"></span>A. 小红的字符串</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle hard"></span>B. 小红的数组</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle expert"></span>C. 小红的树</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle master"></span>D. 小红的图</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle grandmaster"></span>E. 小红的DP</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle legend"></span>F. 小红的数学</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle legend"></span>G. 小红的算法</div></td>
+                                    </tr>
+                                    <tr>
+                                        <td>牛客周赛99</td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle medium"></span>A. 字符串匹配</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle hard"></span>B. 数组排序</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle expert"></span>C. 二叉树遍历</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle master"></span>D. 图论算法</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle grandmaster"></span>E. 动态规划</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle legend"></span>F. 数论问题</div></td>
+                                        <td><div class="problem-cell"><span class="difficulty-circle legend"></span>G. 高级算法</div></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="practice-view" class="view-content" style="display: none;">
+                    <div class="contest-tabs sub-tabs">
+                        <button class="contest-tab active" data-practice-type="newbie130">新手入门130</button>
+                        <button class="contest-tab" data-practice-type="algo-starter">算法入门</button>
+                        <button class="contest-tab" data-practice-type="algo-advanced">算法进阶</button>
+                        <button class="contest-tab" data-practice-type="algo-peak">算法登峰</button>
+                        <button class="contest-tab" data-practice-type="templates">模板题</button>
+                        <button class="contest-tab" data-practice-type="io-practice">输入输出练习</button>
+                        <button class="contest-tab" data-practice-type="interview-top101">面试top101</button>
+                        <button class="contest-tab" data-practice-type="interview-high-freq">面试高频题目</button>
+                    </div>
+                    <div class="problems-table-container">
+                        <table class="problems-table practice-table">
                             <thead>
                                 <tr>
-                                    <th>Contest</th>
-                                    <th>A</th>
-                                    <th>B</th>
-                                    <th>C</th>
-                                    <th>D</th>
-                                    <th>E</th>
-                                    <th>F</th>
-                                    <th>G</th>
+                                    <th class="knowledge-point-header">知识点</th>
+                                    <th class="problems-header">题目</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <tr>
-                                    <td>牛客周赛100</td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle medium"></span>A. 小红的字符串</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle hard"></span>B. 小红的数组</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle expert"></span>C. 小红的树</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle master"></span>D. 小红的图</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle grandmaster"></span>E. 小红的DP</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle legend"></span>F. 小红的数学</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle legend"></span>G. 小红的算法</div></td>
-                                </tr>
-                                <tr>
-                                    <td>牛客周赛99</td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle medium"></span>A. 字符串匹配</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle hard"></span>B. 数组排序</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle expert"></span>C. 二叉树遍历</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle master"></span>D. 图论算法</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle grandmaster"></span>E. 动态规划</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle legend"></span>F. 数论问题</div></td>
-                                    <td><div class="problem-cell"><span class="difficulty-circle legend"></span>G. 高级算法</div></td>
-                                </tr>
+                                <!-- JS will populate this -->
                             </tbody>
                         </table>
                     </div>
@@ -128,13 +160,6 @@
                             <button id="nextPage" class="pagination-btn" disabled>下一页</button>
                         </div>
                     </div>
-                </div>
-            </section>
-            
-            <!-- Submissions Tab -->
-            <section id="submissions" class="tab-content">
-                <h2>实时提交记录</h2>
-                <div class="submissions-container">
                 </div>
             </section>
             
