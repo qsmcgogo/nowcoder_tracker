@@ -194,6 +194,24 @@ main {
     box-shadow: none;
 }
 
+.sub-tabs {
+    padding-bottom: 5px;
+    margin-bottom: 15px;
+    border-bottom: 1px solid #e0e0e0;
+}
+
+.sub-tabs .contest-tab {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #666;
+    padding: 6px 12px;
+}
+
+.sub-tabs .contest-tab.active {
+    color: #111;
+    border-bottom: 2px solid #32ca99; /* Green highlight for active sub-tab */
+}
+
 
 
 /* Problems Table */

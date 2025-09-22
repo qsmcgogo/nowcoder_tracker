@@ -70,7 +70,125 @@ document.addEventListener('DOMContentLoaded', function() {
         // 初始化搜索功能
         initSearchFunction();
     }
-    
+
+    let currentCompanyFilter = 'all'; // Default company filter
+
+    // 初始化比赛页签功能
+    function initContestTabs() {
+        const contestTabs = document.querySelectorAll('.contest-tab:not(.sub-tabs .contest-tab)');
+        const campusSubTabs = document.getElementById('campus-sub-tabs');
+
+        contestTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                const contestType = this.getAttribute('data-contest');
+                
+                // Toggle visibility of sub-tabs
+                if (contestType === 'campus') {
+                    campusSubTabs.style.display = 'flex';
+                } else {
+                    campusSubTabs.style.display = 'none';
+                }
+                
+                // Handle main tab activation
+                contestTabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                
+                // Update content based on both main tab and sub-tab selection
+                updateContestView();
+            });
+        });
+
+        // Initialize sub-tabs for campus
+        const companyTabs = document.querySelectorAll('#campus-sub-tabs .contest-tab');
+        companyTabs.forEach(tab => {
+            tab.addEventListener('click', function() {
+                currentCompanyFilter = this.getAttribute('data-company');
+                companyTabs.forEach(t => t.classList.remove('active'));
+                this.classList.add('active');
+                updateContestView();
+            });
+        });
+        
+        // Initial data load
+        loadAndDisplayContests();
+    }
+
+    let mainSiteUrlMap = new Map();
+
+    async function loadUrlMapFromMd() {
+        try {
+            const response = await fetch('list.md');
+            if (!response.ok) {
+                console.warn('Could not fetch list.md, using default URLs.');
+                return;
+            }
+            const text = await response.text();
+            const lines = text.split('\n');
+
+            lines.forEach(line => {
+                const parts = line.split(/[\t,]/).map(part => part.trim()); // Split by tab or comma
+                if (parts.length >= 4) {
+                    const problemName = parts[0];
+                    const problemLink = parts[1];
+                    const mainSiteLink = parts[3];
+                    if (problemLink && mainSiteLink && problemLink.startsWith('http')) {
+                        mainSiteUrlMap.set(problemLink, mainSiteLink);
+                    }
+                }
+            });
+            console.log(`Successfully loaded ${mainSiteUrlMap.size} URL mappings from list.md`);
+
+        } catch (error) {
+            console.error('Error loading or parsing list.md:', error);
+        }
+    }
+
+    async function loadAndDisplayContests() {
+        await loadUrlMapFromMd(); // Load the URL map first
+        const success = await loadRealContestData();
+        if (!success) {
+            loadMockContestData();
+        }
+        // Initially, "all" is selected, so this will render the default view
+        updateContestView();
+    }
+
+    function updateContestView() {
+        const activeMainTab = document.querySelector('.contest-tab:not(.sub-tabs .contest-tab).active');
+        const contestType = activeMainTab ? activeMainTab.getAttribute('data-contest') : 'all';
+
+        let contestsToDisplay = contestData[contestType] ? contestData[contestType].contests : [];
+
+        if (contestType === 'campus') {
+            const companyKeywords = {
+                meituan: ['美团'],
+                bytedance: ['字节'],
+                tencent: ['腾讯'],
+                alibaba: ['阿里', '阿里巴巴'],
+                baidu: ['百度'],
+                xiaomi: ['小米']
+            };
+
+            if (currentCompanyFilter !== 'all' && currentCompanyFilter !== 'other') {
+                contestsToDisplay = contestsToDisplay.filter(c => 
+                    companyKeywords[currentCompanyFilter].some(kw => c.name.includes(kw))
+                );
+            } else if (currentCompanyFilter === 'other') {
+                const allCompanyKeywords = Object.values(companyKeywords).flat();
+                contestsToDisplay = contestsToDisplay.filter(c => 
+                    !allCompanyKeywords.some(kw => c.name.includes(kw))
+                );
+            }
+        }
+        
+        if (contestsToDisplay.length > 0) {
+            updateProblemsTable(contestsToDisplay);
+        } else {
+            const tbody = document.querySelector('.problems-table tbody');
+            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #666;">暂无数据</td></tr>';
+        }
+    }
+
     // 全局变量存储比赛数据
     let contestData = {
         all: { contests: [] },
@@ -80,22 +198,6 @@ document.addEventListener('DOMContentLoaded', function() {
         challenge: { contests: [] },
         campus: { contests: [] }
     };
-
-    // 初始化比赛页签功能
-    function initContestTabs() {
-        const contestTabs = document.querySelectorAll('.contest-tab');
-        
-        // 首先尝试加载真实数据
-        loadRealContestData().then(() => {
-            // 如果真实数据加载失败，使用模拟数据
-            if (contestData.all.contests.length === 0) {
-                loadMockContestData();
-            }
-            
-            // 初始化页签事件
-            initContestTabEvents();
-        });
-    }
 
     // 加载真实比赛数据，以 clist.by 的数据为基础构建比赛列表
     async function loadRealContestData() {
@@ -385,14 +487,17 @@ document.addEventListener('DOMContentLoaded', function() {
     function renderProblemTitle(problem, contestUrl) {
         const text = problem.title || '';
         const safeText = text.replace(/"/g, '&quot;'); // Sanitize for attribute
-        let url = problem.url || '';
+        let originalUrl = problem.url || '';
         // 如果爬虫未提供题目链接，则用比赛链接 + /题号 生成
-        if (!url && contestUrl && problem.letter) {
+        if (!originalUrl && contestUrl && problem.letter) {
             const base = contestUrl.endsWith('/') ? contestUrl.slice(0, -1) : contestUrl;
-            url = `${base}/${problem.letter}`;
+            originalUrl = `${base}/${problem.letter}`;
         }
-        if (url) {
-            return `<a class="problem-link" href="${url}" target="_blank" rel="noopener noreferrer" title="${safeText}">${text}</a>`;
+
+        const finalUrl = mainSiteUrlMap.get(originalUrl) || originalUrl;
+
+        if (originalUrl) { // Only create a link if there was a URL to begin with
+            return `<a class="problem-link" href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="${safeText}">${text}</a>`;
         }
         return `<span class="problem-title-text" title="${safeText}">${text}</span>`;
     }
