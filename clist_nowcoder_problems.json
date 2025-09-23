@@ -2,12 +2,12 @@
   "meta": {
     "source": "https://clist.by/problems/?resource=166&sort_order=desc&sort=date",
     "resource": 166,
-    "generated_at": "2025-09-22T06:34:03.167Z",
+    "generated_at": "2025-09-23T05:26:36.985Z",
     "pages": 50
   },
   "items": [
     {
-      "date": "yesterday",
+      "date": "Sept. 21, 2025",
       "rating": 1031,
       "problem_name": "小苯的麦克斯",
       "problem_url": "https://ac.nowcoder.com/acm/contest/117163/C",
@@ -17,7 +17,7 @@
       "contest_standings_url": "https://clist.by/standings/niu-ke-zhou-sai-round-110-ioi-61720411/"
     },
     {
-      "date": "yesterday",
+      "date": "Sept. 21, 2025",
       "rating": 474,
       "problem_name": "小苯的数字染色",
       "problem_url": "https://ac.nowcoder.com/acm/contest/117163/A",
@@ -27,7 +27,7 @@
       "contest_standings_url": "https://clist.by/standings/niu-ke-zhou-sai-round-110-ioi-61720411/"
     },
     {
-      "date": "yesterday",
+      "date": "Sept. 21, 2025",
       "rating": 629,
       "problem_name": "小苯的数组重排",
       "problem_url": "https://ac.nowcoder.com/acm/contest/117163/B",
@@ -37,7 +37,7 @@
       "contest_standings_url": "https://clist.by/standings/niu-ke-zhou-sai-round-110-ioi-61720411/"
     },
     {
-      "date": "yesterday",
+      "date": "Sept. 21, 2025",
       "rating": 1993,
       "problem_name": "小苯的序列合并",
       "problem_url": "https://ac.nowcoder.com/acm/contest/117163/F",
@@ -47,7 +47,7 @@
       "contest_standings_url": "https://clist.by/standings/niu-ke-zhou-sai-round-110-ioi-61720411/"
     },
     {
-      "date": "yesterday",
+      "date": "Sept. 21, 2025",
       "rating": 1563,
       "problem_name": "小苯的数字变换",
       "problem_url": "https://ac.nowcoder.com/acm/contest/117163/E",
@@ -57,7 +57,7 @@
       "contest_standings_url": "https://clist.by/standings/niu-ke-zhou-sai-round-110-ioi-61720411/"
     },
     {
-      "date": "yesterday",
+      "date": "Sept. 21, 2025",
       "rating": 1112,
       "problem_name": "小苯的平衡序列",
       "problem_url": "https://ac.nowcoder.com/acm/contest/117163/D",

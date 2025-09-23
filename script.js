@@ -69,6 +69,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     let practiceData = null; // To store parsed practice data from JSON file
+    let contestsCurrentPage = 1;
+    const contestsPageSize = 30;
 
     async function loadPracticeProblems(practiceType) {
         const tbody = document.querySelector('.practice-table tbody');
@@ -180,6 +182,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 contestTabs.forEach(t => t.classList.remove('active'));
                 this.classList.add('active');
                 
+                contestsCurrentPage = 1;
                 // Update content based on both main tab and sub-tab selection
                 updateContestView();
             });
@@ -224,6 +227,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         // Initial data load for contests
         loadAndDisplayContests();
+        initContestsPaginationControls();
     }
 
     let mainSiteUrlMap = new Map();
@@ -502,12 +506,18 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         }
         
-        if (contestsToDisplay.length > 0) {
-            updateProblemsTable(contestsToDisplay);
+        const totalContests = contestsToDisplay.length;
+        const startIndex = (contestsCurrentPage - 1) * contestsPageSize;
+        const endIndex = startIndex + contestsPageSize;
+        const paginatedContests = contestsToDisplay.slice(startIndex, endIndex);
+
+        if (paginatedContests.length > 0) {
+            updateProblemsTable(paginatedContests);
         } else {
             const tbody = document.querySelector('.problems-table tbody');
             tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #666;">暂无数据</td></tr>';
         }
+        renderContestsPagination(totalContests);
     }
 
     // 全局变量存储比赛数据
@@ -555,23 +565,48 @@ document.addEventListener('DOMContentLoaded', function() {
     function updateProblemsTable(contests) {
         const tbody = document.querySelector('.problems-table tbody');
         
-        tbody.innerHTML = contests.map(contest => {
+        const rows = contests.flatMap(contest => {
             const contestUrl = contest.url || '';
             const problems = Array.isArray(contest.problems) ? contest.problems : [];
-            const problemCells = problems.map(problem => {
-                const difficultyInfo = getDifficultyInfo(problem.difficulty);
-                const circleStyle = getCircleStyle(difficultyInfo);
-                const tooltipContent = generateTooltipContent(problem, difficultyInfo);
-                const titleHtml = renderProblemTitle(problem, contestUrl);
-                return `<td><div class="problem-cell"><span class="difficulty-circle ${difficultyInfo.class}" style="${circleStyle}" data-tooltip="${tooltipContent}"></span>${problem.letter}. ${titleHtml}</div></td>`;
-            }).join('');
-            
             const contestName = formatContestName(contest.name);
             const contestCell = contestUrl
                 ? `<a class="contest-link" href="${contestUrl}" target="_blank" rel="noopener noreferrer">${contestName}</a>`
                 : `${contestName}`;
-            return `<tr><td>${contestCell}</td>${problemCells}</tr>`;
-        }).join('');
+            
+            if (contest.name.includes('牛客小白月赛') && problems.length > 7) {
+                const chunks = [];
+                for (let i = 0; i < problems.length; i += 7) {
+                    chunks.push(problems.slice(i, i + 7));
+                }
+                
+                return chunks.map((chunk, index) => {
+                    const problemCells = chunk.map(problem => {
+                        const difficultyInfo = getDifficultyInfo(problem.difficulty);
+                        const circleStyle = getCircleStyle(difficultyInfo);
+                        const tooltipContent = generateTooltipContent(problem, difficultyInfo);
+                        const titleHtml = renderProblemTitle(problem, contestUrl);
+                        return `<td><div class="problem-cell"><span class="difficulty-circle ${difficultyInfo.class}" style="${circleStyle}" data-tooltip="${tooltipContent}"></span>${problem.letter}. ${titleHtml}</div></td>`;
+                    }).join('');
+                    
+                    return `<tr>
+                                <td>${index === 0 ? contestCell : ''}</td>
+                                ${problemCells}
+                            </tr>`;
+                });
+            } else {
+                const problemCells = problems.map(problem => {
+                    const difficultyInfo = getDifficultyInfo(problem.difficulty);
+                    const circleStyle = getCircleStyle(difficultyInfo);
+                    const tooltipContent = generateTooltipContent(problem, difficultyInfo);
+                    const titleHtml = renderProblemTitle(problem, contestUrl);
+                    return `<td><div class="problem-cell"><span class="difficulty-circle ${difficultyInfo.class}" style="${circleStyle}" data-tooltip="${tooltipContent}"></span>${problem.letter}. ${titleHtml}</div></td>`;
+                }).join('');
+                
+                return `<tr><td>${contestCell}</td>${problemCells}</tr>`;
+            }
+        });
+        
+        tbody.innerHTML = rows.join('');
         
         // 添加提示框事件监听器
         initTooltips();
@@ -710,7 +745,7 @@ document.addEventListener('DOMContentLoaded', function() {
     // 规范化比赛名称：只显示 “牛客周赛 Round xxx”
     function formatContestName(name) {
         if (!name) return '';
-        const raw = String(name).replace(/\s+/g, ' ').trim();
+        const raw = String(name).replace(/ \[ACM\]/g, '').replace(/\s+/g, ' ').trim();
         // 1) 优先提取 “牛客周赛 Round xxx” 片段
         const m = raw.match(/牛客周赛\s*Round\s*\d+/i);
         if (m) {
@@ -1109,9 +1144,84 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     }
     
-    // 初始化加载第一个标签页的数据
-    loadProblems();
-    
+    function initContestsPaginationControls() {
+       const contestPaginationContainer = document.querySelector('#contests-view .pagination-controls');
+
+       if (contestPaginationContainer) {
+           contestPaginationContainer.addEventListener('click', (e) => {
+               const target = e.target;
+               const activeMainTab = document.querySelector('.contest-tab:not(.sub-tabs .contest-tab).active');
+               const contestType = activeMainTab ? activeMainTab.getAttribute('data-contest') : 'all';
+               const totalItems = contestData[contestType] ? contestData[contestType].contests.length : 0;
+               const totalPages = Math.ceil(totalItems / contestsPageSize);
+
+               if (target.id === 'contestsPrevPage' && contestsCurrentPage > 1) {
+                   contestsCurrentPage--;
+                   updateContestView();
+               } else if (target.id === 'contestsNextPage' && contestsCurrentPage < totalPages) {
+                   contestsCurrentPage++;
+                   updateContestView();
+               } else if (target.classList.contains('page-number') && !target.classList.contains('disabled')) {
+                   const page = parseInt(target.getAttribute('data-page'));
+                   if (page && page !== contestsCurrentPage) {
+                       contestsCurrentPage = page;
+                       updateContestView();
+                   }
+               }
+           });
+       }
+   }
+
+     function renderContestsPagination(totalItems) {
+         const totalPages = Math.ceil(totalItems / contestsPageSize);
+         const startItem = (contestsCurrentPage - 1) * contestsPageSize + 1;
+         const endItem = Math.min(contestsCurrentPage * contestsPageSize, totalItems);
+
+         const paginationInfo = document.getElementById('contestsPaginationInfo');
+         if (paginationInfo) {
+             paginationInfo.textContent = totalItems > 0 ? `显示 ${startItem}-${endItem} 条，共 ${totalItems} 条` : '共 0 条';
+         }
+
+         const prevBtn = document.getElementById('contestsPrevPage');
+         const nextBtn = document.getElementById('contestsNextPage');
+         if (prevBtn) prevBtn.disabled = contestsCurrentPage === 1;
+         if (nextBtn) nextBtn.disabled = contestsCurrentPage === totalPages || totalItems === 0;
+
+         const pageNumbersContainer = document.getElementById('contestsPageNumbers');
+         if (pageNumbersContainer) {
+             pageNumbersContainer.innerHTML = '';
+             const maxVisiblePages = 5;
+             let startPage = Math.max(1, contestsCurrentPage - Math.floor(maxVisiblePages / 2));
+             let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+
+             if (endPage - startPage + 1 < maxVisiblePages) {
+                 startPage = Math.max(1, endPage - maxVisiblePages + 1);
+             }
+
+             if (startPage > 1) {
+                 pageNumbersContainer.innerHTML += `<span class="page-number" data-page="1">1</span>`;
+                 if (startPage > 2) {
+                     pageNumbersContainer.innerHTML += `<span class="page-number disabled">...</span>`;
+                 }
+             }
+
+             for (let i = startPage; i <= endPage; i++) {
+                 const activeClass = i === contestsCurrentPage ? 'active' : '';
+                 pageNumbersContainer.innerHTML += `<span class="page-number ${activeClass}" data-page="${i}">${i}</span>`;
+             }
+
+             if (endPage < totalPages) {
+                 if (endPage < totalPages - 1) {
+                     pageNumbersContainer.innerHTML += `<span class="page-number disabled">...</span>`;
+                 }
+                 pageNumbersContainer.innerHTML += `<span class="page-number" data-page="${totalPages}">${totalPages}</span>`;
+             }
+         }
+     }
+
+     // 初始化加载第一个标签页的数据
+     loadProblems();
+     
     // 显示当前时间
     function updateTime() {
         const now = new Date();
