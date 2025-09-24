@@ -713,7 +713,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const searchTerm = searchInput.value.trim().toLowerCase();
         
         if (!searchTerm) {
-            nowcoderTracker.showNotification('请输入要搜索的用户ID', 'warning');
+            // nowcoderTracker.showNotification('请输入要搜索的用户ID', 'warning');
             return;
         }
         
@@ -755,7 +755,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     });
                     
                     // 显示成功消息
-                    nowcoderTracker.showNotification(`找到用户 ${foundUser.username}，排名第 ${foundUser.rank} 位`, 'success');
+                    // nowcoderTracker.showNotification(`找到用户 ${foundUser.username}，排名第 ${foundUser.rank} 位`, 'success');
                     
                     // 3秒后移除高亮
                     setTimeout(() => {
@@ -764,15 +764,27 @@ document.addEventListener('DOMContentLoaded', function() {
                 }
             }, 100);
         } else {
-            nowcoderTracker.showNotification(`未找到用户ID包含 "${searchTerm}" 的用户`, 'error');
+            // nowcoderTracker.showNotification(`未找到用户ID包含 "${searchTerm}" 的用户`, 'error');
         }
     }
     
     // 初始化搜索功能
     function initSearchFunction() {
         const searchBtn = document.querySelector('.search-btn');
+        const userIdInput = document.getElementById('userId');
+        const rivalIdInput = document.getElementById('rivalId');
         
         searchBtn.addEventListener('click', handleUserStatusSearch);
+
+        // Add Enter key listener to both input fields
+        const handleEnterKey = (event) => {
+            if (event.key === 'Enter') {
+                handleUserStatusSearch();
+            }
+        };
+
+        userIdInput.addEventListener('keypress', handleEnterKey);
+        rivalIdInput.addEventListener('keypress', handleEnterKey);
     }
 
     async function handleUserStatusSearch() {
@@ -781,15 +793,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const userId1 = userIdInput.value.trim();
         const userId2 = rivalIdInput.value.trim();
 
+        // If userId1 is empty, do nothing silently.
         if (!userId1) {
-            nowcoderTracker.showNotification('请输入您的用户ID', 'warning');
             return;
         }
 
         // 1. Collect all visible problem IDs
         const problemCells = document.querySelectorAll('.problems-table-container [data-problem-id]');
         if (problemCells.length === 0) {
-            nowcoderTracker.showNotification('当前页面没有题目可供查询', 'info');
+            // nowcoderTracker.showNotification('当前页面没有题目可供查询', 'info');
             return;
         }
 
@@ -804,7 +816,7 @@ document.addEventListener('DOMContentLoaded', function() {
             requestData.append('userId2', userId2); // Corrected from 'rivalId'
         }
 
-        nowcoderTracker.showNotification('正在查询用户题目通过状态...', 'info');
+        // nowcoderTracker.showNotification('正在查询用户题目通过状态...', 'info');
 
         try {
             // 3. Send POST request to the proxy, with parameters in the URL
@@ -834,11 +846,11 @@ document.addEventListener('DOMContentLoaded', function() {
 
             // 4. Apply highlighting based on the result
             applyProblemHighlighting(result.data, !!userId2);
-            nowcoderTracker.showNotification('查询完成！', 'success');
+            // nowcoderTracker.showNotification('查询完成！', 'success');
 
         } catch (error) {
             console.error('查询用户状态时出错:', error);
-            nowcoderTracker.showNotification(`查询失败: ${error.message}`, 'error');
+            // nowcoderTracker.showNotification(`查询失败: ${error.message}`, 'error');
         }
     }
 
@@ -1164,7 +1176,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // 全局函数
 window.viewProblem = function(problemId) {
-    nowcoderTracker.showNotification(`正在打开题目 ${problemId} 的详情页面...`, 'info');
+    // nowcoderTracker.showNotification(`正在打开题目 ${problemId} 的详情页面...`, 'info');
     // 这里可以添加跳转到具体题目页面的逻辑
 };
 
