@@ -71,6 +71,18 @@ document.addEventListener('DOMContentLoaded', function() {
     let practiceData = null; // To store parsed practice data from JSON file
     let contestsCurrentPage = 1;
     const contestsPageSize = 30;
+    let totalContests = 0; // To store total contest count from API
+    const apiBaseUrl = '/problem/tracker/list'; // Use relative path to proxy
+    
+    // Mapping from data-contest attribute to API contestType
+    const contestTypeMap = {
+        'all': 0,
+        'weekly': 19,
+        'monthly': 9,
+        'practice': 6,
+        'challenge': 2
+        // 'campus' is not supported by this API, will be handled separately
+    };
 
     async function loadPracticeProblems(practiceType) {
         const tbody = document.querySelector('.practice-table tbody');
@@ -159,6 +171,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (view === 'contests') {
                     contestsView.style.display = 'block';
                     practiceView.style.display = 'none';
+                    // Re-fetch data if needed, or just show
+                    const activeContestTab = document.querySelector('#contests-view .contest-tabs .contest-tab.active');
+                    if (activeContestTab) {
+                        updateContestView();
+                    }
                 } else {
                     contestsView.style.display = 'none';
                     practiceView.style.display = 'block';
@@ -226,13 +243,17 @@ document.addEventListener('DOMContentLoaded', function() {
         });
         
         // Initial data load for contests
-        loadAndDisplayContests();
+        updateContestView();
         initContestsPaginationControls();
     }
 
     let mainSiteUrlMap = new Map();
 
+    // `loadUrlMapFromMd` can be removed if URLs from the new API are sufficient.
+    // For now, it is kept for potential edge cases.
     async function loadUrlMapFromMd() {
+        // This function might be obsolete if the new API provides all necessary links.
+        // Keeping it for now in case it's still needed for some URL transformations.
         try {
             const response = await fetch('list.md');
             if (!response.ok) {
@@ -260,267 +281,111 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
 
-    async function loadAndDisplayContests() {
-        await loadUrlMapFromMd(); // Load the URL map first
-        const success = await loadRealContestData();
-        if (!success) {
-            loadMockContestData();
-        }
-        // Initially, "all" is selected, so this will render the default view
-        updateContestView();
-    }
+    async function fetchContestsFromServer(contestType, page) {
+        const tbody = document.querySelector('.problems-table tbody');
+        tbody.innerHTML = `<tr><td colspan="8" class="loading">正在加载比赛数据...</td></tr>`;
 
-    // 加载真实比赛数据，以 clist.by 的数据为基础构建比赛列表
-    async function loadRealContestData() {
+        const apiContestType = contestTypeMap[contestType];
+        if (apiContestType === undefined) {
+            if (contestType === 'campus') {
+                tbody.innerHTML = `<tr><td colspan="8" class="loading">校招数据请在公司官网查看。</td></tr>`;
+            } else {
+                tbody.innerHTML = `<tr><td colspan="8" class="loading">暂不支持此比赛类型。</td></tr>`;
+            }
+            totalContests = 0;
+            renderContestsPagination(totalContests);
+            return null;
+        }
+
         try {
-            const response = await fetch('clist_nowcoder_problems.json');
+            const url = `${apiBaseUrl}?contestType=${apiContestType}&page=${page}&limit=${contestsPageSize}`;
+            const response = await fetch(url);
             if (!response.ok) {
-                console.log('无法加载 clist_nowcoder_problems.json，将使用模拟数据。');
-                return false;
+                throw new Error(`Network response was not ok: ${response.statusText}`);
             }
-
-            const clistData = await response.json();
-            const clistProblems = clistData.items || [];
-
-            if (clistProblems.length === 0) {
-                console.log('clist_nowcoder_problems.json 中没有找到题目数据。');
-                return false;
+            const data = await response.json();
+            if (data.code !== 0) {
+                throw new Error(`API error: ${data.msg}`);
             }
-
-            // 使用 clist 数据动态构建比赛结构
-            const contestsMap = new Map();
-
-            clistProblems.forEach(p => {
-                if (!p.contest_name || !p.letter) return;
-
-                // 标准化比赛名称，用于 Map 的 key
-                const contestKey = (p.contest_name || '').replace(/\s+/g, ' ').trim();
-
-                if (!contestsMap.has(contestKey)) {
-                    contestsMap.set(contestKey, {
-                        name: contestKey,
-                        url: p.contest_url || '',
-                        problems: []
-                    });
-                }
-
-                const contest = contestsMap.get(contestKey);
-                contest.problems.push({
-                    letter: p.letter,
-                    title: p.problem_name,
-                    difficulty: p.rating || 1200, // 使用 clist 的 rating 作为 difficulty
-                    url: p.problem_url
-                });
-            });
-            
-            // The data from clist.by is already sorted by date descending.
-            // We can rely on Map preserving insertion order to keep this sort.
-            const allContests = Array.from(contestsMap.values());
-            
-            allContests.forEach(contest => {
-                // Sort problems by letter within each contest
-                contest.problems.sort((a, b) => a.letter.localeCompare(b.letter));
-            });
-
-            const keywords = ['牛客周赛', '牛客小白月赛', '牛客练习赛', '牛客挑战赛'];
-            const filteredContests = allContests.filter(contest => 
-                keywords.some(keyword => contest.name.includes(keyword))
-            );
-
-            // 将构建好的数据分类
-            contestData.all.contests = filteredContests;
-            contestData.weekly.contests = filteredContests.filter(c => c.name.includes('牛客周赛'));
-            contestData.monthly.contests = filteredContests.filter(c => c.name.includes('牛客小白月赛'));
-            contestData.practice.contests = filteredContests.filter(c => c.name.includes('牛客练习赛'));
-            contestData.challenge.contests = filteredContests.filter(c => c.name.includes('牛客挑战赛'));
-            contestData.campus.contests = filteredContests.filter(c => c.name.includes('校招'));
-
-            console.log('成功基于 clist 数据构建了比赛列表');
-                return true;
-
+            return data.data;
         } catch (error) {
-            console.error('基于 clist 数据构建比赛列表时出错:', error);
-        return false;
+            console.error('Failed to fetch contest data:', error);
+            tbody.innerHTML = `<tr><td colspan="8" class="loading">比赛数据加载失败。</td></tr>`;
+            totalContests = 0;
+            renderContestsPagination(totalContests);
+            return null;
         }
     }
 
-    // 加载模拟比赛数据
-    function loadMockContestData() {
-        contestData = {
-            all: {
-                contests: [
-                    {
-                        name: '牛客周赛100',
-                        problems: [
-                            { letter: 'A', title: '小红的字符串', difficulty: 158 },
-                            { letter: 'B', title: '小红的数组', difficulty: 1425 },
-                            { letter: 'C', title: '小红的树', difficulty: 1600 },
-                            { letter: 'D', title: '小红的图', difficulty: 2200 },
-                            { letter: 'E', title: '小红的DP', difficulty: 2600 },
-                            { letter: 'F', title: '小红的数学', difficulty: 3000 },
-                            { letter: 'G', title: '小红的算法', difficulty: 3200 }
-                        ]
-                    },
-                    {
-                        name: '牛客周赛99',
-                        problems: [
-                            { letter: 'A', title: '字符串匹配', difficulty: 750 },
-                            { letter: 'B', title: '数组排序', difficulty: 1150 },
-                            { letter: 'C', title: '二叉树遍历', difficulty: 1550 },
-                            { letter: 'D', title: '图论算法', difficulty: 2100 },
-                            { letter: 'E', title: '动态规划', difficulty: 2500 },
-                            { letter: 'F', title: '数论问题', difficulty: 2900 },
-                            { letter: 'G', title: '高级算法', difficulty: 3100 }
-                        ]
-                    },
-                    {
-                        name: '牛客小白月赛50',
-                        problems: [
-                            { letter: 'A', title: '简单计算', difficulty: 600 },
-                            { letter: 'B', title: '基础排序', difficulty: 900 },
-                            { letter: 'C', title: '简单搜索', difficulty: 1300 },
-                            { letter: 'D', title: '基础DP', difficulty: 1700 },
-                            { letter: 'E', title: '数学问题', difficulty: 2100 },
-                            { letter: 'F', title: '算法优化', difficulty: 2500 }
-                        ]
-                    },
-                    {
-                        name: '练习赛001',
-                        problems: [
-                            { letter: 'A', title: '入门题目', difficulty: 500 },
-                            { letter: 'B', title: '基础算法', difficulty: 800 },
-                            { letter: 'C', title: '数据结构', difficulty: 1200 },
-                            { letter: 'D', title: '算法设计', difficulty: 1600 }
-                        ]
-                    },
-                    {
-                        name: '挑战赛001',
-                        problems: [
-                            { letter: 'A', title: '挑战题目A', difficulty: 1800 },
-                            { letter: 'B', title: '挑战题目B', difficulty: 2200 },
-                            { letter: 'C', title: '挑战题目C', difficulty: 2600 },
-                            { letter: 'D', title: '挑战题目D', difficulty: 3000 },
-                            { letter: 'E', title: '挑战题目E', difficulty: 3400 }
-                        ]
-                    }
-                ]
-            },
-            weekly: {
-                contests: [
-                    {
-                        name: '牛客周赛100',
-                        problems: [
-                            { letter: 'A', title: '小红的字符串', difficulty: 158 },
-                            { letter: 'B', title: '小红的数组', difficulty: 1425 },
-                            { letter: 'C', title: '小红的树', difficulty: 1600 },
-                            { letter: 'D', title: '小红的图', difficulty: 2200 },
-                            { letter: 'E', title: '小红的DP', difficulty: 2600 },
-                            { letter: 'F', title: '小红的数学', difficulty: 3000 },
-                            { letter: 'G', title: '小红的算法', difficulty: 3200 }
-                        ]
-                    },
-                    {
-                        name: '牛客周赛99',
-                        problems: [
-                            { letter: 'A', title: '字符串匹配', difficulty: 750 },
-                            { letter: 'B', title: '数组排序', difficulty: 1150 },
-                            { letter: 'C', title: '二叉树遍历', difficulty: 1550 },
-                            { letter: 'D', title: '图论算法', difficulty: 2100 },
-                            { letter: 'E', title: '动态规划', difficulty: 2500 },
-                            { letter: 'F', title: '数论问题', difficulty: 2900 },
-                            { letter: 'G', title: '高级算法', difficulty: 3100 }
-                        ]
-                    }
-                ]
-            },
-            monthly: {
-                contests: [
-                    {
-                        name: '牛客小白月赛50',
-                        problems: [
-                            { letter: 'A', title: '简单计算', difficulty: 600 },
-                            { letter: 'B', title: '基础排序', difficulty: 900 },
-                            { letter: 'C', title: '简单搜索', difficulty: 1300 },
-                            { letter: 'D', title: '基础DP', difficulty: 1700 },
-                            { letter: 'E', title: '数学问题', difficulty: 2100 },
-                            { letter: 'F', title: '算法优化', difficulty: 2500 }
-                        ]
-                    }
-                ]
-            },
-            practice: {
-                contests: [
-                    {
-                        name: '练习赛001',
-                        problems: [
-                            { letter: 'A', title: '入门题目', difficulty: 500 },
-                            { letter: 'B', title: '基础算法', difficulty: 800 },
-                            { letter: 'C', title: '数据结构', difficulty: 1200 },
-                            { letter: 'D', title: '算法设计', difficulty: 1600 }
-                        ]
-                    }
-                ]
-            },
-            challenge: {
-                contests: [
-                    {
-                        name: '挑战赛001',
-                        problems: [
-                            { letter: 'A', title: '挑战题目A', difficulty: 1800 },
-                            { letter: 'B', title: '挑战题目B', difficulty: 2200 },
-                            { letter: 'C', title: '挑战题目C', difficulty: 2600 },
-                            { letter: 'D', title: '挑战题目D', difficulty: 3000 },
-                            { letter: 'E', title: '挑战题目E', difficulty: 3400 }
-                        ]
-                    }
-                ]
-            }
+    function transformApiData(apiData) {
+        if (!apiData || !apiData.papers) {
+            return [];
+        }
+
+        // Mapping from API difficulty enum to an estimated score
+        const difficultyScoreMap = {
+            1: 800,
+            2: 1200,
+            3: 1600,
+            4: 2000,
+            5: 2400
         };
+
+        return apiData.papers.map(contest => {
+            return {
+                name: contest.contestName,
+                url: contest.contestUrl,
+                beginTime: contest.beginTime,
+                problems: contest.questions.map((p, index) => {
+                    return {
+                        letter: String.fromCharCode(65 + index), // Generate letter 'A', 'B', 'C'...
+                        title: p.title,
+                        difficulty: difficultyScoreMap[p.difficulty] || 1200, // Map enum to score
+                        url: p.questionUrl,
+                        acCount: p.acCount,
+                        submissionCount: p.submissionCount,
+                        problemId: p.problemId
+                    };
+                }).sort((a, b) => a.letter.localeCompare(b.letter)) // Ensure problems are sorted by letter
+            };
+        });
     }
 
-    function updateContestView() {
+    async function updateContestView() {
         const activeMainTab = document.querySelector('.contest-tab:not(.sub-tabs .contest-tab).active');
         const contestType = activeMainTab ? activeMainTab.getAttribute('data-contest') : 'all';
 
-        let contestsToDisplay = contestData[contestType] ? contestData[contestType].contests : [];
-
-        if (contestType === 'campus') {
-            const companyKeywords = {
-                meituan: ['美团'],
-                bytedance: ['字节'],
-                tencent: ['腾讯'],
-                alibaba: ['阿里', '阿里巴巴'],
-                baidu: ['百度'],
-                xiaomi: ['小米']
-            };
-
-            if (currentCompanyFilter !== 'all' && currentCompanyFilter !== 'other') {
-                contestsToDisplay = contestsToDisplay.filter(c => 
-                    companyKeywords[currentCompanyFilter].some(kw => c.name.includes(kw))
-                );
-            } else if (currentCompanyFilter === 'other') {
-                const allCompanyKeywords = Object.values(companyKeywords).flat();
-                contestsToDisplay = contestsToDisplay.filter(c => 
-                    !allCompanyKeywords.some(kw => c.name.includes(kw))
-                );
-            }
-        }
+        const apiData = await fetchContestsFromServer(contestType, contestsCurrentPage);
         
-        const totalContests = contestsToDisplay.length;
-        const startIndex = (contestsCurrentPage - 1) * contestsPageSize;
-        const endIndex = startIndex + contestsPageSize;
-        const paginatedContests = contestsToDisplay.slice(startIndex, endIndex);
-
-        if (paginatedContests.length > 0) {
-            updateProblemsTable(paginatedContests);
+        if (apiData) {
+            const contestsToDisplay = transformApiData(apiData);
+            totalContests = apiData.totalCount;
+            
+            if (contestsToDisplay.length > 0) {
+                updateProblemsTable(contestsToDisplay);
+            } else {
+                const tbody = document.querySelector('.problems-table tbody');
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #666;">暂无数据</td></tr>';
+            }
         } else {
-            const tbody = document.querySelector('.problems-table tbody');
-            tbody.innerHTML = '<tr><td colspan="8" style="text-align: center; padding: 40px; color: #666;">暂无数据</td></tr>';
+            // Error case is handled inside fetchContestsFromServer
+            totalContests = 0;
         }
-        renderContestsPagination(totalContests);
-    }
 
-    // 全局变量存储比赛数据
+        renderContestsPagination(totalContests);
+
+        // If a user ID is already in the search box, automatically re-run the search for the new page.
+        const userIdInput = document.getElementById('userId');
+        if (userIdInput.value.trim()) {
+            // Use a small timeout to ensure the DOM has been fully updated by the browser
+            // before we try to query it for problem IDs.
+            setTimeout(handleUserStatusSearch, 100); 
+        }
+    }
+    
+    // 全局变量存储比赛数据 - This is now just a cache for the current view
+    // The structure is kept for compatibility with any remaining functions that might use it,
+    // but it's no longer pre-populated with all contest data.
     let contestData = {
         all: { contests: [] },
         weekly: { contests: [] },
@@ -585,7 +450,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         const circleStyle = getCircleStyle(difficultyInfo);
                         const tooltipContent = generateTooltipContent(problem, difficultyInfo);
                         const titleHtml = renderProblemTitle(problem, contestUrl);
-                        return `<td><div class="problem-cell"><span class="difficulty-circle ${difficultyInfo.class}" style="${circleStyle}" data-tooltip="${tooltipContent}"></span>${problem.letter}. ${titleHtml}</div></td>`;
+                        return `<td data-problem-id="${problem.problemId}"><div class="problem-cell"><span class="difficulty-circle ${difficultyInfo.class}" style="${circleStyle}" data-tooltip="${tooltipContent}"></span>${problem.letter}. ${titleHtml}</div></td>`;
                     }).join('');
                     
                     return `<tr>
@@ -599,7 +464,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     const circleStyle = getCircleStyle(difficultyInfo);
                     const tooltipContent = generateTooltipContent(problem, difficultyInfo);
                     const titleHtml = renderProblemTitle(problem, contestUrl);
-                    return `<td><div class="problem-cell"><span class="difficulty-circle ${difficultyInfo.class}" style="${circleStyle}" data-tooltip="${tooltipContent}"></span>${problem.letter}. ${titleHtml}</div></td>`;
+                    return `<td data-problem-id="${problem.problemId}"><div class="problem-cell"><span class="difficulty-circle ${difficultyInfo.class}" style="${circleStyle}" data-tooltip="${tooltipContent}"></span>${problem.letter}. ${titleHtml}</div></td>`;
                 }).join('');
                 
                 return `<tr><td>${contestCell}</td>${problemCells}</tr>`;
@@ -719,27 +584,9 @@ document.addEventListener('DOMContentLoaded', function() {
     // 生成提示框内容
     function generateTooltipContent(problem, difficultyInfo) {
         // 模拟数据 - 在实际应用中这些数据应该从API获取
-        const mockData = {
-            '小红的字符串': { submissions: 1250, ac: 890 },
-            '小红的数组': { submissions: 980, ac: 456 },
-            '小红的树': { submissions: 756, ac: 234 },
-            '小红的图': { submissions: 432, ac: 89 },
-            '小红的DP': { submissions: 298, ac: 45 },
-            '小红的数学': { submissions: 156, ac: 23 },
-            '小红的算法': { submissions: 89, ac: 12 },
-            '字符串匹配': { submissions: 1100, ac: 750 },
-            '数组排序': { submissions: 850, ac: 520 },
-            '二叉树遍历': { submissions: 680, ac: 380 },
-            '图论算法': { submissions: 420, ac: 120 },
-            '动态规划': { submissions: 320, ac: 85 },
-            '数论问题': { submissions: 180, ac: 35 },
-            '高级算法': { submissions: 95, ac: 18 }
-        };
+        const acRate = problem.submissionCount > 0 ? ((problem.acCount / problem.submissionCount) * 100).toFixed(1) : 0;
         
-        const data = mockData[problem.title] || { submissions: Math.floor(Math.random() * 1000) + 100, ac: Math.floor(Math.random() * 500) + 50 };
-        const acRate = ((data.ac / data.submissions) * 100).toFixed(1);
-        
-        return `Difficulty: ${problem.difficulty}\nSubmissions: ${data.submissions}\nAC: ${data.ac} (${acRate}%)`;
+        return `Difficulty: ${problem.difficulty}\nSubmissions: ${problem.submissionCount.toLocaleString()}\nAC: ${problem.acCount.toLocaleString()} (${acRate}%)`;
     }
 
     // 规范化比赛名称：只显示 “牛客周赛 Round xxx”
@@ -924,25 +771,96 @@ document.addEventListener('DOMContentLoaded', function() {
     // 初始化搜索功能
     function initSearchFunction() {
         const searchBtn = document.querySelector('.search-btn');
+        
+        searchBtn.addEventListener('click', handleUserStatusSearch);
+    }
+
+    async function handleUserStatusSearch() {
         const userIdInput = document.getElementById('userId');
         const rivalIdInput = document.getElementById('rivalId');
-        
-        searchBtn.addEventListener('click', function() {
-            const userId = userIdInput.value.trim();
-            const rivalId = rivalIdInput.value.trim();
-            
-            if (!userId && !rivalId) {
-                nowcoderTracker.showNotification('请输入至少一个用户ID', 'warning');
-                return;
+        const userId1 = userIdInput.value.trim();
+        const userId2 = rivalIdInput.value.trim();
+
+        if (!userId1) {
+            nowcoderTracker.showNotification('请输入您的用户ID', 'warning');
+            return;
+        }
+
+        // 1. Collect all visible problem IDs
+        const problemCells = document.querySelectorAll('.problems-table-container [data-problem-id]');
+        if (problemCells.length === 0) {
+            nowcoderTracker.showNotification('当前页面没有题目可供查询', 'info');
+            return;
+        }
+
+        const qids = Array.from(problemCells).map(cell => cell.getAttribute('data-problem-id')).join(',');
+
+        // 2. Prepare request data with correct parameter names
+        const requestData = new URLSearchParams();
+        requestData.append('userId1', userId1); // Corrected from 'userId'
+        requestData.append('qids', qids);
+
+        if (userId2) {
+            requestData.append('userId2', userId2); // Corrected from 'rivalId'
+        }
+
+        nowcoderTracker.showNotification('正在查询用户题目通过状态...', 'info');
+
+        try {
+            // 3. Send POST request to the proxy, with parameters in the URL
+            let queryString = requestData.toString();
+            // The Nowcoder API expects literal commas, but URLSearchParams encodes them.
+            // We need to decode them back.
+            queryString = queryString.replace(/%2C/g, ',');
+
+            const urlWithParams = `/problem/tracker/diff?${queryString}`;
+
+            const response = await fetch(urlWithParams, {
+                method: 'POST',
+                headers: {
+                    // No Content-Type needed for an empty body POST that acts like GET
+                },
+                body: null // Body is empty
+            });
+
+            if (!response.ok) {
+                throw new Error(`网络错误: ${response.statusText}`);
             }
-            
-            // 模拟搜索
-            nowcoderTracker.showNotification(`正在搜索用户: ${userId || 'N/A'} vs ${rivalId || 'N/A'}`, 'info');
-            
-            // 这里可以添加实际的搜索逻辑
-            setTimeout(() => {
-                nowcoderTracker.showNotification('搜索完成！', 'success');
-            }, 2000);
+
+            const result = await response.json();
+            if (result.code !== 0) {
+                throw new Error(`API 错误: ${result.msg}`);
+            }
+
+            // 4. Apply highlighting based on the result
+            applyProblemHighlighting(result.data, !!userId2);
+            nowcoderTracker.showNotification('查询完成！', 'success');
+
+        } catch (error) {
+            console.error('查询用户状态时出错:', error);
+            nowcoderTracker.showNotification(`查询失败: ${error.message}`, 'error');
+        }
+    }
+
+    function applyProblemHighlighting(data, hasRival) {
+        const { ac1Qids = [], ac2Qids = [] } = data;
+        const ac1Set = new Set(ac1Qids.map(id => String(id))); // Ensure IDs are strings for comparison
+        const ac2Set = new Set(ac2Qids.map(id => String(id))); // Ensure IDs are strings for comparison
+
+        const problemCells = document.querySelectorAll('.problems-table-container [data-problem-id]');
+        
+        problemCells.forEach(cell => {
+            const problemId = cell.getAttribute('data-problem-id');
+            // Reset classes first
+            cell.classList.remove('status-ac', 'status-rival-ac', 'status-none');
+
+            if (ac1Set.has(problemId)) {
+                cell.classList.add('status-ac');
+            } else if (hasRival && ac2Set.has(problemId)) {
+                cell.classList.add('status-rival-ac');
+            } else {
+                cell.classList.add('status-none');
+            }
         });
     }
     
@@ -1152,7 +1070,7 @@ document.addEventListener('DOMContentLoaded', function() {
                const target = e.target;
                const activeMainTab = document.querySelector('.contest-tab:not(.sub-tabs .contest-tab).active');
                const contestType = activeMainTab ? activeMainTab.getAttribute('data-contest') : 'all';
-               const totalItems = contestData[contestType] ? contestData[contestType].contests.length : 0;
+               const totalItems = totalContests; // Use the total count from the API
                const totalPages = Math.ceil(totalItems / contestsPageSize);
 
                if (target.id === 'contestsPrevPage' && contestsCurrentPage > 1) {

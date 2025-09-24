@@ -1,3 +1,17 @@
+/* Nowcoder Green Theme */
+
+:root {
+    --primary-color: #32ca99;
+    --primary-color-light: #eafaf4; /* 8% opacity equivalent */
+    --background-color: #f7f8f9;
+    --text-color-primary: #222;
+    --text-color-secondary: #666;
+    --border-color: #e8e8e8;
+    --card-background: #ffffff;
+    --success-bg: #bfe6de; /* User requested color */
+    --rival-bg: rgba(255, 152, 0, 0.08); /* Orange with 8% opacity */
+}
+
 * {
     margin: 0;
     padding: 0;
@@ -5,39 +19,37 @@
 }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background-color: var(--background-color);
+    color: var(--text-color-primary);
+    margin: 0;
     line-height: 1.6;
-    color: #333;
-    background: #f7f8f9;
-    min-height: 100vh;
 }
 
 .container {
-    max-width: none;
-    width: 100%;
-    margin: 0 auto;
-    padding: 20px;
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
+    width: 90%;
+    max-width: 1600px;
+    margin: 20px auto;
+    padding: 0;
+    background-color: transparent;
 }
 
 header {
-    text-align: left;
-    padding: 20px 0;
-    color: #111;
-    background: #32ca99;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
+    text-align: center;
+    padding: 40px 20px 20px 20px;
+    background: linear-gradient(to bottom, var(--primary-color) 0%, var(--background-color) 100%);
+    border-radius: 0;
+    margin: -20px auto 20px auto;
+    width: 100%;
 }
 
-header h1 {
+h1 {
+    color: var(--text-color-primary);
     font-size: 2.5rem;
-    margin: 0;
-    color: #111;
-    text-shadow: none;
+    font-weight: 700;
+    margin: 0 0 20px 0;
+    cursor: pointer;
+    transition: transform 0.2s;
 }
 
 .nav-tabs {
@@ -974,4 +986,17 @@ footer {
     flex: 1 0 18%; /* Allows up to 5 items per row */
     min-width: 150px;
     padding: 5px;
+}
+
+/* Problem Cell Highlighting - Increased specificity to override other styles */
+body .problems-table tbody tr td.status-ac {
+    background-color: var(--success-bg) !important;
+}
+
+body .problems-table tbody tr td.status-rival-ac {
+    background-color: var(--rival-bg) !important;
+}
+
+body .problems-table tbody tr td.status-none {
+    background-color: transparent;
 }
