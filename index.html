@@ -51,14 +51,16 @@
                     </div>
                     
                     <div id="campus-sub-tabs" class="contest-tabs sub-tabs" style="display: none;">
-                        <button class="contest-tab active" data-company="all">所有公司</button>
-                        <button class="contest-tab" data-company="meituan">美团</button>
-                        <button class="contest-tab" data-company="bytedance">字节</button>
-                        <button class="contest-tab" data-company="tencent">腾讯</button>
-                        <button class="contest-tab" data-company="alibaba">阿里</button>
-                        <button class="contest-tab" data-company="baidu">百度</button>
-                        <button class="contest-tab" data-company="xiaomi">小米</button>
-                        <button class="contest-tab" data-company="other">其他公司</button>
+                        <button class="contest-tab" data-contest-type="100">所有公司</button>
+                        <button class="contest-tab" data-contest-type="179">美团</button>
+                        <button class="contest-tab" data-contest-type="239">华为</button>
+                        <button class="contest-tab" data-contest-type="665">字节</button>
+                        <button class="contest-tab" data-contest-type="134">阿里</button>
+                        <button class="contest-tab" data-contest-type="139">百度</button>
+                        <button class="contest-tab" data-contest-type="151">京东</button>
+                        <button class="contest-tab" data-contest-type="153">携程</button>
+                        <button class="contest-tab" data-contest-type="931">蚂蚁</button>
+                        <button class="contest-tab" data-contest-type="715">小红书</button>
                     </div>
     
                     <div class="contest-content">
@@ -110,13 +112,23 @@
                             <thead>
                                 <tr>
                                     <th class="knowledge-point-header">知识点</th>
-                                    <th class="problems-header">题目</th>
+                                    <th class="problems-header" colspan="5">题目</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                <!-- JS will populate this -->
+                                <!-- Practice problems will be dynamically inserted here -->
                             </tbody>
                         </table>
+                    </div>
+                    <div class="pagination-container" id="practice-pagination-container">
+                        <div class="pagination-info">
+                            <span id="practicePaginationInfo"></span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button id="practicePrevPage" class="pagination-btn" disabled>上一页</button>
+                            <div class="page-numbers" id="practicePageNumbers"></div>
+                            <button id="practiceNextPage" class="pagination-btn" disabled>下一页</button>
+                        </div>
                     </div>
                 </div>
             </section>

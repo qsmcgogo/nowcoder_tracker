@@ -264,7 +264,16 @@ main {
     width: 100%;
     border-collapse: collapse;
     background: white;
-    table-layout: fixed; /* 确保各列等宽 */
+}
+
+/* Contest view specific table layout */
+#contests-view .problems-table {
+    table-layout: fixed;
+}
+
+#contests-view .problems-table th,
+#contests-view .problems-table td {
+    width: 12.5%; /* 8 columns: Contest + A-G */
 }
 
 .problems-table th {
@@ -274,11 +283,6 @@ main {
     text-align: center;
     font-weight: 600;
     border-bottom: 1px solid #e9ecef;
-}
-
-.problems-table th,
-.problems-table td {
-    width: 12.5%; /* 8列：Contest + A-G，每列等宽 */
 }
 
 .problems-table th:first-child {
@@ -986,10 +990,93 @@ footer {
     flex: 1 0 18%; /* Allows up to 5 items per row */
     min-width: 150px;
     padding: 5px;
+    border-bottom-right-radius: 6px;
+}
+
+/* Practice Problem Highlighting */
+.practice-problem-item.status-ac {
+    background-color: var(--success-bg);
+    border-radius: 4px;
+    padding: 2px 6px;
+    display: inline-block; /* Ensure background covers the item */
+}
+.practice-problem-item.status-rival-ac {
+    background-color: var(--rival-bg);
+    border-radius: 4px;
+    padding: 2px 6px;
+    display: inline-block; /* Ensure background covers the item */
+}
+
+/* New styles for problem cell content and truncation */
+.problem-cell-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 2px 0;
+}
+
+.problem-cell-content .problem-link {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 200px; /* Adjust as needed */
+    display: inline-block;
+    vertical-align: middle;
+}
+
+.practice-problem-item .problem-cell-content .problem-link {
+    max-width: 250px; /* Allow more space in practice view */
+}
+
+.difficulty-circle {
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 2px solid;
+    flex-shrink: 0;
+}
+
+.custom-tooltip {
+    position: absolute;
+    background-color: #333;
+    color: white;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 0.9em;
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.2s;
+    pointer-events: none; /* Avoid tooltip blocking mouse events */
+    white-space: pre-wrap; /* Respect newlines from JS */
+}
+
+/* Contest Link Styling */
+.problems-table td a {
+    color: inherit; /* Inherit color from the table cell */
+    text-decoration: none;
+}
+
+.problems-table td a:hover {
+    text-decoration: underline;
+}
+
+/* Practice view table: Use fixed layout and precise widths */
+#practice-view .problems-table {
+    table-layout: fixed;
+}
+
+#practice-view .problems-table td:first-child {
+    width: 18%; /* Fixed width for the knowledge-point column */
+    min-width: 140px;
+}
+
+#practice-view .problems-table td:not(:first-child):not(:empty) {
+    width: 16.4%; /* (100% - 18%) / 5 */
 }
 
 /* Problem Cell Highlighting - Increased specificity to override other styles */
-body .problems-table tbody tr td.status-ac {
+body .problems-table tbody tr td.status-ac,
+body .problems-table tbody tr td.status-all-ac {
     background-color: var(--success-bg) !important;
 }
 
