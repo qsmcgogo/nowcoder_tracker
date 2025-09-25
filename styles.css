@@ -137,7 +137,8 @@ main {
     font-size: 0.9rem;
 }
 
-.input-group input {
+.input-group input,
+.problem-style-input {
     padding: 10px 15px;
     border: 2px solid #e9ecef;
     border-radius: 8px;
