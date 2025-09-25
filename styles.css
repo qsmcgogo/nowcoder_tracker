@@ -1085,3 +1085,74 @@ body .problems-table tbody tr td.status-rival-ac {
 body .problems-table tbody tr td.status-none {
     background-color: transparent;
 }
+
+/* Rankings Tab Styles */
+.rankings-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+}
+
+.rankings-table th, .rankings-table td {
+    border: 1px solid #ddd;
+    padding: 10px;
+    text-align: center;
+    vertical-align: middle;
+}
+
+.rankings-table th {
+    background-color: #f2f2f2;
+}
+
+.rank-header {
+    width: 15%;
+}
+
+.user-header {
+    width: 55%;
+}
+
+.ac-header {
+    width: 30%;
+}
+
+.user-cell {
+    display: flex;
+    align-items: center;
+    justify-content: start;
+    text-align: left;
+    padding-left: 20px; /* Add some padding */
+}
+
+.user-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    margin-right: 15px;
+}
+
+.user-nickname {
+    font-weight: bold;
+}
+
+.user-nickname-link {
+    text-decoration: none;
+    color: inherit;
+}
+
+.user-nickname-link:hover .user-nickname {
+    text-decoration: underline;
+}
+
+.user-rank-container {
+    margin: 20px 0;
+    padding: 15px;
+    background-color: #eef7ff;
+    border: 1px solid #cce5ff;
+    border-radius: 5px;
+    text-align: center;
+}
+
+.highlight-row {
+    background-color: #fff3cd !important;
+}

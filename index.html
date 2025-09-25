@@ -135,9 +135,34 @@
             
             <!-- Rankings Tab -->
             <section id="rankings" class="tab-content">
-                <div class="coming-soon">
-                    <h2>敬请期待</h2>
-                    <p>排行榜功能正在开发中，很快就会和大家见面！</p>
+                <div class="search-container">
+                    <input type="text" id="rank-user-id-input" class="user-id-input" placeholder="输入你的牛客 User ID 查询排名">
+                    <button id="rank-search-btn" class="search-btn">查询</button>
+                </div>
+                <div id="user-rank-display" class="user-rank-container" style="display: none;">
+                    <!-- Searched user's rank will be displayed here -->
+                </div>
+                <div class="table-container">
+                    <table id="rankings-table" class="rankings-table">
+                        <thead>
+                            <tr>
+                                <th class="rank-header">排名</th>
+                                <th class="user-header">用户</th>
+                                <th class="ac-header">过题数</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rankings-tbody">
+                            <!-- Ranking data will be populated here by script.js -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="rankings-pagination" class="pagination">
+                    <div id="rankingsPaginationInfo" class="pagination-info"></div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn">&lt; 上一页</button>
+                        <div class="page-numbers"></div>
+                        <button class="pagination-btn">下一页 &gt;</button>
+                    </div>
                 </div>
             </section>
             
@@ -158,16 +183,20 @@
                         </p>
                     </div>
                     <div class="faq-item">
+                        <h3>数据来源是哪里？我的账号安全吗？</h3>
+                        <p>本工具的数据完全来自于 <a href="https://www.nowcoder.com" target="_blank">牛客网</a> 官方接口，并由前端直接向牛客网请求，不经过任何第三方服务器。您的牛客 User ID 仅用于查询您在牛客网上的公开做题记录，工具本身不会存储、分析或泄露您的任何个人信息，请放心使用。</p>
+                    </div>
+                    <div class="faq-item">
+                        <h3>排行榜的数据来源是什么？准确吗？</h3>
+                        <p>排行榜的数据同样来自于牛客网官方接口，展示了全站练习题目通过总数最多的前 1000 名用户。您可以通过搜索自己的 User ID 来查询您在榜单中的具体位置。如果您的排名在 1000 名以后，系统也会将您的排名信息追加在列表末尾。</p>
+                    </div>
+                    <div class="faq-item">
                         <h3>如何获取我的 User ID？</h3>
-                        <p>登录牛客网后，点击页面右上角的头像进入个人主页，此时浏览器地址栏中的网址会类似于 `https://www.nowcoder.com/user/12345678`。这串数字 `12345678` 就是您的 User ID。</p>
+                        <p>登录牛客网后，点击页面右上角的头像，进入“我的主页”。此时，浏览器地址栏中的 URL 末尾的一串数字，就是您的 User ID。例如，<code>https://www.nowcoder.com/users/12345678</code>，那么 <code>12345678</code> 就是您的 User ID。</p>
                     </div>
                     <div class="faq-item">
                         <h3>如何查询刷题记录？不同颜色代表什么？</h3>
                         <p>在 “Problems” 标签页，于 “User ID” 输入框中填入您的牛客网用户ID，然后点击 “Search”。题目列表的状态便会高亮更新。绿色背景代表您已解决的题目，红色背景代表您尚未解决但对比用户已解决的题目。此外，当您解决了某场比赛中的所有题目后，该比赛的名称也会以绿色背景高亮显示，方便您快速识别已完全征服的比赛。</p>
-                    </div>
-                    <div class="faq-item">
-                        <h3>数据来源是哪里？我的账号安全吗？</h3>
-                        <p>本工具所有数据均通过牛客网的公开 API 实时获取。这是一个纯前端的浏览器应用，您的 ID 信息仅用于在浏览器本地向牛客网发起只读请求，服务器不会存储任何用户信息，您的账号是绝对安全的。</p>
                     </div>
                 </div>
             </section>
