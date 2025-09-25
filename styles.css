@@ -94,25 +94,23 @@ main {
 
 .tab-content {
     display: none;
-    animation: fadeIn 0.5s ease;
+    padding: 20px;
+    border-top: 1px solid #ddd;
 }
 
 .tab-content.active {
     display: block;
 }
 
-.tab-content h2 {
-    color: #111;
-    font-size: 2rem;
-    margin-bottom: 30px;
+.coming-soon {
     text-align: center;
+    padding: 50px 20px;
+    color: #666;
 }
 
-.loading {
-    text-align: center;
-    padding: 40px;
-    color: #666;
-    font-size: 1.1rem;
+.coming-soon h2 {
+    font-size: 2em;
+    margin-bottom: 10px;
 }
 
 /* Problems Tab Styles */

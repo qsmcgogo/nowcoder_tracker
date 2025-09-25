@@ -41,7 +41,7 @@ async function processProblems() {
                 if (problem.url) {
                     try {
                         // Correctly extract qid from URL (tqId parameter)
-                        const url = new URL(problem.url, 'https://www.nowcoder.com');
+                        const url = new URL(problem.url, 'https://pre.nowcoder.com');
                         const qid = url.searchParams.get('tqId');
 
                         if (qid) {
