@@ -10,7 +10,7 @@ const HOST_CONFIG = {
     production: 'www.nowcoder.com',
     pre: 'pre.nowcoder.com'
 };
-const CURRENT_ENV = 'pre'; // Change this to 'pre' for testing
+const CURRENT_ENV = 'production'; // Change this to 'pre' for testing
 const NOWCODER_HOST = HOST_CONFIG[CURRENT_ENV];
 // --------------------------------
 
