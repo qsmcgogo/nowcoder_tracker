@@ -11,7 +11,7 @@ const HOST_CONFIG = {
     production: 'www.nowcoder.com',
     pre: 'pre.nowcoder.com'
 };
-const CURRENT_ENV = 'production'; // Change this to 'pre' for testing
+const CURRENT_ENV = 'pre'; // Change this to 'pre' for testing
 const NOWCODER_HOST = HOST_CONFIG[CURRENT_ENV];
 // --------------------------------
 
@@ -23,8 +23,9 @@ const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
     console.log(`[Manual Proxy] Intercepted request for '${clientReq.url}'. Corrected path to: '${correctPath}'`);
 
     const targetUrl = new URL(`https://${NOWCODER_HOST}${correctPath}`);
-
-    const cookie = 'NOWCODERUID=D362DA4DD6A3B232A58A7EDF803C22F6; NOWCODERCLINETID=2AE46B759CF3AB5585E0006E67145367; gr_user_id=ccf8ef1c-50d1-4dc9-b4b0-130711676476; Hm_lvt_a808a1326b6c06c437de769d1b85b870=1758512217,1758592277,1758679783; t=27E6EB1C592061228195BBF7531CE4A5; c196c3667d214851b11233f5c17f99d5_gr_last_sent_cs1=8582211; channelPut=w251acm; csrfToken=IW-NRlDbVmJJoUuxcjRIrzHs; SERVERID=14799a1b7de57723e3899dc089a978c0|1758687236|1758687236; SERVERCORSID=14799a1b7de57723e3899dc089a978c0|1758687236|1758687236; Hm_lpvt_a808a1326b6c06c437de769d1b85b870=1758687248; HMACCOUNT=65ADCFB251A31F03; _clck=1tzkek2%5E2%5Efzl%5E0%5E2093; _clsk=raw431%5E1758680321123%5E2%5E1%5Eb.clarity.ms%2Fcollect; acw_tc=0a15e15b17586872360011839e460c0203e2952008963351cceffba8b8e653; c196c3667d214851b11233f5c17f99d5_gr_session_id_cb236fdc-5427-4065-b953-4486e83dafa3=true; c196c3667d214851b11233f5c17f99d5_gr_session_id=cb236fdc-5427-4065-b953-4486e83dafa3; c196c3667d214851b11233f5c17f99d5_gr_last_sent_sid_with_cs1=cb236fdc-5427-4065-b953-4486e83dafa3; c196c3667d214851b11233f5c17f99d5_gr_cs1=8582211';
+    
+    // Hardcode the user's provided cookie for local testing to bypass login issues
+    const cookie = 'gr_user_id=35418a8f-6b2d-4008-a304-a905224d8b62; NOWCODERCLINETID=55C554C3C078CD41F0A4CBD85DE0EB34; NOWCODERUID=ECD816392E855C695FAD8117FCAC4024; isAgreementChecked=true; _bl_uid=qtm8Cf48xbnm87aq8pgzryCrIkhL; __snaker__id=UO9uChZ0pu3CnGMn; c196c3667d214851b11233f5c17f99d5_gr_last_sent_cs1=919247; acw_tc=0a03836a17590422272418997e708208c70e195a65e23bba2cc86d2aad0165; c196c3667d214851b11233f5c17f99d5_gr_session_id=e59316f8-1cb5-4bde-b8f5-6362c82963b1; Hm_lvt_a808a1326b6c06c437de769d1b85b870=1758866442,1759027627,1759032588,1759042227; HMACCOUNT=E3F6F106D778B1E4; callBack=%2F; gdxidpyhxdE=T734aS5WzL3NA8RqlCTZyeJ%5CiIwJX%5CXd9ttykED6J67G90R%5C%2BTvw6UGN75%2FKqTDnbWvBtmZ3n%2BnCGygLfzO0v1NktlDxKRKoxYepyXow%2FU4X223P%2FG%2Fd0Kz8qsU0xnE1OJz2vgHkK%5CrTgzu64JfSOc9iwJh%2FjSRH%2BoQvD8PikGsU%5COnc%3A1759043187236; t=1F693D8034DBCB84BF84022431994C81; c196c3667d214851b11233f5c17f99d5_gr_last_sent_sid_with_cs1=e59316f8-1cb5-4bde-b8f5-6362c82963b1; c196c3667d214851b11233f5c17f99d5_gr_cs1=919247; Hm_lpvt_a808a1326b6c06c437de769d1b85b870=1759042293; c196c3667d214851b11233f5c17f99d5_gr_session_id_sent_vst=e59316f8-1cb5-4bde-b8f5-6362c82963b1';
     const csrfMatch = cookie.match(/csrfToken=([^;]+)/);
     const csrfToken = csrfMatch ? csrfMatch[1].trim() : '';
 
@@ -34,12 +35,14 @@ const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
         path: targetUrl.pathname + targetUrl.search,
         method: clientReq.method,
         headers: {
-            ...clientReq.headers,
-            'Accept': 'application/json, text/plain, */*',
+            'Accept': clientReq.headers['accept'] || 'application/json, text/plain, */*',
+            'Accept-Encoding': clientReq.headers['accept-encoding'],
+            'Accept-Language': clientReq.headers['accept-language'],
+            'Connection': 'keep-alive',
             'Cookie': cookie,
             'Host': NOWCODER_HOST,
             'Referer': `https://${NOWCODER_HOST}/problem/tracker/list`,
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 Safari/537.36',
+            'User-Agent': clientReq.headers['user-agent'],
             'X-CSRF-TOKEN': csrfToken
         }
     };
@@ -62,6 +65,10 @@ const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
 app.use('/problem/tracker/list', manualProxyHandler('/problem/tracker/list'));
 app.use('/problem/tracker/diff', manualProxyHandler('/problem/tracker/diff'));
 app.use('/problem/tracker/ranks', manualProxyHandler('/problem/tracker/ranks'));
+app.use('/problem/tracker/clock/todayinfo', manualProxyHandler('/problem/tracker/clock/todayinfo'));
+app.use('/problem/tracker/clock/add', manualProxyHandler('/problem/tracker/clock/add'));
+app.use('/problem/tracker/clock/list', manualProxyHandler('/problem/tracker/clock/list'));
+
 
 // New endpoint to proxy avatars and bypass CORS for canvas
 app.get('/avatar-proxy', (req, res) => {

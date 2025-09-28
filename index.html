@@ -11,16 +11,17 @@
     <div class="container">
         <header>
             <h1>nowcoder problems</h1>
-            <nav class="nav-tabs">
-                <button class="tab-btn active" data-tab="problems">problems</button>
+            <nav class="main-tabs">
+                <button class="tab-btn" data-tab="problems">problems</button>
                 <button class="tab-btn" data-tab="rankings">rankings</button>
+                <button class="tab-btn active" data-tab="daily">打卡</button>
                 <button class="tab-btn" data-tab="faq">FAQ</button>
             </nav>
         </header>
         
         <main>
             <!-- Problems Tab -->
-            <section id="problems" class="tab-content active">
+            <section id="problems" class="tab-content">
                 <div class="problems-header">
                     <div class="search-section">
                         <div class="input-group">
@@ -31,16 +32,17 @@
                             <label for="rivalId">Rival ID:</label>
                             <input type="text" id="rivalId" placeholder="输入对比用户ID">
                         </div>
-                        <button class="search-btn">Search</button>
+                        <button id="problem-search-btn" class="search-btn">Search</button>
+                        <button id="generate-card-btn" class="search-btn" disabled>生成名片</button>
                     </div>
                 </div>
                 
                 <div class="view-type-tabs">
-                    <button class="view-type-tab active" data-view="contests">竞赛/笔试</button>
-                    <button class="view-type-tab" data-view="practice">练习</button>
+                    <button class="view-type-tab" data-view="contests">竞赛/笔试</button>
+                    <button class="view-type-tab active" data-view="practice">练习</button>
                 </div>
 
-                <div id="contests-view" class="view-content active">
+                <div id="contests-view" class="view-content">
                     <div class="contest-tabs">
                         <button class="contest-tab active" data-contest="all">全部比赛</button>
                         <button class="contest-tab" data-contest="weekly">牛客周赛</button>
@@ -132,6 +134,36 @@
                     </div>
                 </div>
             </section>
+
+            <section id="daily" class="tab-content active">
+                <h2>每日一题</h2>
+                <div class="daily-view-container">
+                    <div id="daily-problem-container" class="daily-container">
+                        <div class="loading-spinner"></div>
+                    </div>
+                    <div class="right-panel">
+                        <div id="user-summary-panel">
+                            <div class="loading-spinner"></div>
+                        </div>
+                        <div id="check-in-calendar-container">
+                            <div class="calendar-header">
+                                <button id="calendar-prev-month" class="calendar-nav-btn">&lt;</button>
+                                <h3 id="calendar-month-year"></h3>
+                                <button id="calendar-next-month" class="calendar-nav-btn">&gt;</button>
+                            </div>
+                            <div class="calendar-grid">
+                                <div class="calendar-weekday">日</div>
+                                <div class="calendar-weekday">一</div>
+                                <div class="calendar-weekday">二</div>
+                                <div class="calendar-weekday">三</div>
+                                <div class="calendar-weekday">四</div>
+                                <div class="calendar-weekday">五</div>
+                                <div class="calendar-weekday">六</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
             
             <!-- Rankings Tab -->
             <section id="rankings" class="tab-content">
@@ -207,6 +239,16 @@
         </footer>
     </div>
     
+    <div id="card-modal" class="modal-overlay">
+        <div class="modal-content">
+            <img id="card-image" src="" alt="User Card">
+        </div>
+    </div>
+
+    <div id="debug-panel">
+        <button id="simulate-check-in-btn">模拟打卡成功 (内测功能)</button>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
