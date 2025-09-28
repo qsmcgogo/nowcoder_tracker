@@ -1,5 +1,6 @@
 const express = require('express');
 const https = require('https');
+const HttpsProxyAgent = require('https-proxy-agent');
 const { URL } = require('url');
 
 const app = express();
@@ -62,7 +63,41 @@ app.use('/problem/tracker/list', manualProxyHandler('/problem/tracker/list'));
 app.use('/problem/tracker/diff', manualProxyHandler('/problem/tracker/diff'));
 app.use('/problem/tracker/ranks', manualProxyHandler('/problem/tracker/ranks'));
 
+// New endpoint to proxy avatars and bypass CORS for canvas
+app.get('/avatar-proxy', (req, res) => {
+    const imageUrl = req.query.url;
+    if (!imageUrl) {
+        return res.status(400).send('Image URL is required');
+    }
+
+    const options = {
+        hostname: new URL(imageUrl).hostname,
+        path: new URL(imageUrl).pathname,
+        method: 'GET',
+        headers: {
+            'User-Agent': 'Node.js Proxy'
+        }
+    };
+
+    const proxyReq = https.request(options, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res, { end: true });
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('Proxy request error:', err);
+        res.status(500).send('Failed to fetch image');
+    });
+
+    proxyReq.end();
+});
+
+// Serve static files like index.html, script.js from the root directory
 app.use(express.static(__dirname));
+
+// Fallback for any other request - THIS MUST BE AFTER STATIC anD SPECIFIC ROUTES
+app.use(manualProxyHandler());
+
 
 app.listen(port, () => {
     console.log(`Proxy server listening at http://localhost:${port}`);

@@ -172,6 +172,18 @@ main {
     box-shadow: 0 4px 12px rgba(50, 202, 153, 0.3);
 }
 
+.search-btn[disabled] {
+    background-color: #adb5bd !important;
+    cursor: not-allowed !important;
+    transform: none !important;
+    color: #f8f9fa !important;
+}
+
+.search-btn:not([disabled]):hover {
+    background-color: #0056b3;
+    transform: translateY(-2px);
+}
+
 /* Contest Tabs */
 .contest-tabs {
     display: flex;
@@ -1156,4 +1168,396 @@ body .problems-table tbody tr td.status-none {
 
 .highlight-row {
     background-color: #fff3cd !important;
+}
+
+/* Modal Styles */
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.6);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.modal-overlay.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-content {
+    background: #fff;
+    border-radius: 16px;
+    position: relative;
+    width: auto;
+    height: auto;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    overflow: hidden;
+    max-width: 750px;
+}
+
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.modal-title {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #111;
+    margin: 0;
+}
+
+.modal-close {
+    display: none;
+}
+
+.card-image-container {
+    width: 450px; /* Match canvas width */
+    height: 200px; /* Match canvas height */
+    overflow: hidden; /* This is important for border-radius to work on the image inside */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#card-image {
+    max-width: 100%;
+    border-radius: 8px;
+    border: none;
+}
+
+/* Daily Problem Styles */
+.daily-container {
+    background-color: #ffffff;
+    padding: 30px;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    margin-top: 20px;
+    min-height: 200px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.daily-problem-card {
+    width: 100%;
+    text-align: center;
+}
+
+.daily-problem-card h3 {
+    font-size: 1.8rem;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.daily-problem-card .problem-meta {
+    display: flex;
+    justify-content: center;
+    gap: 15px;
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 10px;
+}
+
+.daily-problem-card .meta-item {
+    padding: 3px 8px;
+    background-color: #f8f9fa;
+    border-radius: 20px;
+}
+
+.go-to-problem-btn {
+    display: inline-block;
+    background-color: #28a745;
+    color: white;
+    padding: 12px 30px;
+    border-radius: 8px;
+    text-decoration: none;
+    font-weight: bold;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.go-to-problem-btn:hover {
+    background-color: #218838;
+    transform: translateY(-2px);
+}
+
+.debug-controls {
+    margin-top: 30px;
+    padding: 20px;
+    background-color: #f8f9fa;
+    border: 1px dashed #ced4da;
+    border-radius: 8px;
+    text-align: center;
+    color: #6c757d;
+}
+
+.debug-controls p {
+    margin-bottom: 15px;
+    font-style: italic;
+}
+
+.debug-btn {
+    padding: 5px 10px;
+    font-size: 12px;
+    background-color: #6c757d;
+    color: white;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.debug-btn:hover {
+    background-color: #5a6268;
+}
+
+.go-to-problem-btn.check-in-btn[disabled] {
+    background-color: #28a745;
+    color: white;
+    cursor: default;
+    opacity: 0.8;
+}
+
+.go-to-problem-btn.check-in-btn[disabled]::after {
+    content: " ✔";
+    font-weight: bold;
+}
+
+.daily-action-container {
+    margin-top: 15px;
+    text-align: center;
+}
+
+.ac-status-note {
+    font-size: 12px;
+    color: #6c757d;
+    margin-bottom: 5px;
+}
+
+.go-to-problem-btn.check-in-prompt {
+    background-color: #ffc107; /* Yellowish/Orange for prompt */
+    color: #212529;
+}
+
+.go-to-problem-btn.check-in-prompt:hover {
+    background-color: #e0a800;
+}
+
+.go-to-problem-btn.check-in-complete[disabled] {
+    background-color: #28a745;
+    color: white;
+    cursor: default;
+    opacity: 0.8;
+}
+
+.go-to-problem-btn.check-in-complete[disabled]::after {
+    content: " ✔";
+    font-weight: bold;
+}
+
+/* --- Daily View Layout --- */
+.daily-view-container {
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+}
+
+#daily-problem-container {
+    flex: 1 1 75%; /* Grow and shrink, base width 75% */
+    max-width: 75%;
+}
+
+.right-panel {
+    flex: 1 1 20%;
+    max-width: 20%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+#check-in-calendar-container {
+    flex: 1 1 auto; /* Let it take the remaining space */
+    width: 100%; /* Ensure it fills the right panel */
+    margin: 0; /* Override previous margin: 20px auto 30px; */
+}
+
+/* --- User Summary Panel --- */
+#user-summary-panel {
+    width: 100%;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+    padding: 10px;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.summary-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.summary-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid #eee;
+}
+
+.summary-nickname {
+    font-size: 1rem;
+    font-weight: bold;
+    color: #333;
+}
+
+.summary-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    font-size: 0.8rem;
+}
+
+.stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.stat-item .label {
+    color: #6c757d;
+}
+
+.stat-item .value {
+    font-weight: bold;
+    color: #333;
+}
+
+.stat-item .rank-link {
+    color: #007bff;
+    cursor: pointer;
+    text-decoration: none;
+    transition: color 0.2s;
+    font-weight: bold;
+}
+
+.stat-item .rank-link:hover {
+    color: #0056b3;
+}
+
+
+/* --- Calendar Styles --- */
+#check-in-calendar-container {
+    max-width: 100%;
+    padding: 10px;
+    background-color: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.calendar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+#calendar-month-year {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: #333;
+}
+
+.calendar-nav-btn {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 50%;
+    width: 22px;
+    height: 22px;
+    cursor: pointer;
+    font-size: 11px;
+    color: #555;
+    transition: background-color 0.2s, color 0.2s;
+    padding: 0;
+    line-height: 20px;
+}
+
+.calendar-nav-btn:hover {
+    background-color: #f0f0f0;
+    color: #000;
+}
+
+.calendar-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+    text-align: center;
+}
+
+.calendar-weekday {
+    font-size: 0.75rem;
+    padding: 0;
+    color: #6c757d;
+}
+
+.calendar-day {
+    width: 100%;
+    padding-bottom: 100%; /* Creates a square aspect ratio */
+    position: relative;
+    background-color: #ebedf0; /* Default GitHub grey */
+    border-radius: 50%; /* Changed to circle */
+    cursor: pointer;
+    font-size: 0.7rem; /* Font size for the number */
+    color: #666;
+}
+
+.calendar-day-number {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+
+.calendar-day.other-month {
+    visibility: hidden; /* Hide days from other months */
+}
+
+.calendar-day.checked-in {
+    background-color: #196127; /* Darker GitHub green */
+    color: #fff; /* White number for checked-in days */
+}
+
+.calendar-day.today {
+    border: 1px solid #007bff;
+}
+
+
+.loading-spinner {
+    border: 4px solid #f3f3f3; /* Light grey */
+    border-top: 4px solid #3498db; /* Blue */
+    border-radius: 50%;
+    width: 40px;
+    height: 40px;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
 }
