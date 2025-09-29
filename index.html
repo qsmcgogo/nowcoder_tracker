@@ -42,7 +42,7 @@
                     <button class="view-type-tab active" data-view="practice">练习</button>
                 </div>
 
-                <div id="contests-view" class="view-content">
+                <div id="contests-view" class="view-content active">
                     <div class="contest-tabs">
                         <button class="contest-tab active" data-contest="all">全部比赛</button>
                         <button class="contest-tab" data-contest="weekly">牛客周赛</button>
@@ -146,6 +146,9 @@
                             <div class="loading-spinner"></div>
                         </div>
                         <div id="check-in-calendar-container">
+                            <div class="calendar-stats" id="calendar-stats">
+                                <div class="loading-spinner"></div>
+                            </div>
                             <div class="calendar-header">
                                 <button id="calendar-prev-month" class="calendar-nav-btn">&lt;</button>
                                 <h3 id="calendar-month-year"></h3>
@@ -203,32 +206,78 @@
                 <h2>常见问题解答</h2>
                 <div class="faq-container">
                     <div class="faq-item">
-                        <h3>这个工具是做什么的？</h3>
-                        <p>这是一个牛客网刷题进度追踪器。它可以帮助用户方便地查看竞赛题目、追踪自己的完成情况，并与他人进行对比。本工具旨在帮您定位知识盲点，见证自己的成长。</p>
+                        <h3>🎯 这个工具是做什么的？</h3>
+                        <p>这是一个专为算法学习者打造的<strong>牛客网刷题进度追踪器</strong>！无论你是算法竞赛新手、准备校招的同学，还是想要系统性学习算法的朋友，这个工具都能帮你：<br>
+                        ✨ <strong>每日打卡</strong>：每天一道精选题目，养成刷题好习惯<br>
+                        📊 <strong>进度追踪</strong>：一目了然看到自己的刷题进度和薄弱环节<br>
+                        🏆 <strong>排行榜</strong>：与全站用户对比，激发学习动力<br>
+                        🎯 <strong>精准定位</strong>：快速找到自己没做过的题目，高效刷题</p>
                     </div>
                     <div class="faq-item">
-                        <h3>“竞赛”、“校招”、“练习”板块有什么区别？</h3>
+                        <h3>📚 三个板块分别适合谁？</h3>
                         <p>
-                            <b>竞赛 (Contests):</b> 主要收录牛客网定期举办的各类编程竞赛，如周赛、小白月赛、练习赛等。适合希望提升算法竞赛能力、锻炼代码思维和解题速度的用户。<br>
-                            <b>校招 (Campus):</b> 汇集了各大知名企业的校园招聘真题和模拟题。如果你正在准备技术面试和笔试，这个版块将是你的宝库。<br>
-                            <b>练习 (Practice):</b> 包含了从入门到进阶的各类经典算法和数据结构练习题，以及面试高频题。适合系统性学习、巩固基础知识、查漏补缺的用户。
+                            <b>🏁 竞赛板块：</b> 适合想要提升算法竞赛能力的同学！包含牛客周赛、小白月赛等各类竞赛题目，帮你锻炼代码思维和解题速度。<br><br>
+                            <b>💼 校招板块：</b> 准备技术面试的同学们看这里！汇集了美团、字节、阿里等大厂的校招真题，是面试准备的宝库。<br><br>
+                            <b>📖 练习板块：</b> 算法入门者的最佳选择！从"新手入门130"开始，循序渐进学习算法和数据结构，还有面试高频题等你来挑战。
                         </p>
                     </div>
                     <div class="faq-item">
-                        <h3>数据来源是哪里？我的账号安全吗？</h3>
-                        <p>本工具的数据完全来自于 <a href="https://www.nowcoder.com" target="_blank">牛客网</a> 官方接口，并由前端直接向牛客网请求，不经过任何第三方服务器。您的牛客 User ID 仅用于查询您在牛客网上的公开做题记录，工具本身不会存储、分析或泄露您的任何个人信息，请放心使用。</p>
+                        <h3>🔒 我的个人信息安全吗？</h3>
+                        <p>完全安全！我们承诺：<br>
+                        ✅ 数据直接来自牛客网官方接口，不经过任何第三方服务器<br>
+                        ✅ 只查询您的公开做题记录，不存储任何个人信息<br>
+                        ✅ 不会分析、泄露或滥用您的任何数据<br>
+                        ✅ 您可以随时停止使用，我们不会保留任何痕迹</p>
                     </div>
                     <div class="faq-item">
-                        <h3>排行榜的数据来源是什么？准确吗？</h3>
-                        <p>排行榜的数据同样来自于牛客网官方接口，展示了全站练习题目通过总数最多的前 1000 名用户。您可以通过搜索自己的 User ID 来查询您在榜单中的具体位置。如果您的排名在 1000 名以后，系统也会将您的排名信息追加在列表末尾。</p>
+                        <h3>🏆 排行榜是怎么排名的？</h3>
+                        <p>排行榜展示的是<strong>全站练习题目通过总数</strong>最多的用户！<br>
+                        📈 数据实时更新，确保排名准确性<br>
+                        🔍 支持搜索自己的排名位置<br>
+                        📊 如果您的排名在1000名以后，系统会特别显示您的排名信息<br>
+                        💡 <strong>小贴士</strong>：排行榜是激励自己进步的好工具，但不要过分焦虑，专注于自己的成长最重要！</p>
                     </div>
                     <div class="faq-item">
-                        <h3>如何获取我的 User ID？</h3>
-                        <p>登录牛客网后，点击页面右上角的头像，进入“我的主页”。此时，浏览器地址栏中的 URL 末尾的一串数字，就是您的 User ID。例如，<code>https://www.nowcoder.com/users/12345678</code>，那么 <code>12345678</code> 就是您的 User ID。</p>
+                        <h3>🆔 如何找到我的 User ID？</h3>
+                        <p><strong>超简单3步法：</strong><br>
+                        1️⃣ 登录 <a href="https://www.nowcoder.com" target="_blank">牛客网</a><br>
+                        2️⃣ 点击页面右上角的头像<br>
+                        3️⃣ 进入"我的主页"，地址栏末尾的数字就是您的 User ID<br><br>
+                        <strong>示例：</strong> 如果地址是 <code>https://www.nowcoder.com/users/12345678</code>，那么您的 User ID 就是 <code>12345678</code></p>
                     </div>
                     <div class="faq-item">
-                        <h3>如何查询刷题记录？不同颜色代表什么？</h3>
-                        <p>在 “Problems” 标签页，于 “User ID” 输入框中填入您的牛客网用户ID，然后点击 “Search”。题目列表的状态便会高亮更新。绿色背景代表您已解决的题目，红色背景代表您尚未解决但对比用户已解决的题目。此外，当您解决了某场比赛中的所有题目后，该比赛的名称也会以绿色背景高亮显示，方便您快速识别已完全征服的比赛。</p>
+                        <h3>🎨 颜色代表什么意思？</h3>
+                        <p>我们用了直观的颜色系统帮您快速识别：<br>
+                        🟢 <strong>绿色背景</strong>：您已经通过的题目（成就感满满！）<br>
+                        🟠 <strong>橙色背景</strong>：您还没做但对比用户已通过的题目（学习目标！）<br>
+                        ⚪ <strong>白色背景</strong>：双方都没通过的题目（一起努力！）<br><br>
+                        <strong>特别提示：</strong> 当您完成某场比赛的所有题目时，比赛名称也会变成绿色，让您一眼看出自己的"完全征服"成就！</p>
+                    </div>
+                    <div class="faq-item">
+                        <h3>📅 每日打卡功能怎么用？</h3>
+                        <p><strong>每日打卡</strong>是养成刷题习惯的绝佳方式！<br>
+                        🌅 <strong>每日一题</strong>：每天精选一道优质题目，难度适中<br>
+                        ✅ <strong>打卡记录</strong>：完成题目后点击打卡，记录你的坚持<br>
+                        📊 <strong>打卡日历</strong>：可视化展示你的打卡历史，满满的成就感<br>
+                        🎯 <strong>坚持奖励</strong>：连续打卡会显示在日历上，激励你继续前行<br><br>
+                        <strong>小建议</strong>：每天花15-30分钟完成每日一题，坚持一个月你就能看到明显的进步！</p>
+                    </div>
+                    <div class="faq-item">
+                        <h3>🚀 新手如何开始？</h3>
+                        <p><strong>推荐学习路径：</strong><br><br>
+                        <b>🎯 算法竞赛方向（ACM/ICPC）：</b><br>
+                        1️⃣ <strong>从"练习"板块开始</strong>：选择"新手入门130"，掌握基础算法<br>
+                        2️⃣ <strong>参与每日打卡</strong>：每天完成一道题目，培养解题手感<br>
+                        3️⃣ <strong>挑战竞赛题目</strong>：在"竞赛"板块练习牛客周赛、小白月赛等<br>
+                        4️⃣ <strong>逐步进阶</strong>：掌握基础后尝试"算法进阶"、"算法登峰"<br>
+                        5️⃣ <strong>补题训练</strong>：补练习赛和挑战赛的题，以及XCPC区域赛真题（将会在未来上线）<br><br>
+                        <b>💼 求职面试方向：</b><br>
+                        1️⃣ <strong>从"练习"板块开始</strong>：选择"新手入门130"，打好基础<br>
+                        2️⃣ <strong>参与每日打卡</strong>：每天完成一道题目，保持手感<br>
+                        3️⃣ <strong>校招真题训练</strong>：在"校招"板块练习大厂真题<br>
+                        4️⃣ <strong>面试高频题</strong>：重点学习"面试高频题目"和"面试top101"<br>
+                        5️⃣ <strong>模拟面试</strong>：定期回顾错题，查漏补缺<br><br>
+                        <strong>记住</strong>：学习算法是一个循序渐进的过程，不要急于求成，坚持就是胜利！💪</p>
                     </div>
                 </div>
             </section>

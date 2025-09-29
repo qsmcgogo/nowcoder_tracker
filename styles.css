@@ -9,7 +9,7 @@
     --border-color: #e8e8e8;
     --card-background: #ffffff;
     --success-bg: #bfe6de; /* User requested color */
-    --rival-bg: rgba(255, 152, 0, 0.08); /* Orange with 8% opacity */
+    --rival-bg: rgba(255, 152, 0, 0.25); /* Orange with 25% opacity - deeper orange */
 }
 
 * {
@@ -1442,6 +1442,28 @@ body .problems-table tbody tr td.status-none {
 }
 
 
+/* Calendar Stats */
+.calendar-stats {
+    text-align: center;
+    margin-bottom: 15px;
+    padding: 10px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+}
+
+.calendar-stats .stats-text {
+    font-size: 0.9rem;
+    color: #495057;
+    font-weight: 500;
+    margin: 0;
+}
+
+.calendar-stats .stats-highlight {
+    color: #32ca99;
+    font-weight: 600;
+}
+
 /* Calendar Styles */
 #check-in-calendar-container {
     max-width: 100%;
@@ -1658,3 +1680,4 @@ body .problems-table tbody tr td.status-none {
 .daily-problem-card .problem-meta {
     display: flex;
     gap: 20px;
+}
