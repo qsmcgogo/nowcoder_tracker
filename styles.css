@@ -687,17 +687,18 @@ span.problem-title-text {
     background: #f8f9fa;
 }
 
-.rankings-table tr:nth-child(1) td:first-child {
+/* Only highlight the actual top 3 ranks globally, not per page */
+.rankings-table tr[data-rank="1"] td:first-child {
     color: #ffd700;
     font-weight: bold;
 }
 
-.rankings-table tr:nth-child(2) td:first-child {
+.rankings-table tr[data-rank="2"] td:first-child {
     color: #c0c0c0;
     font-weight: bold;
 }
 
-.rankings-table tr:nth-child(3) td:first-child {
+.rankings-table tr[data-rank="3"] td:first-child {
     color: #cd7f32;
     font-weight: bold;
 }
