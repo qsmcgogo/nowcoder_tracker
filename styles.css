@@ -973,6 +973,76 @@ footer {
     }
 }
 
+/* Tutorial section styles */
+.tutorial-section {
+    margin-bottom: 20px;
+}
+
+.tutorial-card {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.tutorial-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+}
+
+.tutorial-icon {
+    font-size: 48px;
+    margin-right: 20px;
+    flex-shrink: 0;
+}
+
+.tutorial-content {
+    flex: 1;
+    color: white;
+}
+
+.tutorial-content h3 {
+    margin: 0 0 8px 0;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.tutorial-content p {
+    margin: 0 0 15px 0;
+    font-size: 14px;
+    opacity: 0.9;
+    line-height: 1.5;
+}
+
+.tutorial-link {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 25px;
+    font-weight: 500;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.tutorial-link:hover {
+    background: rgba(255, 255, 255, 0.3);
+    border-color: rgba(255, 255, 255, 0.5);
+    transform: translateY(-1px);
+    color: white;
+    text-decoration: none;
+}
+
+.tutorial-link:active {
+    transform: translateY(0);
+}
+
 /* Practice View Table Styles */
 .practice-table th.knowledge-point-header {
     width: 15%;
@@ -1084,6 +1154,41 @@ footer {
 
 #practice-view .problems-table td:not(:first-child):not(:empty) {
     width: 16.4%; /* (100% - 18%) / 5 */
+}
+
+/* Interview view table: Use same layout as practice view */
+#interview-view .problems-table {
+    table-layout: fixed;
+}
+
+#interview-view .problems-table td:first-child {
+    width: 18%; /* Fixed width for the knowledge-point column */
+    min-width: 140px;
+}
+
+#interview-view .problems-table td:not(:first-child):not(:empty) {
+    width: 82%; /* Remaining width for problems column */
+    text-align: center; /* Center the problems content */
+}
+
+/* Interview view specific styles for practice-style rendering */
+#interview-view .problems-cell-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 5px 0;
+    justify-content: center; /* Center the problems within the container */
+}
+
+#interview-view .practice-problem-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1 0 18%; /* Allows up to 5 items per row */
+    min-width: 150px;
+    padding: 5px;
+    border-bottom-right-radius: 6px;
+    justify-content: center; /* Center content within each problem item */
 }
 
 /* Problem Cell Highlighting - Increased specificity to override other styles */
@@ -1247,7 +1352,6 @@ body .problems-table tbody tr td.status-none {
     padding: 30px;
     border-radius: 12px;
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    margin-top: 20px;
     min-height: 200px;
     display: flex;
     justify-content: center;
@@ -1259,11 +1363,27 @@ body .problems-table tbody tr td.status-none {
     text-align: center;
 }
 
+.niukeniang-container {
+    text-align: center;
+    background: transparent;
+    padding: 20px;
+}
+
+.niukeniang-large-img {
+    width: 200px;
+    height: auto;
+    border: none;
+    border-radius: 0;
+    object-fit: cover;
+    box-shadow: none;
+}
+
 .daily-problem-card h3 {
     font-size: 1.3rem;
     margin-bottom: 20px;
     color: #333;
     font-weight: 500;
+    text-align: center;
 }
 
 .daily-problem-card h3 a.problem-title-link {
@@ -1295,16 +1415,22 @@ body .problems-table tbody tr td.status-none {
     display: inline-block;
     background-color: #28a745;
     color: white;
-    padding: 12px 30px;
-    border-radius: 8px;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
     text-decoration: none;
     font-weight: bold;
-    transition: background-color 0.3s ease, transform 0.2s ease;
+    font-size: 0.9rem;
+    transition: background-color 0.2s, transform 0.1s;
+    width: 80px;
+    text-align: center;
+    box-sizing: border-box;
+    flex-shrink: 0;
+    cursor: pointer;
 }
 
 .go-to-problem-btn:hover {
     background-color: #218838;
-    transform: translateY(-2px);
 }
 
 .debug-controls {
@@ -1366,6 +1492,7 @@ body .problems-table tbody tr td.status-none {
 .go-to-problem-btn.check-in-prompt {
     background-color: #ffc107; /* Yellowish/Orange for prompt */
     color: #212529;
+    width: 80px;
 }
 
 .go-to-problem-btn.check-in-prompt:hover {
@@ -1377,6 +1504,7 @@ body .problems-table tbody tr td.status-none {
     color: white;
     cursor: default;
     opacity: 0.8;
+    width: 120px;
 }
 
 .go-to-problem-btn.check-in-complete[disabled]::after {
@@ -1391,14 +1519,15 @@ body .problems-table tbody tr td.status-none {
     align-items: flex-start;
 }
 
-#daily-problem-container {
-    flex: 1 1 75%; /* Grow and shrink, base width 75% */
-    max-width: 75%;
+.left-column {
+    flex: 0 0 75%;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
 }
 
-.right-panel {
-    flex: 1 1 20%;
-    max-width: 20%;
+.right-column {
+    flex: 0 0 20%;
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -1628,6 +1757,20 @@ body .problems-table tbody tr td.status-none {
     align-items: center;
 }
 
+.check-in-status {
+    display: inline-block;
+    background-color: #28a745;
+    color: white;
+    padding: 10px 20px;
+    border-radius: 5px;
+    font-weight: bold;
+    font-size: 0.9rem;
+    width: 100px;
+    text-align: center;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
 .share-btn {
     padding: 10px 20px;
     border: none;
@@ -1638,6 +1781,10 @@ body .problems-table tbody tr td.status-none {
     transition: background-color 0.2s, transform 0.1s;
     background-color: #28a745;
     color: white;
+    width: 80px;
+    text-align: center;
+    box-sizing: border-box;
+    flex-shrink: 0;
 }
 
 .share-btn:hover {

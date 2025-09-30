@@ -38,8 +38,9 @@
                 </div>
                 
                 <div class="view-type-tabs">
-                    <button class="view-type-tab" data-view="contests">竞赛/笔试</button>
-                    <button class="view-type-tab active" data-view="practice">练习</button>
+                    <button class="view-type-tab" data-view="contests">竞赛</button>
+                    <button class="view-type-tab active" data-view="practice">算法学习</button>
+                    <button class="view-type-tab" data-view="interview">笔面试</button>
                 </div>
 
                 <div id="contests-view" class="view-content active">
@@ -50,7 +51,6 @@
                         <button class="contest-tab" data-contest="practice">牛客练习赛</button>
                         <button class="contest-tab" data-contest="challenge">牛客挑战赛</button>
                         <button class="contest-tab" data-contest="xcpc">XCPC</button>
-                        <button class="contest-tab" data-contest="campus">校招</button>
                     </div>
                     
                     <div id="campus-sub-tabs" class="contest-tabs sub-tabs" style="display: none;">
@@ -105,10 +105,20 @@
                         <button class="contest-tab" data-practice-type="algo-starter">算法入门</button>
                         <button class="contest-tab" data-practice-type="algo-advanced">算法进阶</button>
                         <button class="contest-tab" data-practice-type="algo-peak">算法登峰</button>
-                        <button class="contest-tab" data-practice-type="templates">模板题</button>
                         <button class="contest-tab" data-practice-type="io-practice">输入输出练习</button>
-                        <button class="contest-tab" data-practice-type="interview-top101">面试top101</button>
-                        <button class="contest-tab" data-practice-type="interview-high-freq">面试高频题目</button>
+                    </div>
+                    <div id="newbie130-tutorial-section" class="tutorial-section" style="display: none;">
+                        <div class="tutorial-card">
+                            <div class="tutorial-icon">📚</div>
+                            <div class="tutorial-content">
+                                <h3>新手入门130视频讲解</h3>
+                                <p>系统化学习算法基础，从零开始掌握编程思维！</p>
+                                <a href="https://www.nowcoder.com/issue/tutorial?tutorialId=10101&uuid=542a7f5820754d4ea6e9ba2afa60336c" 
+                                   target="_blank" rel="noopener noreferrer" class="tutorial-link">
+                                    🎬 观看视频讲解
+                                </a>
+                            </div>
+                        </div>
                     </div>
                     <div class="problems-table-container">
                         <table class="problems-table practice-table">
@@ -134,15 +144,66 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="interview-view" class="view-content" style="display: none;">
+                    <div class="contest-tabs sub-tabs">
+                        <button class="contest-tab active" data-interview-type="campus">校招真题</button>
+                        <button class="contest-tab" data-interview-type="templates">笔试必刷经典</button>
+                        <button class="contest-tab" data-interview-type="interview-top101">面试top101</button>
+                        <button class="contest-tab" data-interview-type="interview-high-freq">面试高频题目</button>
+                    </div>
+                    
+                    <div id="campus-sub-tabs-interview" class="contest-tabs sub-tabs" style="display: flex;">
+                        <button class="contest-tab active" data-contest-type="100">所有公司</button>
+                        <button class="contest-tab" data-contest-type="179">美团</button>
+                        <button class="contest-tab" data-contest-type="239">华为</button>
+                        <button class="contest-tab" data-contest-type="665">字节</button>
+                        <button class="contest-tab" data-contest-type="134">阿里</button>
+                        <button class="contest-tab" data-contest-type="139">百度</button>
+                        <button class="contest-tab" data-contest-type="151">京东</button>
+                        <button class="contest-tab" data-contest-type="153">携程</button>
+                        <button class="contest-tab" data-contest-type="931">蚂蚁</button>
+                        <button class="contest-tab" data-contest-type="715">小红书</button>
+                    </div>
+
+                    <div class="problems-table-container">
+                        <table class="problems-table practice-table">
+                            <thead>
+                                <tr>
+                                    <th class="knowledge-point-header">知识点</th>
+                                    <th class="problems-header" colspan="5">题目</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <!-- Interview problems will be dynamically inserted here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="pagination-container" id="interview-pagination-container">
+                        <div class="pagination-info">
+                            <span id="interviewPaginationInfo"></span>
+                        </div>
+                        <div class="pagination-controls">
+                            <button id="interviewPrevPage" class="pagination-btn" disabled>上一页</button>
+                            <div class="page-numbers" id="interviewPageNumbers"></div>
+                            <button id="interviewNextPage" class="pagination-btn" disabled>下一页</button>
+                        </div>
+                    </div>
+                </div>
             </section>
 
             <section id="daily" class="tab-content active">
                 <h2>每日一题</h2>
                 <div class="daily-view-container">
-                    <div id="daily-problem-container" class="daily-container">
-                        <div class="loading-spinner"></div>
+                    <div class="left-column">
+                        <div id="daily-problem-container" class="daily-container">
+                            <div class="loading-spinner"></div>
+                        </div>
+                        <div class="niukeniang-container">
+                            <img src="https://uploadfiles.nowcoder.com/images/20250930/8582211_1759202242068/03A36C11AC533C18438C8FB323B1AAAB" alt="牛客娘" class="niukeniang-large-img">
+                        </div>
                     </div>
-                    <div class="right-panel">
+                    <div class="right-column">
                         <div id="user-summary-panel">
                             <div class="loading-spinner"></div>
                         </div>
@@ -244,7 +305,8 @@
                         1️⃣ 登录 <a href="https://www.nowcoder.com" target="_blank">牛客网</a><br>
                         2️⃣ 点击页面右上角的头像<br>
                         3️⃣ 进入"我的主页"，地址栏末尾的数字就是您的 User ID<br><br>
-                        <strong>示例：</strong> 如果地址是 <code>https://www.nowcoder.com/users/12345678</code>，那么您的 User ID 就是 <code>12345678</code></p>
+                        <strong>示例：</strong> 如果地址是 <code>https://www.nowcoder.com/users/12345678</code>，那么您的 User ID 就是 <code>12345678</code><br><br>
+                        <strong>💡 小贴士：</strong> 同样的方法也可以获取别人的 User ID 哦！只要访问他们的牛客主页，地址栏末尾的数字就是他们的 User ID（笑）</p>
                     </div>
                     <div class="faq-item">
                         <h3>🎨 颜色代表什么意思？</h3>
