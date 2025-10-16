@@ -21,32 +21,66 @@
 - **后端 (代理)**：Node.js, Express
 - **数据**：JSON
 
-## 🚀 本地运行指南
+## 🚀 快速开始
 
-1.  **安装依赖**
-    确保您已安装 [Node.js](https://nodejs.org/)。然后在项目根目录下运行以下命令来安装本项目所需的依赖：
-    ```bash
-    npm install
-    ```
+### 方法一：简单开发服务器（推荐）
 
-2.  **配置 Cookie (重要)**
-    为了使后端代理能成功请求到牛客网的数据，您需要手动更新 `proxy-server.js` 文件中的 `cookie` 变量。
-    - 登录牛客网。
-    - 打开浏览器开发者工具（F12），切换到“网络”(Network) 标签页。
-    - 刷新页面，找到任意一个对牛客网 API 的请求（例如 `list` 或 `diff`）。
-    - 在请求头 (Request Headers) 中找到 `Cookie` 字段，复制其完整的字符串值。
-    - 将这个值粘贴到 `proxy-server.js` 文件中第 21 行的 `cookie` 常量里。
+```bash
+# 启动Node.js开发服务器
+node simple-server.js
+```
 
-3.  **启动代理服务器**
-    在项目根目录下运行以下命令：
-    ```bash
-    node proxy-server.js
-    ```
-    当您看到以下输出时，代表代理服务器已成功启动：
-    ```
-    Proxy server listening at http://localhost:3001
-    Your application is now available at http://localhost:3001/index.html
-    ```
+访问：http://localhost:8000
+
+### 方法二：完整代理服务器
+
+1. **安装依赖**
+   ```bash
+   npm install
+   ```
+
+2. **配置Cookie**
+   更新 `proxy-server.js` 中的cookie变量（详见下方说明）
+
+3. **启动代理服务器**
+   ```bash
+   node proxy-server.js
+   ```
+
+访问：http://localhost:3001
+
+### 方法三：生产环境部署
+
+详见 [nginx/README.md](nginx/README.md) 文件夹中的部署指南。
+
+## 📁 项目结构
+
+```
+nowcoder_tracker/
+├── js/                          # 前端JavaScript模块
+├── nginx/                       # Nginx部署配置
+│   ├── README.md               # 部署指南
+│   ├── nginx.conf              # 基础nginx配置
+│   ├── nginx-domain.conf       # 域名配置
+│   ├── docker-compose.yml      # Docker部署
+│   └── ...                     # 其他部署相关文件
+├── 每日一题相关/                 # 算法题解
+├── index.html                  # 主页面
+├── simple-server.js            # 简单开发服务器
+├── proxy-server.js             # 完整代理服务器
+└── ...
+```
+
+## 🔧 配置说明
+
+### Cookie配置（仅代理服务器需要）
+
+为了使后端代理能成功请求到牛客网的数据，您需要手动更新 `proxy-server.js` 文件中的 `cookie` 变量：
+- 登录牛客网
+- 打开浏览器开发者工具（F12），切换到"网络"(Network) 标签页
+- 刷新页面，找到任意一个对牛客网 API 的请求
+- 在请求头中找到 `Cookie` 字段，复制其完整的字符串值
+- 将这个值粘贴到 `proxy-server.js` 文件中第 21 行的 `cookie` 常量里
 
 4.  **访问应用**
     在浏览器中打开 `http://localhost:3001/index.html` 即可开始使用。

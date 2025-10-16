@@ -36,13 +36,13 @@ const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
         method: clientReq.method,
         headers: {
             'Accept': clientReq.headers['accept'] || 'application/json, text/plain, */*',
-            'Accept-Encoding': clientReq.headers['accept-encoding'],
-            'Accept-Language': clientReq.headers['accept-language'],
+            'Accept-Encoding': clientReq.headers['accept-encoding'] || 'gzip, deflate, br',
+            'Accept-Language': clientReq.headers['accept-language'] || 'zh-CN,zh;q=0.9,en;q=0.8',
             'Connection': 'keep-alive',
             'Cookie': cookie,
             'Host': targetUrl.hostname, // Use the actual hostname from targetUrl
             'Referer': `https://${targetUrl.hostname}/problem/tracker/list`, // Use the actual hostname from targetUrl
-            'User-Agent': clientReq.headers['user-agent'],
+            'User-Agent': clientReq.headers['user-agent'] || 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             'X-CSRF-TOKEN': csrfToken
         }
     };
