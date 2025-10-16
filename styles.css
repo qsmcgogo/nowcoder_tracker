@@ -1720,12 +1720,38 @@ body .problems-table tbody tr td.status-none {
 }
 
 .calendar-day.checked-in {
-    background-color: #196127; /* Darker GitHub green */
-    color: #fff; /* White number for checked-in days */
+    background-color: #388e3c; /* A deep green background */
+    color: white; /* White text for contrast */
+    border-radius: 50%;
+    border: none; /* Ensure no border is applied */
+}
+
+.calendar-day.checked-in .calendar-day-number {
+    color: white;
 }
 
 .calendar-day.today {
-    border: 1px solid #007bff;
+    background-color: #007bff;
+    color: white;
+    border-radius: 50%;
+}
+
+/* Make checked-in style more specific to override 'today' */
+.calendar-day.today.checked-in,
+.calendar-day.checked-in {
+    background-color: #388e3c !important; /* A deep green background, forced priority */
+    color: white !important; /* White text for contrast, forced priority */
+    border-radius: 50%;
+    border: none; /* Ensure no border is applied */
+}
+
+.calendar-day.checked-in .calendar-day-number {
+    color: white;
+}
+
+/* Style for supplemented check-ins (light green) */
+.calendar-day.supplement-check-in {
+    background-color: #8bc34a !important; /* A light green color */
 }
 
 
@@ -1985,4 +2011,34 @@ body .problems-table tbody tr td.status-none {
     margin: 8px 0 12px 0;
     font-size: 14px;
     font-weight: 500;
+}
+
+/* Tooltip Styles */
+.tooltip {
+    position: absolute;
+    background-color: #333;
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+    z-index: 1000;
+    pointer-events: none; /* Prevents the tooltip from interfering with mouse events */
+    white-space: nowrap;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+}
+
+.tooltip .status-checked-in {
+    color: #4caf50; /* A vibrant green for the checkmark text */
+    font-weight: bold;
+}
+
+/* Calendar day with a problem - Increased specificity */
+.calendar-grid .calendar-day.has-problem {
+    cursor: pointer;
+    background-color: #f0f8ff; /* A light blue to indicate it's special */
+}
+
+.calendar-grid .calendar-day.has-problem:hover {
+    background-color: #e0f0ff; /* A slightly darker blue on hover */
+    border: 1px solid #b0c4de;
 }

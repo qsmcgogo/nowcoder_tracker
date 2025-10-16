@@ -216,12 +216,21 @@ export class NowcoderTracker {
             const uid = userData && (userData.uid ? String(userData.uid) : String(userData));
             if (!uid) return;
             
-            // 设置登录用户ID到状态中
-            this.state.loggedInUserId = uid;
-            this.state.loggedInUserData = userData;
-            
+            // 调用 AppState 的方法来统一设置用户，并检查管理员状态
+            this.state.setLoggedInUser(uid, userData);
+
             if (this.elements.userIdInput && !this.elements.userIdInput.value) this.elements.userIdInput.value = uid;
             if (this.elements.rankUserIdInput && !this.elements.rankUserIdInput.value) this.elements.rankUserIdInput.value = uid;
+
+            // 如果是管理员，添加视觉提示（确保只添加一次）
+            if (this.state.isAdmin && !document.querySelector('h1 .admin-badge')) {
+                const adminBadge = document.createElement('span');
+                adminBadge.textContent = '[Admin]';
+                adminBadge.className = 'admin-badge'; // 添加一个class用于检查
+                adminBadge.style.color = 'red';
+                adminBadge.style.marginLeft = '10px';
+                document.querySelector('h1').appendChild(adminBadge);
+            }
 
             if (this.state.activeMainTab === 'problems') {
                 this.handleUserStatusSearch();

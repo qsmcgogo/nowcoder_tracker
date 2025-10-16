@@ -19,6 +19,7 @@ export class DailyView {
     
     init() {
         this.bindEvents();
+        this.tooltip = document.getElementById('calendar-tooltip'); // 获取 tooltip 元素
     }
     
     bindEvents() {
@@ -141,6 +142,13 @@ export class DailyView {
         const problemUrl = this.buildUrlWithChannelPut(problem.url);
         let buttonHtml;
         let preButtonText = '';
+        
+        // ---- 调试信息 ----
+        console.log('--- 渲染“每日一题”按钮调试信息 ---');
+        console.log(`是否管理员 (this.state.isAdmin):`, this.state.isAdmin);
+        console.log(`今日是否已打卡 (isClockToday):`, isClockToday);
+        console.log(`以前是否做过此题 (hasPassedPreviously):`, hasPassedPreviously);
+        console.log('------------------------------------');
 
         if (isClockToday) {
             preButtonText = `<p class="ac-status-note">今日已通过该题并自动打卡</p>`;
@@ -155,6 +163,7 @@ export class DailyView {
             buttonHtml = `
                 <div class="checked-in-actions">
                     <button id="daily-check-in-btn" class="go-to-problem-btn check-in-prompt">打卡</button>
+                    ${this.state.isAdmin ? '<button id="admin-check-in-btn" class="go-to-problem-btn check-in-prompt" style="background-color: #ff5722;">一键打卡</button>' : ''}
                     <button id="daily-share-btn" class="share-btn">分享</button>
                 </div>
             `;
@@ -162,6 +171,7 @@ export class DailyView {
             buttonHtml = `
                 <div class="checked-in-actions">
                     <button id="daily-problem-btn" class="go-to-problem-btn" data-url="${problemUrl}">做题</button>
+                    ${this.state.isAdmin ? '<button id="admin-check-in-btn" class="go-to-problem-btn check-in-prompt" style="background-color: #ff5722;">一键打卡</button>' : ''}
                     <button id="daily-share-btn" class="share-btn">分享</button>
                 </div>
             `;
@@ -205,6 +215,11 @@ export class DailyView {
         if (checkInButton) {
             checkInButton.addEventListener('click', () => this.handleCheckIn());
         }
+
+        const adminCheckInButton = document.getElementById('admin-check-in-btn');
+        if (adminCheckInButton) {
+            adminCheckInButton.addEventListener('click', () => this.handleAdminCheckInBypass());
+        }
         
         const problemButton = document.getElementById('daily-problem-btn');
         if (problemButton) {
@@ -241,6 +256,34 @@ export class DailyView {
         } catch (error) {
             console.error('Check-in failed:', error);
             alert(`打卡失败: ${error.message}`);
+            eventBus.emit(EVENTS.DATA_ERROR, { module: 'daily', error });
+        }
+    }
+    
+    async handleAdminCheckInBypass() {
+        try {
+            if (!this.state.currentDailyProblem || !this.state.currentDailyProblem.problemId) {
+                throw new Error('今日暂无题目可以打卡');
+            }
+            
+            // 仍然执行实际的打卡操作
+            const result = await this.apiService.checkInDailyProblem(this.state.currentDailyProblem.problemId);
+            
+            if (result.code !== 0) {
+                throw new Error(result.msg || '打卡失败');
+            }
+            
+            // 打卡成功后，手动将UI渲染成“已通过但未打卡”的状态，而不是完全刷新
+            // 用户需要再点一次“打卡”来看到最终的“已打卡”状态
+            this.renderDailyProblem(this.state.currentDailyProblem, false, true);
+            
+            // 在后台更新日历
+            this.renderCalendar();
+            
+            eventBus.emit(EVENTS.CHECK_IN_SUCCESS, { problem: this.state.currentDailyProblem });
+        } catch (error) {
+            console.error('Admin Check-in Bypass failed:', error);
+            alert(`管理员操作失败: ${error.message}`);
             eventBus.emit(EVENTS.DATA_ERROR, { module: 'daily', error });
         }
     }
@@ -282,12 +325,33 @@ export class DailyView {
         const month = this.state.calendarDate.getMonth() + 1; // API expects 1-12
         
         let checkedInDays = new Set();
+        let monthInfo = [];
         try {
-            // ApiService.fetchCheckInList 直接返回一个 Set
-            checkedInDays = await this.apiService.fetchCheckInList(year, month);
+            // 并行获取打卡记录和当月题目信息
+            const [checkedInData, monthInfoData] = await Promise.all([
+                this.apiService.fetchCheckInList(year, month),
+                this.apiService.fetchMonthInfo(year, month)
+            ]);
+            checkedInDays = checkedInData;
+            monthInfo = monthInfoData;
+            
+            // ---- 调试信息 ----
+            console.log('[Calendar Debug] Fetched month info data:', monthInfoData);
+            if (monthInfoData && monthInfoData.length > 0) {
+                console.log('[Calendar Debug] Structure of the first item:', monthInfoData[0]);
+            }
+
         } catch (error) {
-            console.error("Error fetching check-in data:", error);
+            console.error("Error fetching calendar data:", error);
         }
+
+        // 将 monthInfo 转换为 Map，方便快速查找
+        // 使用 createTime 并将其转换为 YYYY-MM-DD 格式作为 key
+        const monthInfoMap = new Map(monthInfo.map(day => {
+            const date = new Date(day.createTime);
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            return [dateStr, day];
+        }));
         
         // 合并模拟打卡数据
         this.state.simulatedCheckIns.forEach(day => checkedInDays.add(day));
@@ -306,10 +370,10 @@ export class DailyView {
         }
         
         // 渲染日历网格
-        this.renderCalendarGrid(year, month, checkedInDays);
+        this.renderCalendarGrid(year, month, checkedInDays, monthInfoMap);
     }
     
-    renderCalendarGrid(year, month, checkedInDays) {
+    renderCalendarGrid(year, month, checkedInDays, monthInfoMap) {
         // 清除现有日期元素
         const dayElements = this.elements.calendarGrid.querySelectorAll('.calendar-day');
         dayElements.forEach(day => day.remove());
@@ -331,14 +395,27 @@ export class DailyView {
         for (let day = 1; day <= daysInMonth; day++) {
             const classes = [];
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            const dayInfo = monthInfoMap.get(dateStr);
             
             if (isCurrentMonth && day === today.getDate()) {
                 classes.push('today');
             }
             if (checkedInDays.has(dateStr)) {
                 classes.push('checked-in');
+
+                // 假设 monthInfoMap 中的条目会有一个 is_supplement 字段
+                if (dayInfo && dayInfo.is_supplement) {
+                    classes.push('supplement-check-in');
+                }
             }
-            this.elements.calendarGrid.appendChild(this.createCalendarDay(day, classes, dateStr));
+
+            // 如果当天有题目，添加可点击样式和 data 属性
+            if (dayInfo) {
+                classes.push('has-problem');
+            }
+
+            const dayDiv = this.createCalendarDay(day, classes, dateStr, dayInfo);
+            this.elements.calendarGrid.appendChild(dayDiv);
         }
         
         // 添加月末空白日期
@@ -349,7 +426,7 @@ export class DailyView {
         }
     }
     
-    createCalendarDay(day, classes, dateStr) {
+    createCalendarDay(day, classes, dateStr, dayInfo) {
         const dayDiv = document.createElement('div');
         dayDiv.className = 'calendar-day';
         if (classes.length > 0) {
@@ -367,7 +444,59 @@ export class DailyView {
         if (dateStr) {
             dayDiv.dataset.date = dateStr;
         }
+        
+        // 如果有题目信息，添加 data 属性并绑定事件
+        if (dayInfo) {
+            dayDiv.classList.add('has-problem'); // 确保在这里也添加类名
+            dayDiv.dataset.problemTitle = dayInfo.questionTitle;
+            dayDiv.dataset.problemUrl = dayInfo.questionUrl;
+
+            dayDiv.addEventListener('mouseover', (e) => this.showTooltip(e));
+            dayDiv.addEventListener('mousemove', (e) => this.moveTooltip(e));
+            dayDiv.addEventListener('mouseout', () => this.hideTooltip());
+            dayDiv.addEventListener('click', (e) => this.handleDayClick(e));
+        }
+
         return dayDiv;
+    }
+
+    // --- 新增 Tooltip 和点击处理方法 ---
+
+    showTooltip(event) {
+        const dayDiv = event.currentTarget;
+        const title = dayDiv.dataset.problemTitle;
+        const isCheckedIn = dayDiv.classList.contains('checked-in');
+        const isSupplement = dayDiv.classList.contains('supplement-check-in');
+
+        let status;
+        if (isSupplement) {
+            status = '<span class="status-checked-in">✔ 已补卡</span>';
+        } else if (isCheckedIn) {
+            status = '<span class="status-checked-in">✔ 已打卡</span>';
+        } else {
+            status = '❌ 未打卡';
+        }
+
+        this.tooltip.innerHTML = `<strong>${title}</strong><br>${status}`;
+        this.tooltip.style.display = 'block';
+        this.moveTooltip(event);
+    }
+
+    moveTooltip(event) {
+        this.tooltip.style.left = `${event.pageX + 10}px`;
+        this.tooltip.style.top = `${event.pageY + 10}px`;
+    }
+
+    hideTooltip() {
+        this.tooltip.style.display = 'none';
+    }
+    
+    handleDayClick(event) {
+        const dayDiv = event.currentTarget;
+        const url = dayDiv.dataset.problemUrl;
+        if (url) {
+            window.open(this.buildUrlWithChannelPut(url), '_blank', 'noopener,noreferrer');
+        }
     }
     
     renderCalendarStats(stats, checkedInDays = new Set()) {
@@ -442,7 +571,9 @@ export class DailyView {
             return;
         }
 
-        const avatarUrl = userData.headUrl.startsWith('http') ? userData.headUrl : `${APP_CONFIG.NOWCODER_UI_BASE}${userData.headUrl}`;
+        const avatarUrl = userData.headUrl && userData.headUrl.startsWith('http') 
+            ? userData.headUrl 
+            : `${APP_CONFIG.NOWCODER_UI_BASE}${userData.headUrl || ''}`;
         const displayRank = userData.place === 0 ? '1w+' : userData.place;
 
         const html = `

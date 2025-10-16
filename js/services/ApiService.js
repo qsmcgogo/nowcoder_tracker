@@ -164,6 +164,27 @@ export class ApiService {
     }
 
     /**
+     * 获取指定月份的每日一题信息
+     * @param {number} year - 年份
+     * @param {number} month - 月份
+     * @returns {Promise<Array>} 月度题目数据数组
+     */
+    async fetchMonthInfo(year, month) {
+        try {
+            const response = await fetch(`${this.apiBase}/problem/tracker/clock/monthinfo?year=${year}&month=${month}`);
+            if (!response.ok) throw new Error('Failed to fetch month info');
+            const data = await response.json();
+            if (data.code === 0 && Array.isArray(data.data)) {
+                return data.data; // e.g., [{questionId, questionTitle, date, ...}, ...]
+            }
+            return [];
+        } catch (error) {
+            console.error("Error fetching month info:", error);
+            return [];
+        }
+    }
+
+    /**
      * 获取打卡日历数据
      * @param {number} year - 年份
      * @param {number} month - 月份

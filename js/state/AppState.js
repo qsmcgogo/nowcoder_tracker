@@ -38,6 +38,7 @@ export class AppState {
         // 用户状态
         this.loggedInUserId = null;
         this.loggedInUserData = null;
+        this.isAdmin = false; // 新增管理员状态
         
         // 每日一题状态
         this.currentDailyProblem = null;
@@ -93,8 +94,16 @@ export class AppState {
     }
     
     setLoggedInUser(userId, userData) {
+        // ---- 调试信息 ----
+        console.log(`[AppState] 正在设置用户ID:`, userId, `(类型: ${typeof userId})`);
+        
         this.loggedInUserId = userId;
         this.loggedInUserData = userData;
+        // 在设置用户信息时，检查是否为管理员（使用宽松比较）
+        this.isAdmin = userId == '919247';
+        
+        // ---- 调试信息 ----
+        console.log(`[AppState] 管理员状态判定结果 (isAdmin):`, this.isAdmin);
     }
     
     setCurrentDailyProblem(problem) {
