@@ -1,0 +1,12 @@
+# Ignore node_modules
+node_modules/
+
+# Ignore local config files
+/cookie.txt
+/cookie_919247.txt
+
+# Ignore parsed data files if they are generated locally
+/parsed_practice_problems.json
+
+# Ignore nginx folder due to sensitive keys
+/nginx/
