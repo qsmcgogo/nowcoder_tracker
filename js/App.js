@@ -16,6 +16,7 @@ import { PracticeView } from './views/PracticeView.js';
 import { RankingsView } from './views/RankingsView.js';
 import { DailyView } from './views/DailyView.js';
 import { InterviewView } from './views/InterviewView.js';
+import { SkillTreeView } from './views/SkillTreeView.js';
 
 export class NowcoderTracker {
     constructor() {
@@ -59,6 +60,9 @@ export class NowcoderTracker {
             userSearchBtn: document.getElementById('rank-search-btn'),
             generateCardBtn: document.getElementById('generate-card-btn'),
             
+            // 技能树视图元素
+            skillTreeContainer: document.querySelector('#skill-tree .skill-tree-container'),
+
             // 每日一题视图元素
             dailyProblemContainer: document.getElementById('daily-problem-container'),
             userSummaryPanel: document.getElementById('user-summary-panel'),
@@ -84,7 +88,8 @@ export class NowcoderTracker {
             practice: new PracticeView(this.elements, this.state, this.apiService),
             rankings: new RankingsView(this.elements, this.state, this.apiService),
             daily: new DailyView(this.elements, this.state, this.apiService),
-            interview: new InterviewView(this.elements, this.state, this.apiService)
+            interview: new InterviewView(this.elements, this.state, this.apiService),
+            skillTree: new SkillTreeView(this.elements, this.state, this.apiService)
         };
     }
     
@@ -203,11 +208,35 @@ export class NowcoderTracker {
         if (this.elements.userIdInput) this.elements.userIdInput.addEventListener('keypress', handleEnter);
         if (this.elements.rivalIdInput) this.elements.rivalIdInput.addEventListener('keypress', handleEnter);
 
+        // Rankings 视图页签切换
+        document.querySelectorAll('.rank-tab').forEach(tab => {
+            tab.addEventListener('click', async (e) => {
+                e.preventDefault();
+                const rankType = tab.dataset.rankType;
+                if (!rankType) return;
+
+                document.querySelectorAll('.rank-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // 异步更新状态和UI，然后触发搜索
+                this.handleRankTabChange(rankType);
+            });
+        });
+
         // Rankings 搜索
         if (this.elements.userSearchBtn) {
             this.elements.userSearchBtn.addEventListener('click', () => {
                 const userId = this.elements.rankUserIdInput?.value?.trim();
-                if (userId) eventBus.emit(EVENTS.USER_SEARCH, userId);
+                // 无论userId是否存在，都发出事件。
+                // RankingsView将处理空userId的情况（即加载第一页）
+                eventBus.emit(EVENTS.USER_SEARCH, userId);
+            });
+        }
+        if (this.elements.rankUserIdInput) {
+            this.elements.rankUserIdInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    this.elements.userSearchBtn.click(); // 模拟点击搜索按钮
+                }
             });
         }
 
@@ -353,9 +382,8 @@ export class NowcoderTracker {
                     }
                     // 自动触发Search按钮
                     setTimeout(() => {
-                        // RankingsView 监听 USER_SEARCH 事件
-                        if (this.elements.rankUserIdInput?.value) {
-                            eventBus.emit(EVENTS.USER_SEARCH, this.elements.rankUserIdInput.value);
+                        if (this.elements.userSearchBtn) {
+                            this.elements.userSearchBtn.click();
                         }
                     }, 100);
                 }
@@ -374,12 +402,26 @@ export class NowcoderTracker {
                 }
                 break;
             case 'skill-tree':
-                this.loadSkillTree();
+                this.views.skillTree.render();
                 break;
         }
         
         // 发布事件
         eventBus.emit(EVENTS.MAIN_TAB_CHANGED, tabName);
+    }
+
+    async handleRankTabChange(rankType) {
+        // Step 1: Update state
+        this.state.setActiveRankingsTab(rankType);
+        
+        // Step 2: Notify the view to update its internal state and UI (like headers)
+        // This is now an async operation if the view needs to re-render parts of itself
+        await this.views.rankings.handleTabChange(rankType);
+
+        // Step 3: Now that the view is ready and in the correct state, trigger the search
+        if (this.elements.userSearchBtn) {
+            this.elements.userSearchBtn.click();
+        }
     }
     
     switchContestTab(tabName) {
@@ -423,21 +465,6 @@ export class NowcoderTracker {
             this.elements.cardModal.classList.add('visible');
             eventBus.emit(EVENTS.CARD_GENERATED, { cardDataUrl });
         }
-    }
-    
-    loadSkillTree() {
-        const container = document.querySelector('.skill-tree-container');
-        if (!container) return;
-        
-        // 显示加载状态
-        container.innerHTML = `
-            <div class="skill-tree-loading">
-                <div class="loading-spinner"></div>
-                <p>技能树功能开发中...</p>
-            </div>
-        `;
-        
-        console.log('技能树功能开发中...');
     }
     
     // 工具方法
@@ -523,9 +550,9 @@ export class NowcoderTracker {
             }
         });
 
-        // contests/interview 行首 “全AC” 标记
-        const contestRows = document.querySelectorAll('#contests-view tbody tr, #interview-view tbody tr');
-        contestRows.forEach(row => {
+        // contests/interview/practice 行首 “全AC” 标记
+        const allRows = document.querySelectorAll('#contests-view tbody tr, #practice-view tbody tr, #interview-view tbody tr');
+        allRows.forEach(row => {
             const cells = row.querySelectorAll('td[data-problem-id]');
             if (!cells.length) return;
             const allAc = Array.from(cells).every(c => ac1Set.has(c.getAttribute('data-problem-id')));

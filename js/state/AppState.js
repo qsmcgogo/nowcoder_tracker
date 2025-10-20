@@ -30,6 +30,7 @@ export class AppState {
         this.interviewCurrentPage = 1;
         
         // 排行榜状态
+        this.activeRankingsTab = 'problem'; // 'problem' or 'checkin'
         this.rankingsTotalUsers = 0;
         this.rankingsCurrentPage = 1;
         this.lastSearchedUid = null;
@@ -89,6 +90,10 @@ export class AppState {
         this.activeCampusSubTab = tab;
     }
     
+    setActiveRankingsTab(tab) {
+        this.activeRankingsTab = tab;
+    }
+    
     setLoadingState(module, loading) {
         this.isLoading[module] = loading;
     }
@@ -104,6 +109,10 @@ export class AppState {
         
         // ---- 调试信息 ----
         console.log(`[AppState] 管理员状态判定结果 (isAdmin):`, this.isAdmin);
+    }
+    
+    isLoggedIn() {
+        return !!this.loggedInUserId;
     }
     
     setCurrentDailyProblem(problem) {

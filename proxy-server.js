@@ -6,10 +6,16 @@ const { URL } = require('url');
 const app = express();
 const port = 3000;
 
-// 环境切换: 'pre' 或 'production'
-const CURRENT_ENV = 'www'; 
+// 环境切换: 'www', 'pre', 或 'd'
+const CURRENT_ENV = 'd'; 
 
-const targetHost = 'https://d.nowcoder.com';
+const HOST_MAP = {
+    'www': 'https://www.nowcoder.com',
+    'pre': 'https://pre.nowcoder.com',
+    'd': 'https://d.nowcoder.com'
+};
+
+const targetHost = HOST_MAP[CURRENT_ENV] || HOST_MAP['www']; // 默认指向 www
 
 // A generic, robust manual proxy handler
 const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
@@ -42,6 +48,12 @@ const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
             'X-CSRF-TOKEN': csrfToken
         }
     };
+
+    // For POST/PUT requests, it's crucial to forward the body-related headers.
+    if (clientReq.method === 'POST' || clientReq.method === 'PUT') {
+        options.headers['Content-Type'] = clientReq.headers['content-type'];
+        options.headers['Content-Length'] = clientReq.headers['content-length'];
+    }
     
     const proxyReq = https.request(options, (targetRes) => {
         console.log(`[Manual Proxy] Received response from Nowcoder. Status: ${targetRes.statusCode}`);
@@ -54,17 +66,24 @@ const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
         clientRes.status(500).send('Proxy error.');
     });
 
-    clientReq.pipe(proxyReq, { end: true });
+    // For POST/PUT requests, we need to manually pipe the request body.
+    if (clientReq.method === 'POST' || clientReq.method === 'PUT') {
+        clientReq.pipe(proxyReq, { end: true });
+    } else {
+        proxyReq.end(); // For GET/DELETE etc., just end the request.
+    }
 };
 
 // Apply the manual proxy handler with the correct, hardcoded base path for each route
 app.use('/problem/tracker/list', manualProxyHandler('/problem/tracker/list'));
 app.use('/problem/tracker/diff', manualProxyHandler('/problem/tracker/diff'));
-app.use('/problem/tracker/ranks', manualProxyHandler('/problem/tracker/ranks'));
+app.use('/problem/tracker/ranks/problem', manualProxyHandler('/problem/tracker/ranks/problem'));
+app.use('/problem/tracker/ranks/checkin', manualProxyHandler('/problem/tracker/ranks/checkin'));
 app.use('/problem/tracker/clock/todayinfo', manualProxyHandler('/problem/tracker/clock/todayinfo'));
 app.use('/problem/tracker/clock/add', manualProxyHandler('/problem/tracker/clock/add'));
 app.use('/problem/tracker/clock/list', manualProxyHandler('/problem/tracker/clock/list'));
-app.use('/problem/tracker/clock/monthinfo', manualProxyHandler('/problem/tracker/clock/monthinfo')); // 新增 monthinfo 接口代理
+app.use('/problem/tracker/clock/monthinfo', manualProxyHandler('/problem/tracker/clock/monthinfo'));
+app.use('/problem/tracker/addcheckin', manualProxyHandler('/problem/tracker/addcheckin'));
 
 // New endpoint to proxy avatars and bypass CORS for canvas
 app.get('/avatar-proxy', (req, res) => {

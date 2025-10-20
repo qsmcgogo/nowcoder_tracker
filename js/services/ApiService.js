@@ -17,7 +17,7 @@ export class ApiService {
     async fetchUserData(userId) {
         if (!userId) return null;
         try {
-            const response = await fetch(`${this.apiBase}/problem/tracker/ranks?userId=${userId}`);
+            const response = await fetch(`${this.apiBase}/problem/tracker/ranks/problem?userId=${userId}`);
             if (!response.ok) throw new Error('User rank fetch failed');
             const data = await response.json();
             if (data.code === 0 && data.data && data.data.ranks && data.data.ranks.length > 0) {
@@ -38,7 +38,7 @@ export class ApiService {
      */
     async fetchRankings(page = 1, limit = 20) {
         try {
-            const url = `${this.apiBase}/problem/tracker/ranks?page=${page}&limit=${limit}`;
+            const url = `${this.apiBase}/problem/tracker/ranks/problem?page=${page}&limit=${limit}`;
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
@@ -103,23 +103,34 @@ export class ApiService {
      * @param {string} userId2 - 用户2 ID（可选）
      * @returns {Promise<object>} 差异数据
      */
-    async fetchUserProblemDiff(userId1, qids, userId2 = null) {
-        try {
-            const params = new URLSearchParams({ userId1, qids });
-            if (userId2) params.append('userId2', userId2);
-            
-            let queryString = params.toString().replace(/%2C/g, ',');
-            const url = `${this.apiBase}/problem/tracker/diff?${queryString}`;
+    async fetchUserProblemDiff(user1Id, qids, user2Id = null) {
+        if (!user1Id || !qids) return null;
+        
+        const url = `${this.apiBase}/problem/tracker/diff`;
+        
+        // Manually construct the body to prevent URL-encoding of commas within qids
+        let body = `userId1=${encodeURIComponent(user1Id)}&qids=${qids}`;
+        if (user2Id) {
+            body += `&userId2=${encodeURIComponent(user2Id)}`;
+        }
 
-            const response = await fetch(url, { method: 'POST', body: null });
-            if (!response.ok) throw new Error(`Network Error: ${response.statusText}`);
+        try {
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                },
+                body: body,
+            });
+
+            if (!response.ok) throw new Error('Failed to fetch user problem diff');
             const result = await response.json();
             if (result.code !== 0) throw new Error(`API Error: ${result.msg}`);
             
             return result.data;
         } catch (error) {
-            console.error('Failed to fetch problem diff:', error);
-            throw error;
+            console.error('Error in fetchUserProblemDiff:', error);
+            throw error; // Rethrow the error to be caught by the caller
         }
     }
 
@@ -256,6 +267,53 @@ export class ApiService {
      */
     async fetchRankingsPage(page = 1, limit = 20) {
         return this.fetchRankings(page, limit);
+    }
+
+    /**
+     * 获取打卡排行榜数据
+     * @param {number} page - 页码
+     * @param {number} limit - 每页数量
+     * @returns {Promise<object>} 打卡排行榜数据
+     */
+    async fetchCheckinRankings(page = 1, limit = 20, userId = null) {
+        try {
+            let url = `${this.apiBase}/problem/tracker/ranks/checkin?page=${page}&limit=${limit}`;
+            if (userId) {
+                url = `${this.apiBase}/problem/tracker/ranks/checkin?userId=${userId}`;
+            }
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            
+            if (data.code === 0 && data.data) {
+                return data.data;
+            } else {
+                throw new Error(data.msg || '未知错误');
+            }
+        } catch (error) {
+            console.error('Error fetching checkin rankings:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 为指定用户补卡
+     * @param {string} userId - 用户ID
+     * @returns {Promise<object>} 操作结果
+     */
+    async addCheckin(userId) {
+        if (!userId) {
+            throw new Error('User ID is required for addCheckin');
+        }
+        try {
+            const url = `${this.apiBase}/problem/tracker/addcheckin?userId=${userId}`;
+            const response = await fetch(url, { method: 'POST' }); // 假设是 POST 请求
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            return await response.json();
+        } catch (error) {
+            console.error('Error in addCheckin:', error);
+            throw error;
+        }
     }
 
     /**

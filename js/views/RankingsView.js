@@ -21,7 +21,6 @@ export class RankingsView {
     
     init() {
         this.bindEvents();
-        this.preloadRankingsData();
     }
     
     bindEvents() {
@@ -32,54 +31,81 @@ export class RankingsView {
             }
         });
         
+        // 监听排行榜页签切换事件
+        eventBus.on(EVENTS.RANKINGS_TAB_CHANGED, (rankType) => {
+            this.updateRankingsHeader(rankType);
+            this.fetchAndRenderRankingsPage(1);
+        });
+
         // 监听用户搜索事件
         eventBus.on(EVENTS.USER_SEARCH, (userId) => {
             this.handleUserStatusSearch(userId);
         });
     }
-    
-    preloadRankingsData() {
-        // 预加载第一页排行榜数据
-        this.fetchAndRenderRankingsPage(1, null, true);
+
+    async handleTabChange(rankType) {
+        // This method is called by App.js BEFORE the search is triggered.
+        // Its job is to synchronously or asynchronously prepare the view for the new tab.
+        this.updateRankingsHeader(rankType);
+        // We can return a resolved promise to signal completion if no async work is needed.
+        return Promise.resolve();
     }
     
-    async fetchAndRenderRankingsPage(page, userToAppend = null, isPreload = false) {
+    async fetchAndRenderRankingsPage(page, userIdToHighlight = null, isPreload = false) {
         if (this.state.isLoading.rankings && !isPreload) return;
         
-        if (!isPreload) {
-            this.elements.rankingsTbody.innerHTML = `<tr><td colspan="3" class="loading">正在加载排行榜...</td></tr>`;
-        }
-        
         this.state.setLoadingState('rankings', true);
-        this.state.rankingsCurrentPage = page; // Set current page in state
+        this.state.rankingsCurrentPage = page;
         eventBus.emit(EVENTS.DATA_LOADING, { module: 'rankings' });
         
         try {
-            const data = await this.apiService.fetchRankingsPage(page, this.rankingsPageSize);
-            
+            const rankType = this.state.activeRankingsTab;
+            // This fetch is always for a specific page list, NOT for a specific user
+            const data = rankType === 'problem'
+                ? await this.apiService.fetchRankingsPage(page, this.rankingsPageSize)
+                : await this.apiService.fetchCheckinRankings(page, this.rankingsPageSize);
+
             if (data && data.ranks) {
                 this.state.rankingsTotalUsers = data.totalCount;
+                this.elements.rankingsTbody.innerHTML = '';
+
+                data.ranks.forEach(user => {
+                    this.elements.rankingsTbody.innerHTML += this.generateRankingRowHtml(user);
+                });
                 
-                this.renderRankings(data.ranks); // Always render the fetched page
-                
-                if (userToAppend) {
-                    // If a user needs to be appended (e.g., >1w+ rank), add them to the end
-                    this.appendUserToRankings(userToAppend);
-                }
-                
-                this.highlightSearchedUser();
                 this.renderRankingsPagination();
+                
+                const userExistsInList = userIdToHighlight ? data.ranks.some(r => r.uid == userIdToHighlight) : false;
+                
+                if (userIdToHighlight) {
+                    if (userExistsInList) {
+                         this.elements.userRankDisplay.style.display = 'none';
+                         this.highlightSearchedUser();
+                    } else {
+                        // This can happen if the user is unranked (place > 1w) but we landed on a page.
+                        // We will fetch their specific data and append it.
+                        const userRankDataResponse = rankType === 'problem'
+                            ? await this.apiService.fetchUserData(userIdToHighlight)
+                            : await this.apiService.fetchCheckinRankings(1, 1, userIdToHighlight);
+                        if(userRankDataResponse && userRankDataResponse.ranks && userRankDataResponse.ranks.length > 0) {
+                            this.appendUserToRankings(userRankDataResponse.ranks[0]);
+                            this.elements.userRankDisplay.style.display = 'none';
+                            this.highlightSearchedUser();
+                        } else {
+                            this.showRankSearchError('用户未找到');
+                        }
+                    }
+                }
+
             } else {
-                this.renderRankingsError('没有找到排行榜数据');
+                this.elements.rankingsTbody.innerHTML = '<tr><td colspan="4" class="no-data">暂无排行数据</td></tr>';
             }
-            
-            eventBus.emit(EVENTS.DATA_LOADED, { module: 'rankings', data });
         } catch (error) {
-            console.error('Error fetching rankings:', error);
-            this.renderRankingsError('加载排行榜失败');
-            eventBus.emit(EVENTS.DATA_ERROR, { module: 'rankings', error });
+            console.error(`Error fetching rankings (page ${page}):`, error);
+            this.elements.rankingsTbody.innerHTML = `<tr><td colspan="4" class="error">排行榜加载失败</td></tr>`;
         } finally {
             this.state.setLoadingState('rankings', false);
+            eventBus.emit(EVENTS.DATA_LOADED, { module: 'rankings' });
         }
     }
     
@@ -87,7 +113,7 @@ export class RankingsView {
         if (!this.elements.rankingsTbody) return;
         
         if (users.length === 0) {
-            this.elements.rankingsTbody.innerHTML = `<tr><td colspan="3">暂无排行榜数据</td></tr>`;
+            this.elements.rankingsTbody.innerHTML = `<tr><td colspan="4">暂无排行榜数据</td></tr>`;
             return;
         }
         
@@ -114,6 +140,20 @@ export class RankingsView {
         }
         const highlightClass = user.uid === this.state.lastSearchedUid ? 'highlight-row' : '';
         
+        // 根据排行榜类型显示不同的数据
+        const rankType = this.state.activeRankingsTab;
+        const count = user.count || 0;
+        const consecutiveDays = user.continueDays || 0;
+
+        // 根据排行榜类型生成数据列
+        let statsHtml;
+        if (rankType === 'checkin') {
+            statsHtml = `<td>${count}</td><td>${consecutiveDays}</td>`;
+        } else {
+            // 对于过题榜，让“过题数”一栏横跨两列以匹配表头结构
+            statsHtml = `<td colspan="2">${count}</td>`;
+        }
+
         return `
             <tr class="${highlightClass}" data-uid="${user.uid}" data-rank="${displayRank}">
                 <td>${displayRank}</td>
@@ -125,7 +165,7 @@ export class RankingsView {
                         <span class="user-nickname">${user.name}</span>
                     </a>
                 </td>
-                <td>${user.count || 0}</td>
+                ${statsHtml}
             </tr>
         `;
     }
@@ -139,6 +179,18 @@ export class RankingsView {
         this.elements.rankingsTbody.insertAdjacentHTML('beforeend', userRow);
     }
     
+    updateRankingsHeader(rankType) {
+        const acHeader = document.querySelector('#rankings-table .ac-header');
+        const consecutiveHeader = document.querySelector('#rankings-table .consecutive-days-header');
+
+        if (acHeader) {
+            acHeader.textContent = rankType === 'problem' ? '过题数' : '累计打卡';
+        }
+        if (consecutiveHeader) {
+            consecutiveHeader.style.display = rankType === 'checkin' ? '' : 'none';
+        }
+    }
+
     renderRankingsPagination() {
         const container = document.getElementById('rankings-pagination');
         const info = document.getElementById('rankingsPaginationInfo');
@@ -211,54 +263,44 @@ export class RankingsView {
     }
     
     async handleUserStatusSearch(userId) {
-        if (!userId || userId.trim() === '') return;
-        
-        this.elements.userRankDisplay.innerHTML = `正在查询用户 ID: ${userId} ...`;
-        this.elements.userRankDisplay.style.display = 'block';
-        this.state.lastSearchedUid = userId;
-        
-        try {
-            const userData = await this.apiService.fetchUserData(userId);
-            
-            if (userData) {
-                this.elements.userRankDisplay.style.display = 'none';
+        const trimmedUserId = typeof userId === 'string' ? userId.trim() : String(userId);
+        if (!trimmedUserId) {
+            this.fetchAndRenderRankingsPage(1); // No user, just load page 1
+            return;
+        }
 
-                let totalRankedUsers = this.state.rankingsTotalUsers;
-                // 如果总用户数为0，则重新获取
-                if (totalRankedUsers === 0) {
-                    try {
-                        const page1Data = await this.apiService.fetchRankings(1, 1);
-                        if (page1Data && page1Data.totalCount) {
-                            this.state.rankingsTotalUsers = page1Data.totalCount;
-                            totalRankedUsers = page1Data.totalCount;
-                        }
-                    } catch (e) {
-                        console.error("无法获取总用户数，后续分页可能不准确。", e);
-                    }
-                }
-                
-                // 计算用户应该在哪一页
-                const placeStr = String(userData.place);
-                const userRank = parseInt(placeStr, 10);
-                
-                if (/^\d+$/.test(placeStr) && !isNaN(userRank) && userRank > 0 && userRank <= totalRankedUsers) {
-                    const targetPage = Math.ceil(userRank / this.rankingsPageSize);
-                    await this.fetchAndRenderRankingsPage(targetPage);
-                    this.highlightSearchedUser();
+        this.elements.userRankDisplay.innerHTML = `正在查询用户 ID: ${trimmedUserId} ...`;
+        this.elements.userRankDisplay.style.display = 'block';
+        this.state.lastSearchedUid = trimmedUserId;
+
+        try {
+            // Step 1: "Ask for directions" - get the user's specific rank data first
+            const rankType = this.state.activeRankingsTab;
+            const userRankDataResponse = rankType === 'problem'
+                ? await this.apiService.fetchUserData(trimmedUserId)
+                // For check-in, the API should also support fetching a single user by userId
+                : await this.apiService.fetchCheckinRankings(1, 1, trimmedUserId); 
+            
+            if (userRankDataResponse && userRankDataResponse.ranks && userRankDataResponse.ranks.length > 0) {
+                const userData = userRankDataResponse.ranks[0];
+                const place = userData.place;
+
+                if (place > 0) {
+                    // Step 2: "Fetch the cargo" - calculate the correct page and fetch it
+                    const targetPage = Math.ceil(place / this.rankingsPageSize);
+                    await this.fetchAndRenderRankingsPage(targetPage, trimmedUserId);
                 } else {
-                    // 用户不在排名内或排名格式特殊（如 1w+），显示在最后一页
-                    const lastPage = Math.ceil(totalRankedUsers / this.rankingsPageSize) || 1;
-                    await this.fetchAndRenderRankingsPage(lastPage, userData);
+                    // User has 0 count or is unranked, just show them on the last page
+                    const totalUsers = userRankDataResponse.totalCount || this.state.rankingsTotalUsers || 1;
+                    const lastPage = Math.ceil(totalUsers / this.rankingsPageSize) || 1;
+                    await this.fetchAndRenderRankingsPage(lastPage, trimmedUserId);
                 }
-                
-                eventBus.emit(EVENTS.USER_SEARCH, { userId, userData });
             } else {
                 this.showRankSearchError('用户未找到');
             }
         } catch (error) {
-            console.error('Error searching user rank:', error);
+            console.error('Error in handleUserStatusSearch:', error);
             this.showRankSearchError('查询用户排名失败');
-            eventBus.emit(EVENTS.DATA_ERROR, { module: 'rankings', error });
         }
     }
     
@@ -282,19 +324,11 @@ export class RankingsView {
     showRankSearchError(message) {
         this.elements.userRankDisplay.innerHTML = message;
         this.elements.userRankDisplay.style.display = 'block';
-        
-        // 清除之前的高亮
-        const highlighted = this.elements.rankingsTbody.querySelector('.highlight-row');
-        if (highlighted) {
-            highlighted.classList.remove('highlight-row');
-        }
-        
-        this.state.lastSearchedUid = null;
     }
     
     renderRankingsError(message) {
         if (this.elements.rankingsTbody) {
-            this.elements.rankingsTbody.innerHTML = `<tr><td colspan="3" class="error">${message}</td></tr>`;
+            this.elements.rankingsTbody.innerHTML = `<tr><td colspan="4" class="error">${message}</td></tr>`;
         }
     }
 }
