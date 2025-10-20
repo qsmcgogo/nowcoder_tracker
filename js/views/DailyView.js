@@ -151,7 +151,7 @@ export class DailyView {
         console.log('------------------------------------');
 
         if (isClockToday) {
-            preButtonText = `<p class="ac-status-note">今日已通过该题并自动打卡</p>`;
+            preButtonText = ''; // Removed: <p class="ac-status-note">今日已获得<span class="stats-highlight" style="color: #ffd700;">${this.state.todayCoinReward}</span>牛币</p>
             buttonHtml = `
                 <div class="checked-in-actions">
                     <span class="check-in-status">已打卡 ✔</span>
@@ -395,9 +395,20 @@ export class DailyView {
         for (let day = 1; day <= daysInMonth; day++) {
             const classes = [];
             const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            const dayInfo = monthInfoMap.get(dateStr);
+            let dayInfo = monthInfoMap.get(dateStr);
+            const isToday = isCurrentMonth && day === today.getDate();
             
-            if (isCurrentMonth && day === today.getDate()) {
+            // If it's today and there's no specific info from monthInfo,
+            // use the current daily problem from the state.
+            if (isToday && !dayInfo && this.state.currentDailyProblem) {
+                dayInfo = {
+                    questionTitle: this.state.currentDailyProblem.title,
+                    questionUrl: this.state.currentDailyProblem.url,
+                    //... add any other relevant properties if needed
+                };
+            }
+            
+            if (isToday) {
                 classes.push('today');
             }
             if (checkedInDays.has(dateStr)) {
@@ -433,6 +444,19 @@ export class DailyView {
             dayDiv.classList.add(...classes);
         }
         
+        // If there's problem info for this day, add hover effects and click event
+        // This should be independent of other classes like 'today'
+        if (dayInfo) {
+            dayDiv.classList.add('has-problem');
+            dayDiv.dataset.problemTitle = dayInfo.questionTitle;
+            dayDiv.dataset.problemUrl = dayInfo.questionUrl;
+
+            dayDiv.addEventListener('mouseover', (e) => this.showTooltip(e));
+            dayDiv.addEventListener('mousemove', (e) => this.moveTooltip(e));
+            dayDiv.addEventListener('mouseout', () => this.hideTooltip());
+            dayDiv.addEventListener('click', (e) => this.handleDayClick(e));
+        }
+        
         // Add a span inside for better control over the number's position
         if (day) {
             const numberSpan = document.createElement('span');
@@ -445,18 +469,6 @@ export class DailyView {
             dayDiv.dataset.date = dateStr;
         }
         
-        // 如果有题目信息，添加 data 属性并绑定事件
-        if (dayInfo) {
-            dayDiv.classList.add('has-problem'); // 确保在这里也添加类名
-            dayDiv.dataset.problemTitle = dayInfo.questionTitle;
-            dayDiv.dataset.problemUrl = dayInfo.questionUrl;
-
-            dayDiv.addEventListener('mouseover', (e) => this.showTooltip(e));
-            dayDiv.addEventListener('mousemove', (e) => this.moveTooltip(e));
-            dayDiv.addEventListener('mouseout', () => this.hideTooltip());
-            dayDiv.addEventListener('click', (e) => this.handleDayClick(e));
-        }
-
         return dayDiv;
     }
 

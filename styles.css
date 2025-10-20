@@ -1713,44 +1713,54 @@ body .problems-table tbody tr td.status-none {
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
+    pointer-events: none; /* Allow mouse events to pass through to the parent div */
 }
 
 .calendar-day.other-month {
     visibility: hidden; /* Hide days from other months */
 }
 
-.calendar-day.checked-in {
-    background-color: #388e3c; /* A deep green background */
-    color: white; /* White text for contrast */
-    border-radius: 50%;
-    border: none; /* Ensure no border is applied */
+/* --- CALENDAR DAY STYLING LOGIC --- */
+
+/* Level 3: Base style for any day with a problem */
+.calendar-grid .calendar-day.has-problem {
+    cursor: pointer;
+    background-color: #f0f8ff; /* A light blue to indicate it's special */
+}
+.calendar-grid .calendar-day.has-problem:hover {
+    background-color: #e3f2fd;
+    border: 1px solid #90caf9;
 }
 
+/* Level 2: Today's style (overrides has-problem) */
+.calendar-grid .calendar-day.today {
+    background-color: #1976d2;
+    color: white;
+    border-radius: 50%;
+}
+.calendar-grid .calendar-day.today:hover {
+     background-color: #1565c0; /* A slightly darker blue on hover */
+}
+.calendar-grid .calendar-day.today .calendar-day-number {
+    color: white;
+}
+
+
+/* Level 1 (Highest Priority): Checked-in style (overrides everything) */
+.calendar-day.checked-in,
+.calendar-day.checked-in:hover {
+    background-color: #388e3c !important; /* A deep green background */
+    color: white !important;
+    border-radius: 50%;
+    border: none;
+}
 .calendar-day.checked-in .calendar-day-number {
-    color: white;
+    color: white !important;
 }
 
-.calendar-day.today {
-    background-color: #007bff;
-    color: white;
-    border-radius: 50%;
-}
-
-/* Make checked-in style more specific to override 'today' */
-.calendar-day.today.checked-in,
-.calendar-day.checked-in {
-    background-color: #388e3c !important; /* A deep green background, forced priority */
-    color: white !important; /* White text for contrast, forced priority */
-    border-radius: 50%;
-    border: none; /* Ensure no border is applied */
-}
-
-.calendar-day.checked-in .calendar-day-number {
-    color: white;
-}
-
-/* Style for supplemented check-ins (light green) */
-.calendar-day.supplement-check-in {
+/* Level 1 (Highest Priority): Supplemented check-in style */
+.calendar-day.supplement-check-in,
+.calendar-day.supplement-check-in:hover {
     background-color: #8bc34a !important; /* A light green color */
 }
 
@@ -1981,7 +1991,7 @@ body .problems-table tbody tr td.status-none {
 
 /* Coin Exchange Link Styles */
 .coin-exchange-link-container {
-    margin-top: 8px;
+    margin-top: 12px;
     text-align: center;
 }
 
@@ -2033,12 +2043,114 @@ body .problems-table tbody tr td.status-none {
 }
 
 /* Calendar day with a problem - Increased specificity */
-.calendar-grid .calendar-day.has-problem {
-    cursor: pointer;
-    background-color: #f0f8ff; /* A light blue to indicate it's special */
+.stats-text .stats-highlight {
+    color: #4CAF50; /* A pleasant green */
+    font-weight: bold;
 }
 
-.calendar-grid .calendar-day.has-problem:hover {
-    background-color: #e0f0ff; /* A slightly darker blue on hover */
-    border: 1px solid #b0c4de;
+#calendar-stats .stats-highlight[style*="ffd700"] {
+    color: #4CAF50 !important; /* Override inline style to keep it green */
+}
+
+/* ------------------------- */
+/* Skill Tree Styles         */
+/* ------------------------- */
+
+.skill-tree-container {
+    padding: 20px;
+    background-color: #f9fafb;
+}
+
+.skill-tree-login-prompt {
+    text-align: center;
+    padding: 50px;
+    font-size: 1.2em;
+    color: #666;
+    background-color: #fff;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+}
+
+.skill-tree-graph {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 40px 20px; /* 垂直间距大，水平间距小 */
+    position: relative;
+    padding: 20px;
+}
+
+.skill-node {
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 15px;
+    width: 250px;
+    background-color: #fff;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    transition: all 0.3s ease;
+}
+
+.skill-node__title {
+    font-weight: bold;
+    font-size: 1.1em;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.skill-node__problems {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.problem-item {
+    padding: 8px 10px;
+    border-radius: 5px;
+    margin-bottom: 5px;
+    font-size: 0.9em;
+    transition: background-color 0.3s ease;
+}
+
+
+/* --- Node & Problem States --- */
+
+/* Locked State */
+.skill-node--locked {
+    background-color: #f3f4f6;
+    border-color: #e5e7eb;
+    color: #9ca3af;
+}
+.skill-node--locked .skill-node__title {
+    color: #6b7280;
+}
+.problem-item--locked {
+    color: #9ca3af;
+    text-decoration: line-through;
+}
+
+/* Unlocked State */
+.skill-node--unlocked {
+    border-color: #3b82f6; /* Blue border */
+    box-shadow: 0 0 10px rgba(59, 130, 246, 0.2);
+}
+.problem-item--unlocked {
+    background-color: #eff6ff; /* Light blue background */
+    cursor: pointer;
+}
+.problem-item--unlocked:hover {
+    background-color: #dbeafe;
+}
+
+/* Completed State */
+.skill-node--completed {
+    border-color: #16a34a; /* Green border */
+    background-color: #f0fdf4; /* Light green background */
+}
+.skill-node--completed .skill-node__title {
+    color: #15803d; /* Darker green */
+}
+.problem-item--completed {
+    background-color: #dcfce7; /* Green background */
+    color: #166534;
+    text-decoration: line-through;
 }
