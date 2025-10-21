@@ -151,7 +151,27 @@ export class DailyView {
         console.log('------------------------------------');
 
         if (isClockToday) {
-            preButtonText = ''; // Removed: <p class="ac-status-note">今日已获得<span class="stats-highlight" style="color: #ffd700;">${this.state.todayCoinReward}</span>牛币</p>
+            // ------------------ 暗门/彩蛋逻辑开始 ------------------
+            const now = new Date();
+            // 定义北京时间 2025-10-24 19:00 到 21:00 的时间窗口
+            // 使用 ISO 8601 格式并指定 +08:00 时区，确保不依赖用户本地时间
+            const startTime = new Date('2025-10-24T19:00:00+08:00');
+            const endTime = new Date('2025-10-24T23:59:59+08:00');
+
+            //测试用时间
+            // const startTime = new Date('2025-10-21T14:00:00+08:00');
+            // const endTime = new Date('2025-10-21T15:00:00+08:00');
+
+            let successMessage = ``; // 默认不显示牛币信息，保持UI简洁
+
+            // 检查当前时间是否在指定的时间窗口内
+            if (now.getTime() >= startTime.getTime() && now.getTime() < endTime.getTime()) {
+                // 在特定时间段显示特殊文案
+                successMessage = '1024神秘代码：<span class="stats-highlight easter-egg">c58940c92d804f5fa1f04159ffa3ed3a</span>';
+            }
+            // ------------------ 暗门/彩蛋逻辑结束 ------------------
+
+            preButtonText = `<p class="ac-status-note">${successMessage}</p>`;
             buttonHtml = `
                 <div class="checked-in-actions">
                     <span class="check-in-status">已打卡 ✔</span>

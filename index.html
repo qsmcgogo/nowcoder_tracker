@@ -16,6 +16,7 @@
                 <button class="tab-btn" data-tab="rankings">rankings</button>
                 <button class="tab-btn active" data-tab="daily">打卡</button>
                 <button class="tab-btn" data-tab="skill-tree">技能树</button>
+                <button class="tab-btn" data-tab="profile">我的</button>
                 <button class="tab-btn" data-tab="faq">FAQ</button>
             </nav>
         </header>
@@ -34,7 +35,6 @@
                             <input type="text" id="rivalId" placeholder="输入对比用户ID">
                         </div>
                         <button id="problem-search-btn" class="search-btn">Search</button>
-                        <button id="generate-card-btn" class="search-btn" disabled>生成名片</button>
                     </div>
                 </div>
                 
@@ -235,6 +235,11 @@
                 </div>
             </section>
             
+            <!-- Profile Tab -->
+            <section id="profile" class="tab-content">
+               <!-- Profile content will be rendered here by ProfileView.js -->
+            </section>
+
             <!-- 排行榜 -->
             <section id="rankings" class="tab-content">
                 <div class="content-wrapper">
@@ -349,15 +354,26 @@
             </section>
         </main>
         
+        <!-- Skill Tree Right Panel -->
+        <div id="skill-node-panel" class="skill-node-panel">
+            <button id="skill-node-panel-close" class="skill-node-panel__close-btn">&times;</button>
+            <div class="skill-node-panel__content">
+                <h3 id="skill-node-panel-title" class="skill-node-panel__title"></h3>
+                <p id="skill-node-panel-desc" class="skill-node-panel__description"></p>
+                <div class="skill-node-panel__divider"></div>
+                <h4>相关题目</h4>
+                <ul id="skill-node-panel-problems" class="skill-node-panel__problems-list">
+                    <!-- Problems will be dynamically inserted here -->
+                </ul>
+            </div>
+        </div>
+
+        <script type="module" src="js/App.js"></script>
+        <script src="js/lib/leader-line.min.js"></script>
+
         <footer>
             <p>&copy; 2025 nowcoder problems</p>
         </footer>
-    </div>
-    
-    <div id="card-modal" class="modal-overlay">
-        <div class="modal-content">
-            <img id="card-image" src="" alt="User Card">
-        </div>
     </div>
     
     <!-- 日历悬浮提示框 -->

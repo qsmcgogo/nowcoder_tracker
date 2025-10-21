@@ -123,5 +123,5 @@ app.use(manualProxyHandler());
 
 app.listen(port, () => {
     console.log(`Proxy server listening at http://localhost:${port}`);
-    console.log(`Your application is now available at http://localhost:${port}/index.html`);
+    console.log(`Frontend running at http://localhost:8080`);
 });

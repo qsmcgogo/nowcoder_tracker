@@ -5,7 +5,6 @@
 
 import { APP_CONFIG } from './config.js';
 import { ApiService } from './services/ApiService.js';
-import { CardGenerator } from './components/CardGenerator.js';
 import { AppState } from './state/AppState.js';
 import { eventBus, EVENTS } from './events/EventBus.js';
 import * as helpers from './utils/helpers.js';
@@ -17,6 +16,7 @@ import { RankingsView } from './views/RankingsView.js';
 import { DailyView } from './views/DailyView.js';
 import { InterviewView } from './views/InterviewView.js';
 import { SkillTreeView } from './views/SkillTreeView.js';
+import { ProfileView } from './views/ProfileView.js';
 
 export class NowcoderTracker {
     constructor() {
@@ -25,7 +25,6 @@ export class NowcoderTracker {
         
         // 初始化服务
         this.apiService = new ApiService();
-        this.cardGenerator = new CardGenerator();
         
         // 初始化DOM元素
         this.elements = this.initElements();
@@ -58,7 +57,6 @@ export class NowcoderTracker {
             userRankDisplay: document.getElementById('user-rank-display'),
             rankUserIdInput: document.getElementById('rank-user-id-input'),
             userSearchBtn: document.getElementById('rank-search-btn'),
-            generateCardBtn: document.getElementById('generate-card-btn'),
             
             // 技能树视图元素
             skillTreeContainer: document.querySelector('#skill-tree .skill-tree-container'),
@@ -78,7 +76,10 @@ export class NowcoderTracker {
             // 模态框元素
             cardImage: document.getElementById('card-image'),
             cardModal: document.getElementById('card-modal'),
-            cardModalClose: document.getElementById('card-modal-close')
+            cardModalClose: document.getElementById('card-modal-close'),
+            // 我的页面容器
+            profile: document.getElementById('profile'),
+            faq: document.getElementById('faq')
         };
     }
     
@@ -89,7 +90,8 @@ export class NowcoderTracker {
             rankings: new RankingsView(this.elements, this.state, this.apiService),
             daily: new DailyView(this.elements, this.state, this.apiService),
             interview: new InterviewView(this.elements, this.state, this.apiService),
-            skillTree: new SkillTreeView(this.elements, this.state, this.apiService)
+            skillTree: new SkillTreeView(this.elements, this.state, this.apiService),
+            profile: new ProfileView(this.elements, this.state, this.apiService)
         };
     }
     
@@ -269,30 +271,6 @@ export class NowcoderTracker {
         
         // 移除USER_SEARCH事件监听器，避免死循环
         
-        // 生成卡片
-        if (this.elements.generateCardBtn) {
-            this.elements.generateCardBtn.addEventListener('click', () => {
-                this.generateCard();
-            });
-        }
-        
-        // 卡片模态框关闭
-        if (this.elements.cardModal) {
-            this.elements.cardModal.addEventListener('click', () => {
-                this.elements.cardModal.classList.remove('visible');
-            });
-        }
-        if (this.elements.cardImage) {
-            this.elements.cardImage.addEventListener('click', (e) => {
-                e.stopPropagation(); // 阻止点击图片时关闭模态框
-            });
-        }
-        if (this.elements.cardModalClose) {
-            this.elements.cardModalClose.addEventListener('click', () => {
-                this.elements.cardModal.classList.remove('visible');
-            });
-        }
-        
         // 日历导航
         const calendarPrevBtn = document.getElementById('calendar-prev-month');
         const calendarNextBtn = document.getElementById('calendar-next-month');
@@ -330,24 +308,30 @@ export class NowcoderTracker {
     }
     
     switchMainTab(tabName) {
-        // 更新状态
+        // Hide all views first to ensure cleanup
+        Object.values(this.views).forEach(view => {
+            if (view.hide) {
+                view.hide();
+            }
+        });
+
+        // Update state
         this.state.setActiveMainTab(tabName);
         
-        // 更新UI（按钮active）
+        // Update UI (button active)
         this.elements.mainTabs.forEach(tab => {
             tab.classList.toggle('active', tab.dataset.tab === tabName);
         });
-
-        // 切换主内容区域（与index.html的结构对应：.tab-content + section id）
-        document.querySelectorAll('.tab-content').forEach(section => {
-            const isActive = section.id === tabName;
-            section.classList.toggle('active', isActive);
-            // 统一使用display切换，兼容旧样式
-            section.style.display = isActive ? 'block' : 'none';
-        });
-        
-        // 触发视图切换
-        switch (tabName) {
+ 
+         // 切换主内容区域（与index.html的结构对应：.tab-content + section id）
+         document.querySelectorAll('.tab-content').forEach(section => {
+             const isActive = section.id === tabName;
+             section.classList.toggle('active', isActive);
+             // The line below is removed to allow CSS to control display property
+         });
+         
+         // 触发视图切换
+         switch (tabName) {
             case 'daily':
                 eventBus.emit(EVENTS.MAIN_TAB_CHANGED, 'daily');
                 break;
@@ -369,6 +353,15 @@ export class NowcoderTracker {
                     });
                     this.state.setActiveView(defaultView);
                     eventBus.emit(EVENTS.VIEW_CHANGED, defaultView);
+
+                    // If logged in, automatically fill UID and trigger a search
+                    if (this.state.loggedInUserId) {
+                        if (this.elements.userIdInput && !this.elements.userIdInput.value) {
+                            this.elements.userIdInput.value = this.state.loggedInUserId;
+                        }
+                        // Use a timeout to ensure the view is ready before searching
+                        setTimeout(() => this.handleUserStatusSearch(), 100);
+                    }
                 }
                 break;
             case 'rankings':
@@ -403,6 +396,9 @@ export class NowcoderTracker {
                 break;
             case 'skill-tree':
                 this.views.skillTree.render();
+                break;
+            case 'profile':
+                this.views.profile.render();
                 break;
         }
         
@@ -442,29 +438,6 @@ export class NowcoderTracker {
     switchCampusSubTab(tabName) {
         this.state.setActiveCampusSubTab(tabName);
         eventBus.emit(EVENTS.INTERVIEW_TAB_CHANGED, 'campus');
-    }
-    
-    async generateCard() {
-        if (!this.state.lastSearchedUserData || !this.state.lastSearchedUserData.user1) {
-            alert('请先查询一个有效的用户。');
-            return;
-        }
-        
-        const { user1, user2 } = this.state.lastSearchedUserData;
-        
-        let cardDataUrl;
-        if (user1 && user2) {
-            cardDataUrl = await this.cardGenerator.drawComparisonCard(user1, user2);
-        } else if (user1) {
-            cardDataUrl = await this.cardGenerator.drawSingleCard(user1);
-        }
-        
-        // 显示卡片
-        if (this.elements.cardImage && this.elements.cardModal && cardDataUrl) {
-            this.elements.cardImage.src = cardDataUrl;
-            this.elements.cardModal.classList.add('visible');
-            eventBus.emit(EVENTS.CARD_GENERATED, { cardDataUrl });
-        }
     }
     
     // 工具方法
@@ -527,7 +500,7 @@ export class NowcoderTracker {
         return qids || null;
     }
 
-    // 根据 diff 结果高亮题目单元格
+    // Apply highlighting based on diff results
     applyProblemHighlighting(data, hasRival) {
         const { ac1Qids = [], ac2Qids = [] } = data || {};
         const ac1Set = new Set(ac1Qids.map(String));
@@ -535,10 +508,12 @@ export class NowcoderTracker {
 
         const allProblemCells = document.querySelectorAll('#contests-view td[data-problem-id], #practice-view td[data-problem-id], #interview-view td[data-problem-id]');
         
+        // Reset all statuses first
         allProblemCells.forEach(cell => {
-            cell.classList.remove('status-ac', 'status-rival-ac', 'status-none', 'status-all-ac');
+            cell.classList.remove('status-ac', 'status-rival-ac', 'status-none');
         });
 
+        // Apply new statuses
         allProblemCells.forEach(cell => {
             const pid = cell.getAttribute('data-problem-id');
             if (ac1Set.has(pid)) {
@@ -558,7 +533,13 @@ export class NowcoderTracker {
             const allAc = Array.from(cells).every(c => ac1Set.has(c.getAttribute('data-problem-id')));
             const first = row.querySelector('td:first-child');
             if (!first) return;
-            first.classList.toggle('status-all-ac', allAc);
+
+            // Ensure we don't remove the class if it should be there, and add it if needed
+            if (allAc) {
+                first.classList.add('status-all-ac');
+            } else {
+                first.classList.remove('status-all-ac');
+            }
         });
     }
 }

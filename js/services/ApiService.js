@@ -30,26 +30,28 @@ export class ApiService {
         }
     }
 
-    /**
-     * 获取排行榜数据
-     * @param {number} page - 页码
-     * @param {number} limit - 每页数量
-     * @returns {Promise<object>} 排行榜数据
-     */
-    async fetchRankings(page = 1, limit = 20) {
+    async fetchRankings(rankType, page, userId = null, limit = 20) {
+        let url;
+        if (userId) {
+            // If a specific user is requested, build a URL without pagination params.
+            url = `${this.apiBase}/problem/tracker/ranks/${rankType}?userId=${userId}`;
+        } else {
+            // For general leaderboard, build a URL with pagination params.
+            url = `${this.apiBase}/problem/tracker/ranks/${rankType}?page=${page}&limit=${limit}`;
+        }
+        
         try {
-            const url = `${this.apiBase}/problem/tracker/ranks/problem?page=${page}&limit=${limit}`;
             const response = await fetch(url);
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            const data = await response.json();
-            
-            if (data.code === 0 && data.data) {
-                return data.data;
-            } else {
-                throw new Error(data.msg || '未知错误');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
             }
+            const data = await response.json();
+            if (data.code !== 0) {
+                throw new Error(data.msg || 'Failed to fetch rankings');
+            }
+            return data.data;
         } catch (error) {
-            console.error('Error fetching rankings:', error);
+            console.error(`Error fetching ${rankType} rankings:`, error);
             throw error;
         }
     }
@@ -339,6 +341,30 @@ export class ApiService {
         } catch (error) {
             console.error('Failed to fetch interview data:', error);
             throw error;
+        }
+    }
+
+    async fetchUserCheckinData(userId) {
+        if (!userId) return null;
+        
+        // This endpoint seems to be different from the base API, so we use the full URL.
+        // Note: This might cause CORS issues in development if not proxied.
+        // Assuming the proxy is configured to handle this path.
+        const url = `${this.apiBase}/problem/tracker/ranks/checkin?userId=${userId}`;
+
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch user check-in data');
+            const result = await response.json();
+            if (result.code !== 0) throw new Error(`API Error: ${result.msg}`);
+
+            // The API returns a list, we need the first user that matches.
+            const userData = result.data?.ranks?.find(rank => String(rank.uid) === String(userId));
+            return userData || { count: 0, continueDays: 0 }; // Return default if user not found in ranks
+        } catch (error) {
+            console.error('Error in fetchUserCheckinData:', error);
+            // Return a default object on error to prevent card generation failure
+            return { count: 0, continueDays: 0 };
         }
     }
 }
