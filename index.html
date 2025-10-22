@@ -343,10 +343,25 @@
                     <div class="faq-item">
                         <h3><img src="https://uploadfiles.nowcoder.com/images/20251017/8582211_1760681445990/F5562653781B2CA18F1829C3AC0FA5EE" alt="打气" class="faq-icon"> 新手如何开始？</h3>
                         <p>
-                            我们为不同方向的同学推荐了不同的学习路径：<br><br>
-                            <b>算法竞赛方向：</b> 建议从“练习”板块的“新手入门”开始，结合每日打卡培养手感，然后逐步挑战“竞赛”板块的各类比赛题目，并对练习赛和区域赛真题进行补题训练。<br><br>
-                            <b>求职面试方向：</b> 同样建议从“新手入门”开始打好基础，并坚持每日打卡。然后，重点转至“校招”板块练习大厂真题，并集中学习“面试高频题”模块。定期回顾，查漏补缺。<br><br>
-                            请记住，学习算法是一个循序渐进的过程，坚持就是胜利。
+                            我们为新手提供了两种推荐的学习路径，您可以根据自己的偏好选择：
+                            <br><br>
+                            <b>&middot; 如果您喜欢自由探索、按自己的顺序刷题</b>，建议您从 <b>problems</b> 标签页下的“新手入门130题”开始。这里汇集了最基础、最核心的编程题目，非常适合用来建立代码感。
+                            <br><br>
+                            <b>&middot; 如果您喜欢沿着规划好的路线系统学习</b>，我们推荐您直接进入 <b>技能树</b> 标签页。它将引导您按照知识点依赖关系，一步步构建完整的算法知识体系。
+                            <br><br>
+                            无论选择哪种方式，坚持都是胜利！
+                        </p>
+                    </div>
+                    <div class="faq-item">
+                        <h3><img src="https://uploadfiles.nowcoder.com/images/20251017/8582211_1760681445990/F5562653781B2CA18F1829C3AC0FA5EE" alt="技能树" class="faq-icon"> 技能树的进度和通关规则是怎样的？</h3>
+                        <p>
+                            技能树旨在帮助您体系化地学习和巩固知识点。每个知识点的通关标准是进度达到60%，它会解锁后续依赖的知识点。每个章节（如“晨曦微光”）由若干个知识点模块（虚框）组成，只有当一个模块内所有知识点都通关后，该模块的进度贡献（20%）才会被计入章节总进度。当章节总进度达到100%时，您将解锁下一个章节。
+                        </p>
+                    </div>
+                    <div class="faq-item">
+                        <h3><img src="https://uploadfiles.nowcoder.com/images/20251017/8582211_1760681435824/B0EEC0AF33C9BDA0E0F0035A41BD847F" alt="我的" class="faq-icon"> “我的”页面中的数据多久更新一次？</h3>
+                        <p>
+                            “我的”页面中的所有数据，包括总过题数、全站排名、打卡天数以及技能树进度，都是在您每次切换到该页面时实时从服务器获取的，确保为您展示最新的个人状态。
                         </p>
                     </div>
                     </div>
@@ -361,10 +376,13 @@
                 <h3 id="skill-node-panel-title" class="skill-node-panel__title"></h3>
                 <p id="skill-node-panel-desc" class="skill-node-panel__description"></p>
                 <div class="skill-node-panel__divider"></div>
-                <h4>相关题目</h4>
+                <h4>题目</h4>
                 <ul id="skill-node-panel-problems" class="skill-node-panel__problems-list">
                     <!-- Problems will be dynamically inserted here -->
                 </ul>
+                <div class="skill-node-panel__footer">
+                    <span id="skill-node-panel-score" class="skill-node-panel__score"></span>
+                </div>
             </div>
         </div>
 

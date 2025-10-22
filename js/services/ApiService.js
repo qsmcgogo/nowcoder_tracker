@@ -367,5 +367,55 @@ export class ApiService {
             return { count: 0, continueDays: 0 };
         }
     }
+
+    /**
+     * Fetches detailed information for a specific skill tree tag (node).
+     * @param {string} tagId - The ID of the skill tree tag.
+     * @returns {Promise<Object>} - A promise that resolves to the tag's detailed info.
+     */
+    async fetchTagInfo(tagId) {
+        const url = `${this.apiBase}/problem/tracker/skill-tree/tagInfo?tagId=${tagId}`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            if (data.code === 0 && data.data) {
+                return data.data;
+            }
+            throw new Error(data.msg || `Failed to fetch info for tag ${tagId}`);
+        } catch (error) {
+            console.error(`Error fetching tag info for tagId ${tagId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 批量获取用户在多个知识点上的进度
+     * @param {string} userId - 用户ID
+     * @param {Array<string|number>} tagIds - 知识点ID数组
+     * @returns {Promise<object>} 进度数据
+     */
+    async fetchSkillTreeProgress(userId, tagIds) {
+        if (!userId || !tagIds || tagIds.length === 0) {
+            return { nodeProgress: {} };
+        }
+        const tagsParam = tagIds.join(',');
+        const url = `${this.apiBase}/problem/tracker/skill-tree/progress?userId=${userId}&tags=${tagsParam}`;
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            
+            // 后端已修复，恢复标准的JSON解析
+            const data = await response.json();
+            if (data.code === 0 && data.data && data.data.nodeProgress) {
+                return data.data; // 直接返回包含 nodeProgress 的 data 对象
+            }
+            throw new Error(data.msg || 'Failed to fetch skill tree progress');
+
+        } catch (error) {
+            console.error(`Error fetching progress for tags ${tagsParam}:`, error);
+            throw error;
+        }
+    }
 }
 

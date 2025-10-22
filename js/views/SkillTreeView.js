@@ -3,6 +3,94 @@
  * 处理技能树相关的UI和逻辑
  */
 import { eventBus, EVENTS } from '../events/EventBus.js';
+import * as helpers from '../utils/helpers.js';
+
+// --- 新增：前端节点ID到后端Tag ID的映射 ---
+export const nodeIdToTagId = {
+    'basic-output': 1001,
+    'integer': 1002,
+    'float': 1003,
+    'char': 1004,
+    'mixed-input': 1005,
+    'arithmetic-add': 1006,
+    'arithmetic-sub': 1007,
+    'arithmetic-div-mod': 1009, // Merged from mul(1008) and div(1009)
+    'bit-shift': 1010,
+    'arithmetic-mod': 1011, // 注意：这个在SQL中没有，需要确认ID
+    'branch-control': 1012,
+    'single-loop': 1013,
+    'multi-loop': 1014,
+    'mixed-control': 1015,
+    'array-1d': 1016,
+    'string-type': 1017,
+};
+
+// --- 新增：导出技能树的静态结构数据 ---
+export const skillTreeData = {
+    'newbie-130': {
+        id: 'newbie-130',
+        name: '新手入门130题',
+        description: '覆盖了编程入门阶段的核心知识点，包括但不限于循环、数组、字符串处理、简单模拟和基础算法。',
+        stages: [
+            { 
+                id: 'stage-1', 
+                name: '第一章：晨曦微光',
+                // 定义列的结构和内容
+                columns: [
+                    { id: 'col-1', name: '基础输出', nodeIds: ['basic-output'] },
+                    { id: 'col-2', name: '基本类型与输入', nodeIds: ['integer', 'float', 'char', 'mixed-input'] },
+                    { 
+                        id: 'col-3', 
+                        name: '算术运算', 
+                        nodeIds: ['arithmetic-add', 'arithmetic-sub', 'arithmetic-div-mod', 'bit-shift', 'arithmetic-mod'] 
+                    },
+                    { 
+                        id: 'col-4', 
+                        name: '程序控制', 
+                        nodeIds: ['branch-control', 'single-loop', 'multi-loop', 'mixed-control'] 
+                    },
+                    { 
+                        id: 'col-5', 
+                        name: '一维基本类型', 
+                        nodeIds: ['array-1d', 'string-type'] 
+                    }
+                ]
+            },
+            {
+                id: 'stage-2',
+                name: '第二章：懵懂新芽'
+            },
+            {
+                id: 'stage-3',
+                name: '第三章：初显峥嵘'
+            },
+            {
+                id: 'stage-4',
+                name: '第四章：进阶之路'
+            }
+        ],
+        nodes: {
+            // 知识点静态数据：只保留ID, name, dependencies
+            // description 和 problems 将从API获取
+            'basic-output': { id: 'basic-output', name: '基础输出', dependencies: [] },
+            'integer': { id: 'integer', name: '整数', dependencies: ['basic-output'] },
+            'float': { id: 'float', name: '浮点数', dependencies: ['basic-output'] },
+            'char': { id: 'char', name: '单个字符', dependencies: ['basic-output'] },
+            'mixed-input': { id: 'mixed-input', name: '混合输入', dependencies: ['basic-output'] },
+            'arithmetic-add': { id: 'arithmetic-add', name: '加减法', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'arithmetic-sub': { id: 'arithmetic-sub', name: '乘法', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'arithmetic-div-mod': { id: 'arithmetic-div-mod', name: '除法与取余', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'bit-shift': { id: 'bit-shift', name: '位移', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'arithmetic-mod': { id: 'arithmetic-mod', name: '混合运算', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'branch-control': { id: 'branch-control', name: '分支控制', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'single-loop': { id: 'single-loop', name: '单层循环', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'multi-loop': { id: 'multi-loop', name: '多层循环', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'mixed-control': { id: 'mixed-control', name: '混合', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'array-1d': { id: 'array-1d', name: '一维数组', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'string-type': { id: 'string-type', name: '字符串', dependencies: ['integer', 'float', 'char', 'mixed-input'] }
+        }
+    }
+};
 
 export class SkillTreeView {
     constructor(elements, state, apiService) {
@@ -14,6 +102,7 @@ export class SkillTreeView {
         // Panel elements
         this.panel = document.getElementById('skill-node-panel');
         this.panelTitle = document.getElementById('skill-node-panel-title');
+        this.panelScore = document.getElementById('skill-node-panel-score');
         this.panelDesc = document.getElementById('skill-node-panel-desc');
         this.panelProblems = document.getElementById('skill-node-panel-problems');
         this.panelCloseBtn = document.getElementById('skill-node-panel-close');
@@ -21,113 +110,14 @@ export class SkillTreeView {
         this.lines = [];
         this.currentView = 'summary'; // 'summary' or 'detail'
         this.selectedStageId = null;
+        this.activeNodeId = null; // To track which node panel is open
         
-        // ------------------ 模拟数据 ------------------
-        // 将技能树数据包装成一个对象，方便未来扩展
-        this.skillTrees = {
-            'newbie-130': {
-                id: 'newbie-130',
-                name: '新手入门130题',
-                description: '覆盖了编程入门阶段的核心知识点，包括但不限于循环、数组、字符串处理、简单模拟和基础算法。',
-                stages: [
-                    { 
-                        id: 'stage-1', 
-                        name: '第一章：晨曦微光',
-                        // 定义列的结构和内容
-                        columns: [
-                            { id: 'col-1', name: '基础输出', nodeIds: ['basic-output'] },
-                            { id: 'col-2', name: '基本类型与输入', nodeIds: ['integer', 'float', 'char', 'mixed-input'] },
-                            { 
-                                id: 'col-3', 
-                                name: '算术运算', 
-                                nodeIds: ['arithmetic-add', 'arithmetic-sub', 'arithmetic-mul', 'arithmetic-div', 'bit-shift', 'arithmetic-mod'] 
-                            },
-                            { 
-                                id: 'col-4', 
-                                name: '程序控制', 
-                                nodeIds: ['branch-control', 'single-loop', 'multi-loop', 'mixed-control'] 
-                            },
-                            { 
-                                id: 'col-5', 
-                                name: '一维基本类型', 
-                                nodeIds: ['array-1d', 'string-type'] 
-                            }
-                        ]
-                    },
-                    {
-                        id: 'stage-2',
-                        name: '第二章：懵懂新芽'
-                    },
-                    {
-                        id: 'stage-3',
-                        name: '第三章：初显峥嵘'
-                    },
-                    {
-                        id: 'stage-4',
-                        name: '第四章：进阶之路'
-                    }
-                ],
-                nodes: {
-                    // Column 1
-                    'basic-output': { id: 'basic-output', name: '基础输出', description: '学习如何在屏幕上打印出第一行代码，这是所有编程旅程的起点。我们将学习如何输出文字、数字和简单的符号。', dependencies: [], problems: [{ qid: '2370904', name: 'Hello Nowcoder!' }, { qid: '1254547', name: '我爱刷题' }, { qid: '274324', name: '输出学生信息' }] },
+        // ------------------ 模拟数据更新 ------------------
+        // 技能树的静态结构（章节、知识点名称、依赖关系）仍然保留在前端
+        this.skillTrees = skillTreeData; // Use the exported data
 
-                    // Column 2
-                    'integer': { id: 'integer', name: '整数', description: '掌握计算机中最基础的数据类型——整数。学习如何定义整数变量，以及如何从用户那里读取一个整数值。', dependencies: ['basic-output'], problems: [{ qid: '308923', name: '牛牛学说话之-整数' }, { qid: '308924', name: '牛牛学说话之-整数II' }] },
-                    'float': { id: 'float', name: '浮点数', description: '了解如何表示和处理带有小数的数字，即浮点数。这对于进行精确的科学计算和处理货币等场景至关重要。', dependencies: ['basic-output'], problems: [{ qid: '308926', name: '牛牛学说话之-浮点数' }] },
-                    'char': { id: 'char', name: '单个字符', description: '探索如何处理单个字符，比如一个字母 \'a\' 或一个符号 \'#\'。这是构建更复杂字符串和文本处理的基础。', dependencies: ['basic-output'], problems: [{ qid: '308927', name: '牛牛学说话之-字符' }] },
-                    'mixed-input': { id: 'mixed-input', name: '混合输入', description: '学习如何在一行内读取多种不同类型的数据，例如同时读取一个整数和一个字符。这是处理复杂输入格式的关键技巧。', dependencies: ['basic-output'], problems: [{ qid: '308928', name: '牛牛学说话之-混合' }] },
-
-                    // Column 3
-                    'arithmetic-add': { id: 'arithmetic-add', name: '加减法', description: '从最简单的加减法开始，学习如何在代码中进行基本的数学运算，让计算机为你计算。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [{ qid: '308925', name: '牛牛学加法' }] },
-                    'arithmetic-sub': { id: 'arithmetic-sub', name: '乘法', description: '学习如何在代码中进行乘法运算，这是循环、数组和许多算法的基础。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] },
-                    'arithmetic-mul': { id: 'arithmetic-mul', name: '除法', description: '学习如何在代码中进行除法运算，并理解整数除法和浮点数除法的区别。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] },
-                    'arithmetic-div': { id: 'arithmetic-div', name: '取余', description: '掌握取余（或取模）运算，这是一个在编程中非常有用的工具，常用于判断奇偶、周期性问题和数据分组。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] },
-                    'bit-shift': { id: 'bit-shift', name: '位移', description: '探索位运算的奥秘，学习如何通过位移操作高效地进行乘除2的幂次运算，这是底层优化和算法竞赛中的常用技巧。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] },
-                    'arithmetic-mod': { id: 'arithmetic-mod', name: '混合运算', description: '综合运用多种算术运算符，解决需要遵循特定运算优先级的复杂数学表达式问题。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] },
-                    
-                    // Column 4
-                    'branch-control': { id: 'branch-control', name: '分支控制', description: '学习使用if-else语句，让你的程序学会“决策”，根据不同的条件执行不同的代码路径。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] },
-                    'single-loop': { id: 'single-loop', name: '单层循环', description: '掌握for和while等循环结构，让计算机重复执行任务，从而处理大量数据和实现自动化。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] },
-                    'multi-loop': { id: 'multi-loop', name: '多层循环', description: '学习如何嵌套循环，通过外层和内层循环的组合，解决更复杂的问题，例如打印图形和处理二维数据。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] },
-                    'mixed-control': { id: 'mixed-control', name: '混合', description: '综合运用分支和循环结构，解决需要将判断和重复执行结合起来的复杂逻辑问题。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] },
-
-                    // Column 5: 1D Array (Updated)
-                    'array-1d': { id: 'array-1d', name: '一维数组', description: '学习使用数组，这是一种可以一次性存储多个相同类型数据的强大工具，是数据结构学习的基石。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] },
-                    'string-type': { id: 'string-type', name: '字符串', description: '学习处理由多个字符组成的序列——字符串。掌握字符串的输入、输出和常用操作，是处理文本信息的必备技能。', dependencies: ['integer', 'float', 'char', 'mixed-input'], problems: [] }
-                }
-            }
-        };
-
-        this.userProgress = {
-            // All progress set to 100% for completion view testing
-            solvedProblems: new Set([
-                '2370904', '1254547', '274324',
-                '308923', '308924',
-                '308926',
-                '308927',
-                '308928',
-                '308925'
-            ]),
-            nodeProgress: {
-                'basic-output': 100,
-                'integer': 100,
-                'float': 100,
-                'char': 100,
-                'mixed-input': 100,
-                'arithmetic-add': 100,
-                'arithmetic-sub': 100,
-                'arithmetic-mul': 100,
-                'arithmetic-div': 100,
-                'bit-shift': 100,
-                'arithmetic-mod': 100,
-                'branch-control': 100,
-                'single-loop': 100,
-                'multi-loop': 100,
-                'mixed-control': 100,
-                'array-1d': 100,
-                'string-type': 100
-            }
-        };
+        // this.userProgress = { ... }; // 移除旧的模拟进度数据
+        this.currentStageProgress = { nodeProgress: {} }; // 用于存储当前阶段的进度
         // ---------------------------------------------
     }
 
@@ -147,74 +137,81 @@ export class SkillTreeView {
         }
     }
 
-    // 渲染阶段概览页
-    renderStageSummaryView() {
+    // 渲染阶段概览页 - (修改)
+    async renderStageSummaryView() {
+        // 概览页也需要获取所有知识点的进度来计算通关率
         const tree = this.skillTrees['newbie-130'];
         if (!tree || !tree.stages) {
             this.container.innerHTML = '<div>技能树数据加载错误</div>';
             return;
         }
 
-        let previousStageProgress = 100; // 第一关默认解锁
+        const allNodeIds = Object.keys(tree.nodes);
+        const allTagIds = allNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
 
-        const stagesToRender = tree.stages.slice(0, 3); // Only take the first three stages
+        try {
+            // 获取所有节点的进度
+            const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, allTagIds);
+            this.currentStageProgress = progressData; // 存储进度, 格式为 { nodeProgress: { ... } }
 
-        const stagesHtml = stagesToRender.map(stage => {
-            let progress = 0;
-            // Special calculation for the first stage "晨曦微光"
-            if (stage.id === 'stage-1') {
-                const totalColumns = stage.columns.length;
-                let completedColumns = 0;
+            let previousStageProgress = 100; // 第一关默认解锁
+            const stagesToRender = tree.stages.slice(0, 3);
+
+            const stagesHtml = stagesToRender.map(stage => {
+                let progress = 0;
+                if (stage.id === 'stage-1') {
+                    const totalColumns = stage.columns.length;
+                    let completedColumns = 0;
+                    
+                    stage.columns.forEach(column => {
+                        const isColumnCompleted = column.nodeIds.every(nodeId => {
+                            const tagId = nodeIdToTagId[nodeId];
+                            // 直接从 currentStageProgress.nodeProgress 中获取
+                            return (this.currentStageProgress.nodeProgress[tagId] || 0) >= 60;
+                        });
+                        if (isColumnCompleted) {
+                            completedColumns++;
+                        }
+                    });
+                    
+                    progress = completedColumns * 20;
+                } else {
+                    // 其他阶段暂时维持原有简单逻辑或显示为0
+                    progress = 0;
+                }
                 
-                stage.columns.forEach(column => {
-                    // A column is completed if all its nodes have >= 60% progress
-                    const isColumnCompleted = column.nodeIds.every(nodeId => 
-                        (this.userProgress.nodeProgress[nodeId] || 0) >= 60
-                    );
-                    if (isColumnCompleted) {
-                        completedColumns++;
-                    }
-                });
-                
-                progress = completedColumns * 20; // Each completed column is 20%
-            } else {
-                // Standard calculation for other stages
-                const totalNodes = stage.columns ? stage.columns.flatMap(c => c.nodeIds).length : 0;
-                const completedNodes = totalNodes > 0 
-                    ? stage.columns.flatMap(c => c.nodeIds).filter(nodeId => (this.userProgress.nodeProgress[nodeId] || 0) === 100).length 
-                    : 0;
-                progress = totalNodes > 0 ? Math.round((completedNodes / totalNodes) * 100) : 0;
-            }
-            
-            // A stage is locked if the previous stage's progress is not 100%
-            const isLocked = previousStageProgress < 100;
-            
-            previousStageProgress = progress; // Update for the next iteration
+                const isLocked = previousStageProgress < 100;
+                previousStageProgress = progress;
 
-            return `
-                <div class="skill-tree-card ${isLocked ? 'locked' : ''}" data-stage-id="${stage.id}" ${isLocked ? 'aria-disabled="true"' : ''}>
-                    <div class="skill-tree-card__header">
-                        <h3 class="skill-tree-card__title">${stage.name}</h3>
-                        <span class="skill-tree-card__progress-text">通关率: ${progress}%</span>
+                return `
+                    <div class="skill-tree-card ${isLocked ? 'locked' : ''}" data-stage-id="${stage.id}" ${isLocked ? 'aria-disabled="true"' : ''}>
+                        <div class="skill-tree-card__header">
+                            <h3 class="skill-tree-card__title">${stage.name}</h3>
+                            <span class="skill-tree-card__progress-text">通关率: ${progress}%</span>
+                        </div>
+                        <div class="skill-tree-card__progress-bar">
+                            <div class="skill-tree-card__progress-bar-inner" style="width: ${progress}%;"></div>
+                        </div>
                     </div>
-                    <div class="skill-tree-card__progress-bar">
-                        <div class="skill-tree-card__progress-bar-inner" style="width: ${progress}%;"></div>
-                    </div>
-                </div>
-            `;
-        }).join('');
+                `;
+            }).join('');
 
-        this.container.innerHTML = `<div class="skill-tree-summary">${stagesHtml}</div>`;
-        this.bindSummaryEvents();
+            this.container.innerHTML = `<div class="skill-tree-summary">${stagesHtml}</div>`;
+            this.bindSummaryEvents();
+
+        } catch (error) {
+            console.error('Error rendering stage summary:', error);
+            this.container.innerHTML = `<div class="error">加载技能树进度失败，请稍后重试。</div>`;
+        }
     }
 
-    // 渲染技能树详情页（单个阶段）
-    renderDetailView(stageId) {
+    // 渲染技能树详情页（单个阶段） - (修改)
+    async renderDetailView(stageId) {
         const tree = this.skillTrees['newbie-130'];
         const stage = tree.stages.find(s => s.id === stageId);
         if (!stage) return;
 
-        // Handle stages with no content (no columns defined)
+        // 处理TBC的阶段
         if (!stage.columns || stage.columns.length === 0) {
             const html = `
                 <div class="skill-tree-detail">
@@ -230,105 +227,125 @@ export class SkillTreeView {
             return;
         }
 
-        // The node states are now calculated based on progress percentage
-        const nodeStates = this.calculateNodeStates(tree.nodes);
-        
-        // --- 修改开始：按手绘图布局组织 ---
-        let leftColumnHtml = '';
-        let rightColumnHtml = '';
+        this.container.innerHTML = `<div class="loading-spinner"></div>`; // 显示加载中
 
-        if (stage.columns) {
-            stage.columns.forEach(column => {
-                const nodesHtml = column.nodeIds.map(nodeId => {
-                    if (tree.nodes[nodeId]) {
-                        return this.renderNode(nodeId, tree.nodes, nodeStates);
-                    }
-                    return '';
-                }).join('');
-                
-                let columnLockClass = '';
-                let columnElementsHtml = '';
+        try {
+            // 获取本阶段所有节点的Tag ID
+            const stageNodeIds = stage.columns.flatMap(c => c.nodeIds);
+            const stageTagIds = stageNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
 
-                // Check the state of the first node to determine if the column is locked
-                const firstNodeId = column.nodeIds[0];
-                if (firstNodeId) {
-                    const firstNodeState = nodeStates[firstNodeId];
-                    if (firstNodeState.state === 'locked') {
-                        columnLockClass = 'skill-tree-column--locked';
+            // 调用API获取进度
+            const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, stageTagIds);
+            this.currentStageProgress = progressData; // 格式为 { nodeProgress: { ... } }
 
-                        const lockIcon = `<img src="https://api.iconify.design/mdi/lock-outline.svg?color=%23adb5bd" class="skill-tree-column__lock-icon" alt="Locked">`;
-                        
-                        let tooltipContent = '';
-                        const dependencies = tree.nodes[firstNodeId]?.dependencies || [];
+            // The node states are now calculated based on progress percentage
+            const nodeStates = this.calculateNodeStates(tree.nodes);
+            
+            let leftColumnHtml = '';
+            let rightColumnHtml = '';
 
-                        if (dependencies.length > 0) {
-                            tooltipContent = dependencies.map(depId => {
-                                const depNode = tree.nodes[depId];
-                                const progress = this.userProgress.nodeProgress[depId] || 0;
-                                const isMet = progress >= 60;
-                                
-                                const statusSymbol = isMet 
-                                    ? `<span class="tooltip-check">✓</span>`
-                                    : `<span class="tooltip-cross">✗</span>`;
-
-                                return `<div class="${isMet ? 'met' : 'unmet'}">${depNode.name} 进度达到60% ${statusSymbol}</div>`;
-                            }).join('');
+            if (stage.columns) {
+                stage.columns.forEach(column => {
+                    const nodesHtml = column.nodeIds.map(nodeId => {
+                        if (tree.nodes[nodeId]) {
+                            const tagId = nodeIdToTagId[nodeId];
+                            const progress = this.currentStageProgress.nodeProgress[tagId] || 0;
+                            return this.renderNode(nodeId, tree.nodes, nodeStates, progress);
                         }
-                        const tooltip = `<div class="skill-tree-column__tooltip">${tooltipContent}</div>`;
-                        columnElementsHtml = lockIcon + tooltip;
+                        return '';
+                    }).join('');
+                    
+                    let columnLockClass = '';
+                    let columnElementsHtml = '';
+
+                    const firstNodeId = column.nodeIds[0];
+                    if (firstNodeId) {
+                        const firstNodeState = nodeStates[firstNodeId];
+                        if (firstNodeState && firstNodeState.state === 'locked') {
+                            columnLockClass = 'skill-tree-column--locked';
+
+                            const lockIcon = `<img src="https://api.iconify.design/mdi/lock-outline.svg?color=%23adb5bd" class="skill-tree-column__lock-icon" alt="Locked">`;
+                            
+                            let tooltipContent = '';
+                            const dependencies = tree.nodes[firstNodeId]?.dependencies || [];
+
+                            if (dependencies.length > 0) {
+                                tooltipContent = dependencies.map(depId => {
+                                    const depNode = tree.nodes[depId];
+                                    const depTagId = nodeIdToTagId[depId];
+                                    const progress = this.currentStageProgress.nodeProgress[depTagId] || 0;
+                                    const isMet = progress >= 60;
+                                    
+                                    const statusSymbol = isMet 
+                                        ? `<span class="tooltip-check">✓</span>`
+                                        : `<span class="tooltip-cross">✗</span>`;
+
+                                    return `<div class="${isMet ? 'met' : 'unmet'}">${depNode.name} 进度达到60% ${statusSymbol}</div>`;
+                                }).join('');
+                            }
+                            const tooltip = `<div class="skill-tree-column__tooltip">${tooltipContent}</div>`;
+                            columnElementsHtml = lockIcon + tooltip;
+                        }
                     }
-                }
 
-                const columnHtml = `
-                    <div class="skill-tree-column ${columnLockClass}" id="skill-tree-column-${column.id}">
-                        ${columnElementsHtml}
-                        <h4 class="skill-tree-column__title">${column.name}</h4>
-                        <div class="skill-tree-column__nodes">${nodesHtml}</div>
+                    // --- Hotfix for col-5 tooltip clipping ---
+                    const extraStyle = column.id === 'col-5' ? 'style="overflow: visible;"' : '';
+
+                    const columnHtml = `
+                        <div class="skill-tree-column ${columnLockClass}" id="skill-tree-column-${column.id}" ${extraStyle}>
+                            ${columnElementsHtml}
+                            <h4 class="skill-tree-column__title">${column.name}</h4>
+                            <div class="skill-tree-column__nodes">${nodesHtml}</div>
+                        </div>
+                    `;
+
+                    if (column.id === 'col-1' || column.id === 'col-2') {
+                        leftColumnHtml += columnHtml;
+                    } else {
+                        rightColumnHtml += columnHtml;
+                    }
+                });
+            }
+
+            const html = `
+                <div class="skill-tree-detail">
+                    <div class="skill-tree-detail__header">
+                        <button id="skill-tree-back-btn" class="back-button">&larr; 返回所有阶段</button>
+                        <h2>${stage.name}</h2>
                     </div>
-                `;
+                    <div class="skill-tree-dag-container">
+                        <div class="dag-main-column">${leftColumnHtml}</div>
+                        <div class="dag-main-column">${rightColumnHtml}</div>
+                    </div>
+                </div>
+            `;
+            this.container.innerHTML = html;
+            this.bindDetailEvents();
+            setTimeout(() => this.drawColumnDependencyLines(stage), 0);
 
-                // 根据手绘图分配到左列或右列
-                if (column.id === 'col-1' || column.id === 'col-2') {
-                    leftColumnHtml += columnHtml;
-                } else {
-                    rightColumnHtml += columnHtml;
-                }
-            });
+        } catch (error) {
+            console.error(`Error rendering detail view for stage ${stageId}:`, error);
+            this.container.innerHTML = `<div class="error">加载关卡详情失败，请稍后重试。</div>`;
         }
-        // --- 修改结束 ---
-
-        const html = `
-            <div class="skill-tree-detail">
-                <div class="skill-tree-detail__header">
-                    <button id="skill-tree-back-btn" class="back-button">&larr; 返回所有阶段</button>
-                    <h2>${stage.name}</h2>
-                </div>
-                <div class="skill-tree-dag-container">
-                    <div class="dag-main-column">${leftColumnHtml}</div>
-                    <div class="dag-main-column">${rightColumnHtml}</div>
-                </div>
-            </div>
-        `;
-        this.container.innerHTML = html;
-        this.bindDetailEvents();
-
-        // DOM渲染完成后绘制依赖连线
-        setTimeout(() => this.drawColumnDependencyLines(stage), 0);
     }
     
-    // 计算所有知识点和题目的状态 (基于进度百分比)
+    // 计算所有知识点和题目的状态 (修改)
     calculateNodeStates(nodes) {
         const states = {};
-        const { nodeProgress } = this.userProgress;
+        // 使用获取到的真实进度, 直接解构
+        const { nodeProgress } = this.currentStageProgress; 
         
-        for (const tagId in nodes) {
-            const node = nodes[tagId];
-            const progress = nodeProgress[tagId] || 0;
+        for (const nodeId in nodes) {
+            const node = nodes[nodeId];
+            const tagId = nodeIdToTagId[nodeId];
+            const progress = nodeProgress ? (nodeProgress[tagId] || 0) : 0;
             let tagState = 'locked';
 
             const isCompleted = progress === 100;
-            // A node is unlocked if all its dependencies have >= 60% progress.
-            const areDependenciesMet = (node.dependencies || []).every(depId => (nodeProgress[depId] || 0) >= 60);
+            const areDependenciesMet = (node.dependencies || []).every(depId => {
+                const depTagId = nodeIdToTagId[depId];
+                return nodeProgress ? (nodeProgress[depTagId] || 0) >= 60 : false;
+            });
 
             if (isCompleted) {
                 tagState = 'completed';
@@ -337,30 +354,32 @@ export class SkillTreeView {
             }
             
             if (tagState === 'locked') {
-                const unmetDependencies = (node.dependencies || []).filter(depId => (nodeProgress[depId] || 0) < 60);
-                states[tagId] = { state: 'locked', unmetDependencies };
+                const unmetDependencies = (node.dependencies || []).filter(depId => {
+                    const depTagId = nodeIdToTagId[depId];
+                    return nodeProgress ? (nodeProgress[depTagId] || 0) < 60 : true;
+                });
+                states[nodeId] = { state: 'locked', unmetDependencies };
             } else {
-                states[tagId] = { state: tagState, unmetDependencies: [] };
+                states[nodeId] = { state: tagState, unmetDependencies: [] };
             }
         }
         return states;
     }
 
-    // 渲染单个知识点节点 (不再处理锁状态)
-    renderNode(tagId, nodes, nodeStates) {
-        const node = nodes[tagId];
-        const stateInfo = nodeStates[tagId];
+    // 渲染单个知识点节点 (修改)
+    renderNode(nodeId, nodes, nodeStates, progress) {
+        const node = nodes[nodeId];
+        const stateInfo = nodeStates[nodeId];
         const stateClass = `skill-node--${stateInfo.state}`;
         
-        const progress = this.userProgress.nodeProgress[tagId] || 0;
-        
+        // progress 从参数传入，不再从 this.userProgress 读取
         let backgroundStyle = '';
         if (progress > 0 && progress < 100) {
             backgroundStyle = `style="background: linear-gradient(to right, var(--primary-color-light) ${progress}%, #fff ${progress}%);"`;
         }
 
         return `
-            <div class="skill-node ${stateClass}" data-id="${tagId}" id="skill-node-${tagId}" ${backgroundStyle}>
+            <div class="skill-node ${stateClass}" data-id="${nodeId}" id="skill-node-${nodeId}" ${backgroundStyle}>
                 <div class="skill-node__title">${node.name}</div>
                 <div class="skill-node__progress-text">${progress}%</div>
             </div>
@@ -473,11 +492,12 @@ export class SkillTreeView {
         // Bind click on skill nodes
         this.container.querySelectorAll('.skill-node').forEach(nodeEl => {
             nodeEl.addEventListener('click', (e) => {
-                const tagId = e.currentTarget.dataset.id;
-                const state = this.calculateNodeStates(this.skillTrees['newbie-130'].nodes)[tagId].state;
+                const nodeId = e.currentTarget.dataset.id;
+                const stateInfo = this.calculateNodeStates(this.skillTrees['newbie-130'].nodes)[nodeId];
                 
-                if (state !== 'locked') {
-                    this.showNodePanel(tagId);
+                // Only show panel for unlocked or completed nodes
+                if (stateInfo && stateInfo.state !== 'locked') {
+                    this.showNodePanel(nodeId);
                 }
             });
         });
@@ -500,39 +520,169 @@ export class SkillTreeView {
         });
     }
 
-    showNodePanel(tagId) {
-        const node = this.skillTrees['newbie-130'].nodes[tagId];
-        if (!node) return;
-
-        const show = () => {
-            this.panelTitle.textContent = node.name;
-            this.panelDesc.textContent = node.description || '暂无描述。';
-    
-            const problemsHtml = (node.problems || []).map(problem => {
-                const isSolved = this.userProgress.solvedProblems.has(problem.qid);
-                const problemClass = isSolved ? 'completed' : '';
-                const problemUrl = `https://www.nowcoder.com/practice/${problem.qid}`;
-                return `
-                    <li class="${problemClass}">
-                        <a href="${problemUrl}" target="_blank" rel="noopener noreferrer">${problem.name}</a>
-                    </li>
-                `;
-            }).join('');
-    
-            this.panelProblems.innerHTML = problemsHtml;
-            this.panel.classList.add('visible');
-        };
-
-        if (this.panel.classList.contains('visible')) {
+    async showNodePanel(nodeId) {
+        // If panel is already visible and we click a different node, handle transition
+        if (this.panel.classList.contains('visible') && this.activeNodeId !== nodeId) {
             this.hideNodePanel();
-            setTimeout(show, 300); // Wait for hide animation to finish
+            setTimeout(() => {
+                this.activeNodeId = nodeId;
+                this.panel.classList.add('visible');
+                this.fetchAndRenderPanelContent(nodeId);
+            }, 300); // Wait for hide animation
         } else {
-            show();
+            this.activeNodeId = nodeId;
+            this.panel.classList.add('visible');
+            this.fetchAndRenderPanelContent(nodeId);
         }
+    }
+
+    async fetchAndRenderPanelContent(nodeId) {
+        const staticNodeData = this.skillTrees['newbie-130'].nodes[nodeId];
+        if (!staticNodeData) return;
+
+        // Show loading state first
+        this.showPanelContent(staticNodeData, null, true);
+
+        try {
+            const tagInfo = await this.apiService.fetchTagInfo(nodeIdToTagId[nodeId]);
+            const problemsWithStatus = await this.mergeProblemStatus(tagInfo);
+            // Re-render with actual data
+            this.showPanelContent(staticNodeData, problemsWithStatus, false);
+        } catch (error) {
+            console.error(`Failed to fetch content for node panel ${nodeId}:`, error);
+            this.showPanelError(error.message);
+        }
+    }
+
+    /**
+     * Fetches user's AC status for all problems and merges it with the tag's problem list.
+     * @param {object} tagInfo - The raw tag info from the API.
+     * @returns {Promise<object>} - A promise that resolves to the tag info with an updated problems array.
+     */
+    async mergeProblemStatus(tagInfo) {
+        if (!this.state.isLoggedIn()) {
+            return tagInfo; // Not logged in, no status to merge
+        }
+
+        let problems = [];
+        if (typeof tagInfo.tagQuestionstrs === 'string' && tagInfo.tagQuestionstrs.length > 2) {
+            try {
+                problems = JSON.parse(tagInfo.tagQuestionstrs);
+            } catch (e) {
+                console.error('Failed to parse tagQuestionstrs:', e);
+                return { ...tagInfo, problems: [] }; // Return with empty problems on parse error
+            }
+        }
+
+        if (problems.length === 0) {
+            return { ...tagInfo, problems: [] };
+        }
+
+        const problemIds = problems.map(p => p.problemId); // Use problemId for diff
+        const userId = this.state.loggedInUserId;
+
+        try {
+            const diffData = await this.apiService.fetchUserProblemDiff(userId, problemIds.join(','));
+            const solvedIds = new Set(diffData.ac1Qids.map(String)); // Ensure IDs are strings
+
+            const problemsWithStatus = problems.map(p => ({
+                ...p,
+                solved: solvedIds.has(String(p.problemId)) // Ensure comparison is string vs string
+            }));
+            
+            return { ...tagInfo, problems: problemsWithStatus };
+
+        } catch (error) {
+            console.error('Failed to fetch or merge problem statuses:', error);
+            // On failure, return problems without status
+            return { ...tagInfo, problems: problems.map(p => ({...p, solved: false})) };
+        }
+    }
+
+    showPanelContent(staticNodeData, tagInfo = null, isLoading = true) {
+        if (isLoading) {
+            this.panelTitle.textContent = staticNodeData.name;
+            this.panelScore.textContent = ''; // Clear score while loading
+            this.panelDesc.textContent = '正在加载描述...';
+            this.panelProblems.innerHTML = '<div class="loading-spinner-small"></div>';
+            return;
+        }
+
+        this.panelTitle.textContent = tagInfo.tagName || staticNodeData.name;
+        this.panelDesc.textContent = tagInfo.tagDesc || '暂无描述。';
+
+        const problems = tagInfo.problems || [];
+
+        // --- New Logic: Calculate and display scores by summing solved problems ---
+        const totalScore = problems.reduce((sum, p) => sum + (p.score || 0), 0);
+        const currentScore = problems
+            .filter(p => p.solved)
+            .reduce((sum, p) => sum + (p.score || 0), 0);
+        
+        this.panelScore.textContent = `得分/总分: ${currentScore} / ${totalScore}`;
+        // --- End of New Logic ---
+
+        if (problems.length === 0) {
+            this.panelProblems.innerHTML = '<p class="no-problems-msg">暂无相关题目。</p>';
+            return;
+        }
+
+        const problemsHtml = problems.map(problem => {
+            const isSolved = problem.solved;
+            const problemClass = isSolved ? 'completed' : '';
+            const baseUrl = `https://www.nowcoder.com/practice/${problem.uuid}`;
+            const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, this.state.channelPut);
+
+            // Changed: Display score instead of difficulty text
+            let scoreHtml = '';
+            if (problem.score) {
+                 scoreHtml = `<span class="problem-score">${problem.score}分</span>`;
+            }
+
+            return `
+                <li class="problem-item ${problemClass}">
+                    <a href="${problemUrl}" target="_blank" rel="noopener noreferrer">
+                        <span class="problem-status-icon">${isSolved ? '✔' : ''}</span>
+                        <span class="problem-title">${problem.name}</span>
+                        ${scoreHtml}
+                    </a>
+                </li>
+            `;
+        }).join('');
+
+        this.panelProblems.innerHTML = `<ul>${problemsHtml}</ul>`;
+    }
+
+    getDifficultyInfo(score) {
+        if (score <= 1) return { text: '入门', class: 'difficulty-basic' };
+        if (score <= 2) return { text: '简单', class: 'difficulty-easy' };
+        if (score <= 4) return { text: '中等', class: 'difficulty-medium' };
+        if (score <= 6) return { text: '困难', class: 'difficulty-hard' };
+        return { text: '较难', class: 'difficulty-very-hard' };
+    }
+
+    showPanelError(message) {
+        this.panelTitle.textContent = "加载失败";
+        this.panelDesc.textContent = "";
+        this.panelProblems.innerHTML = `<p class="error">${message}</p>`;
     }
 
     hideNodePanel() {
         this.panel.classList.remove('visible');
+        this.activeNodeId = null;
+    }
+
+    /**
+     * Resets the view to the initial stage summary.
+     */
+    resetView() {
+        if (this.currentView === 'detail') {
+            this.clearLines();
+            this.selectedStageId = null;
+            this.currentView = 'summary';
+            // No need to re-render here, as the tab is becoming inactive.
+            // The view will be correctly rendered next time it's activated.
+        }
     }
 
     hide() {

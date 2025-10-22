@@ -27,14 +27,20 @@ export class RankingsView {
         // 监听视图切换事件
         eventBus.on(EVENTS.VIEW_CHANGED, (view) => {
             if (view === 'rankings') {
-                this.fetchAndRenderRankingsPage(1);
+                this.fetchAndRenderRankingsPage(1, this.state.activeRankingsTab);
             }
         });
         
         // 监听排行榜页签切换事件
         eventBus.on(EVENTS.RANKINGS_TAB_CHANGED, (rankType) => {
+            // 切换时，立即清空旧数据和状态，防止视觉残留
+            if (this.elements.rankingsTbody) {
+                this.elements.rankingsTbody.innerHTML = '<tr><td colspan="4" class="loading">正在加载...</td></tr>';
+            }
+            this.clearSearchState();
+            
             this.updateRankingsHeader(rankType);
-            this.fetchAndRenderRankingsPage(1);
+            this.fetchAndRenderRankingsPage(1, rankType);
         });
 
         // 监听用户搜索事件
@@ -51,15 +57,32 @@ export class RankingsView {
         return Promise.resolve();
     }
     
-    async fetchAndRenderRankingsPage(page, userIdToHighlight = null, isPreload = false) {
+    // 每次获取并渲染页面时，都先清理搜索状态
+    clearSearchState() {
+        if (this.elements.userRankDisplay) {
+            this.elements.userRankDisplay.style.display = 'none';
+            this.elements.userRankDisplay.innerHTML = '';
+        }
+        if (this.elements.rankingsSearchInput) {
+            this.elements.rankingsSearchInput.value = '';
+        }
+        this.state.lastSearchedUid = null;
+    }
+    
+    async fetchAndRenderRankingsPage(page, rankType, userIdToHighlight = null, isPreload = false) {
         if (this.state.isLoading.rankings && !isPreload) return;
         
+        // 如果不是在特定用户搜索的上下文中调用，则清除旧的搜索状态
+        if (!userIdToHighlight) {
+            this.clearSearchState();
+        }
+
         this.state.setLoadingState('rankings', true);
         this.state.rankingsCurrentPage = page;
         eventBus.emit(EVENTS.DATA_LOADING, { module: 'rankings' });
         
         try {
-            const rankType = this.state.activeRankingsTab;
+            // const rankType = this.state.activeRankingsTab; // OLD: Using potentially stale state
             // This fetch is always for a specific page list, NOT for a specific user
             const data = rankType === 'problem'
                 ? await this.apiService.fetchRankingsPage(page, this.rankingsPageSize)
@@ -259,13 +282,13 @@ export class RankingsView {
     
     async handleRankingsPageChange(page) {
         this.state.rankingsCurrentPage = page;
-        await this.fetchAndRenderRankingsPage(page);
+        await this.fetchAndRenderRankingsPage(page, this.state.activeRankingsTab);
     }
     
     async handleUserStatusSearch(userId) {
         const trimmedUserId = typeof userId === 'string' ? userId.trim() : String(userId);
         if (!trimmedUserId) {
-            this.fetchAndRenderRankingsPage(1); // No user, just load page 1
+            this.fetchAndRenderRankingsPage(1, this.state.activeRankingsTab); // No user, just load page 1
             return;
         }
 
@@ -288,15 +311,21 @@ export class RankingsView {
                 if (place > 0) {
                     // Step 2: "Fetch the cargo" - calculate the correct page and fetch it
                     const targetPage = Math.ceil(place / this.rankingsPageSize);
-                    await this.fetchAndRenderRankingsPage(targetPage, trimmedUserId);
+                    await this.fetchAndRenderRankingsPage(targetPage, rankType, trimmedUserId);
                 } else {
                     // User has 0 count or is unranked, just show them on the last page
                     const totalUsers = userRankDataResponse.totalCount || this.state.rankingsTotalUsers || 1;
                     const lastPage = Math.ceil(totalUsers / this.rankingsPageSize) || 1;
-                    await this.fetchAndRenderRankingsPage(lastPage, trimmedUserId);
+                    await this.fetchAndRenderRankingsPage(lastPage, rankType, trimmedUserId);
                 }
             } else {
                 this.showRankSearchError('用户未找到');
+                // 当用户搜索不到时，同样需要清空表格
+                if (this.elements.rankingsTbody) {
+                    this.elements.rankingsTbody.innerHTML = '<tr><td colspan="4" class="no-data">暂无排行数据</td></tr>';
+                }
+                this.state.rankingsTotalUsers = 0;
+                this.renderRankingsPagination(); // 重置分页
             }
         } catch (error) {
             console.error('Error in handleUserStatusSearch:', error);

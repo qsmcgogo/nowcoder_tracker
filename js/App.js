@@ -308,6 +308,13 @@ export class NowcoderTracker {
     }
     
     switchMainTab(tabName) {
+        const previousTab = this.state.activeMainTab;
+
+        // If leaving the skill tree tab, reset its view to summary.
+        if (previousTab === 'skill-tree' && tabName !== 'skill-tree') {
+            this.views.skillTree.resetView();
+        }
+        
         // Hide all views first to ensure cleanup
         Object.values(this.views).forEach(view => {
             if (view.hide) {

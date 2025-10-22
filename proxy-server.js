@@ -85,6 +85,11 @@ app.use('/problem/tracker/clock/list', manualProxyHandler('/problem/tracker/cloc
 app.use('/problem/tracker/clock/monthinfo', manualProxyHandler('/problem/tracker/clock/monthinfo'));
 app.use('/problem/tracker/addcheckin', manualProxyHandler('/problem/tracker/addcheckin'));
 
+// Endpoints for Skill Tree
+app.use('/problem/tracker/skill-tree/tagInfo', manualProxyHandler('/problem/tracker/skill-tree/tagInfo'));
+app.use('/problem/tracker/skill-tree/progress', manualProxyHandler('/problem/tracker/skill-tree/progress'));
+
+
 // New endpoint to proxy avatars and bypass CORS for canvas
 app.get('/avatar-proxy', (req, res) => {
     const imageUrl = req.query.url;

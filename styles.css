@@ -1744,6 +1744,20 @@ body .problems-table tbody tr td.status-none {
 }
 .calendar-day.checked-in .calendar-day-number {
     color: white !important;
+    font-weight: bold;
+}
+
+/* Level 1 (Highest Priority): Retro-checkin style (overrides everything) */
+.calendar-day.retro-checkin,
+.calendar-day.retro-checkin:hover {
+    background-color: #d4edda !important; /* A light green background */
+    color: #155724 !important; /* A dark green text color for contrast */
+    border-radius: 50%;
+    border: none;
+}
+.calendar-day.retro-checkin .calendar-day-number {
+    color: #155724 !important;
+    font-weight: bold;
 }
 
 /* Level 1 (Highest Priority): Supplemented check-in style */
@@ -1769,59 +1783,61 @@ body .problems-table tbody tr td.status-none {
 
 /* --- User Summary Panel --- */
 #user-summary-panel {
-    width: 100%;
     background-color: #fff;
+    border: 1px solid var(--border-color);
     border-radius: 8px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-    padding: 15px;
-    box-sizing: border-box;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    width: 100%; /* Ensure it takes full width of its container */
+    box-sizing: border-box; /* Include padding in width calculation */
 }
+
 .summary-header {
     display: flex;
     align-items: center;
     gap: 10px;
+    margin-top: 12px;
 }
+
 .summary-avatar {
     width: 40px;
     height: 40px;
     border-radius: 50%;
     border: 2px solid #eee;
 }
+
 .summary-nickname {
     font-size: 1.1rem;
     font-weight: bold;
     color: #333;
 }
+
 .summary-stats {
     display: flex;
-    flex-direction: column;
-    gap: 8px;
-    font-size: 0.9rem;
+    flex-direction: column; /* Stack stat items vertically */
+    gap: 8px; /* Add some space between stat items */
+    width: 100%;
+    margin-top: 12px;
 }
+
 .stat-item {
     display: flex;
     justify-content: space-between;
-    align-items: center;
+    align-items: center; /* Vertically align label and value */
+    width: 100%;
+    font-size: 0.9em;
 }
+
 .stat-item .label {
-    color: #6c757d;
+    color: var(--text-color-secondary);
+    white-space: nowrap; /* Prevent label from wrapping */
+    margin-right: 10px; /* Add some space between label and value */
 }
-.stat-item .value {
-    font-weight: bold;
-    color: #333;
-}
+
+.stat-item .value,
 .stat-item .rank-link {
-    color: #007bff;
-    cursor: pointer;
-    text-decoration: none;
-    transition: color 0.2s;
     font-weight: bold;
-}
-.stat-item .rank-link:hover {
-    color: #0056b3;
+    color: var(--text-color-primary);
 }
 
 .checked-in-actions {
@@ -2030,6 +2046,11 @@ body .problems-table tbody tr td.status-none {
     font-weight: bold;
 }
 
+.status-retro-checkin {
+    color: #28a745; /* A vibrant green for the checkmark text in tooltip */
+    font-weight: bold;
+}
+
 /* Calendar day with a problem - Increased specificity */
 .stats-text .stats-highlight {
     color: #4CAF50; /* A pleasant green */
@@ -2082,17 +2103,15 @@ body .problems-table tbody tr td.status-none {
 
 .skill-tree-dag-container {
     display: flex;
-    gap: 80px;
-    padding: 30px;
-    align-items: center;
+    gap: 20px;
 }
 
 .dag-main-column {
+    flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 60px;
-    align-items: center;
-    flex: 1;
+    gap: 20px;
+    position: relative; /* Keep for positioning child elements if needed */
 }
 
 .dag-main-column:first-child {
@@ -2725,4 +2744,144 @@ body.dark-theme .profile-avatar {
     padding-bottom: 15px;
     border-bottom: 1px solid var(--border-color);
     color: var(--text-color-primary);
+}
+
+.skill-node-panel__problems-list .problem-title {
+    flex-grow: 1;
+}
+
+.skill-node-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px; /* Add some space below the header */
+}
+
+.skill-node-panel__title {
+    margin: 0; /* Reset margin from h3 */
+}
+
+.skill-node-panel__score {
+  font-size: 0.9em;
+  font-weight: bold;
+  color: var(--text-color-secondary);
+  background-color: var(--background-color-light);
+  padding: 4px 10px;
+  border-radius: 12px;
+  white-space: nowrap;
+}
+
+.skill-node-panel__problems-list .problem-difficulty,
+.skill-node-panel__problems-list .problem-score {
+    font-size: 0.85em;
+    color: var(--text-color-secondary);
+    margin-left: 16px;
+    flex-shrink: 0;
+}
+
+/* Override existing difficulty styles to be simpler */
+.problem-difficulty.difficulty-basic { background-color: transparent; color: inherit; }
+
+.skill-node-panel__footer {
+    text-align: right;
+    margin-top: 16px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border-color);
+}
+
+.skill-node-panel__score {
+  font-size: 1em;
+  font-weight: bold;
+  color: var(--text-color-secondary);
+  background-color: transparent; /* Remove old background */
+  padding: 0; /* Reset padding */
+  border-radius: 0; /* Reset radius */
+  white-space: nowrap;
+}
+
+.skill-node-panel__problems-list .problem-difficulty,
+.skill-node-panel__problems-list .problem-score {
+    font-size: 0.85em;
+    color: var(--text-color-secondary);
+    margin-left: 16px;
+    flex-shrink: 0;
+}
+
+.skill-tree-column--locked {
+    position: relative; /* Needed for absolute positioning of children */
+    pointer-events: none; /* Make the whole column non-interactive */
+    z-index: 5; /* Raise the stacking context when locked */
+}
+
+/* Add a semi-transparent overlay to visually indicate the locked state */
+.skill-tree-column--locked::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(255, 255, 255, 0.5);
+    border-radius: 8px; /* Match the column's border-radius */
+    z-index: 1;
+}
+
+.skill-tree-column__lock-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 48px; /* Increase size for better visibility */
+    height: 48px;
+    z-index: 2; /* Appear above the overlay */
+    pointer-events: auto; /* Make the icon interactive */
+    cursor: help; /* Change cursor on hover */
+}
+
+.skill-tree-column__tooltip {
+    display: none;
+    position: absolute;
+    /* bottom: calc(50% + 30px); Position above the centered lock */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 10px;
+    border-radius: 6px;
+    z-index: 10; /* Ensure it's on top of everything */
+    pointer-events: none; /* Tooltip itself is not interactive */
+    white-space: nowrap;
+}
+
+.skill-tree-column__lock-icon:hover + .skill-tree-column__tooltip {
+    display: block;
+}
+
+.skill-tree-column__tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #333;
+}
+
+/* --- Special Layouts for specific columns --- */
+#skill-tree-column-col-2 .skill-tree-column__nodes,
+#skill-tree-column-col-4 .skill-tree-column__nodes,
+#skill-tree-column-col-5 .skill-tree-column__nodes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+#skill-tree-column-col-3 .skill-tree-column__nodes {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+}
+
+.skill-tree-column__nodes .skill-node {
+    margin: 0; /* Override default margin when inside a grid */
 }

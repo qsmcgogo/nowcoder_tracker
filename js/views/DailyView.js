@@ -346,19 +346,39 @@ export class DailyView {
         
         let checkedInDays = new Set();
         let monthInfo = [];
+        let solvedDailyQids = new Set(); // 新增：用于存储当月已通过的每日一题ID
+
         try {
-            // 并行获取打卡记录和当月题目信息
-            const [checkedInData, monthInfoData] = await Promise.all([
-                this.apiService.fetchCheckInList(year, month),
-                this.apiService.fetchMonthInfo(year, month)
-            ]);
-            checkedInDays = checkedInData;
-            monthInfo = monthInfoData;
+            // Step 1: 先获取当月的所有每日一题
+            monthInfo = await this.apiService.fetchMonthInfo(year, month);
             
+            // 如果用户已登录并且当月有题目，则继续获取打卡和AC状态
+            if (this.state.isLoggedIn() && monthInfo.length > 0) {
+                const qids = monthInfo.map(day => day.problemId).filter(Boolean).map(String);
+                
+                // Step 2: 并行获取打卡记录和当月题目的AC状态
+                const [checkedInData, diffData] = await Promise.all([
+                    this.apiService.fetchCheckInList(year, month),
+                    this.apiService.fetchUserProblemDiff(this.state.loggedInUserId, qids.join(','))
+                ]);
+                
+                checkedInDays = checkedInData;
+                
+                // 从diff结果中提取已解决的题目ID
+                // API返回的字段是ac1Qids
+                if (diffData && diffData.ac1Qids) {
+                    solvedDailyQids = new Set(diffData.ac1Qids.map(String));
+                }
+            } else if (this.state.isLoggedIn()) {
+                 // 即使没有题目，也可能需要获取打卡记录（例如空月份）
+                 checkedInDays = await this.apiService.fetchCheckInList(year, month);
+            }
+            // [Old Promise.all removed]
+
             // ---- 调试信息 ----
-            console.log('[Calendar Debug] Fetched month info data:', monthInfoData);
-            if (monthInfoData && monthInfoData.length > 0) {
-                console.log('[Calendar Debug] Structure of the first item:', monthInfoData[0]);
+            console.log('[Calendar Debug] Fetched month info data:', monthInfo);
+            if (monthInfo && monthInfo.length > 0) {
+                console.log('[Calendar Debug] Structure of the first item:', monthInfo[0]);
             }
 
         } catch (error) {
@@ -370,7 +390,7 @@ export class DailyView {
         const monthInfoMap = new Map(monthInfo.map(day => {
             const date = new Date(day.createTime);
             const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
-            return [dateStr, day];
+            return [dateStr, { ...day, problemId: String(day.problemId) }]; // 确保 problemId 是字符串
         }));
         
         // 合并模拟打卡数据
@@ -390,10 +410,10 @@ export class DailyView {
         }
         
         // 渲染日历网格
-        this.renderCalendarGrid(year, month, checkedInDays, monthInfoMap);
+        this.renderCalendarGrid(year, month, checkedInDays, monthInfoMap, solvedDailyQids);
     }
     
-    renderCalendarGrid(year, month, checkedInDays, monthInfoMap) {
+    renderCalendarGrid(year, month, checkedInDays, monthInfoMap, solvedDailyQids) {
         // 清除现有日期元素
         const dayElements = this.elements.calendarGrid.querySelectorAll('.calendar-day');
         dayElements.forEach(day => day.remove());
@@ -433,11 +453,9 @@ export class DailyView {
             }
             if (checkedInDays.has(dateStr)) {
                 classes.push('checked-in');
-
-                // 假设 monthInfoMap 中的条目会有一个 is_supplement 字段
-                if (dayInfo && dayInfo.is_supplement) {
-                    classes.push('supplement-check-in');
-                }
+            } else if (dayInfo && dayInfo.problemId && solvedDailyQids.has(dayInfo.problemId)) {
+                // 如果未打卡，但题目已通过，则标记为“可补卡”
+                classes.push('retro-checkin');
             }
 
             // 如果当天有题目，添加可点击样式和 data 属性
@@ -498,13 +516,13 @@ export class DailyView {
         const dayDiv = event.currentTarget;
         const title = dayDiv.dataset.problemTitle;
         const isCheckedIn = dayDiv.classList.contains('checked-in');
-        const isSupplement = dayDiv.classList.contains('supplement-check-in');
+        const isRetro = dayDiv.classList.contains('retro-checkin');
 
         let status;
-        if (isSupplement) {
-            status = '<span class="status-checked-in">✔ 已补卡</span>';
-        } else if (isCheckedIn) {
+        if (isCheckedIn) {
             status = '<span class="status-checked-in">✔ 已打卡</span>';
+        } else if (isRetro) {
+            status = '<span class="status-retro-checkin">✔ 已补卡</span>';
         } else {
             status = '❌ 未打卡';
         }

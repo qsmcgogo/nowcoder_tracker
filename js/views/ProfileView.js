@@ -1,5 +1,10 @@
 import { eventBus, EVENTS } from '../events/EventBus.js';
 
+// Import skill tree structure and mapping from SkillTreeView
+// This is a bit of a hack, in a larger app this might come from a shared module.
+import { skillTreeData, nodeIdToTagId } from './SkillTreeView.js';
+
+
 export class ProfileView {
     constructor(elements, state, apiService) {
         this.container = elements.profile; // Fix: was elements.profileView, now matches App.js
@@ -22,33 +27,41 @@ export class ProfileView {
         try {
             const userId = this.appState.loggedInUserId;
             
-            // 并行获取打卡数据和过题榜数据
+            // --- Fetch all data in parallel ---
             const checkinPromise = this.apiService.fetchUserCheckinData(userId);
-            // Use the refactored fetchRankings to get a single user's problem rank data
-            const problemRankPromise = this.apiService.fetchRankings('problem', 1, userId, 1); 
+            const problemRankPromise = this.apiService.fetchRankings('problem', 1, userId, 1);
             
-            const [checkinData, problemRankData] = await Promise.all([checkinPromise, problemRankPromise]);
+            const allTagIds = Object.values(nodeIdToTagId);
+            const skillProgressPromise = this.apiService.fetchSkillTreeProgress(userId, allTagIds);
+
+            const [checkinData, problemRankData, skillProgressData] = await Promise.all([
+                checkinPromise, 
+                problemRankPromise,
+                skillProgressPromise
+            ]);
             
+            // --- Process Data ---
             const problemUser = problemRankData?.ranks?.[0];
-            
             if (!problemUser) {
                 throw new Error('无法获取用户的过题信息。');
             }
 
+            const skillTreeStats = this._calculateSkillTreeStats(skillProgressData.nodeProgress);
+
             const userData = {
                 uid: problemUser.uid,
                 name: problemUser.name,
-                headUrl: problemUser.headUrl, // Correct field name is headUrl
-                problemPassed: problemUser.count, // Correct field name, was solvedCount
-                rank: problemUser.place === 0 ? '1w+' : problemUser.place, // Correct field name and logic
+                headUrl: problemUser.headUrl,
+                problemPassed: problemUser.count,
+                rank: problemUser.place === 0 ? '1w+' : problemUser.place,
                 checkin: {
                     count: checkinData?.count || 0,
                     continueDays: checkinData?.continueDays || 0
                 },
-                skillTree: { completedChapters: 1 }, // Placeholder
-                completedKnowledgePoints: 12, // Placeholder for new data point
-                contestsAttended: 25, // Placeholder
-                contestsAKed: 3 // Placeholder
+                skillTree: { 
+                    completedChapters: skillTreeStats.completedChapters 
+                },
+                completedKnowledgePoints: skillTreeStats.completedKnowledgePoints
             };
             
             this.container.innerHTML = this.getUserProfileHtml(userData);
@@ -57,6 +70,52 @@ export class ProfileView {
             console.error("Failed to render profile view:", error);
             this.container.innerHTML = `<div class="error-message">无法加载您的个人信息，请稍后重试。(${error.message})</div>`;
         }
+    }
+
+    /**
+     * Calculates skill tree statistics based on user progress.
+     * @param {Object} nodeProgress - An object mapping tagId to progress percentage.
+     * @returns {{completedChapters: number, completedKnowledgePoints: number}}
+     */
+    _calculateSkillTreeStats(nodeProgress) {
+        let completedKnowledgePoints = 0;
+        let completedChapters = 0;
+
+        if (!nodeProgress) {
+            return { completedChapters, completedKnowledgePoints };
+        }
+
+        // 1. Calculate completed knowledge points
+        for (const tagId in nodeProgress) {
+            if (nodeProgress[tagId] >= 60) {
+                completedKnowledgePoints++;
+            }
+        }
+        
+        // 2. Calculate completed chapters (currently only "晨曦微光")
+        const newbieTree = skillTreeData['newbie-130'];
+        if (newbieTree && newbieTree.stages) {
+            const firstStage = newbieTree.stages.find(s => s.id === 'stage-1');
+
+            if (firstStage && firstStage.columns) {
+                const isFirstStageComplete = firstStage.columns.every(column => {
+                    // A column is complete if all its nodes are >= 60%
+                    return column.nodeIds.every(nodeId => {
+                        const tagId = nodeIdToTagId[nodeId];
+                        return (nodeProgress[tagId] || 0) >= 60;
+                    });
+                });
+
+                if (isFirstStageComplete) {
+                    completedChapters++;
+                }
+            }
+        }
+        
+        // Logic for other chapters can be added here in the future
+        // ...
+
+        return { completedChapters, completedKnowledgePoints };
     }
 
     getLoggedOutHtml() {
@@ -127,22 +186,6 @@ export class ProfileView {
                         <span class="detail-icon">🧠</span>
                         <span class="detail-label">知识点</span>
                         <span class="detail-value">已通关 ${user.completedKnowledgePoints} 个</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-icon">🏆</span>
-                        <span class="detail-label">
-                            参赛数量
-                            <span class="tooltip-container">
-                                <span class="tooltip-icon">?</span>
-                                <span class="tooltip-text">只计算牛客竞赛官方系列赛</span>
-                            </span>
-                        </span>
-                        <span class="detail-value">${user.contestsAttended} 场</span>
-                    </div>
-                    <div class="detail-item">
-                        <span class="detail-icon">🚀</span>
-                        <span class="detail-label">AK数量</span>
-                        <span class="detail-value">${user.contestsAKed} 场</span>
                     </div>
                 </div>
             </div>
