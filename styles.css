@@ -1,3 +1,20 @@
+.floating-problem-lock-tooltip {
+    position: fixed; /* avoid parent clipping and scroll with viewport */
+    background: rgba(0,0,0,0.88);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 5000; /* above everything */
+    box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+}
+
+/* Ensure red X inside global floating tooltip */
+.floating-problem-lock-tooltip .dep-cross {
+    color: #e03131 !important;
+    font-weight: 700;
+}
 /* Nowcoder Green Theme */
 
 :root {
@@ -2315,6 +2332,7 @@ body .problems-table tbody tr td.status-none {
     z-index: 1000;
     display: flex;
     flex-direction: column;
+    overflow: visible; /* allow children (tooltips) to escape panel bounds */
 }
 
 .skill-node-panel.visible {
@@ -2337,6 +2355,7 @@ body .problems-table tbody tr td.status-none {
 .skill-node-panel__content {
     padding: 30px;
     overflow-y: auto;
+    overflow-x: visible; /* allow tooltips to extend beyond content box horizontally */
     flex-grow: 1;
 }
 
@@ -2405,15 +2424,30 @@ body .problems-table tbody tr td.status-none {
     border-color: #e0e0e0;
     color: #999;
     cursor: not-allowed;
-    pointer-events: none; /* Disable click */
+    pointer-events: auto; /* allow hover for tooltip; click is disabled via href */
 }
 .skill-node-panel__problems-list li .problem-lock-icon {
     margin-left: 10px;
+    position: relative;
 }
-.skill-node-panel__problems-list li .problem-lock-tooltip {
+.skill-node-panel__problems-list li .problem-lock-icon .icon-lock {
+    width: 16px;
+    height: 16px;
+    fill: #6c757d !important; /* deep gray */
+    color: #6c757d !important; /* fallback */
+    vertical-align: -2px;
+}
+.skill-node-panel__problems-list li .problem-lock-icon .problem-lock-tooltip {
+    display: none;
+}
+.skill-node-panel__problems-list li.locked {
+    position: relative; /* for tooltip positioning */
+}
+.skill-node-panel__problems-list li.locked .problem-lock-tooltip {
     display: none;
     position: absolute;
-    right: 12px;
+    right: 100%; /* place left of the gray box */
+    margin-right: 10px;
     top: 50%;
     transform: translateY(-50%);
     background: rgba(0,0,0,0.85);
@@ -2422,10 +2456,15 @@ body .problems-table tbody tr td.status-none {
     border-radius: 6px;
     font-size: 12px;
     white-space: nowrap;
-    z-index: 1200;
+    z-index: 2001; /* above the panel (panel is 1000) */
 }
 .skill-node-panel__problems-list li.locked:hover .problem-lock-tooltip {
-    display: block;
+    display: block; /* show tooltip when hovering the whole gray box */
+}
+.skill-node-panel__problems-list .dep-cross {
+    color: #e03131; /* red X */
+    font-weight: bold;
+    margin-left: 4px;
 }
 
 /* --- Coming Soon Placeholder --- */

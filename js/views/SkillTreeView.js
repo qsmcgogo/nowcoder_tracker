@@ -616,6 +616,10 @@ export class SkillTreeView {
         // Build tagId -> progress map for quick lookup
         const nodeProgress = (this.currentStageProgress && this.currentStageProgress.nodeProgress) || {};
 
+        // Build tagId -> nodeName map for tooltip display in Chinese
+        const nodesDict = this.skillTrees['newbie-130'].nodes;
+        const tagIdToName = new Map(Object.entries(nodeIdToTagId).map(([nodeId, tagId]) => [String(tagId), (nodesDict[nodeId] && nodesDict[nodeId].name) || String(tagId)]));
+
         // Helper: parse dependency field from problem (supports 'yilai' by tagId string like "1004,1005" or array)
         const parseDeps = (p) => {
             if (Array.isArray(p.dependencies)) return p.dependencies.map(String);
@@ -640,6 +644,13 @@ export class SkillTreeView {
             return;
         }
 
+        const escapeHtml = (s) => String(s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+
         const problemsHtml = problems.map(problem => {
             const isSolved = problem.solved;
             const depTagIds = parseDeps(problem);
@@ -655,33 +666,70 @@ export class SkillTreeView {
                  scoreHtml = `<span class="problem-score">${problem.score}分</span>`;
             }
 
-            // Tooltip content for lock reasons
-            let lockTooltip = '';
+            // Tooltip content for lock reasons, using Chinese node names
+            let lockTooltipInner = '';
             if (isLocked) {
-                const items = unmetDeps.map(tid => {
-                    const progress = nodeProgress[tid] || 0;
-                    return `依赖知识点(${tid}) 进度 ${progress}%`;
+                lockTooltipInner = unmetDeps.map(tid => {
+                    const name = tagIdToName.get(String(tid)) || String(tid);
+                    return `${name} 进度达到60% <span class="dep-cross">×</span>`;
                 }).join('<br>');
-                lockTooltip = `<div class="problem-lock-tooltip">${items || '前置知识点未达60%'}</div>`;
             }
 
             // If locked, disable link and show lock icon
             const linkAttrs = isLocked ? 'href="javascript:void(0)" class="disabled-link"' : `href="${problemUrl}" target="_blank" rel="noopener noreferrer"`;
 
+            const lockAttr = isLocked
+                ? ` data-lock-reason='${(lockTooltipInner || '前置知识点未达60%').replace(/'/g, '&#39;')}'`
+                : '';
+
             return `
-                <li class="problem-item ${problemClass}">
+                <li class="problem-item ${problemClass}"${lockAttr}>
                     <a ${linkAttrs}>
                         <span class="problem-status-icon">${isSolved ? '✔' : ''}</span>
                         <span class="problem-title">${problem.name}</span>
                         ${scoreHtml}
-                        ${isLocked ? '<span class="problem-lock-icon">🔒</span>' : ''}
+                        ${isLocked ? '<span class="problem-lock-icon" aria-label="未解锁" title="未解锁"><svg class="icon-lock" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 1a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 9V6a3 3 0 1 1 6 0v4H9z"></path></svg></span>' : ''}
                     </a>
-                    ${lockTooltip}
                 </li>
             `;
         }).join('');
 
         this.panelProblems.innerHTML = `<ul>${problemsHtml}</ul>`;
+
+        // Attach floating tooltip on body to avoid clipping
+        const ensureGlobalTooltip = () => {
+            if (!this._problemLockTooltip) {
+                const div = document.createElement('div');
+                div.className = 'floating-problem-lock-tooltip';
+                div.style.display = 'none';
+                document.body.appendChild(div);
+                this._problemLockTooltip = div;
+            }
+            return this._problemLockTooltip;
+        };
+
+        const tip = ensureGlobalTooltip();
+        const lockedItems = this.panelProblems.querySelectorAll('li.locked');
+        lockedItems.forEach(li => {
+            const show = () => {
+                tip.innerHTML = li.getAttribute('data-lock-reason') || '前置知识点未达60%';
+                tip.style.display = 'block';
+                // initial position
+                const rect = li.getBoundingClientRect();
+                tip.style.left = Math.max(8, rect.left - tip.offsetWidth - 12) + 'px';
+                tip.style.top = Math.max(8, rect.top + rect.height / 2 - tip.offsetHeight / 2) + 'px';
+            };
+            const move = (e) => {
+                const rect = li.getBoundingClientRect();
+                tip.style.left = Math.max(8, rect.left - tip.offsetWidth - 12) + 'px';
+                tip.style.top = Math.max(8, rect.top + rect.height / 2 - tip.offsetHeight / 2) + 'px';
+            };
+            const hide = () => { tip.style.display = 'none'; };
+
+            li.addEventListener('mouseenter', show);
+            li.addEventListener('mousemove', move);
+            li.addEventListener('mouseleave', hide);
+        });
     }
 
     getDifficultyInfo(score) {
