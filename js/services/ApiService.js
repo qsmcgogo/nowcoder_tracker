@@ -379,10 +379,42 @@ export class ApiService {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-            if (data.code === 0 && data.data) {
-                return data.data;
+
+            // 后端新格式：code=200，data={ tag: {...}, questions: [...] }
+            if ((data.code === 200 || data.code === 0) && data.data) {
+                const d = data.data;
+
+                // 如果是新结构，标准化为旧结构，便于前端其余代码复用
+                if (d.tag && Array.isArray(d.questions)) {
+                    const normalizeDeps = (raw) => {
+                        if (!raw) return [];
+                        if (Array.isArray(raw)) return raw.map(String);
+                        return String(raw).split(',').map(s => s.trim()).filter(Boolean);
+                    };
+
+                    const problems = d.questions.map(q => ({
+                        qid: q.questionId != null ? String(q.questionId) : undefined,
+                        problemId: q.problemId != null ? String(q.problemId) : undefined,
+                        uuid: q.uuid || '',
+                        name: q.title || q.name || '',
+                        score: Number(q.score) || 0,
+                        dependencies: normalizeDeps(q.dependencies),
+                        yilai: normalizeDeps(q.dependencies),
+                    }));
+
+                    return {
+                        tagId: d.tag.tagId,
+                        tagName: d.tag.tagName,
+                        tagDesc: d.tag.tagDesc,
+                        tagTutorials: d.tag.tagTutorials || '[]',
+                        problems,
+                    };
+                }
+
+                // 旧结构保持不变返回
+                return d;
             }
-            throw new Error(data.msg || `Failed to fetch info for tag ${tagId}`);
+            throw new Error((data && data.msg) || `Failed to fetch info for tag ${tagId}`);
         } catch (error) {
             console.error(`Error fetching tag info for tagId ${tagId}:`, error);
             throw error;

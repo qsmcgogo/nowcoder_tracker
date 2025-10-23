@@ -560,22 +560,23 @@ export class SkillTreeView {
      * @returns {Promise<object>} - A promise that resolves to the tag info with an updated problems array.
      */
     async mergeProblemStatus(tagInfo) {
-        if (!this.state.isLoggedIn()) {
-            return tagInfo; // Not logged in, no status to merge
-        }
-
-        let problems = [];
-        if (typeof tagInfo.tagQuestionstrs === 'string' && tagInfo.tagQuestionstrs.length > 2) {
+        // Prefer new-structure problems if present; else parse legacy string
+        let problems = Array.isArray(tagInfo.problems) ? tagInfo.problems : [];
+        if (problems.length === 0 && typeof tagInfo.tagQuestionstrs === 'string' && tagInfo.tagQuestionstrs.length > 2) {
             try {
                 problems = JSON.parse(tagInfo.tagQuestionstrs);
             } catch (e) {
                 console.error('Failed to parse tagQuestionstrs:', e);
-                return { ...tagInfo, problems: [] }; // Return with empty problems on parse error
+                problems = [];
             }
         }
 
-        if (problems.length === 0) {
-            return { ...tagInfo, problems: [] };
+        // If still no problems, return as-is
+        if (problems.length === 0) return { ...tagInfo, problems: [] };
+
+        // If not logged in, return problems without solved flags
+        if (!this.state.isLoggedIn()) {
+            return { ...tagInfo, problems };
         }
 
         const problemIds = problems.map(p => p.problemId); // Use problemId for diff
