@@ -613,6 +613,19 @@ export class SkillTreeView {
 
         const problems = tagInfo.problems || [];
 
+        // Build tagId -> progress map for quick lookup
+        const nodeProgress = (this.currentStageProgress && this.currentStageProgress.nodeProgress) || {};
+
+        // Helper: parse dependency field from problem (supports 'yilai' by tagId string like "1004,1005" or array)
+        const parseDeps = (p) => {
+            if (Array.isArray(p.dependencies)) return p.dependencies.map(String);
+            if (p.yilai == null) return [];
+            if (Array.isArray(p.yilai)) return p.yilai.map(String);
+            const raw = String(p.yilai).trim();
+            if (!raw) return [];
+            return raw.split(',').map(s => s.trim()).filter(Boolean);
+        };
+
         // --- New Logic: Calculate and display scores by summing solved problems ---
         const totalScore = problems.reduce((sum, p) => sum + (p.score || 0), 0);
         const currentScore = problems
@@ -629,7 +642,10 @@ export class SkillTreeView {
 
         const problemsHtml = problems.map(problem => {
             const isSolved = problem.solved;
-            const problemClass = isSolved ? 'completed' : '';
+            const depTagIds = parseDeps(problem);
+            const unmetDeps = depTagIds.filter(tagId => (nodeProgress[tagId] || 0) < 60);
+            const isLocked = unmetDeps.length > 0;
+            const problemClass = `${isSolved ? 'completed' : ''} ${isLocked ? 'locked' : ''}`.trim();
             const baseUrl = `https://www.nowcoder.com/practice/${problem.uuid}`;
             const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, this.state.channelPut);
 
@@ -639,13 +655,28 @@ export class SkillTreeView {
                  scoreHtml = `<span class="problem-score">${problem.score}分</span>`;
             }
 
+            // Tooltip content for lock reasons
+            let lockTooltip = '';
+            if (isLocked) {
+                const items = unmetDeps.map(tid => {
+                    const progress = nodeProgress[tid] || 0;
+                    return `依赖知识点(${tid}) 进度 ${progress}%`;
+                }).join('<br>');
+                lockTooltip = `<div class="problem-lock-tooltip">${items || '前置知识点未达60%'}</div>`;
+            }
+
+            // If locked, disable link and show lock icon
+            const linkAttrs = isLocked ? 'href="javascript:void(0)" class="disabled-link"' : `href="${problemUrl}" target="_blank" rel="noopener noreferrer"`;
+
             return `
                 <li class="problem-item ${problemClass}">
-                    <a href="${problemUrl}" target="_blank" rel="noopener noreferrer">
+                    <a ${linkAttrs}>
                         <span class="problem-status-icon">${isSolved ? '✔' : ''}</span>
                         <span class="problem-title">${problem.name}</span>
                         ${scoreHtml}
+                        ${isLocked ? '<span class="problem-lock-icon">🔒</span>' : ''}
                     </a>
+                    ${lockTooltip}
                 </li>
             `;
         }).join('');

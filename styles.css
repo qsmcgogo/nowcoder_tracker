@@ -2398,6 +2398,36 @@ body .problems-table tbody tr td.status-none {
     color: #2b643f;
 }
 
+/* Locked problem items */
+.skill-node-panel__problems-list li.locked a {
+    position: relative;
+    background-color: #f8f9fa;
+    border-color: #e0e0e0;
+    color: #999;
+    cursor: not-allowed;
+    pointer-events: none; /* Disable click */
+}
+.skill-node-panel__problems-list li .problem-lock-icon {
+    margin-left: 10px;
+}
+.skill-node-panel__problems-list li .problem-lock-tooltip {
+    display: none;
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1200;
+}
+.skill-node-panel__problems-list li.locked:hover .problem-lock-tooltip {
+    display: block;
+}
+
 /* --- Coming Soon Placeholder --- */
 .coming-soon {
     text-align: center;
