@@ -100,12 +100,13 @@ export class DailyView {
             
             this.state.setCurrentDailyProblem(problem);
             
-            // 获取用户数据
+            // 获取用户数据（兼容两种返回结构）
             let user = responseData.user || null;
             if (!user && responseData.uid && responseData.uid !== 0) {
-                user = await this.apiService.fetchUserData(responseData.uid);
+                const fetched = await this.apiService.fetchUserData(responseData.uid);
+                user = fetched && fetched.ranks ? (fetched.ranks[0] || null) : fetched;
             }
-            
+
             this.state.setLoggedInUser(responseData.uid, user);
             this.renderUserSummaryPanel(user);
             

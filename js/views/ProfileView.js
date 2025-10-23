@@ -86,8 +86,14 @@ export class ProfileView {
         }
 
         // 1. Calculate completed knowledge points
+        //    以“rate 为 1”判定通关；兼容两种量纲：
+        //    - 0~1 浮点：>= 0.999 视为 1
+        //    - 0~100 百分比：>= 99.9 视为 100
         for (const tagId in nodeProgress) {
-            if (nodeProgress[tagId] >= 60) {
+            const value = Number(nodeProgress[tagId]) || 0;
+            const isRateScale = value <= 1; // 后端多数返回 0~1
+            const completed = isRateScale ? (value >= 0.999) : (value >= 99.9);
+            if (completed) {
                 completedKnowledgePoints++;
             }
         }

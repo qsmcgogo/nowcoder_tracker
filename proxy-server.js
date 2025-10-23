@@ -7,7 +7,7 @@ const app = express();
 const port = 3000;
 
 // 环境切换: 'www', 'pre', 或 'd'
-const CURRENT_ENV = 'd'; 
+const CURRENT_ENV = 'pre'; 
 
 const HOST_MAP = {
     'www': 'https://www.nowcoder.com',
@@ -51,8 +51,14 @@ const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
 
     // For POST/PUT requests, it's crucial to forward the body-related headers.
     if (clientReq.method === 'POST' || clientReq.method === 'PUT') {
-        options.headers['Content-Type'] = clientReq.headers['content-type'];
-        options.headers['Content-Length'] = clientReq.headers['content-length'];
+        const contentType = clientReq.headers['content-type'];
+        const contentLength = clientReq.headers['content-length'];
+        if (contentType) {
+            options.headers['Content-Type'] = contentType;
+        }
+        if (contentLength && contentLength !== '0') {
+            options.headers['Content-Length'] = contentLength;
+        }
     }
     
     const proxyReq = https.request(options, (targetRes) => {
@@ -88,6 +94,7 @@ app.use('/problem/tracker/addcheckin', manualProxyHandler('/problem/tracker/addc
 // Endpoints for Skill Tree
 app.use('/problem/tracker/skill-tree/tagInfo', manualProxyHandler('/problem/tracker/skill-tree/tagInfo'));
 app.use('/problem/tracker/skill-tree/progress', manualProxyHandler('/problem/tracker/skill-tree/progress'));
+app.use('/problem/tracker/skill-tree/update', manualProxyHandler('/problem/tracker/skill-tree/update'));
 
 
 // New endpoint to proxy avatars and bypass CORS for canvas

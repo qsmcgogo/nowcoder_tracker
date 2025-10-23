@@ -20,8 +20,9 @@ export class ApiService {
             const response = await fetch(`${this.apiBase}/problem/tracker/ranks/problem?userId=${userId}`);
             if (!response.ok) throw new Error('User rank fetch failed');
             const data = await response.json();
-            if (data.code === 0 && data.data && data.data.ranks && data.data.ranks.length > 0) {
-                return data.data.ranks[0]; // Returns { uid, name, headUrl, count, place }
+            // 统一返回 data.data（包含 ranks 数组与 totalCount），以匹配 RankingsView 的使用
+            if (data && data.code === 0 && data.data) {
+                return data.data; // { ranks: [...], totalCount: number }
             }
             return null;
         } catch (error) {
@@ -263,12 +264,13 @@ export class ApiService {
 
     /**
      * 获取排行榜页面数据（别名方法）
+     * @param {string} rankType - 排行榜类型
      * @param {number} page - 页码
      * @param {number} limit - 每页数量
      * @returns {Promise<object>} 排行榜数据
      */
-    async fetchRankingsPage(page = 1, limit = 20) {
-        return this.fetchRankings(page, limit);
+    async fetchRankingsPage(rankType, page = 1, limit = 20) {
+        return this.fetchRankings(rankType, page, null, limit);
     }
 
     /**

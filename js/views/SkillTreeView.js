@@ -160,7 +160,8 @@ export class SkillTreeView {
                     const allStageNodeIds = stage.columns.flatMap(c => c.nodeIds);
                     const values = allStageNodeIds.map(nodeId => {
                         const tagId = nodeIdToTagId[nodeId];
-                        return (this.currentStageProgress.nodeProgress[tagId] || 0);
+                        const v = this.currentStageProgress.nodeProgress[tagId] || 0;
+                        return v <= 1 ? v * 100 : v; // 后端返回0-1时转为百分比
                     });
                     if (isLoggedIn && values.length > 0) {
                         const avg = values.reduce((a, b) => a + b, 0) / values.length;
@@ -184,11 +185,26 @@ export class SkillTreeView {
                     // 重新按节点计算第一章平均值
                     const s1 = tree.stages.find(s => s.id === 'stage-1');
                     const s1NodeIds = s1.columns.flatMap(c => c.nodeIds);
-                    const s1Vals = s1NodeIds.map(n => (this.currentStageProgress.nodeProgress[nodeIdToTagId[n]] || 0));
+                    const s1Vals = s1NodeIds.map(n => {
+                        const v = this.currentStageProgress.nodeProgress[nodeIdToTagId[n]] || 0;
+                        return v <= 1 ? v * 100 : v;
+                    });
                     const s1Avg = s1Vals.length > 0 ? Math.round(s1Vals.reduce((a, b) => a + b, 0) / s1Vals.length) : 0;
                     isLocked = s1Avg < 70;
                     if (isLocked) {
                         lockReason = `第一章平均进度达到70% <span class=\"dep-cross\">×</span>`;
+                    }
+                } else if (stage.id === 'stage-3') {
+                    const s2 = tree.stages.find(s => s.id === 'stage-2');
+                    const s2NodeIds = (s2 && s2.columns) ? s2.columns.flatMap(c => c.nodeIds) : [];
+                    const s2Vals = s2NodeIds.map(n => {
+                        const v = this.currentStageProgress.nodeProgress[nodeIdToTagId[n]] || 0;
+                        return v <= 1 ? v * 100 : v;
+                    });
+                    const s2Avg = s2Vals.length > 0 ? Math.round(s2Vals.reduce((a, b) => a + b, 0) / s2Vals.length) : 0;
+                    isLocked = s2Avg < 70;
+                    if (isLocked) {
+                        lockReason = `第二章平均进度达到70% <span class=\"dep-cross\">×</span>`;
                     }
                 } else {
                     // 其他章节仍按上一章节100%解锁的旧规则
@@ -200,7 +216,7 @@ export class SkillTreeView {
                 previousStageProgress = progress;
 
                 return `
-                    <div class="skill-tree-card ${isLocked ? 'locked' : ''}" data-stage-id="${stage.id}" ${isLocked ? 'aria-disabled="true"' : ''} ${lockReason ? `data-lock-reason='${lockReason}'` : ''}>
+                    <div class="skill-tree-card ${isLocked ? 'locked' : ''}" data-stage-id="${stage.id}" ${isLocked ? 'aria-disabled="true"' : ''}>
                         <div class="skill-tree-card__header">
                             <h3 class="skill-tree-card__title">${stage.name}</h3>
                             <span class="skill-tree-card__progress-text">通关率: ${progress}%</span>
@@ -208,6 +224,7 @@ export class SkillTreeView {
                         <div class="skill-tree-card__progress-bar">
                             <div class="skill-tree-card__progress-bar-inner" style="width: ${progress}%;"></div>
                         </div>
+                        ${isLocked ? `<div class=\"skill-tree-card__tooltip\">${lockReason}</div>` : ''}
                     </div>
                 `;
             }).join('');
@@ -270,7 +287,8 @@ export class SkillTreeView {
                     const nodesHtml = column.nodeIds.map(nodeId => {
                         if (tree.nodes[nodeId]) {
                             const tagId = nodeIdToTagId[nodeId];
-                            const progress = this.currentStageProgress.nodeProgress[tagId] || 0;
+                            let progress = this.currentStageProgress.nodeProgress[tagId] || 0;
+                            progress = progress <= 1 ? Math.round(progress * 100) : Math.round(progress);
                             return this.renderNode(nodeId, tree.nodes, nodeStates, progress);
                         }
                         return '';
@@ -279,34 +297,37 @@ export class SkillTreeView {
                     let columnLockClass = '';
                     let columnElementsHtml = '';
 
-                    const firstNodeId = column.nodeIds[0];
-                    if (firstNodeId) {
-                        const firstNodeState = nodeStates[firstNodeId];
-                        if (firstNodeState && firstNodeState.state === 'locked') {
-                            columnLockClass = 'skill-tree-column--locked';
+                    // 统计本列中是否存在未解锁的节点
+                    const hasLockedNode = column.nodeIds.some(id => nodeStates[id] && nodeStates[id].state === 'locked');
+                    if (hasLockedNode) {
+                        columnLockClass = 'skill-tree-column--locked';
 
-                            const lockIcon = `<img src="https://api.iconify.design/mdi/lock-outline.svg?color=%23adb5bd" class="skill-tree-column__lock-icon" alt="Locked">`;
-                            
-                            let tooltipContent = '';
-                            const dependencies = tree.nodes[firstNodeId]?.dependencies || [];
+                        const lockIcon = `<img src="https://api.iconify.design/mdi/lock-outline.svg?color=%23adb5bd" class="skill-tree-column__lock-icon" alt="Locked">`;
 
-                            if (dependencies.length > 0) {
-                                tooltipContent = dependencies.map(depId => {
-                                    const depNode = tree.nodes[depId];
-                                    const depTagId = nodeIdToTagId[depId];
-                                    const progress = this.currentStageProgress.nodeProgress[depTagId] || 0;
-                                    const isMet = progress >= 60;
-                                    
-                                    const statusSymbol = isMet 
-                                        ? `<span class="tooltip-check">✓</span>`
-                                        : `<span class="tooltip-cross">✗</span>`;
+                        // 汇总本列所有未满足的依赖（去重）
+                        const unmetDeps = new Map(); // depTagId -> depNodeName
+                        column.nodeIds.forEach(nodeId => {
+                            const node = tree.nodes[nodeId];
+                            const deps = (node && node.dependencies) ? node.dependencies : [];
+                            deps.forEach(depId => {
+                                const depTagId = nodeIdToTagId[depId];
+                                const raw = (this.currentStageProgress.nodeProgress[depTagId] || 0);
+                                const pct = raw <= 1 ? raw * 100 : raw;
+                                if (pct < 60) {
+                                    unmetDeps.set(depTagId, tree.nodes[depId]?.name || String(depTagId));
+                                }
+                            });
+                        });
 
-                                    return `<div class="${isMet ? 'met' : 'unmet'}">${depNode.name} 进度达到60% ${statusSymbol}</div>`;
-                                }).join('');
-                            }
-                            const tooltip = `<div class="skill-tree-column__tooltip">${tooltipContent}</div>`;
-                            columnElementsHtml = lockIcon + tooltip;
+                        let tooltipContent = '';
+                        if (unmetDeps.size > 0) {
+                            tooltipContent = Array.from(unmetDeps.entries()).map(([depTagId, depName]) => {
+                                return `<div class="unmet">${depName} 进度达到60% <span class=\"tooltip-cross\">✗</span></div>`;
+                            }).join('');
                         }
+
+                        const tooltip = `<div class="skill-tree-column__tooltip">${tooltipContent}</div>`;
+                        columnElementsHtml = lockIcon + tooltip;
                     }
 
                     // --- Hotfix for col-5 tooltip clipping ---
@@ -359,13 +380,16 @@ export class SkillTreeView {
         for (const nodeId in nodes) {
             const node = nodes[nodeId];
             const tagId = nodeIdToTagId[nodeId];
-            const progress = nodeProgress ? (nodeProgress[tagId] || 0) : 0;
+            let progress = nodeProgress ? (nodeProgress[tagId] || 0) : 0;
+            progress = progress <= 1 ? Math.round(progress * 100) : Math.round(progress);
             let tagState = 'locked';
 
             const isCompleted = progress === 100;
             const areDependenciesMet = (node.dependencies || []).every(depId => {
                 const depTagId = nodeIdToTagId[depId];
-                return nodeProgress ? (nodeProgress[depTagId] || 0) >= 60 : false;
+                const v = nodeProgress ? (nodeProgress[depTagId] || 0) : 0;
+                const pct = v <= 1 ? v * 100 : v;
+                return pct >= 60;
             });
 
             if (isCompleted) {
@@ -377,7 +401,9 @@ export class SkillTreeView {
             if (tagState === 'locked') {
                 const unmetDependencies = (node.dependencies || []).filter(depId => {
                     const depTagId = nodeIdToTagId[depId];
-                    return nodeProgress ? (nodeProgress[depTagId] || 0) < 60 : true;
+                    const v = nodeProgress ? (nodeProgress[depTagId] || 0) : 0;
+                    const pct = v <= 1 ? v * 100 : v;
+                    return pct < 60;
                 });
                 states[nodeId] = { state: 'locked', unmetDependencies };
             } else {
@@ -686,7 +712,11 @@ export class SkillTreeView {
         const problemsHtml = problems.map(problem => {
             const isSolved = problem.solved;
             const depTagIds = parseDeps(problem);
-            const unmetDeps = depTagIds.filter(tagId => (nodeProgress[tagId] || 0) < 60);
+            const unmetDeps = depTagIds.filter(tagId => {
+                const v = nodeProgress[tagId] || 0;
+                const pct = v <= 1 ? v * 100 : v;
+                return pct < 60;
+            });
             const isLocked = unmetDeps.length > 0;
             const problemClass = `${isSolved ? 'completed' : ''} ${isLocked ? 'locked' : ''}`.trim();
             const baseUrl = `https://www.nowcoder.com/practice/${problem.uuid}`;

@@ -2739,10 +2739,9 @@ body.dark-theme .profile-avatar {
 .skill-tree-card.locked::after {
     content: attr(data-lock-reason);
     position: absolute;
-    right: 100%;
-    top: 50%;
-    transform: translateY(-50%);
-    margin-right: 10px;
+    left: 0;
+    bottom: 100%;
+    transform: translateY(-8px);
     background: rgba(0,0,0,0.85);
     color: #fff;
     padding: 6px 10px;
@@ -2756,6 +2755,29 @@ body.dark-theme .profile-avatar {
 .skill-tree-card.locked:hover::after {
     display: block;
 }
+
+/* 确保容器允许溢出以显示左侧提示框 */
+.skill-tree-summary { overflow: visible; }
+.skill-tree-card { overflow: visible; position: relative; }
+.skill-tree-card__tooltip {
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    transform: translateY(-8px);
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    display: none;
+    z-index: 1500;
+}
+.skill-tree-card__tooltip .dep-cross { color: #e03131; font-weight: 700; }
+.skill-tree-card.locked:hover .skill-tree-card__tooltip { display: block; }
+
+/* 关闭旧的 ::after 黑色提示残留 */
+.skill-tree-card.locked::after { content: none !important; display: none !important; }
 
 
 .skill-tree-card:hover {

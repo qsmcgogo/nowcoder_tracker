@@ -85,7 +85,7 @@ export class RankingsView {
             // const rankType = this.state.activeRankingsTab; // OLD: Using potentially stale state
             // This fetch is always for a specific page list, NOT for a specific user
             const data = rankType === 'problem'
-                ? await this.apiService.fetchRankingsPage(page, this.rankingsPageSize)
+                ? await this.apiService.fetchRankingsPage(rankType, page, this.rankingsPageSize)
                 : await this.apiService.fetchCheckinRankings(page, this.rankingsPageSize);
 
             if (data && data.ranks) {
