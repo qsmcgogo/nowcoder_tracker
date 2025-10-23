@@ -1840,6 +1840,17 @@ body .problems-table tbody tr td.status-none {
     color: var(--text-color-primary);
 }
 
+/* Daily summary specific fine-tuning */
+.summary-stats .stat-item {
+    padding: 2px 0; /* tighten spacing slightly */
+}
+.summary-stats .label {
+    font-size: 0.95em;
+}
+.summary-stats .value {
+    font-size: 1em;
+}
+
 .checked-in-actions {
     display: flex;
     gap: 10px;
@@ -2479,7 +2490,7 @@ body .problems-table tbody tr td.status-none {
     background-color: var(--background-color); /* Changed to var(--background-color) for dark mode */
 }
 
-.stat-item {
+.profile-stats .stat-item {
     display: flex;
     flex-direction: column;
 }

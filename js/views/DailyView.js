@@ -155,7 +155,7 @@ export class DailyView {
             const now = new Date();
             // 定义北京时间 2025-10-24 19:00 到 21:00 的时间窗口
             // 使用 ISO 8601 格式并指定 +08:00 时区，确保不依赖用户本地时间
-            const startTime = new Date('2025-10-24T19:00:00+08:00');
+            const startTime = new Date('2025-10-24T08:00:00+08:00');
             const endTime = new Date('2025-10-24T23:59:59+08:00');
 
             //测试用时间
@@ -638,7 +638,7 @@ export class DailyView {
                 </div>
                 <div class="stat-item">
                     <span class="label">全站排名:</span>
-                    <a href="#" id="summary-rank-link" class="rank-link">${displayRank}</a>
+                    <span class="value">${displayRank}</span>
                 </div>
             </div>
         `;
