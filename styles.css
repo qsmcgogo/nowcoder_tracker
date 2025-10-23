@@ -1,3 +1,32 @@
+.skill-node-refresh-btn {
+    margin-right: 8px;
+    background: #f1f3f5;
+    border: 1px solid #dee2e6;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 2px 6px;
+}
+.skill-node-refresh-btn:hover {
+    background: #e9ecef;
+}
+/* removed sync banner styles */
+.skill-tree-login-banner {
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    color: #495057;
+    padding: 12px 16px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+}
+.skill-tree-login-banner .login-link {
+    color: #0d6efd;
+    text-decoration: none;
+    font-weight: 600;
+    margin-left: 6px;
+}
+.skill-tree-login-banner .login-link:hover {
+    text-decoration: underline;
+}
 .floating-problem-lock-tooltip {
     position: fixed; /* avoid parent clipping and scroll with viewport */
     background: rgba(0,0,0,0.88);
@@ -2708,13 +2737,24 @@ body.dark-theme .profile-avatar {
 }
 
 .skill-tree-card.locked::after {
-    content: '🔒';
+    content: attr(data-lock-reason);
     position: absolute;
-    top: 15px;
-    right: 20px;
-    font-size: 1.5rem;
-    color: #9ca3af;
-    opacity: 0.7;
+    right: 100%;
+    top: 50%;
+    transform: translateY(-50%);
+    margin-right: 10px;
+    background: rgba(0,0,0,0.85);
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    white-space: nowrap;
+    display: none;
+    z-index: 1500;
+}
+
+.skill-tree-card.locked:hover::after {
+    display: block;
 }
 
 

@@ -150,38 +150,57 @@ export class SkillTreeView {
             const progressData = await this.apiService.fetchSkillTreeProgress(isLoggedIn ? this.state.loggedInUserId : null, allTagIds);
             this.currentStageProgress = progressData; // 存储进度, 格式为 { nodeProgress: { ... } }
 
-            let previousStageProgress = 100; // 第一关默认解锁
+            let previousStageProgress = 100; // 第一关的前置视为已解锁，用于统一逻辑
             const stagesToRender = tree.stages.slice(0, 3);
 
             const stagesHtml = stagesToRender.map(stage => {
                 let progress = 0;
-                if (isLoggedIn && stage.id === 'stage-1') {
-                    const totalColumns = stage.columns.length;
-                    let completedColumns = 0;
-                    
-                    stage.columns.forEach(column => {
-                        const isColumnCompleted = column.nodeIds.every(nodeId => {
-                            const tagId = nodeIdToTagId[nodeId];
-                            // 直接从 currentStageProgress.nodeProgress 中获取
-                            return (this.currentStageProgress.nodeProgress[tagId] || 0) >= 60;
-                        });
-                        if (isColumnCompleted) {
-                            completedColumns++;
-                        }
+                if (stage.id === 'stage-1') {
+                    // 晨曦微光的进度 = 所有知识点进度的平均值
+                    const allStageNodeIds = stage.columns.flatMap(c => c.nodeIds);
+                    const values = allStageNodeIds.map(nodeId => {
+                        const tagId = nodeIdToTagId[nodeId];
+                        return (this.currentStageProgress.nodeProgress[tagId] || 0);
                     });
-                    
-                    progress = completedColumns * 20;
+                    if (isLoggedIn && values.length > 0) {
+                        const avg = values.reduce((a, b) => a + b, 0) / values.length;
+                        progress = Math.round(avg);
+                    } else {
+                        progress = 0;
+                    }
                 } else {
-                    // 其他阶段暂时维持原有简单逻辑或显示为0
                     progress = 0;
                 }
                 
-                // 未登录时全部显示为锁定
-                const isLocked = !isLoggedIn || (previousStageProgress < 100);
+                // 第二章的解锁规则：第一章达到≥70%
+                let isLocked;
+                let lockReason = '';
+                if (!isLoggedIn) {
+                    isLocked = true;
+                    lockReason = '请先登录开启技能树之旅';
+                } else if (stage.id === 'stage-2') {
+                    const stage1Progress = stagesToRender[0] && stagesToRender[0].id === 'stage-1' ? progress : 0;
+                    // 注意：这里的 progress 变量当前就是当前 stage 的进度。为避免混淆，单独读取 earlierProgress
+                    // 重新按节点计算第一章平均值
+                    const s1 = tree.stages.find(s => s.id === 'stage-1');
+                    const s1NodeIds = s1.columns.flatMap(c => c.nodeIds);
+                    const s1Vals = s1NodeIds.map(n => (this.currentStageProgress.nodeProgress[nodeIdToTagId[n]] || 0));
+                    const s1Avg = s1Vals.length > 0 ? Math.round(s1Vals.reduce((a, b) => a + b, 0) / s1Vals.length) : 0;
+                    isLocked = s1Avg < 70;
+                    if (isLocked) {
+                        lockReason = `第一章平均进度达到70% <span class=\"dep-cross\">×</span>`;
+                    }
+                } else {
+                    // 其他章节仍按上一章节100%解锁的旧规则
+                    isLocked = previousStageProgress < 100;
+                    if (isLocked) {
+                        lockReason = '上一章通关（100%）后解锁 <span class=\"dep-cross\">×</span>';
+                    }
+                }
                 previousStageProgress = progress;
 
                 return `
-                    <div class="skill-tree-card ${isLocked ? 'locked' : ''}" data-stage-id="${stage.id}" ${isLocked ? 'aria-disabled="true"' : ''}>
+                    <div class="skill-tree-card ${isLocked ? 'locked' : ''}" data-stage-id="${stage.id}" ${isLocked ? 'aria-disabled="true"' : ''} ${lockReason ? `data-lock-reason='${lockReason}'` : ''}>
                         <div class="skill-tree-card__header">
                             <h3 class="skill-tree-card__title">${stage.name}</h3>
                             <span class="skill-tree-card__progress-text">通关率: ${progress}%</span>
@@ -194,14 +213,12 @@ export class SkillTreeView {
             }).join('');
 
             const loginUrl = helpers.buildUrlWithChannelPut('https://ac.nowcoder.com/login?callBack=/');
-            const syncHtml = isLoggedIn ? `<button id="skill-tree-sync-btn" class="skill-tree-sync-btn">第一次使用技能树的同学，请点击这里同步数据</button>` : '';
             const banner = isLoggedIn 
-                ? `<div class="skill-tree-sync-banner">${syncHtml}</div>` 
+                ? ''
                 : `<div class="skill-tree-login-banner">请先登录开启技能树之旅：<a class="login-link" href="${loginUrl}" target="_blank" rel="noopener noreferrer">前往登录</a></div>`;
 
             this.container.innerHTML = `${banner}<div class="skill-tree-summary">${stagesHtml}</div>`;
             this.bindSummaryEvents();
-            if (isLoggedIn) this.bindSyncEvent();
 
         } catch (error) {
             console.error('Error rendering stage summary:', error);
@@ -481,26 +498,7 @@ export class SkillTreeView {
         });
     }
 
-    // 绑定“同步数据”按钮事件
-    bindSyncEvent() {
-        const btn = this.container.querySelector('#skill-tree-sync-btn');
-        if (!btn) return;
-        btn.addEventListener('click', async () => {
-            try {
-                btn.disabled = true;
-                btn.textContent = '正在同步...';
-                const userId = this.state.loggedInUserId;
-                const res = await this.apiService.syncSkillTreeProgress(userId);
-                btn.textContent = res && (res.msg || '同步完成');
-                // 同步后刷新进度
-                this.render();
-            } catch (e) {
-                console.error('Sync failed:', e);
-                btn.textContent = '同步失败，请重试';
-                btn.disabled = false;
-            }
-        });
-    }
+    // 已移除全量同步入口
 
     // 绑定详情页事件
     bindDetailEvents() {
@@ -641,7 +639,8 @@ export class SkillTreeView {
             return;
         }
 
-        this.panelTitle.textContent = tagInfo.tagName || staticNodeData.name;
+        // 标题左侧追加刷新按钮
+        this.panelTitle.innerHTML = `<button id="skill-node-refresh-btn" class="skill-node-refresh-btn" title="刷新本知识点进度">⟳</button> ${tagInfo.tagName || staticNodeData.name}`;
         this.panelDesc.textContent = tagInfo.tagDesc || '暂无描述。';
 
         const problems = tagInfo.problems || [];
@@ -728,6 +727,28 @@ export class SkillTreeView {
         }).join('');
 
         this.panelProblems.innerHTML = `<ul>${problemsHtml}</ul>`;
+
+        // 绑定刷新按钮：仅刷新此 tag 的进度
+        const refreshBtn = document.getElementById('skill-node-refresh-btn');
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', async () => {
+                try {
+                    refreshBtn.disabled = true;
+                    const tagId = nodeIdToTagId[this.activeNodeId];
+                    // 先触发后端同步，再读取一次最新进度
+                    await this.apiService.syncSingleTag(this.state.loggedInUserId, tagId);
+                    const res = await this.apiService.fetchSingleTagProgress(this.state.loggedInUserId, tagId);
+                    // 更新内存中的进度
+                    if (!this.currentStageProgress.nodeProgress) this.currentStageProgress.nodeProgress = {};
+                    this.currentStageProgress.nodeProgress[tagId] = res.progress || 0;
+                    // 重新渲染当前面板与概要
+                    this.showPanelContent(staticNodeData, tagInfo, false);
+                    this.render();
+                } finally {
+                    refreshBtn.disabled = false;
+                }
+            });
+        }
 
         // Attach floating tooltip on body to avoid clipping
         const ensureGlobalTooltip = () => {

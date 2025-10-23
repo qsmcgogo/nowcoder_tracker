@@ -428,6 +428,7 @@ export class ApiService {
      * @returns {Promise<object>} 进度数据
      */
     async fetchSkillTreeProgress(userId, tagIds) {
+        // 保留兼容，但优先推荐使用 fetchSingleTagProgress
         if (!userId || !tagIds || tagIds.length === 0) {
             return { nodeProgress: {} };
         }
@@ -436,17 +437,78 @@ export class ApiService {
         try {
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-            
-            // 后端已修复，恢复标准的JSON解析
             const data = await response.json();
-            if (data.code === 0 && data.data && data.data.nodeProgress) {
-                return data.data; // 直接返回包含 nodeProgress 的 data 对象
+            if ((data.code === 0 || data.code === 200) && data.data) {
+                if (data.data.nodeProgress) return data.data;
+                // 容错：若返回单个进度
+                if (typeof data.data.progress === 'number' && tagIds.length === 1) {
+                    return { nodeProgress: { [tagIds[0]]: data.data.progress } };
+                }
             }
             throw new Error(data.msg || 'Failed to fetch skill tree progress');
-
         } catch (error) {
             console.error(`Error fetching progress for tags ${tagsParam}:`, error);
             throw error;
+        }
+    }
+
+    /**
+     * 获取单个知识点的进度
+     */
+    async fetchSingleTagProgress(userId, tagId) {
+        if (!userId || !tagId) return { progress: 0 };
+        // 接口要求使用 tags（逗号分隔），即便只有一个
+        const url = `${this.apiBase}/problem/tracker/skill-tree/progress?userId=${encodeURIComponent(userId)}&tags=${encodeURIComponent(String(tagId))}`;
+        try {
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if ((data.code === 0 || data.code === 200) && data.data) {
+                if (typeof data.data.progress === 'number') return { progress: data.data.progress };
+                if (data.data.nodeProgress && data.data.nodeProgress[tagId] != null) return { progress: data.data.nodeProgress[tagId] };
+            }
+            return { progress: 0 };
+        } catch (e) {
+            console.error('fetchSingleTagProgress failed:', e);
+            return { progress: 0 };
+        }
+    }
+
+    /**
+     * 同步单个知识点进度（POST）
+     * 接口约定：/problem/tracker/skill-tree/update?userId=xxx&tagId=yyy
+     * 有的实现参数名可能为 tafId，做兼容同时传两者
+     */
+    async syncSingleTag(userId, tagId) {
+        if (!userId || !tagId) throw new Error('userId and tagId are required');
+        const qs = `userId=${encodeURIComponent(userId)}&tagId=${encodeURIComponent(tagId)}`;
+        const url = `${this.apiBase}/problem/tracker/skill-tree/update?${qs}`;
+        try {
+            const res = await fetch(url, { method: 'POST' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json().catch(() => ({}));
+            return data;
+        } catch (e) {
+            console.error('syncSingleTag failed:', e);
+            throw e;
+        }
+    }
+
+    /**
+     * 触发后端同步技能树进度
+     * @param {string} userId - 用户ID
+     */
+    async syncSkillTreeProgress(userId) {
+        if (!userId) throw new Error('userId is required');
+        const url = `${this.apiBase}/problem/tracker/skill-tree/update?userId=${encodeURIComponent(userId)}`;
+        try {
+            const res = await fetch(url, { method: 'POST' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json().catch(() => ({}));
+            return data;
+        } catch (e) {
+            console.error('syncSkillTreeProgress failed:', e);
+            throw e;
         }
     }
 }
