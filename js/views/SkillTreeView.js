@@ -717,7 +717,8 @@ export class SkillTreeView {
                 const pct = v <= 1 ? v * 100 : v;
                 return pct < 60;
             });
-            const isLocked = unmetDeps.length > 0;
+            // 已通过的题目不锁定（即使依赖未达标）
+            const isLocked = !isSolved && unmetDeps.length > 0;
             const problemClass = `${isSolved ? 'completed' : ''} ${isLocked ? 'locked' : ''}`.trim();
             const baseUrl = `https://www.nowcoder.com/practice/${problem.uuid}`;
             const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, this.state.channelPut);
