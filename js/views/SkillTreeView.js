@@ -125,11 +125,6 @@ export class SkillTreeView {
     render() {
         if (!this.container) return;
 
-        if (!this.state.isLoggedIn()) {
-            this.container.innerHTML = `<div class="skill-tree-login-prompt">请先登录以查看您的技能树进度</div>`;
-            return;
-        }
-
         if (this.currentView === 'summary') {
             this.renderStageSummaryView();
         } else if (this.currentView === 'detail' && this.selectedStageId) {
@@ -146,12 +141,13 @@ export class SkillTreeView {
             return;
         }
 
+        const isLoggedIn = this.state.isLoggedIn();
         const allNodeIds = Object.keys(tree.nodes);
         const allTagIds = allNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
 
         try {
             // 获取所有节点的进度
-            const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, allTagIds);
+            const progressData = await this.apiService.fetchSkillTreeProgress(isLoggedIn ? this.state.loggedInUserId : null, allTagIds);
             this.currentStageProgress = progressData; // 存储进度, 格式为 { nodeProgress: { ... } }
 
             let previousStageProgress = 100; // 第一关默认解锁
@@ -159,7 +155,7 @@ export class SkillTreeView {
 
             const stagesHtml = stagesToRender.map(stage => {
                 let progress = 0;
-                if (stage.id === 'stage-1') {
+                if (isLoggedIn && stage.id === 'stage-1') {
                     const totalColumns = stage.columns.length;
                     let completedColumns = 0;
                     
@@ -180,7 +176,8 @@ export class SkillTreeView {
                     progress = 0;
                 }
                 
-                const isLocked = previousStageProgress < 100;
+                // 未登录时全部显示为锁定
+                const isLocked = !isLoggedIn || (previousStageProgress < 100);
                 previousStageProgress = progress;
 
                 return `
@@ -196,8 +193,15 @@ export class SkillTreeView {
                 `;
             }).join('');
 
-            this.container.innerHTML = `<div class="skill-tree-summary">${stagesHtml}</div>`;
+            const loginUrl = helpers.buildUrlWithChannelPut('https://ac.nowcoder.com/login?callBack=/');
+            const syncHtml = isLoggedIn ? `<button id="skill-tree-sync-btn" class="skill-tree-sync-btn">第一次使用技能树的同学，请点击这里同步数据</button>` : '';
+            const banner = isLoggedIn 
+                ? `<div class="skill-tree-sync-banner">${syncHtml}</div>` 
+                : `<div class="skill-tree-login-banner">请先登录开启技能树之旅：<a class="login-link" href="${loginUrl}" target="_blank" rel="noopener noreferrer">前往登录</a></div>`;
+
+            this.container.innerHTML = `${banner}<div class="skill-tree-summary">${stagesHtml}</div>`;
             this.bindSummaryEvents();
+            if (isLoggedIn) this.bindSyncEvent();
 
         } catch (error) {
             console.error('Error rendering stage summary:', error);
@@ -477,6 +481,27 @@ export class SkillTreeView {
         });
     }
 
+    // 绑定“同步数据”按钮事件
+    bindSyncEvent() {
+        const btn = this.container.querySelector('#skill-tree-sync-btn');
+        if (!btn) return;
+        btn.addEventListener('click', async () => {
+            try {
+                btn.disabled = true;
+                btn.textContent = '正在同步...';
+                const userId = this.state.loggedInUserId;
+                const res = await this.apiService.syncSkillTreeProgress(userId);
+                btn.textContent = res && (res.msg || '同步完成');
+                // 同步后刷新进度
+                this.render();
+            } catch (e) {
+                console.error('Sync failed:', e);
+                btn.textContent = '同步失败，请重试';
+                btn.disabled = false;
+            }
+        });
+    }
+
     // 绑定详情页事件
     bindDetailEvents() {
         const backButton = this.container.querySelector('#skill-tree-back-btn');
@@ -574,12 +599,19 @@ export class SkillTreeView {
         // If still no problems, return as-is
         if (problems.length === 0) return { ...tagInfo, problems: [] };
 
-        // If not logged in, return problems without solved flags
-        if (!this.state.isLoggedIn()) {
+        // For diff, only keep problems that have a valid problemId
+        const validProblemIds = Array.from(new Set(
+            problems
+                .map(p => (p && p.problemId != null ? String(p.problemId).trim() : ''))
+                .filter(id => id !== '')
+        ));
+
+        // If not logged in OR no valid problemIds, return without diff merge
+        if (!this.state.isLoggedIn() || validProblemIds.length === 0) {
             return { ...tagInfo, problems };
         }
 
-        const problemIds = problems.map(p => p.problemId); // Use problemId for diff
+        const problemIds = validProblemIds; // Use problemId for diff
         const userId = this.state.loggedInUserId;
 
         try {
