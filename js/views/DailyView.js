@@ -310,20 +310,28 @@ export class DailyView {
     }
     
     handleShare(problem, isClockToday, hasPassedPreviously) {
-        // 实现分享功能
-        const shareText = `我在牛客网完成了每日一题：${problem.title}！`;
-        const shareUrl = window.location.href;
-        
+        // 根据是否已通过/已打卡，定制分享文案
+        const problemUrl = this.buildUrlWithChannelPut(problem.url);
+        let shareText;
+
+        if (!isClockToday && !hasPassedPreviously) {
+            // 未通过文案：两行，第二行放链接
+            shareText = `我做不出今天的每日一题：${problem.title}，我猜你也做不出来！\n${problemUrl}`;
+        } else {
+            // 其余保持原文案，并附上链接在第二行
+            shareText = `我在牛客网完成了每日一题：${problem.title}！\n${problemUrl}`;
+        }
+
         if (navigator.share) {
+            // 仅传入 text，确保第二行链接以纯文本形式展示
             navigator.share({
                 title: '每日一题打卡',
-                text: shareText,
-                url: shareUrl
+                text: shareText
             });
         } else {
-            // 复制到剪贴板
-            navigator.clipboard.writeText(`${shareText} ${shareUrl}`).then(() => {
-                alert('分享链接已复制到剪贴板！');
+            // 复制到剪贴板（多行文本）
+            navigator.clipboard.writeText(shareText).then(() => {
+                alert('分享文案已复制到剪贴板！');
             }).catch(() => {
                 alert('分享功能暂不可用');
             });
