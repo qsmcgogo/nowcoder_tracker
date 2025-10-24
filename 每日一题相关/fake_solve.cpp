@@ -8,7 +8,7 @@ int mi;
 int check(){
     int cnt=0,i;
     for(i=2;i<=n+1;i++){
-        if(a[i]-a[i-1]!=1)cnt++;
+        if(abs(a[i]-a[i-1])!=1)cnt++;
     }
     return cnt;
 }

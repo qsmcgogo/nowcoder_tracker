@@ -149,8 +149,9 @@ export class ContestView {
     // 转换为视图渲染所需字段（id/name/url/problems，并计算 difficultyScore）
     transformApiData(contests) {
         const difficultyScoreMap = { 1: 800, 2: 1200, 3: 1600, 4: 2000, 5: 2400 };
-        const nonCampusContestTabs = ['weekly', 'monthly', 'practice', 'challenge', 'xcpc'];
-        const isNonCampusSpecificView = nonCampusContestTabs.includes(this.state.activeContestTab);
+        // 非校园类（周赛/小白/练习/挑战/寒假营/多校/XCPC）不应将 1~5 难度映射为分数圈
+        const nonCampusContestTabs = ['19', '9', '6', '2', '20', '21', '22'];
+        const isNonCampusSpecificView = nonCampusContestTabs.includes(String(this.state.activeContestTab));
         
         return contests.map(contest => ({
             id: contest.contestId,
@@ -158,10 +159,11 @@ export class ContestView {
             url: contest.contestUrl,
             problems: (contest.questions || []).map(p => {
                 let score = null;
-                if (p.difficulty > 5) {
-                    score = p.difficulty;
-                } else if (!isNonCampusSpecificView) {
+                // 校招类（非 nonCampus 类型）才做 1~5 的映射；否则仅当后端给出 >5 的“分数型难度”才显示圈
+                if (!isNonCampusSpecificView) {
                     score = difficultyScoreMap[p.difficulty] || null;
+                } else if (p.difficulty > 5) {
+                    score = p.difficulty;
                 }
                 return { ...p, difficultyScore: score };
             })
@@ -176,17 +178,14 @@ export class ContestView {
             return;
         }
         
-        // 计算最大题目数量
-        const maxProblems = Math.min(
-            Math.max(...this.state.contests.map(c => c.problems?.length || 0)),
-            8
-        );
+        // 计算最大题目数量（不限制为8列，完整展示）
+        const maxProblems = Math.max(...this.state.contests.map(c => c.problems?.length || 0));
         
         // 更新表头
         const headerRow = document.querySelector('#contests-view .problems-table thead tr');
         if (headerRow) {
-            // Check if current tab is XCPC
-            const isXCPC = this.state.activeContestTab === 'xcpc';
+            // Check if current tab is XCPC (type 22)
+            const isXCPC = String(this.state.activeContestTab) === '22';
             const contestColWidth = isXCPC ? 'style="width: 40%;"' : '';
             headerRow.innerHTML = `<th ${contestColWidth}>Contest</th>${Array.from({length: maxProblems}, (_, i) => `<th>${String.fromCharCode(65+i)}</th>`).join('')}`;
         }
@@ -226,8 +225,8 @@ export class ContestView {
             difficultyCircleHtml = `<span class="difficulty-circle" style="${circleStyle}" data-tooltip="${tooltipContent}"></span>`;
         }
         
-        // Check if current tab is XCPC
-        const isXCPC = this.state.activeContestTab === 'xcpc';
+        // Check if current tab is XCPC (type 22)
+        const isXCPC = String(this.state.activeContestTab) === '22';
         
         let finalUrl = helpers.buildUrlWithChannelPut(problem.url || problem.questionUrl, this.state.channelPut);
         let titleHtml;
@@ -263,8 +262,9 @@ export class ContestView {
     }
     
     renderContestPagination() {
-        const container = document.getElementById('contest-pagination');
-        const info = document.getElementById('contestPaginationInfo');
+        // 修正：匹配 index.html 中的分页容器结构
+        const container = document.querySelector('#contests-view .pagination-container');
+        const info = document.getElementById('contestsPaginationInfo');
         
         if (!container || !info) return;
         

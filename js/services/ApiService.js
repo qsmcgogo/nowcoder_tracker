@@ -68,20 +68,26 @@ export class ApiService {
         try {
             // 比赛类型映射
             const contestTypeMap = {
-                'all': 0, 'weekly': 19, 'monthly': 9, 'practice': 6, 'challenge': 2, 'xcpc': 22,
-                '100': 100, '101': 101, '102': 102, '103': 103  // 校园招聘类型
+                'all': 0,
+                '19': 19,
+                '9': 9,
+                '6': 6,
+                '2': 2,
+                '20': 20, // 多校
+                '21': 21, // 寒假营
+                '22': 22, // XCPC
+                '100': 100, '101': 101, '102': 102, '103': 103
             };
 
-            let apiContestType = contestTypeMap[contestType];
+            let apiContestType = contestTypeMap[String(contestType)];
             
             // 如果contestType是数字字符串，直接使用
             if (apiContestType === undefined && !isNaN(parseInt(contestType))) {
                 apiContestType = parseInt(contestType);
             }
 
-            if (apiContestType === undefined) {
-                throw new Error(`暂不支持此比赛类型: ${contestType}`);
-            }
+            // 保底：仍找不到时，直接透传（以便后端做兼容路由）
+            if (apiContestType === undefined) apiContestType = contestType;
 
             const url = `${this.apiBase}/problem/tracker/list?contestType=${apiContestType}&page=${page}&limit=${limit}`;
             const response = await fetch(url);

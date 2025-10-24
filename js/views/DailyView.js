@@ -310,32 +310,58 @@ export class DailyView {
     }
     
     handleShare(problem, isClockToday, hasPassedPreviously) {
-        // 根据是否已通过/已打卡，定制分享文案
-        const problemUrl = this.buildUrlWithChannelPut(problem.url);
+        // 优先复制文本到剪贴板，其次降级到系统分享/手动复制
         let shareText;
-
         if (!isClockToday && !hasPassedPreviously) {
-            // 未通过文案：两行，第二行放链接
-            shareText = `我做不出今天的每日一题：${problem.title}，我猜你也做不出来！\n${problemUrl}`;
+            shareText = `我做不出今天的每日一题：${problem.title}，我猜你也做不出来！`;
         } else {
-            // 其余保持原文案，并附上链接在第二行
-            shareText = `我在牛客网完成了每日一题：${problem.title}！\n${problemUrl}`;
+            shareText = `我在牛客网完成了每日一题：${problem.title}！`;
         }
+        const shareUrl = window.location.href;
+        const content = `${shareText}\n${shareUrl}`;
 
-        if (navigator.share) {
-            // 仅传入 text，确保第二行链接以纯文本形式展示
-            navigator.share({
-                title: '每日一题打卡',
-                text: shareText
-            });
-        } else {
-            // 复制到剪贴板（多行文本）
-            navigator.clipboard.writeText(shareText).then(() => {
+        const copyByTextarea = (text) => {
+            try {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.top = '-9999px';
+                document.body.appendChild(ta);
+                ta.focus();
+                ta.select();
+                const ok = document.execCommand('copy');
+                document.body.removeChild(ta);
+                if (ok) return Promise.resolve();
+                return Promise.reject(new Error('execCommand copy failed'));
+            } catch (e) {
+                return Promise.reject(e);
+            }
+        };
+
+        const tryClipboard = async () => {
+            if (navigator.clipboard && window.isSecureContext) {
+                await navigator.clipboard.writeText(content);
+                return true;
+            }
+            await copyByTextarea(content);
+            return true;
+        };
+
+        tryClipboard()
+            .then(() => {
                 alert('分享文案已复制到剪贴板！');
-            }).catch(() => {
-                alert('分享功能暂不可用');
+            })
+            .catch(async () => {
+                if (navigator.share) {
+                    try {
+                        await navigator.share({ title: '每日一题打卡', text: shareText, url: shareUrl });
+                    } catch (_) {
+                        alert('无法复制或分享，请手动复制：\n' + content);
+                    }
+                } else {
+                    alert('无法复制或分享，请手动复制：\n' + content);
+                }
             });
-        }
     }
     
     renderDailyLoading(message = "") {

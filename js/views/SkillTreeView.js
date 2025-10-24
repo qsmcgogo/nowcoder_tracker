@@ -141,6 +141,9 @@ export class SkillTreeView {
             return;
         }
 
+        // 重新进入概览时清理旧连线
+        this.clearLines();
+
         const isLoggedIn = this.state.isLoggedIn();
         const allNodeIds = Object.keys(tree.nodes);
         const allTagIds = allNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
@@ -215,8 +218,9 @@ export class SkillTreeView {
                 }
                 previousStageProgress = progress;
 
-                return `
-                    <div class="skill-tree-card ${isLocked ? 'locked' : ''}" data-stage-id="${stage.id}" ${isLocked ? 'aria-disabled="true"' : ''}>
+                const stageClass = stage.id === 'stage-1' ? 'stage-1' : (stage.id === 'stage-2' ? 'stage-2' : (stage.id === 'stage-3' ? 'stage-3' : ''));
+                const cardHtml = `
+                    <div class="skill-tree-card ${stageClass} ${isLocked ? 'locked' : ''}" data-stage-id="${stage.id}" ${isLocked ? 'aria-disabled="true"' : ''}>
                         <div class="skill-tree-card__header">
                             <h3 class="skill-tree-card__title">${stage.name}</h3>
                             <span class="skill-tree-card__progress-text">通关率: ${progress}%</span>
@@ -225,8 +229,33 @@ export class SkillTreeView {
                             <div class="skill-tree-card__progress-bar-inner" style="width: ${progress}%;"></div>
                         </div>
                         ${isLocked ? `<div class=\"skill-tree-card__tooltip\">${lockReason}</div>` : ''}
-                    </div>
-                `;
+                    </div>`;
+
+                if (stage.id === 'stage-1') {
+                    // 简章（间章：拂晓）解锁逻辑：第一章平均进度 ≥ 70%
+                    const miniIsLocked = !isLoggedIn || progress < 70;
+                    const miniLockReason = !isLoggedIn
+                        ? '请先登录开启技能树之旅'
+                        : '第一章平均进度达到70% <span class="dep-cross">×</span>';
+
+                    return `
+                        <div class="skill-tree-card-group side-mini stage-1">
+                            ${cardHtml}
+                            <div class="skill-tree-mini-card ${miniIsLocked ? 'locked' : ''}" data-mini-of="stage-1" title="间章：拂晓">
+                                <div class="skill-tree-mini-card__header">
+                                    <span class="skill-tree-mini-card__title">间章：拂晓</span>
+                                    <span class="skill-tree-mini-card__progress-text">通关率: ${progress}%</span>
+                                </div>
+                                <div class="skill-tree-mini-card__progress-bar">
+                                    <div class="skill-tree-mini-card__progress-bar-inner" style="width: ${progress}%;"></div>
+                                </div>
+                                ${miniIsLocked ? `<div class=\"skill-tree-card__tooltip\">${miniLockReason}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                return cardHtml;
             }).join('');
 
             const loginUrl = helpers.buildUrlWithChannelPut('https://ac.nowcoder.com/login?callBack=/');
@@ -234,8 +263,13 @@ export class SkillTreeView {
                 ? ''
                 : `<div class="skill-tree-login-banner">请先登录开启技能树之旅：<a class="login-link" href="${loginUrl}" target="_blank" rel="noopener noreferrer">前往登录</a></div>`;
 
-            this.container.innerHTML = `${banner}<div class="skill-tree-summary">${stagesHtml}</div>`;
+            this.container.innerHTML = `${banner}<div class="skill-tree-summary">${stagesHtml}
+                <!-- 占位空格：第四行，撑开视觉间距 -->
+                <div class="skill-tree-spacer" style="grid-column: 1 / 4; grid-row: 4; height: 10px;"></div>
+            </div>`;
             this.bindSummaryEvents();
+            // 待DOM稳定后绘制阶段之间的连线
+            setTimeout(() => this.drawStageSummaryLines(), 0);
 
         } catch (error) {
             console.error('Error rendering stage summary:', error);
@@ -517,11 +551,47 @@ export class SkillTreeView {
                 return;
             }
             card.addEventListener('click', () => {
+                this.clearLines();
                 this.selectedStageId = card.dataset.stageId;
                 this.currentView = 'detail';
                 this.render();
             });
         });
+    }
+
+    // 在概览页绘制阶段之间的直线连接（第一章->第二章，第二章->第三章）
+    drawStageSummaryLines() {
+        try {
+            const s1 = this.container.querySelector('.skill-tree-card.stage-1');
+            const s2 = this.container.querySelector('.skill-tree-card.stage-2');
+            const s3 = this.container.querySelector('.skill-tree-card.stage-3');
+
+            const baseOptions = {
+                color: 'rgba(173, 181, 189, 0.9)',
+                size: 2,
+                path: 'straight',
+                startPlug: 'behind',
+                endPlug: 'behind'
+            };
+
+            if (s1 && s2) {
+                // 第一章右下角 → 第二章左上角
+                const startA = LeaderLine.pointAnchor(s1, { x: '100%', y: '100%' });
+                const endA = LeaderLine.pointAnchor(s2, { x: '0%', y: '0%' });
+                const line12 = new LeaderLine(startA, endA, { ...baseOptions });
+                this.lines.push(line12);
+            }
+            if (s2 && s3) {
+                // 第二章左下角 → 第三章右上角
+                const startB = LeaderLine.pointAnchor(s2, { x: '0%', y: '100%' });
+                const endB = LeaderLine.pointAnchor(s3, { x: '100%', y: '0%' });
+                const line23 = new LeaderLine(startB, endB, { ...baseOptions });
+                this.lines.push(line23);
+            }
+        } catch (e) {
+            // 忽略绘制失败（例如库未加载）
+            console.warn('Stage summary lines draw failed:', e);
+        }
     }
 
     // 已移除全量同步入口
