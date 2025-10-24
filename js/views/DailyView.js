@@ -156,7 +156,7 @@ export class DailyView {
             const now = new Date();
             // 定义北京时间 2025-10-24 19:00 到 21:00 的时间窗口
             // 使用 ISO 8601 格式并指定 +08:00 时区，确保不依赖用户本地时间
-            const startTime = new Date('2025-10-24T08:00:00+08:00');
+            const startTime = new Date('2025-10-24T19:00:00+08:00');
             const endTime = new Date('2025-10-24T23:59:59+08:00');
 
             //测试用时间
@@ -647,18 +647,9 @@ export class DailyView {
         this.initUserSummaryActions(); // Re-bind actions after rendering
     }
     
-    buildUrlWithChannelPut(baseUrl, channelPut = APP_CONFIG.DEFAULT_CHANNEL_PUT) {
-        if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.trim()) {
-            return '';
-        }
-        try {
-            const fullUrl = new URL(baseUrl, APP_CONFIG.NOWCODER_UI_BASE);
-            fullUrl.searchParams.set('channelPut', channelPut);
-            return fullUrl.href;
-        } catch (e) {
-            console.error(`Failed to construct URL for: "${baseUrl}"`, e);
-            return '';
-        }
+    buildUrlWithChannelPut(baseUrl, channelPut) {
+        const effectiveChannelPut = channelPut || (this.state && this.state.channelPut) || 'w251acm';
+        return helpers.buildUrlWithChannelPut(baseUrl, effectiveChannelPut);
     }
     
     initUserSummaryActions() {
