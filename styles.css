@@ -147,7 +147,7 @@ main {
 }
 
 /* Base styles for problems, rankings, etc. */
-#problems, #rankings, #daily, #skill-tree, #faq {
+#problems, #rankings, #daily, #skill-tree, #achievements, #faq {
     padding: 20px;
 }
 
@@ -1452,6 +1452,32 @@ body .problems-table tbody tr td.status-none {
     padding: 20px;
 }
 
+/* Daily video tutorial banner */
+.video-tutorial-banner {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px 14px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.video-tutorial-icon { font-size: 22px; }
+.video-tutorial-content { display: flex; align-items: center; gap: 12px; }
+.video-tutorial-title { font-weight: 600; color: #333; }
+.video-tutorial-link {
+    display: inline-flex;
+    align-items: center;
+    background: #e8f5ff;
+    color: #007bff;
+    text-decoration: none;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-weight: 600;
+}
+.video-tutorial-link:hover { background: #d9efff; text-decoration: none; }
+
 .niukeniang-large-img {
     width: 200px;
     height: auto;
@@ -1486,6 +1512,14 @@ body .problems-table tbody tr td.status-none {
     font-size: 0.8rem;
     color: #6c757d;
     margin-top: 10px;
+}
+
+/* Daily Card top stats (above title) */
+.daily-top-stats {
+    text-align: center;
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #495057;
 }
 
 .daily-problem-card .meta-item {
@@ -2526,6 +2560,72 @@ body .problems-table tbody tr td.status-none {
     align-items: flex-start; /* Changed from center to flex-start for top alignment */
     min-height: calc(100vh - 200px); /* Adjust based on header/footer height */
 }
+
+/* ------------------------- */
+/* Achievements Styles       */
+/* ------------------------- */
+.achievements-container { padding: 10px; }
+.achievements-layout { display: flex; gap: 20px; }
+.achievements-sidebar {
+    flex: 0 0 240px;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 12px;
+    height: fit-content;
+}
+.achievements-content {
+    flex: 1;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 16px 20px;
+}
+.achv-cat-btn { width: 100%; text-align: left; background: transparent; border: none; padding: 10px 12px; border-radius: 6px; cursor: pointer; color: #333; font-weight: 700; }
+.achv-cat-btn:hover { background: #f7f8f9; }
+.achv-cat-btn.active { background: #eff7f3; color: #0f5132; border-left: 3px solid #32ca99; }
+
+.achv-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+.achv-grid-vertical { display: flex; flex-direction: column; gap: 12px; }
+.achv-card {
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 14px;
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+.achv-row { align-items: center; }
+.achv-achieved-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
+.achv-chip { background: #f3f4f6; color: #333; padding: 2px 6px; border-radius: 10px; font-size: 12px; }
+.achv-chip-muted { background: #f1f3f5; color: #888; }
+.achv-target-row { color: #555; font-size: 12px; margin: 2px 0 6px; }
+.achv-icon { width: 48px; height: 48px; border-radius: 10px; background: #f5f7f9; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.achv-info { flex: 1; min-width: 0; }
+.achv-title { font-weight: 600; color: #222; }
+.achv-desc { color: #666; font-size: 12px; margin-top: 2px; }
+.achv-progress { height: 6px; background: #eef2f4; border-radius: 6px; overflow: hidden; margin-top: 8px; }
+.achv-progress-inner { height: 100%; background: #32ca99; width: 0; transition: width .3s ease; }
+.achv-progress-value { font-size: 14px; color: var(--primary-color); margin-top: 4px; text-align: center; font-weight: 600; }
+.achv-badge { font-size: 12px; color: #888; white-space: nowrap; }
+.achv-card.unlocked { border-color: #32ca99; background: #f0fbf7; }
+.achv-card.unlocked .achv-badge { color: #0f5132; font-weight: 700; }
+.achv-points-badge { min-width: 42px; height: 42px; border-radius: 50%; background: #f5f7f9; color: #111; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+
+/* Overview */
+.achv-overview { display: flex; flex-direction: column; gap: 16px; }
+.achv-overview-card { background: #fff; border: 1px solid var(--border-color); border-radius: 12px; padding: 16px; min-width: 220px; width: 100%; }
+.achv-overview-title { color: #666; font-size: 13px; margin-bottom: 8px; }
+.achv-overview-value { font-size: 28px; font-weight: 800; color: #111; }
+.achv-recent-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.achv-recent-item { border-bottom: 1px dashed #e5e7eb; padding-bottom: 8px; }
+.achv-recent-item:last-child { border-bottom: none; }
+.achv-recent-name { font-weight: 600; color: #222; }
+.achv-recent-meta { color: #999; font-size: 12px; }
+.achv-recent-desc { color: #555; font-size: 12px; margin-top: 2px; }
+.achv-recent-time { color: #999; font-size: 12px; margin-top: 2px; }
+.flex-1 { flex: 1; }
 
 .profile-logged-out {
     text-align: center;

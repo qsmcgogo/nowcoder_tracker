@@ -13,6 +13,7 @@ export class DailyView {
         this.elements = elements;
         this.state = state;
         this.apiService = apiService;
+        this.todayInfoExtras = null;
         
         this.init();
     }
@@ -44,6 +45,7 @@ export class DailyView {
         }
         
         try {
+            // 统一只请求一次 todayinfo，并在后续步骤中复用
             const data = await this.apiService.fetchDailyTodayInfo();
             
             if (data && data.code !== 0 && data.msg === "未登录") {
@@ -79,6 +81,12 @@ export class DailyView {
             const responseData = data.data;
             const userId = responseData.uid && responseData.uid !== 0 ? String(responseData.uid) : null;
             this.state.setLoggedInUser(userId, responseData.user || null);
+            // 保存今日统计，供“题目卡片标题上方”与右侧统计共用
+            this.todayInfoExtras = {
+                todayClockCount: Number(responseData.todayClockCount) || 0,
+                todayClockRank: Number(responseData.todayClockRank) || 0,
+                yesterdayClockCount: Number(responseData.yesterdayClockCount) || 0
+            };
             
             // 触发用户登录事件
             if (userId) {
@@ -106,7 +114,7 @@ export class DailyView {
                 const fetched = await this.apiService.fetchUserData(responseData.uid);
                 user = fetched && fetched.ranks ? (fetched.ranks[0] || null) : fetched;
             }
-
+            
             this.state.setLoggedInUser(responseData.uid, user);
             this.renderUserSummaryPanel(user);
             
@@ -125,8 +133,8 @@ export class DailyView {
                 this.renderDailyError("今日暂无题目");
             }
             
-            // 重新渲染日历
-            this.renderCalendar();
+            // 重新渲染日历（复用 todayinfo 的统计数据，避免再次请求）
+            this.renderCalendarWithTodayInfo(responseData);
             
             eventBus.emit(EVENTS.DAILY_PROBLEM_LOADED, { problem, user });
         } catch (error) {
@@ -143,6 +151,17 @@ export class DailyView {
         const problemUrl = this.buildUrlWithChannelPut(problem.url);
         let buttonHtml;
         let preButtonText = '';
+        // 顶部统计（题目标题上方）
+        let topStatsHtml = '';
+
+        if (this.todayInfoExtras) {
+            const cnt = this.todayInfoExtras.todayClockCount || 0;
+            const rank = this.todayInfoExtras.todayClockRank || 0;
+            const rankText = rank > 0 ? `您是第 <span class="stats-highlight">${rank}</span> 个打卡` : '您还未打卡';
+            topStatsHtml = `
+                <div class="daily-top-stats">今日共 <span class="stats-highlight">${cnt}</span> 人打卡，${rankText}</div>
+            `;
+        }
         
         // ---- 调试信息 ----
         console.log('--- 渲染“每日一题”按钮调试信息 ---');
@@ -214,6 +233,7 @@ export class DailyView {
                     ${preButtonText}
                     ${buttonHtml}
                 </div>
+                ${topStatsHtml}
             </div>
         `;
         this.elements.dailyProblemContainer.innerHTML = html;
@@ -352,13 +372,13 @@ export class DailyView {
                 alert('分享文案已复制到剪贴板！');
             })
             .catch(async () => {
-                if (navigator.share) {
+        if (navigator.share) {
                     try {
                         await navigator.share({ title: '每日一题打卡', text: shareText, url: shareUrl });
                     } catch (_) {
                         alert('无法复制或分享，请手动复制：\n' + content);
                     }
-                } else {
+        } else {
                     alert('无法复制或分享，请手动复制：\n' + content);
                 }
             });
@@ -406,7 +426,7 @@ export class DailyView {
                 }
             } else if (this.state.isLoggedIn()) {
                  // 即使没有题目，也可能需要获取打卡记录（例如空月份）
-                 checkedInDays = await this.apiService.fetchCheckInList(year, month);
+            checkedInDays = await this.apiService.fetchCheckInList(year, month);
             }
             // [Old Promise.all removed]
 
@@ -431,20 +451,67 @@ export class DailyView {
         // 合并模拟打卡数据
         this.state.simulatedCheckIns.forEach(day => checkedInDays.add(day));
         
-        // 使用新的、更准确的 API 方法获取统计数据
-        try {
-            const stats = await this.apiService.fetchCheckInStats();
-            if (stats) {
-                this.renderCalendarStats(stats, checkedInDays);
-            } else {
-                // 作为回退，如果快速方法失败，可以显示基本信息
-                this.renderCalendarStats({ consecutiveDays: 0, totalDays: checkedInDays.size }, checkedInDays);
-            }
-        } catch (e) {
-            console.error("Error fetching check-in stats:", e);
-        }
+        // 不在这里调用 todayinfo；统计在 loadAndRenderDailyTab 中已获取
         
         // 渲染日历网格
+        this.renderCalendarGrid(year, month, checkedInDays, monthInfoMap, solvedDailyQids);
+    }
+
+    // 基于 todayinfo 直接渲染日历与统计，避免再次请求 todayinfo
+    async renderCalendarWithTodayInfo(responseData) {
+        if (!this.elements.calendarGrid) return;
+        const year = this.state.calendarDate.getFullYear();
+        const month = this.state.calendarDate.getMonth() + 1;
+
+        let checkedInDays = new Set();
+        let monthInfo = [];
+        let solvedDailyQids = new Set();
+
+        try {
+            monthInfo = await this.apiService.fetchMonthInfo(year, month);
+            if (this.state.isLoggedIn() && monthInfo.length > 0) {
+                const qids = monthInfo.map(day => day.problemId).filter(Boolean).map(String);
+                const [checkedInData, diffData] = await Promise.all([
+                    this.apiService.fetchCheckInList(year, month),
+                    this.apiService.fetchUserProblemDiff(this.state.loggedInUserId, qids.join(','))
+                ]);
+                checkedInDays = checkedInData;
+                if (diffData && diffData.ac1Qids) {
+                    solvedDailyQids = new Set(diffData.ac1Qids.map(String));
+                }
+            } else if (this.state.isLoggedIn()) {
+                checkedInDays = await this.apiService.fetchCheckInList(year, month);
+            }
+        } catch (e) {
+            console.error('Error fetching calendar data:', e);
+        }
+
+        // 直接从 todayinfo 的 responseData 中解析统计
+        // 连续天数：若 todayClockRank=0 且 yesterdayClockCount=0，则强制视为0
+        const todayRank = Number(this.todayInfoExtras?.todayClockRank) || 0;
+        const yCnt = Number(this.todayInfoExtras?.yesterdayClockCount) || 0;
+        let continueDay = Number(responseData.continueDay) || 0;
+        if (todayRank === 0 && yCnt === 0) {
+            continueDay = 0;
+        }
+        const countDay = Number(responseData.countDay) || 0;
+        this.renderCalendarStats(
+            { consecutiveDays: continueDay, totalDays: countDay },
+            checkedInDays,
+            {
+                todayClockCount: Number(responseData.todayClockCount) || 0,
+                todayClockRank: todayRank,
+                yesterdayClockCount: yCnt
+            }
+        );
+
+        const monthInfoMap = new Map(monthInfo.map(day => {
+            const date = new Date(day.createTime);
+            const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+            return [dateStr, { ...day, problemId: String(day.problemId) }];
+        }));
+
+        this.state.simulatedCheckIns.forEach(day => checkedInDays.add(day));
         this.renderCalendarGrid(year, month, checkedInDays, monthInfoMap, solvedDailyQids);
     }
     
@@ -544,7 +611,7 @@ export class DailyView {
         
         return dayDiv;
     }
-
+    
     // --- 新增 Tooltip 和点击处理方法 ---
 
     showTooltip(event) {
@@ -584,7 +651,7 @@ export class DailyView {
         }
     }
     
-    renderCalendarStats(stats, checkedInDays = new Set()) {
+    renderCalendarStats(stats, checkedInDays = new Set(), todayInfoExtras = null) {
         const statsContainer = document.getElementById('calendar-stats');
         if (!statsContainer) return;
         
@@ -605,7 +672,7 @@ export class DailyView {
             }
         }
         
-        // Build the stats text
+        // Build the stats text（第一行：累计与连续）
         let statsHtml = `
             <p class="stats-text">
                 已连续打卡 <span class="stats-highlight">${stats.consecutiveDays}</span> 天，
@@ -616,9 +683,9 @@ export class DailyView {
             statsHtml += `，今日已获得 <span class="stats-highlight" style="color: #ffd700;">${todayCoins}</span> 牛币`;
         }
         
-        statsHtml += `
-            </p>
-        `;
+        statsHtml += `</p>`;
+
+        // 不再在右侧重复显示“今日共X人打卡...”，该信息已移动到卡片内部
         
         // Add coin exchange link
         statsHtml += `

@@ -17,6 +17,7 @@ import { DailyView } from './views/DailyView.js';
 import { InterviewView } from './views/InterviewView.js';
 import { SkillTreeView } from './views/SkillTreeView.js';
 import { ProfileView } from './views/ProfileView.js';
+import { AchievementsView } from './views/AchievementsView.js';
 
 export class NowcoderTracker {
     constructor() {
@@ -91,6 +92,7 @@ export class NowcoderTracker {
             daily: new DailyView(this.elements, this.state, this.apiService),
             interview: new InterviewView(this.elements, this.state, this.apiService),
             skillTree: new SkillTreeView(this.elements, this.state, this.apiService),
+            achievements: new AchievementsView(this.elements, this.state, this.apiService),
             profile: new ProfileView(this.elements, this.state, this.apiService)
         };
     }
@@ -340,7 +342,7 @@ export class NowcoderTracker {
          // 触发视图切换
          switch (tabName) {
             case 'daily':
-                eventBus.emit(EVENTS.MAIN_TAB_CHANGED, 'daily');
+                // 不在此处重复触发事件，统一由函数末尾的通用 emit 触发
                 break;
             case 'problems':
                 // 默认展示practice视图（与原备份一致），并高亮按钮
@@ -403,6 +405,9 @@ export class NowcoderTracker {
                 break;
             case 'skill-tree':
                 this.views.skillTree.render();
+                break;
+            case 'achievements':
+                this.views.achievements.render();
                 break;
             case 'profile':
                 this.views.profile.render();

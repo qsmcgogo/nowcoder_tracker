@@ -16,6 +16,7 @@
                 <button class="tab-btn" data-tab="rankings">rankings</button>
                 <button class="tab-btn active" data-tab="daily">打卡</button>
                 <button class="tab-btn" data-tab="skill-tree">技能树</button>
+                <button class="tab-btn" data-tab="achievements">成就</button>
                 <button class="tab-btn" data-tab="profile">我的</button>
                 <button class="tab-btn" data-tab="faq">FAQ</button>
                 <button class="tab-btn" data-tab="changelog">版本更新</button>
@@ -200,6 +201,14 @@
                         <div id="daily-problem-container" class="daily-container">
                             <div class="loading-spinner"></div>
                         </div>
+                        <!-- 视频讲解提示（位于每日一题卡片下方、牛客娘上方） -->
+                        <div id="daily-video-banner" class="video-tutorial-banner">
+                            <div class="video-tutorial-icon">🎥</div>
+                            <div class="video-tutorial-content">
+                                <div class="video-tutorial-title">今日/历史每日一题视频讲解</div>
+                                <a href="https://space.bilibili.com/414380929" target="_blank" rel="noopener noreferrer" class="video-tutorial-link">前往观看</a>
+                            </div>
+                        </div>
                         <div class="niukeniang-container">
                             <img src="https://uploadfiles.nowcoder.com/images/20250930/8582211_1759202242068/03A36C11AC533C18438C8FB323B1AAAB" alt="牛客娘" class="niukeniang-large-img">
                         </div>
@@ -235,6 +244,20 @@
             <section id="skill-tree" class="tab-content">
                 <div class="skill-tree-container">
                     <!-- Skill Tree will be rendered here by SkillTreeView.js -->
+                </div>
+            </section>
+
+            <!-- Achievements Tab -->
+            <section id="achievements" class="tab-content">
+                <div class="achievements-container">
+                    <div class="achievements-layout">
+                        <aside class="achievements-sidebar">
+                            <!-- Sidebar will be rendered by AchievementsView.js -->
+                        </aside>
+                        <section class="achievements-content">
+                            <!-- Content will be rendered by AchievementsView.js -->
+                        </section>
+                    </div>
                 </div>
             </section>
             
