@@ -519,5 +519,35 @@ export class ApiService {
             throw e;
         }
     }
+
+    /**
+     * 获取成就徽章列表
+     * 后端约定：/problem/tracker/badge/list?types=1,2,3
+     * 渲染约定：打卡用 1/2/3，过题用 4/5，技能树用 6
+     * @param {string|number|Array<string|number>} types - 枚举类型或其数组
+     * @returns {Promise<Array>} 徽章列表（由后端定义结构）
+     */
+    async fetchBadgeList(types) {
+        try {
+            const typesParam = Array.isArray(types)
+                ? types.map(t => String(t).trim()).filter(Boolean).join(',')
+                : String(types).trim();
+
+            const url = `${this.apiBase}/problem/tracker/badge/list?types=${typesParam}`;
+            const res = await fetch(url);
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+
+            // 兼容常见返回格式 { code, data }
+            if (data && (data.code === 0 || data.code === 200)) {
+                return Array.isArray(data.data) ? data.data : (data.data?.list || []);
+            }
+            // 非标准结构则直接返回原始体，交由调用方兜底
+            return data?.data ?? [];
+        } catch (e) {
+            console.error('fetchBadgeList failed:', e);
+            return [];
+        }
+    }
 }
 
