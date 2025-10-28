@@ -9,7 +9,7 @@ export class AchievementsView {
         this.sidebar = null;
         this.content = null;
 
-        // 硬编码数据与模拟进度，后续由后端返回
+        // 硬编码数据与模拟进度（后端未开或失败时回退）
         const { catalog, mockProgress, mockOverview } = getStaticAchievementsCatalog();
         this.catalog = catalog; // { checkin: { series: [...] }, ... }
         this.mockProgress = mockProgress; // { category: { seriesKey: current } }
@@ -17,6 +17,16 @@ export class AchievementsView {
 
         this.activeCategory = 'overview';
         this.activeSeries = '';
+
+        // 动态数据（来自后端徽章接口），按类别缓存
+        // 结构：
+        // this.dynamicCatalog = {
+        //   checkin: { series: [...], progress: { countDay, continueDay } },
+        //   solve:   { series: [...] },
+        //   skill:   { series: [...] }
+        // }
+        this.dynamicCatalog = {};
+        this.isLoadingCategory = { checkin: false, solve: false, skill: false };
     }
 
     hide() {
@@ -68,34 +78,128 @@ export class AchievementsView {
             this.renderOverview();
             return;
         }
+        // 暂未开放的分类：过题、技能树 → 显示占位文案
+        if (this.activeCategory !== 'checkin') {
+            this.content.innerHTML = '<div class="achv-overview-card">敬请期待</div>';
+            return;
+        }
         const container = document.createElement('div');
         container.className = 'achv-grid achv-grid-vertical';
         const completedRows = [];
         const pendingRows = [];
 
-        const cat = this.catalog[this.activeCategory];
+        // 若该分类的动态数据未加载，则触发加载并先显示占位
+        if (!this.dynamicCatalog[this.activeCategory] && !this.isLoadingCategory[this.activeCategory]) {
+            this.loadCategoryBadges(this.activeCategory);
+        }
+
+        const dynamicCat = this.dynamicCatalog[this.activeCategory];
+        const useRaw = !!dynamicCat && Array.isArray(dynamicCat.rawList) && dynamicCat.rawList.length > 0;
+        const useDynamic = !!dynamicCat && Array.isArray(dynamicCat.series) && dynamicCat.series.length > 0;
+        const cat = (useDynamic || useRaw) ? dynamicCat : this.catalog[this.activeCategory];
         if (!cat) return;
 
+        // 优先：对于打卡分类（checkin），使用“系列合并”视图（累计/连续按下一个目标合并展示，单次型单独行）。
+        // 其他分类仍采用“原子项直出”视图，便于验数。
+        const preferSeriesForCheckin = this.activeCategory === 'checkin' && useDynamic;
+
+        // 直出模式（不合并）
+        if (useRaw && !preferSeriesForCheckin) {
+            const list = dynamicCat.rawList.slice();
+            // 已完成置顶
+            list.sort((a, b) => Number(b.status === 1) - Number(a.status === 1));
+            list.forEach(b => {
+                const isUnlocked = Number(b.status) === 1;
+                const card = document.createElement('div');
+                card.className = 'achv-card achv-row' + (isUnlocked ? ' unlocked' : '');
+
+                const info = document.createElement('div');
+                info.className = 'achv-info';
+                const title = document.createElement('div');
+                title.className = 'achv-title';
+                const span = document.createElement('span');
+                span.className = `achv-frame ${this.pickRarityClass(Number(b.score) || 0)}`;
+                span.textContent = b.name || '';
+                title.appendChild(span);
+                const requirementRow = document.createElement('div');
+                requirementRow.className = 'achv-target-row';
+                requirementRow.textContent = b.detail || '';
+                info.appendChild(title);
+                if (b.detail) info.appendChild(requirementRow);
+
+                const pointsBadge = document.createElement('div');
+                pointsBadge.className = 'achv-points-badge';
+                pointsBadge.textContent = String(Number(b.score) || 0);
+
+                card.appendChild(info);
+                card.appendChild(pointsBadge);
+                (isUnlocked ? completedRows : pendingRows).push(card);
+            });
+
+            // Completed first, then pending
+            completedRows.forEach(el => container.appendChild(el));
+            pendingRows.forEach(el => container.appendChild(el));
+
+            this.content.innerHTML = '';
+            this.content.appendChild(container);
+            return;
+        }
+
+        // 如果是打卡分类，优先把一次性(type=3)成就用“原子项直出”方式渲染，保证使用后端图片
+        if (preferSeriesForCheckin && useRaw) {
+            const rawSingles = (dynamicCat.rawList || []).filter(b => Number(b.type) === 3);
+            rawSingles.sort((a, b) => Number(b.status === 1) - Number(a.status === 1));
+            rawSingles.forEach(b => {
+                const isUnlocked = Number(b.status) === 1;
+                const card = document.createElement('div');
+                card.className = 'achv-card achv-row' + (isUnlocked ? ' unlocked' : '');
+
+                const info = document.createElement('div');
+                info.className = 'achv-info';
+                const title = document.createElement('div');
+                title.className = 'achv-title';
+                const span = document.createElement('span');
+                span.className = `achv-frame ${this.pickRarityClass(Number(b.score) || 0)}`;
+                span.textContent = b.name || '';
+                title.appendChild(span);
+                const requirementRow = document.createElement('div');
+                requirementRow.className = 'achv-target-row';
+                requirementRow.textContent = b.detail || '';
+                info.appendChild(title);
+                if (b.detail) info.appendChild(requirementRow);
+
+                const pointsBadge = document.createElement('div');
+                pointsBadge.className = 'achv-points-badge';
+                pointsBadge.textContent = String(Number(b.score) || 0);
+
+                card.appendChild(info);
+                card.appendChild(pointsBadge);
+                (isUnlocked ? completedRows : pendingRows).push(card);
+            });
+        }
+
+        // 动态（已合并）与静态两种渲染路径复用相同 UI，仅在进度来源与达成判断上有差异
         cat.series.forEach(series => {
+            // 在打卡合并视图下，跳过 type=3（已用原子渲染）
+            if (preferSeriesForCheckin && series.type === 'single') return;
             // 单次型（非系列）成就：每个里程碑单独成一行，不展示进度条与“尚未达成”
             if (series.type === 'single') {
-                const singleProg = this.mockProgress?.[this.activeCategory]?.[series.key] || {};
-                const achievedSet = new Set(singleProg.achieved || []);
+                const singleProg = useDynamic ? null : (this.mockProgress?.[this.activeCategory]?.[series.key] || {});
+                const achievedSet = useDynamic ? null : new Set(singleProg.achieved || []);
                 series.milestones.forEach(m => {
-                    const isUnlocked = achievedSet.has(m.name) === true;
+                    const isUnlocked = useDynamic ? (m.status === 1) : (achievedSet.has(m.name) === true);
                     const card = document.createElement('div');
                     card.className = 'achv-card achv-row' + (isUnlocked ? ' unlocked' : '');
-
-                    const icon = document.createElement('div');
-                    icon.className = 'achv-icon';
-                    icon.textContent = series.icon || '🏅';
 
                     const info = document.createElement('div');
                     info.className = 'achv-info';
 
                     const title = document.createElement('div');
                     title.className = 'achv-title';
-                    title.textContent = m.name;
+                    const span = document.createElement('span');
+                    span.className = `achv-frame ${this.pickRarityClass(Number(m.points) || 0)}`;
+                    span.textContent = m.name;
+                    title.appendChild(span);
 
                     const requirementRow = document.createElement('div');
                     requirementRow.className = 'achv-target-row';
@@ -104,12 +208,10 @@ export class AchievementsView {
                     info.appendChild(title);
                     if (m.desc) info.appendChild(requirementRow);
 
-                    // 成就点数
                     const pointsBadge = document.createElement('div');
                     pointsBadge.className = 'achv-points-badge';
                     pointsBadge.textContent = String(typeof m.points === 'number' ? m.points : 0);
 
-                    card.appendChild(icon);
                     card.appendChild(info);
                     card.appendChild(pointsBadge);
                     (isUnlocked ? completedRows : pendingRows).push(card);
@@ -117,14 +219,43 @@ export class AchievementsView {
                 return; // 跳过阈值型渲染
             }
 
-            const { achieved, next, current, nextProgressRatio } = this.computeSeriesProgress(this.activeCategory, series);
+            // 阈值型：动态与静态两种计算
+            let achieved = [];
+            let next = null;
+            let current = 0;
+            let nextProgressRatio = 0;
+
+            if (useDynamic) {
+                const milestones = [...(series.milestones || [])].sort((a, b) => (a.threshold || 0) - (b.threshold || 0));
+                achieved = milestones.filter(m => m.status === 1);
+                next = milestones.find(m => m.status !== 1) || null;
+
+                // 在打卡合并视图下（累计/连续），展示真实进度；否则（其他分类）先隐藏进度
+                if (this.activeCategory === 'checkin') {
+                    if (series.key === 'checkin_total') current = Number(dynamicCat.progress?.countDay || 0);
+                    if (series.key === 'checkin_streak') current = Number(dynamicCat.progress?.continueDay || 0);
+                }
+                nextProgressRatio = next ? Math.max(0, Math.min(1, (current || 0) / (next.threshold || 1))) : 1;
+            } else {
+                const result = this.computeSeriesProgress(this.activeCategory, series);
+                achieved = result.achieved; next = result.next; current = result.current; nextProgressRatio = result.nextProgressRatio;
+            }
 
             const card = document.createElement('div');
             card.className = 'achv-card achv-row' + (!next ? ' unlocked' : '');
 
             const icon = document.createElement('div');
             icon.className = 'achv-icon';
-            icon.textContent = series.icon || '🏅';
+            // 使用“即将达成”的里程碑图片；满级时使用最后一级图片
+            const milestoneForIcon = next || series.milestones[series.milestones.length - 1] || {};
+            const img = document.createElement('img');
+            const colorUrl = milestoneForIcon.colorUrl || milestoneForIcon.colorUrl1 || '';
+            const done = Number(milestoneForIcon.status) === 1 || !next; // 满级或里程碑已完成显示彩色
+            img.src = colorUrl || '';
+            if (!done) img.classList.add('is-gray');
+            img.alt = milestoneForIcon.name || '';
+            img.referrerPolicy = 'no-referrer';
+            icon.appendChild(img);
 
             const info = document.createElement('div');
             info.className = 'achv-info';
@@ -133,10 +264,16 @@ export class AchievementsView {
             const title = document.createElement('div');
             title.className = 'achv-title';
             if (next) {
-                title.textContent = next.name;
+                const span = document.createElement('span');
+                span.className = `achv-frame ${this.pickRarityClass(next.points || 0)}`;
+                span.textContent = next.name;
+                title.appendChild(span);
             } else {
                 const last = series.milestones[series.milestones.length - 1];
-                title.textContent = last?.name || '已满级';
+                const span = document.createElement('span');
+                span.className = `achv-frame ${this.pickRarityClass((last && last.points) || 0)}`;
+                span.textContent = last?.name || '已满级';
+                title.appendChild(span);
             }
 
             // 第二行：成就需求（使用里程碑描述）- 移除“成就需求”前缀
@@ -157,34 +294,39 @@ export class AchievementsView {
             const progressValue = document.createElement('div');
             progressValue.className = 'achv-progress-value';
             if (next) {
-                progressValue.textContent = `${current}/${next.threshold}`;
+                if (useDynamic && this.activeCategory !== 'checkin') {
+                    // 无当前值时隐藏进度（过题、技能树后续接上当前值再展示）
+                    progress.style.display = 'none';
+                    progressValue.style.display = 'none';
+                } else {
+                    progressValue.textContent = `${current}/${next.threshold}`;
+                }
             } else {
                 progressValue.style.display = 'none';
             }
 
-            // 第四行：已达成徽标
-            const achievedRow = document.createElement('div');
-            achievedRow.className = 'achv-achieved-row';
+            // 第四行：已达成徽标（小框文字 + 悬浮说明）
             if (achieved.length > 0) {
+                const achievedRow = document.createElement('div');
+                achievedRow.className = 'achv-achieved-row';
+                const list = document.createElement('div');
+                list.className = 'achv-badge-list';
                 achieved.forEach(m => {
-                    const chip = document.createElement('span');
-                    chip.className = 'achv-chip';
-                    chip.textContent = m.name; // 暂用文字替代图标
-                    chip.title = m.desc ? `${m.desc}` : m.name; // 简易 tooltip
-                    achievedRow.appendChild(chip);
+                    const tag = document.createElement('span');
+                    tag.className = `achv-frame achv-frame--sm ${this.pickRarityClass(Number(m.points) || 0)}`;
+                    tag.textContent = m.name;
+                    tag.title = m.desc || m.name;
+                    list.appendChild(tag);
                 });
-            } else {
-                const chip = document.createElement('span');
-                chip.className = 'achv-chip achv-chip-muted';
-                chip.textContent = '尚未达成';
-                achievedRow.appendChild(chip);
+                achievedRow.appendChild(list);
+                info.appendChild(achievedRow);
             }
 
             info.appendChild(title);
             info.appendChild(requirementRow);
             info.appendChild(progress);
             info.appendChild(progressValue);
-            info.appendChild(achievedRow);
+            // 无已达成时不展示“尚未达成”提示，保持界面简洁
 
             // 成就点数徽章（右侧）
             const pointsBadge = document.createElement('div');
@@ -203,15 +345,20 @@ export class AchievementsView {
         completedRows.forEach(el => container.appendChild(el));
         pendingRows.forEach(el => container.appendChild(el));
 
-        this.content.innerHTML = '';
-        this.content.appendChild(container);
+        // 加载中占位
+        if (!useDynamic && this.isLoadingCategory[this.activeCategory]) {
+            this.content.textContent = '加载中...';
+        } else {
+            this.content.innerHTML = '';
+            this.content.appendChild(container);
+        }
     }
 
-    renderOverview() {
+    async renderOverview() {
         const root = document.createElement('div');
         root.className = 'achv-overview';
 
-        // Total points card
+        // Total points card (loading state first)
         const totalCard = document.createElement('div');
         totalCard.className = 'achv-overview-card';
         const totalTitle = document.createElement('div');
@@ -219,17 +366,34 @@ export class AchievementsView {
         totalTitle.textContent = '总成就点数';
         const totalValue = document.createElement('div');
         totalValue.className = 'achv-overview-value';
-        totalValue.textContent = String(this.mockOverview.totalPoints || 0);
+        totalValue.textContent = '加载中...';
         totalCard.appendChild(totalTitle);
         totalCard.appendChild(totalValue);
 
-        // Recent list rows - same style as category rows, no merging
         const recentTitle = document.createElement('div');
         recentTitle.className = 'achv-overview-title';
         recentTitle.textContent = '最近获得的成就';
         const rowsContainer = document.createElement('div');
         rowsContainer.className = 'achv-grid achv-grid-vertical';
-        const recent = (this.mockOverview.recent || []).slice(0, 5);
+
+        // mount loading skeleton
+        this.content.innerHTML = '';
+        root.appendChild(totalCard);
+        root.appendChild(recentTitle);
+        root.appendChild(rowsContainer);
+        this.content.appendChild(root);
+
+        // fetch data
+        let userInfo = null;
+        try {
+            userInfo = await this.api.fetchBadgeUserInfo();
+        } catch (_) {}
+
+        const totalPoints = (userInfo && (userInfo.totalPoints != null)) ? userInfo.totalPoints : (this.mockOverview.totalPoints || 0);
+        totalValue.textContent = String(totalPoints);
+
+        const recent = (userInfo && Array.isArray(userInfo.recent) && userInfo.recent.length > 0 ? userInfo.recent : (this.mockOverview.recent || [])).slice(0, 5);
+        rowsContainer.innerHTML = '';
         if (recent.length === 0) {
             const empty = document.createElement('div');
             empty.className = 'achv-overview-card';
@@ -237,62 +401,40 @@ export class AchievementsView {
             rowsContainer.appendChild(empty);
         } else {
             recent.forEach(r => {
-                // 尝试在目录中找到相应里程碑以获取图标与成就点
-                let iconText = '🏅';
-                let pointsVal = 0;
-                Object.values(this.catalog).forEach(cat => {
-                    cat.series.forEach(s => {
-                        (s.milestones || []).forEach(m => {
-                            if (m.name === r.name) {
-                                iconText = s.icon || iconText;
-                                if (typeof m.points === 'number') pointsVal = m.points;
-                            }
-                        });
-                    });
-                });
-
                 const card = document.createElement('div');
                 card.className = 'achv-card achv-row unlocked';
-
-                const icon = document.createElement('div');
-                icon.className = 'achv-icon';
-                icon.textContent = iconText;
 
                 const info = document.createElement('div');
                 info.className = 'achv-info';
 
                 const title = document.createElement('div');
                 title.className = 'achv-title';
-                title.textContent = r.name;
+                const span = document.createElement('span');
+                span.className = `achv-frame ${this.pickRarityClass(Number(r.score || r.points || 0))}`;
+                span.textContent = r.name || r.title || '';
+                title.appendChild(span);
 
                 const requirementRow = document.createElement('div');
                 requirementRow.className = 'achv-target-row';
-                requirementRow.textContent = r.desc || '';
+                requirementRow.textContent = r.desc || r.detail || '';
 
                 const timeMeta = document.createElement('div');
                 timeMeta.className = 'achv-recent-time';
-                timeMeta.textContent = r.time || '';
+                timeMeta.textContent = r.time || r.createTime || '';
 
                 info.appendChild(title);
-                if (r.desc) info.appendChild(requirementRow);
-                if (r.time) info.appendChild(timeMeta);
+                if (requirementRow.textContent) info.appendChild(requirementRow);
+                if (timeMeta.textContent) info.appendChild(timeMeta);
 
                 const pointsBadge = document.createElement('div');
                 pointsBadge.className = 'achv-points-badge';
-                pointsBadge.textContent = String(pointsVal);
+                pointsBadge.textContent = String(Number(r.score || r.points || 0));
 
-                card.appendChild(icon);
                 card.appendChild(info);
                 card.appendChild(pointsBadge);
                 rowsContainer.appendChild(card);
             });
         }
-
-        root.appendChild(totalCard);
-        root.appendChild(recentTitle);
-        root.appendChild(rowsContainer);
-        this.content.innerHTML = '';
-        this.content.appendChild(root);
     }
 
     computeSeriesProgress(categoryKey, series) {
@@ -302,6 +444,173 @@ export class AchievementsView {
         const next = series.milestones.find(m => typeof m.threshold === 'number' && current < m.threshold) || null;
         const nextProgressRatio = next ? Math.max(0, Math.min(1, current / next.threshold)) : 1;
         return { achieved, next, current, nextProgressRatio };
+    }
+
+    // 根据分值粗略映射稀有度边框颜色
+    pickRarityClass(points) {
+        const p = Number(points) || 0;
+        if (p >= 200) return 'achv-frame--red';
+        if (p >= 100) return 'achv-frame--gold';
+        if (p >= 50) return 'achv-frame--orange';
+        if (p >= 30) return 'achv-frame--purple';
+        if (p >= 20) return 'achv-frame--blue';
+        if (p >= 10) return 'achv-frame--green';
+        return 'achv-frame--gray';
+    }
+
+    // 动态加载某个分类（checkin/solve/skill）的徽章数据
+    async loadCategoryBadges(categoryKey) {
+        const map = { checkin: [1, 2, 3], solve: [4, 5], skill: [6] };
+        const icons = {
+            checkin_total: '🟢',
+            checkin_streak: '🔥',
+            checkin_time: '⏰',
+            solve_total: '✅',
+            contest_weekly: '🏆',
+            skill_progress: '🌳'
+        };
+
+        const buildSeriesFromBadges = (badges) => {
+            // badges: Array<{ id, name, score, acquirement, detail, type, status }>
+            const byType = new Map();
+            badges.forEach(b => {
+                const t = Number(b.type);
+                if (!byType.has(t)) byType.set(t, []);
+                byType.get(t).push(b);
+            });
+
+            const series = [];
+
+            // checkin types
+            if (byType.has(1)) {
+                const milestones = byType.get(1)
+                    .sort((a, b) => (a.acquirement || 0) - (b.acquirement || 0))
+                    .map(m => ({
+                        name: m.name,
+                        desc: m.detail,
+                        threshold: Number(m.acquirement) || 0,
+                        points: Number(m.score) || 0,
+                        status: Number(m.status) || 0,
+                        colorUrl: m.colorUrl || '',
+                        grayUrl: m.grayUrl || ''
+                    }));
+                series.push({ key: 'checkin_total', name: '累计打卡系列', icon: icons.checkin_total, milestones });
+            }
+            if (byType.has(2)) {
+                const milestones = byType.get(2)
+                    .sort((a, b) => (a.acquirement || 0) - (b.acquirement || 0))
+                    .map(m => ({
+                        name: m.name,
+                        desc: m.detail,
+                        threshold: Number(m.acquirement) || 0,
+                        points: Number(m.score) || 0,
+                        status: Number(m.status) || 0,
+                        colorUrl: m.colorUrl || '',
+                        grayUrl: m.grayUrl || ''
+                    }));
+                series.push({ key: 'checkin_streak', name: '连续打卡系列', icon: icons.checkin_streak, milestones });
+            }
+            if (byType.has(3)) {
+                const milestones = byType.get(3)
+                    .sort((a, b) => (a.acquirement || 0) - (b.acquirement || 0))
+                    .map(m => ({
+                        name: m.name,
+                        desc: m.detail,
+                        points: Number(m.score) || 0,
+                        status: Number(m.status) || 0,
+                        colorUrl: m.colorUrl || '',
+                        grayUrl: m.grayUrl || ''
+                    }));
+                series.push({ key: 'checkin_time', name: '时间段打卡', icon: icons.checkin_time, type: 'single', milestones });
+            }
+
+            // solve types
+            if (byType.has(4)) {
+                const milestones = byType.get(4)
+                    .sort((a, b) => (a.acquirement || 0) - (b.acquirement || 0))
+                    .map(m => ({
+                        name: m.name,
+                        desc: m.detail,
+                        threshold: Number(m.acquirement) || 0,
+                        points: Number(m.score) || 0,
+                        status: Number(m.status) || 0,
+                        colorUrl: m.colorUrl || '',
+                        grayUrl: m.grayUrl || ''
+                    }));
+                series.push({ key: 'solve_total', name: '累计过题系列', icon: icons.solve_total, milestones });
+            }
+            if (byType.has(5)) {
+                const milestones = byType.get(5)
+                    .sort((a, b) => (a.acquirement || 0) - (b.acquirement || 0))
+                    .map(m => ({
+                        name: m.name,
+                        desc: m.detail,
+                        threshold: Number(m.acquirement) || 0,
+                        points: Number(m.score) || 0,
+                        status: Number(m.status) || 0,
+                        colorUrl: m.colorUrl || '',
+                        grayUrl: m.grayUrl || ''
+                    }));
+                series.push({ key: 'contest_weekly', name: '周赛全AK系列', icon: icons.contest_weekly, milestones });
+            }
+
+            // skill types
+            if (byType.has(6)) {
+                const milestones = byType.get(6)
+                    .sort((a, b) => (a.acquirement || 0) - (b.acquirement || 0))
+                    .map(m => ({
+                        name: m.name,
+                        desc: m.detail,
+                        threshold: Number(m.acquirement) || 0,
+                        points: Number(m.score) || 0,
+                        status: Number(m.status) || 0,
+                        colorUrl: m.colorUrl || '',
+                        grayUrl: m.grayUrl || ''
+                    }));
+                series.push({ key: 'skill_progress', name: '技能树进度', icon: icons.skill_progress, milestones });
+            }
+
+            return series;
+        };
+
+        try {
+            this.isLoadingCategory[categoryKey] = true;
+            this.content && (this.content.textContent = '加载中...');
+
+            const types = map[categoryKey] || [];
+            const badgePromise = this.api.fetchBadgeList(types);
+            let todayPromise = Promise.resolve(null);
+            if (categoryKey === 'checkin') {
+                todayPromise = this.api.fetchDailyTodayInfo().catch(() => null);
+            }
+            const [badgeData, todayData] = await Promise.all([badgePromise, todayPromise]);
+
+            let list = Array.isArray(badgeData)
+                ? badgeData
+                : (badgeData && typeof badgeData === 'object' ? (Array.isArray(badgeData.data) ? badgeData.data : Object.values(badgeData.data || {})) : []);
+
+            // 有些实现返回 { code, data: { id: {...}, id: {...} } } 的对象形式，再次展开一层
+            if (list.length && typeof list[0] === 'object' && list[0].id == null && badgeData && badgeData.data && !Array.isArray(badgeData.data)) {
+                list = Object.values(badgeData.data);
+            }
+
+            const series = buildSeriesFromBadges(list);
+            const dynamic = { series, rawList: list };
+
+            if (categoryKey === 'checkin') {
+                const d = todayData && todayData.data ? todayData.data : {};
+                const continueDay = Number(d.continueDay) || 0;
+                const countDay = Number(d.countDay) || 0;
+                dynamic.progress = { continueDay, countDay };
+            }
+
+            this.dynamicCatalog[categoryKey] = dynamic;
+        } catch (e) {
+            console.warn('loadCategoryBadges failed:', e);
+        } finally {
+            this.isLoadingCategory[categoryKey] = false;
+            this.renderContent();
+        }
     }
 }
 

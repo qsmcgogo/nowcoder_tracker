@@ -90,6 +90,8 @@ app.use('/problem/tracker/clock/add', manualProxyHandler('/problem/tracker/clock
 app.use('/problem/tracker/clock/list', manualProxyHandler('/problem/tracker/clock/list'));
 app.use('/problem/tracker/clock/monthinfo', manualProxyHandler('/problem/tracker/clock/monthinfo'));
 app.use('/problem/tracker/addcheckin', manualProxyHandler('/problem/tracker/addcheckin'));
+app.use('/problem/tracker/badge/userInfo', manualProxyHandler('/problem/tracker/badge/userInfo'));
+app.use('/problem/tracker/badge/list', manualProxyHandler('/problem/tracker/badge/list'));
 
 // Endpoints for Skill Tree
 app.use('/problem/tracker/skill-tree/tagInfo', manualProxyHandler('/problem/tracker/skill-tree/tagInfo'));

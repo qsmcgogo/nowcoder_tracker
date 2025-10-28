@@ -2201,7 +2201,7 @@ body .problems-table tbody tr td.status-none {
     flex: 1;
     display: flex;
     flex-direction: column;
-    gap: 20px;
+    gap: 28px;
     position: relative; /* Keep for positioning child elements if needed */
 }
 
@@ -2211,7 +2211,7 @@ body .problems-table tbody tr td.status-none {
 
 .skill-tree-column {
     width: 100%;
-    padding: 20px;
+    padding: 14px;
     border: 2px dashed #e9ecef;
     border-radius: 12px;
     position: relative;
@@ -2219,11 +2219,11 @@ body .problems-table tbody tr td.status-none {
 }
 
 .skill-tree-column__title {
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 500;
     text-align: center;
     color: var(--text-color-secondary);
-    margin-bottom: 20px;
+    margin-bottom: 14px;
 }
 
 .skill-tree-column__nodes {
@@ -2255,7 +2255,7 @@ body .problems-table tbody tr td.status-none {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 15px;
+    gap: 10px;
 }
 #skill-tree-column-col-3 .skill-node {
     flex: 0 1 calc(33.33% - 15px);
@@ -2267,7 +2267,7 @@ body .problems-table tbody tr td.status-none {
     flex-direction: row;
     flex-wrap: wrap;
     justify-content: center;
-    gap: 15px;
+    gap: 10px;
 }
 #skill-tree-column-col-4 .skill-node {
     flex: 0 1 calc(50% - 15px);
@@ -2277,18 +2277,26 @@ body .problems-table tbody tr td.status-none {
 #skill-tree-column-col-5 .skill-tree-column__nodes {
     flex-direction: row;
     justify-content: center; /* Center the items */
-    gap: 15px;
+    gap: 10px;
+}
+
+/* 缩小右侧三列中的节点卡片尺寸 */
+#skill-tree-column-col-3 .skill-node,
+#skill-tree-column-col-4 .skill-node,
+#skill-tree-column-col-5 .skill-node {
+    padding: 8px 10px;
+    min-width: 100px;
 }
 
 .skill-node {
     background-color: #fff;
     border: 1px solid #dee2e6;
     border-radius: 8px;
-    padding: 12px 16px;
+    padding: 10px 12px;
     text-align: center;
     transition: all 0.2s ease-in-out;
     position: relative;
-    min-width: 120px;
+    min-width: 110px;
 }
 
 .skill-node:hover {
@@ -2299,8 +2307,8 @@ body .problems-table tbody tr td.status-none {
 
 .skill-node__title {
     font-weight: 500;
-    font-size: 0.9rem;
-    margin-bottom: 8px;
+    font-size: 0.85rem;
+    margin-bottom: 6px;
     position: relative;
     z-index: 2;
 }
@@ -2319,7 +2327,7 @@ body .problems-table tbody tr td.status-none {
 }
 
 .skill-node__progress-text {
-    font-size: 0.75rem;
+    font-size: 0.7rem;
     position: relative;
     z-index: 2;
 }
@@ -2600,8 +2608,11 @@ body .problems-table tbody tr td.status-none {
 .achv-achieved-row { display: flex; flex-wrap: wrap; gap: 6px; margin: 6px 0; }
 .achv-chip { background: #f3f4f6; color: #333; padding: 2px 6px; border-radius: 10px; font-size: 12px; }
 .achv-chip-muted { background: #f1f3f5; color: #888; }
+
+/* 已完成成就的小图标展示（替代文字chip） */
+.achv-badge-list { display: flex; align-items: center; gap: 6px; padding: 4px 0; flex-wrap: wrap; }
 .achv-target-row { color: #555; font-size: 12px; margin: 2px 0 6px; }
-.achv-icon { width: 48px; height: 48px; border-radius: 10px; background: #f5f7f9; display: flex; align-items: center; justify-content: center; font-size: 22px; }
+.achv-icon { display: none; }
 .achv-info { flex: 1; min-width: 0; }
 .achv-title { font-weight: 600; color: #222; }
 .achv-desc { color: #666; font-size: 12px; margin-top: 2px; }
@@ -2612,6 +2623,17 @@ body .problems-table tbody tr td.status-none {
 .achv-card.unlocked { border-color: #32ca99; background: #f0fbf7; }
 .achv-card.unlocked .achv-badge { color: #0f5132; font-weight: 700; }
 .achv-points-badge { min-width: 42px; height: 42px; border-radius: 50%; background: #f5f7f9; color: #111; display: flex; align-items: center; justify-content: center; font-weight: 800; }
+
+/* Frame title styles */
+.achv-frame { display: inline-block; padding: 4px 10px; border: 2px solid currentColor; border-radius: 12px; font-weight: 700; line-height: 1; }
+.achv-frame--sm { padding: 2px 8px; border-width: 1.5px; font-size: 12px; }
+.achv-frame--gray { color: #6c757d; border-color: #cfd4da; }
+.achv-frame--green { color: #28a745; }
+.achv-frame--blue { color: #0d6efd; }
+.achv-frame--purple { color: #6f42c1; }
+.achv-frame--orange { color: #fd7e14; }
+.achv-frame--gold { color: #b8860b; }
+.achv-frame--red { color: #dc3545; }
 
 /* Overview */
 .achv-overview { display: flex; flex-direction: column; gap: 16px; }
@@ -3216,6 +3238,21 @@ body.dark-theme .profile-avatar {
     transform: translateX(-50%);
     border: 5px solid transparent;
     border-top-color: #333;
+}
+
+/* 锁定整列时，列内所有知识点名称与进度文本置灰，禁用悬浮高亮 */
+.skill-tree-column--locked .skill-node {
+    background-color: #f8f9fa;
+    border-color: #e9ecef;
+}
+.skill-tree-column--locked .skill-node__title,
+.skill-tree-column--locked .skill-node__progress-text {
+    color: #adb5bd;
+}
+.skill-tree-column--locked .skill-node:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #e9ecef;
 }
 
 /* --- Special Layouts for specific columns --- */

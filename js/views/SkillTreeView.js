@@ -51,7 +51,7 @@ export const skillTreeData = {
                     },
                     { 
                         id: 'col-5', 
-                        name: '一维基本类型', 
+                        name: '线性基本类型', 
                         nodeIds: ['array-1d', 'string-type'] 
                     }
                 ]
@@ -85,7 +85,7 @@ export const skillTreeData = {
             'branch-control': { id: 'branch-control', name: '分支控制', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'single-loop': { id: 'single-loop', name: '单层循环', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'multi-loop': { id: 'multi-loop', name: '多层循环', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
-            'mixed-control': { id: 'mixed-control', name: '混合', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'mixed-control': { id: 'mixed-control', name: '混合控制', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'array-1d': { id: 'array-1d', name: '一维数组', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'string-type': { id: 'string-type', name: '字符串', dependencies: ['integer', 'float', 'char', 'mixed-input'] }
         }
@@ -332,8 +332,26 @@ export class SkillTreeView {
                     let columnElementsHtml = '';
 
                     // 统计本列中是否存在未解锁的节点
-                    const hasLockedNode = column.nodeIds.some(id => nodeStates[id] && nodeStates[id].state === 'locked');
-                    if (hasLockedNode) {
+                    let hasLockedNode = column.nodeIds.some(id => nodeStates[id] && nodeStates[id].state === 'locked');
+
+                    // 新规则：线性基本类型(col-5) 依赖 程序控制(col-4) 全部知识点 >=60%
+                    // 若未满足，则整列保持锁定，并提示具体未达标项
+                    let col5PrereqUnmet = false;
+                    let col5UnmetNames = [];
+                    if (column.id === 'col-5') {
+                        const controlColumn = stage.columns.find(c => c.id === 'col-4');
+                        if (controlColumn) {
+                            col5UnmetNames = controlColumn.nodeIds.filter(nodeId => {
+                                const tagId = nodeIdToTagId[nodeId];
+                                const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
+                                const pct = raw <= 1 ? raw * 100 : raw;
+                                return pct < 60;
+                            }).map(nodeId => this.skillTrees['newbie-130'].nodes[nodeId]?.name || nodeId);
+                            col5PrereqUnmet = col5UnmetNames.length > 0;
+                        }
+                    }
+
+                    if (hasLockedNode || col5PrereqUnmet) {
                         columnLockClass = 'skill-tree-column--locked';
 
                         const lockIcon = `<img src="https://api.iconify.design/mdi/lock-outline.svg?color=%23adb5bd" class="skill-tree-column__lock-icon" alt="Locked">`;
@@ -354,7 +372,12 @@ export class SkillTreeView {
                         });
 
                         let tooltipContent = '';
-                        if (unmetDeps.size > 0) {
+                        if (column.id === 'col-5') {
+                            // 线性基本类型新增解锁条件：程序控制全部>=60%
+                            const unmetList = (col5UnmetNames || []).map(n => `<div class="unmet">${n} 进度达到60% <span class=\"tooltip-cross\">✗</span></div>`).join('');
+                            const header = `<div>解锁条件：程序控制 所有知识点达到60%</div>`;
+                            tooltipContent = header + (unmetList ? `<div style="margin-top:6px">${unmetList}</div>` : '');
+                        } else if (unmetDeps.size > 0) {
                             tooltipContent = Array.from(unmetDeps.entries()).map(([depTagId, depName]) => {
                                 return `<div class="unmet">${depName} 进度达到60% <span class=\"tooltip-cross\">✗</span></div>`;
                             }).join('');
@@ -477,7 +500,7 @@ export class SkillTreeView {
             { start: 'col-1', end: 'col-2', options: { startSocket: 'bottom', endSocket: 'top' } },
             { start: 'col-2', end: 'col-3', options: { startSocket: 'right', endSocket: 'left', startSocketGravity: 80, endSocketGravity: 80 } },
             { start: 'col-2', end: 'col-4', options: { startSocket: 'right', endSocket: 'left', startSocketGravity: 0, endSocketGravity: 0 } },
-            { start: 'col-2', end: 'col-5', options: { startSocket: 'right', endSocket: 'left', startSocketGravity: -80, endSocketGravity: -80 } }
+            { start: 'col-4', end: 'col-5', options: { startSocket: 'bottom', endSocket: 'top', startSocketGravity: 0, endSocketGravity: 0 } }
         ];
 
         dependencies.forEach(dep => {

@@ -30,14 +30,16 @@ export class ProfileView {
             // --- Fetch all data in parallel ---
             const checkinPromise = this.apiService.fetchUserCheckinData(userId);
             const problemRankPromise = this.apiService.fetchRankings('problem', 1, userId, 1);
+            const badgeInfoPromise = this.apiService.fetchBadgeUserInfo();
             
             const allTagIds = Object.values(nodeIdToTagId);
             const skillProgressPromise = this.apiService.fetchSkillTreeProgress(userId, allTagIds);
 
-            const [checkinData, problemRankData, skillProgressData] = await Promise.all([
-                checkinPromise, 
+            const [checkinData, problemRankData, skillProgressData, badgeInfo] = await Promise.all([
+                checkinPromise,
                 problemRankPromise,
-                skillProgressPromise
+                skillProgressPromise,
+                badgeInfoPromise
             ]);
             
             // --- Process Data ---
@@ -61,7 +63,10 @@ export class ProfileView {
                 skillTree: { 
                     completedChapters: skillTreeStats.completedChapters 
                 },
-                completedKnowledgePoints: skillTreeStats.completedKnowledgePoints
+                completedKnowledgePoints: skillTreeStats.completedKnowledgePoints,
+                achievements: {
+                    totalPoints: (badgeInfo && typeof badgeInfo.totalPoints === 'number') ? badgeInfo.totalPoints : 0
+                }
             };
             
             this.container.innerHTML = this.getUserProfileHtml(userData);
@@ -170,6 +175,10 @@ export class ProfileView {
                     <div class="stat-item">
                         <span class="stat-value">${user.rank}</span>
                         <span class="stat-label">全站排名</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-value">${user.achievements.totalPoints}</span>
+                        <span class="stat-label">成就点数</span>
                     </div>
                 </div>
                 <div class="profile-details">

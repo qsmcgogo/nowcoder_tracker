@@ -533,20 +533,74 @@ export class ApiService {
                 ? types.map(t => String(t).trim()).filter(Boolean).join(',')
                 : String(types).trim();
 
-            const url = `${this.apiBase}/problem/tracker/badge/list?types=${typesParam}`;
-            const res = await fetch(url);
+            // 后端参数名为 typeList；为兼容历史实现，优先使用 typeList
+            const url = `${this.apiBase}/problem/tracker/badge/list?typeList=${encodeURIComponent(typesParam)}&_=${Date.now()}`;
+            const res = await fetch(url, { cache: 'no-store' });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
 
             // 兼容常见返回格式 { code, data }
             if (data && (data.code === 0 || data.code === 200)) {
-                return Array.isArray(data.data) ? data.data : (data.data?.list || []);
+                const d = data.data;
+                if (Array.isArray(d)) return d;
+                if (d && typeof d === 'object') return Object.values(d);
+                if (Array.isArray(data)) return data;
+                return [];
             }
             // 非标准结构则直接返回原始体，交由调用方兜底
-            return data?.data ?? [];
+            if (Array.isArray(data)) return data;
+            if (data && typeof data === 'object' && data.data && typeof data.data === 'object') {
+                const dd = data.data;
+                return Array.isArray(dd) ? dd : Object.values(dd);
+            }
+            return [];
         } catch (e) {
             console.error('fetchBadgeList failed:', e);
             return [];
+        }
+    }
+
+    /**
+     * 获取用户成就总分与最近获得的成就（最多5条）
+     */
+    async fetchBadgeUserInfo() {
+        try {
+            const url = `${this.apiBase}/problem/tracker/badge/userInfo?_=${Date.now()}`;
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const body = await res.json();
+            const d = body && body.data ? body.data : body;
+            // total score may be nested in userTotalScore.totalScore
+            const nestedTotal = d && d.userTotalScore && (d.userTotalScore.totalScore ?? d.userTotalScore.points);
+            const totalPoints = (nestedTotal != null
+                ? nestedTotal
+                : (d && (d.totalPoints ?? d.totalScore ?? d.points ?? 0))) || 0;
+            let recent = [];
+            const formatTime = (t) => {
+                const ts = Number(t);
+                if (!ts) return '';
+                const dt = new Date(ts);
+                const mm = String(dt.getMonth() + 1).padStart(2, '0');
+                const dd = String(dt.getDate()).padStart(2, '0');
+                const hh = String(dt.getHours()).padStart(2, '0');
+                const mi = String(dt.getMinutes()).padStart(2, '0');
+                return `${mm}-${dd} ${hh}:${mi}`;
+            };
+            if (Array.isArray(d?.recent)) recent = d.recent;
+            else if (Array.isArray(d?.recentBadges)) recent = d.recentBadges;
+            else if (d?.list && Array.isArray(d.list)) recent = d.list;
+            else if (d?.userRecentBadge && typeof d.userRecentBadge === 'object') {
+                recent = Object.values(d.userRecentBadge || {}).map(b => ({
+                    ...b,
+                    time: formatTime(b.createTime)
+                }))
+                // sort by createTime desc if provided
+                .sort((a, b) => Number(b.createTime || 0) - Number(a.createTime || 0));
+            }
+            return { totalPoints: Number(totalPoints) || 0, recent };
+        } catch (e) {
+            console.warn('fetchBadgeUserInfo failed:', e);
+            return { totalPoints: 0, recent: [] };
         }
     }
 }

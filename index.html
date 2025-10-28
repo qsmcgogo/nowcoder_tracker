@@ -279,34 +279,34 @@
                     <div class="search-and-card-actions">
                         <div class="user-search-container">
                             <input type="text" id="rank-user-id-input" class="user-id-input problem-style-input" placeholder="输入ID">
-                            <button id="rank-search-btn" class="search-btn">Search</button>
-                        </div>
+                    <button id="rank-search-btn" class="search-btn">Search</button>
+                </div>
                     </div>
 
-                    <div id="user-rank-display" class="user-rank-container" style="display: none;">
-                        <!-- Searched user's rank will be displayed here -->
-                    </div>
-                    <div class="table-container">
-                        <table id="rankings-table" class="rankings-table">
-                            <thead>
-                                <tr>
-                                    <th class="rank-header">排名</th>
-                                    <th class="user-header">用户</th>
-                                    <th class="ac-header">过题数</th>
+                <div id="user-rank-display" class="user-rank-container" style="display: none;">
+                    <!-- Searched user's rank will be displayed here -->
+                </div>
+                <div class="table-container">
+                    <table id="rankings-table" class="rankings-table">
+                        <thead>
+                            <tr>
+                                <th class="rank-header">排名</th>
+                                <th class="user-header">用户</th>
+                                <th class="ac-header">过题数</th>
                                     <th class="consecutive-days-header" style="display: none;">连续打卡</th>
-                                </tr>
-                            </thead>
-                            <tbody id="rankings-tbody">
-                                <!-- Ranking data will be populated here by script.js -->
-                            </tbody>
-                        </table>
-                    </div>
-                    <div id="rankings-pagination" class="pagination">
-                        <div id="rankingsPaginationInfo" class="pagination-info"></div>
-                        <div class="pagination-controls">
-                            <button class="pagination-btn">&lt; 上一页</button>
-                            <div class="page-numbers"></div>
-                            <button class="pagination-btn">下一页 &gt;</button>
+                            </tr>
+                        </thead>
+                        <tbody id="rankings-tbody">
+                            <!-- Ranking data will be populated here by script.js -->
+                        </tbody>
+                    </table>
+                </div>
+                <div id="rankings-pagination" class="pagination">
+                    <div id="rankingsPaginationInfo" class="pagination-info"></div>
+                    <div class="pagination-controls">
+                        <button class="pagination-btn">&lt; 上一页</button>
+                        <div class="page-numbers"></div>
+                        <button class="pagination-btn">下一页 &gt;</button>
                         </div>
                     </div>
                 </div>
@@ -405,6 +405,17 @@
                 <div class="faq-container">
                     <div class="faq-content-wrapper">
                         <div class="faq-item">
+                            <h3>2025.10.30 ver. 4.1</h3>
+                            <ul>
+                                <li>1. 新增成就系统</li>
+                                <li>2. 技能树新增“第一章间章：拂晓”与“第二章：懵懂新芽”，第一章部分题目内容优化，微调布局与解锁逻辑</li>
+                                <li>3. 打卡新增“视频讲解”入口</li>
+                                <li>4. 修复竞赛题目翻页bug</li>
+                                <li>5. 修复XCPC比赛题目显示bug</li>
+                                <li>6. 修复打卡分享功能bug</li>
+                            </ul>
+                        </div>
+                        <div class="faq-item">
                             <h3>2025.10.23 ver. 4.0</h3>
                             <ul>
                                 <li>1. 可查看历史每日一题</li>
@@ -454,7 +465,7 @@
                             <ul>
                                 <li>1. 新增tracker主功能</li>
                             </ul>
-                        </div>
+                    </div>
                     </div>
                 </div>
             </section>
@@ -476,7 +487,7 @@
                 </div>
             </div>
         </div>
-
+        
         <footer>
             <p>&copy; 2025 nowcoder problems</p>
         </footer>
