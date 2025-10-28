@@ -151,6 +151,17 @@ export class SkillTreeView {
         try {
             // 获取所有节点的进度
             const progressData = await this.apiService.fetchSkillTreeProgress(isLoggedIn ? this.state.loggedInUserId : null, allTagIds);
+            // 额外：获取用户累计过题数，用于“跳过解锁”判定（>=50）
+            let solvedCount = 0;
+            if (isLoggedIn) {
+                try {
+                    const rank = await this.apiService.fetchRankings('problem', 1, this.state.loggedInUserId, 1);
+                    const u = rank?.ranks?.[0];
+                    solvedCount = Number(u?.count) || 0;
+                } catch (e) {
+                    // 忽略失败，不影响主流程
+                }
+            }
             this.currentStageProgress = progressData; // 存储进度, 格式为 { nodeProgress: { ... } }
 
             let previousStageProgress = 100; // 第一关的前置视为已解锁，用于统一逻辑
@@ -193,9 +204,11 @@ export class SkillTreeView {
                         return v <= 1 ? v * 100 : v;
                     });
                     const s1Avg = s1Vals.length > 0 ? Math.round(s1Vals.reduce((a, b) => a + b, 0) / s1Vals.length) : 0;
-                    isLocked = s1Avg < 70;
+                    const meetProgress = s1Avg >= 70;
+                    const meetSolved = solvedCount >= 50;
+                    isLocked = !(meetProgress || meetSolved);
                     if (isLocked) {
-                        lockReason = `第一章平均进度达到70% <span class=\"dep-cross\">×</span>`;
+                        lockReason = `第一章平均进度达到70% <br>或<br>tracker累计通过50题：${solvedCount} / 50 <span class=\"dep-cross\">×</span>`;
                     }
                 } else if (stage.id === 'stage-3') {
                     const s2 = tree.stages.find(s => s.id === 'stage-2');
@@ -233,11 +246,13 @@ export class SkillTreeView {
 
                 if (stage.id === 'stage-1') {
                     // 简章（间章：拂晓）解锁逻辑：第一章平均进度 ≥ 70%
-                    const miniIsLocked = !isLoggedIn || progress < 70;
+                    const miniMeetProgress = progress >= 70;
+                    const miniMeetSolved = solvedCount >= 50;
+                    const miniIsLocked = !isLoggedIn || !(miniMeetProgress || miniMeetSolved);
                     const miniLockReason = !isLoggedIn
                         ? '请先登录开启技能树之旅'
-                        : '第一章平均进度达到70% <span class="dep-cross">×</span>';
-
+                        : `第一章平均进度达到70% <br>或<br>tracker累计通过50题：${solvedCount} / 50 <span class=\"dep-cross\">×</span>`;
+                   
                     return `
                         <div class="skill-tree-card-group side-mini stage-1">
                             ${cardHtml}
