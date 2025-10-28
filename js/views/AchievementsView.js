@@ -161,6 +161,19 @@ export class AchievementsView {
                 const span = document.createElement('span');
                 span.className = `achv-frame ${this.pickRarityClass(Number(b.score) || 0)}`;
                 span.textContent = b.name || '';
+                // 标题与右侧完成时间并排
+                const header = document.createElement('div');
+                header.className = 'achv-header';
+                const left = document.createElement('div');
+                left.appendChild(span);
+                header.appendChild(left);
+                if (isUnlocked && b.finishedTime) {
+                    const t = document.createElement('span');
+                    t.className = 'achv-finish-time';
+                    t.textContent = this.formatTime(b.finishedTime);
+                    header.appendChild(t);
+                }
+                title.appendChild(header);
                 title.appendChild(span);
                 const requirementRow = document.createElement('div');
                 requirementRow.className = 'achv-target-row';
@@ -199,6 +212,10 @@ export class AchievementsView {
                     const span = document.createElement('span');
                     span.className = `achv-frame ${this.pickRarityClass(Number(m.points) || 0)}`;
                     span.textContent = m.name;
+                    if (isUnlocked && m.finishedTime) {
+                        span.classList.add('achv-tip');
+                        span.setAttribute('data-tip', `完成于 ${this.formatTime(m.finishedTime)}`);
+                    }
                     title.appendChild(span);
 
                     const requirementRow = document.createElement('div');
@@ -264,16 +281,32 @@ export class AchievementsView {
             const title = document.createElement('div');
             title.className = 'achv-title';
             if (next) {
+                const header = document.createElement('div');
+                header.className = 'achv-header';
                 const span = document.createElement('span');
                 span.className = `achv-frame ${this.pickRarityClass(next.points || 0)}`;
                 span.textContent = next.name;
-                title.appendChild(span);
+                header.appendChild(span);
+                if (!next) {
+                    // no-op
+                }
+                title.appendChild(header);
             } else {
                 const last = series.milestones[series.milestones.length - 1];
+                const header = document.createElement('div');
+                header.className = 'achv-header';
                 const span = document.createElement('span');
                 span.className = `achv-frame ${this.pickRarityClass((last && last.points) || 0)}`;
                 span.textContent = last?.name || '已满级';
-                title.appendChild(span);
+                // 右侧若存在最后一级完成时间，显示
+                if (last && last.finishedTime) {
+                    const t = document.createElement('span');
+                    t.className = 'achv-finish-time';
+                    t.textContent = this.formatTime(last.finishedTime);
+                    header.appendChild(t);
+                }
+                header.appendChild(span);
+                title.appendChild(header);
             }
 
             // 第二行：成就需求（使用里程碑描述）- 移除“成就需求”前缀
@@ -313,9 +346,12 @@ export class AchievementsView {
                 list.className = 'achv-badge-list';
                 achieved.forEach(m => {
                     const tag = document.createElement('span');
-                    tag.className = `achv-frame achv-frame--sm ${this.pickRarityClass(Number(m.points) || 0)}`;
+                    tag.className = `achv-frame achv-frame--sm ${this.pickRarityClass(Number(m.points) || 0)} achv-tip`;
                     tag.textContent = m.name;
-                    tag.title = m.desc || m.name;
+                    const tipParts = [];
+                    if (m.desc) tipParts.push(m.desc);
+                    if (m.finishedTime) tipParts.push(`完成于 ${this.formatTime(m.finishedTime)}`);
+                    if (tipParts.length > 0) tag.setAttribute('data-tip', tipParts.join('\n'));
                     list.appendChild(tag);
                 });
                 achievedRow.appendChild(list);
@@ -457,6 +493,17 @@ export class AchievementsView {
         if (p >= 10) return 'achv-frame--green';
         return 'achv-frame--gray';
     }
+    // 时间格式化：毫秒时间戳 -> MM-DD HH:mm
+    formatTime(ts) {
+        const v = Number(ts);
+        if (!v) return '';
+        const d = new Date(v);
+        const mm = String(d.getMonth() + 1).padStart(2, '0');
+        const dd = String(d.getDate()).padStart(2, '0');
+        const hh = String(d.getHours()).padStart(2, '0');
+        const mi = String(d.getMinutes()).padStart(2, '0');
+        return `${mm}-${dd} ${hh}:${mi}`;
+    }
 
     // 动态加载某个分类（checkin/solve/skill）的徽章数据
     async loadCategoryBadges(categoryKey) {
@@ -491,6 +538,7 @@ export class AchievementsView {
                         threshold: Number(m.acquirement) || 0,
                         points: Number(m.score) || 0,
                         status: Number(m.status) || 0,
+                        finishedTime: m.finishedTime || null,
                         colorUrl: m.colorUrl || '',
                         grayUrl: m.grayUrl || ''
                     }));
@@ -505,6 +553,7 @@ export class AchievementsView {
                         threshold: Number(m.acquirement) || 0,
                         points: Number(m.score) || 0,
                         status: Number(m.status) || 0,
+                        finishedTime: m.finishedTime || null,
                         colorUrl: m.colorUrl || '',
                         grayUrl: m.grayUrl || ''
                     }));
@@ -518,6 +567,7 @@ export class AchievementsView {
                         desc: m.detail,
                         points: Number(m.score) || 0,
                         status: Number(m.status) || 0,
+                        finishedTime: m.finishedTime || null,
                         colorUrl: m.colorUrl || '',
                         grayUrl: m.grayUrl || ''
                     }));
@@ -534,6 +584,7 @@ export class AchievementsView {
                         threshold: Number(m.acquirement) || 0,
                         points: Number(m.score) || 0,
                         status: Number(m.status) || 0,
+                        finishedTime: m.finishedTime || null,
                         colorUrl: m.colorUrl || '',
                         grayUrl: m.grayUrl || ''
                     }));
@@ -548,6 +599,7 @@ export class AchievementsView {
                         threshold: Number(m.acquirement) || 0,
                         points: Number(m.score) || 0,
                         status: Number(m.status) || 0,
+                        finishedTime: m.finishedTime || null,
                         colorUrl: m.colorUrl || '',
                         grayUrl: m.grayUrl || ''
                     }));
@@ -564,6 +616,7 @@ export class AchievementsView {
                         threshold: Number(m.acquirement) || 0,
                         points: Number(m.score) || 0,
                         status: Number(m.status) || 0,
+                        finishedTime: m.finishedTime || null,
                         colorUrl: m.colorUrl || '',
                         grayUrl: m.grayUrl || ''
                     }));

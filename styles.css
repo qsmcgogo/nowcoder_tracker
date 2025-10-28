@@ -2611,9 +2611,50 @@ body .problems-table tbody tr td.status-none {
 
 /* 已完成成就的小图标展示（替代文字chip） */
 .achv-badge-list { display: flex; align-items: center; gap: 6px; padding: 4px 0; flex-wrap: wrap; }
+.achv-badge-time { color: #999; font-size: 12px; margin-left: 6px; }
+
+/* Better tooltip for badges and titles */
+.achv-tip { position: relative; cursor: default; }
+.achv-tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  transform: translateX(-50%);
+  background: rgba(25, 28, 31, 0.95);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  white-space: pre-line;
+  min-width: 180px;
+  max-width: 280px;
+  box-shadow: 0 8px 20px rgba(0,0,0,0.18);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .15s ease, visibility .15s ease;
+  z-index: 20;
+  pointer-events: none;
+}
+.achv-tip::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(25, 28, 31, 0.95);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity .15s ease, visibility .15s ease;
+}
+.achv-tip:hover::after, .achv-tip:hover::before { opacity: 1; visibility: visible; }
 .achv-target-row { color: #555; font-size: 12px; margin: 2px 0 6px; }
 .achv-icon { display: none; }
 .achv-info { flex: 1; min-width: 0; }
+.achv-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.achv-finish-time { color: #8a8f98; font-size: 12px; white-space: nowrap; }
 .achv-title { font-weight: 600; color: #222; }
 .achv-desc { color: #666; font-size: 12px; margin-top: 2px; }
 .achv-progress { height: 6px; background: #eef2f4; border-radius: 6px; overflow: hidden; margin-top: 8px; }
