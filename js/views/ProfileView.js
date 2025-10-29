@@ -19,7 +19,6 @@ export class ProfileView {
 
         if (!this.appState.isLoggedIn()) {
             this.container.innerHTML = this.getLoggedOutHtml();
-            this.bindLoginEvent();
             return;
         }
 
@@ -134,10 +133,7 @@ export class ProfileView {
             <div class="profile-logged-out">
                 <h2>登录后查看个人主页</h2>
                 <p>登录后可查看详细的刷题统计、打卡记录和技能树进度。</p>
-                <div class="input-group">
-                    <input type="text" id="profile-login-uid" placeholder="输入你的牛客UID登录">
-                    <button id="profile-login-btn" class="action-btn">登录</button>
-                </div>
+                <a href="https://ac.nowcoder.com/login?callBack=/" target="_blank" rel="noopener noreferrer" class="action-btn">前往登录</a>
             </div>
         `;
     }
