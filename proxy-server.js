@@ -87,6 +87,7 @@ app.use('/problem/tracker/ranks/problem', manualProxyHandler('/problem/tracker/r
 app.use('/problem/tracker/ranks/checkin', manualProxyHandler('/problem/tracker/ranks/checkin'));
 app.use('/problem/tracker/clock/todayinfo', manualProxyHandler('/problem/tracker/clock/todayinfo'));
 app.use('/problem/tracker/clock/add', manualProxyHandler('/problem/tracker/clock/add'));
+app.use('/problem/tracker/clock/add-share-link', manualProxyHandler('/problem/tracker/clock/add-share-link'));
 app.use('/problem/tracker/clock/list', manualProxyHandler('/problem/tracker/clock/list'));
 app.use('/problem/tracker/clock/monthinfo', manualProxyHandler('/problem/tracker/clock/monthinfo'));
 app.use('/problem/tracker/addcheckin', manualProxyHandler('/problem/tracker/addcheckin'));

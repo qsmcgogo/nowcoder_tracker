@@ -377,6 +377,42 @@ export class ApiService {
     }
 
     /**
+     * 管理员：设置某日分享链接（占位，等待后端POST地址）
+     * 暂时仅做入参校验与日志打印，实际调用待接入后端
+     */
+    async setDailyShareLink(dateStr, shareLinkRaw) {
+        if (!dateStr || !shareLinkRaw) {
+            throw new Error('参数缺失：需要日期与分享链接');
+        }
+
+        // 若传入的是整段 iframe，提取 src；否则原样使用
+        const extractSrc = (html) => {
+            const text = String(html);
+            const m1 = text.match(/src\s*=\s*"([^"]+)"/i);
+            const m2 = text.match(/src\s*=\s*'([^']+)'/i);
+            return (m1 && m1[1]) || (m2 && m2[1]) || text.trim();
+        };
+        const shareLink = extractSrc(shareLinkRaw);
+
+        const qs = `date=${encodeURIComponent(dateStr)}&shareLink=${encodeURIComponent(shareLink)}`;
+        const url = `${this.apiBase}/problem/tracker/clock/add-share-link?${qs}`;
+
+        const res = await fetch(url, {
+            method: 'POST',
+            // 空 body 即可，参数在 querystring
+            headers: {
+                'Accept': 'application/json, text/plain, */*'
+            }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && typeof data.code !== 'undefined' && data.code !== 0) {
+            throw new Error(data.msg || '服务端返回错误');
+        }
+        return data || { code: 0 };
+    }
+
+    /**
      * Fetches detailed information for a specific skill tree tag (node).
      * @param {string} tagId - The ID of the skill tree tag.
      * @returns {Promise<Object>} - A promise that resolves to the tag's detailed info.

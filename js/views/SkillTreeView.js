@@ -22,7 +22,34 @@ export const nodeIdToTagId = {
     'multi-loop': 1014,
     'mixed-control': 1015,
     'array-1d': 1016,
+    'array-2d': 1019,
     'string-type': 1017,
+    // --- Interlude (间章：拂晓) ---
+    'builtin-func': 1020,
+    'lang-feature': 1021,
+    'simulation-enum': 1022,
+    'construction': 1023,
+    'greedy-sort': 1024,
+    // --- Stage 2 mappings (预分配tag_id，导表后可与后端一致) ---
+    'stack': 1101,
+    'queue': 1102,
+    'deque': 1103,
+    'bit-ops': 1104,
+    'primes-divisors': 1105,
+    'gcd-lcm': 1106,
+    'func-def-call': 1107,
+    'recursion': 1108,
+    'dp-basic': 1109,
+    'dp-linear': 1110,
+    'prefix-diff': 1111,
+    'dp-practice': 1112,
+    'dfs': 1113,
+    'bfs': 1114,
+    'two-pointers': 1115,
+    'binary-search': 1116,
+    'graph-def': 1117,
+    'build-graph-search': 1118,
+    'unweighted-shortest': 1119,
 };
 
 // --- 新增：导出技能树的静态结构数据 ---
@@ -52,17 +79,28 @@ export const skillTreeData = {
                     { 
                         id: 'col-5', 
                         name: '线性基本类型', 
-                        nodeIds: ['array-1d', 'string-type'] 
+                        nodeIds: ['array-1d', 'array-2d', 'string-type'] 
                     }
                 ]
             },
             {
                 id: 'stage-2',
-                name: '第二章：懵懂新芽'
+                name: '第二章：懵懂新芽',
+                // 章为大虚框（列），节为知识点
+                columns: [
+                    { id: 's2-col-struct', name: '线性数据结构', nodeIds: ['stack', 'queue', 'deque'] },
+                    { id: 's2-col-math', name: '简单数学', nodeIds: ['bit-ops', 'primes-divisors', 'gcd-lcm'] },
+                    { id: 's2-col-func', name: '函数', nodeIds: ['func-def-call', 'recursion'] },
+                    { id: 's2-col-dp', name: '动态规划入门', nodeIds: ['dp-basic', 'dp-linear', 'prefix-diff', 'dp-practice'] }
+                ]
             },
             {
                 id: 'stage-3',
-                name: '第三章：初显峥嵘'
+                name: '第三章：初显峥嵘',
+                columns: [
+                    { id: 's3-col-search', name: '搜索入门', nodeIds: ['dfs', 'bfs', 'two-pointers', 'binary-search'] },
+                    { id: 's3-col-graph', name: '图论入门', nodeIds: ['graph-def', 'build-graph-search', 'unweighted-shortest'] }
+                ]
             },
             {
                 id: 'stage-4',
@@ -87,7 +125,42 @@ export const skillTreeData = {
             'multi-loop': { id: 'multi-loop', name: '多层循环', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'mixed-control': { id: 'mixed-control', name: '混合控制', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'array-1d': { id: 'array-1d', name: '一维数组', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'array-2d': { id: 'array-2d', name: '二维数组', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'string-type': { id: 'string-type', name: '字符串', dependencies: ['integer', 'float', 'char', 'mixed-input'] }
+            ,
+            // --- Interlude nodes (no extra dependencies inside the interlude) ---
+            'builtin-func': { id: 'builtin-func', name: '内置函数', dependencies: [] },
+            'lang-feature': { id: 'lang-feature', name: '语言特性', dependencies: [] },
+            'simulation-enum': { id: 'simulation-enum', name: '模拟和枚举', dependencies: [] },
+            'construction': { id: 'construction', name: '构造', dependencies: [] },
+            'greedy-sort': { id: 'greedy-sort', name: '贪心和排序', dependencies: [] }
+            ,
+            // --- Stage 2 节（知识点） ---
+            // 线性数据结构
+            'stack': { id: 'stack', name: '栈', dependencies: [] },
+            'queue': { id: 'queue', name: '队列', dependencies: [] },
+            'deque': { id: 'deque', name: '双端队列', dependencies: [] },
+            // 简单数学
+            'bit-ops': { id: 'bit-ops', name: '位运算', dependencies: [] },
+            'primes-divisors': { id: 'primes-divisors', name: '质数和约数', dependencies: [] },
+            'gcd-lcm': { id: 'gcd-lcm', name: '最大公约数与最小公倍数', dependencies: [] },
+            // 函数
+            'func-def-call': { id: 'func-def-call', name: '函数的定义和调用', dependencies: [] },
+            'recursion': { id: 'recursion', name: '递归', dependencies: [] },
+            // 动态规划入门
+            'dp-basic': { id: 'dp-basic', name: 'dp入门模型', dependencies: [] },
+            'dp-linear': { id: 'dp-linear', name: '线性dp', dependencies: [] },
+            'prefix-diff': { id: 'prefix-diff', name: '前缀和与差分', dependencies: [] },
+            'dp-practice': { id: 'dp-practice', name: 'dp入门综练', dependencies: [] },
+            // 搜索入门
+            'dfs': { id: 'dfs', name: 'dfs', dependencies: [] },
+            'bfs': { id: 'bfs', name: 'bfs', dependencies: [] },
+            'two-pointers': { id: 'two-pointers', name: '双指针', dependencies: [] },
+            'binary-search': { id: 'binary-search', name: '二分搜索', dependencies: [] },
+            // 图论入门
+            'graph-def': { id: 'graph-def', name: '树和图的定义', dependencies: [] },
+            'build-graph-search': { id: 'build-graph-search', name: '建图和图上搜索', dependencies: [] },
+            'unweighted-shortest': { id: 'unweighted-shortest', name: '不带权图的最短路', dependencies: [] }
         }
     }
 };
@@ -119,6 +192,26 @@ export class SkillTreeView {
         // this.userProgress = { ... }; // 移除旧的模拟进度数据
         this.currentStageProgress = { nodeProgress: {} }; // 用于存储当前阶段的进度
         // ---------------------------------------------
+
+        // 全局：点击面板外关闭（对所有章节/视图通用）
+        this._outsideCloseBound = false;
+        this.attachGlobalPanelCloser();
+    }
+
+    // 绑定一次全局“点击外部关闭面板”
+    attachGlobalPanelCloser() {
+        if (this._outsideCloseBound) return;
+        this._outsideCloseBound = true;
+        document.addEventListener('mousedown', (e) => {
+            if (!this.panel || !this.panel.classList.contains('visible')) return;
+            const target = e.target;
+            const insidePanel = this.panel.contains(target) || target.closest('#skill-node-panel');
+            const onNode = target.closest('.skill-node');
+            const onChip = target.closest('.interlude-chip');
+            if (!insidePanel && !onNode && !onChip) {
+                this.hideNodePanel();
+            }
+        }, true);
     }
 
     // 主渲染函数，根据当前视图状态进行分发
@@ -145,6 +238,7 @@ export class SkillTreeView {
         this.clearLines();
 
         const isLoggedIn = this.state.isLoggedIn();
+        const isAdmin = this.state.isAdmin === true;
         const allNodeIds = Object.keys(tree.nodes);
         const allTagIds = allNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
 
@@ -190,7 +284,7 @@ export class SkillTreeView {
                 // 第二章的解锁规则：第一章达到≥70%
                 let isLocked;
                 let lockReason = '';
-                if (!isLoggedIn) {
+                if (!isLoggedIn && !isAdmin) {
                     isLocked = true;
                     lockReason = '请先登录开启技能树之旅';
                 } else if (stage.id === 'stage-2') {
@@ -206,7 +300,7 @@ export class SkillTreeView {
                     const s1Avg = s1Vals.length > 0 ? Math.round(s1Vals.reduce((a, b) => a + b, 0) / s1Vals.length) : 0;
                     const meetProgress = s1Avg >= 70;
                     const meetSolved = solvedCount >= 50;
-                    isLocked = !(meetProgress || meetSolved);
+                    isLocked = isAdmin ? false : !(meetProgress || meetSolved);
                     if (isLocked) {
                         lockReason = `第一章平均进度达到70% <br>或<br>tracker累计通过50题：${solvedCount} / 50 <span class=\"dep-cross\">×</span>`;
                     }
@@ -218,13 +312,13 @@ export class SkillTreeView {
                         return v <= 1 ? v * 100 : v;
                     });
                     const s2Avg = s2Vals.length > 0 ? Math.round(s2Vals.reduce((a, b) => a + b, 0) / s2Vals.length) : 0;
-                    isLocked = s2Avg < 70;
+                    isLocked = isAdmin ? false : (s2Avg < 70);
                     if (isLocked) {
                         lockReason = `第二章平均进度达到70% <span class=\"dep-cross\">×</span>`;
                     }
                 } else {
                     // 其他章节仍按上一章节100%解锁的旧规则
-                    isLocked = previousStageProgress < 100;
+                    isLocked = isAdmin ? false : (previousStageProgress < 100);
                     if (isLocked) {
                         lockReason = '上一章通关（100%）后解锁 <span class=\"dep-cross\">×</span>';
                     }
@@ -248,7 +342,7 @@ export class SkillTreeView {
                     // 简章（间章：拂晓）解锁逻辑：第一章平均进度 ≥ 70%
                     const miniMeetProgress = progress >= 70;
                     const miniMeetSolved = solvedCount >= 50;
-                    const miniIsLocked = !isLoggedIn || !(miniMeetProgress || miniMeetSolved);
+                    const miniIsLocked = isAdmin ? false : (!isLoggedIn || !(miniMeetProgress || miniMeetSolved));
                     const miniLockReason = !isLoggedIn
                         ? '请先登录开启技能树之旅'
                         : `第一章平均进度达到70% <br>或<br>tracker累计通过50题：${solvedCount} / 50 <span class=\"dep-cross\">×</span>`;
@@ -330,9 +424,12 @@ export class SkillTreeView {
             
             let leftColumnHtml = '';
             let rightColumnHtml = '';
+            const isStage2 = stage.id === 'stage-2';
+            const posOrder = ['top','left','right','bottom'];
+            let stage2AllHtml = '';
 
             if (stage.columns) {
-                stage.columns.forEach(column => {
+                stage.columns.forEach((column, idx) => {
                     const nodesHtml = column.nodeIds.map(nodeId => {
                         if (tree.nodes[nodeId]) {
                             const tagId = nodeIdToTagId[nodeId];
@@ -366,7 +463,8 @@ export class SkillTreeView {
                         }
                     }
 
-                    if (hasLockedNode || col5PrereqUnmet) {
+                    // 管理员不受列锁定与前置限制影响
+                    if (!this.state.isAdmin && (hasLockedNode || col5PrereqUnmet)) {
                         columnLockClass = 'skill-tree-column--locked';
 
                         const lockIcon = `<img src="https://api.iconify.design/mdi/lock-outline.svg?color=%23adb5bd" class="skill-tree-column__lock-icon" alt="Locked">`;
@@ -405,32 +503,37 @@ export class SkillTreeView {
                     // --- Hotfix for col-5 tooltip clipping ---
                     const extraStyle = column.id === 'col-5' ? 'style="overflow: visible;"' : '';
 
+                    const extraClasses = isStage2 ? ` two-per-row stage2-pos-${posOrder[idx] || 'top'}` : '';
                     const columnHtml = `
-                        <div class="skill-tree-column ${columnLockClass}" id="skill-tree-column-${column.id}" ${extraStyle}>
+                        <div class="skill-tree-column ${columnLockClass}${extraClasses}" id="skill-tree-column-${column.id}" ${extraStyle}>
                             ${columnElementsHtml}
                             <h4 class="skill-tree-column__title">${column.name}</h4>
                             <div class="skill-tree-column__nodes">${nodesHtml}</div>
                         </div>
                     `;
-
-                    if (column.id === 'col-1' || column.id === 'col-2') {
-                        leftColumnHtml += columnHtml;
+                    if (isStage2) {
+                        stage2AllHtml += columnHtml;
                     } else {
-                        rightColumnHtml += columnHtml;
+                        if (column.id === 'col-1' || column.id === 'col-2') {
+                            leftColumnHtml += columnHtml;
+                        } else {
+                            rightColumnHtml += columnHtml;
+                        }
                     }
                 });
             }
 
+            const innerLayout = isStage2
+                ? `<div class="stage2-diamond">${stage2AllHtml}</div>`
+                : `<div class=\"skill-tree-dag-container\"><div class=\"dag-main-column\">${leftColumnHtml}</div><div class=\"dag-main-column\">${rightColumnHtml}</div></div>`;
+
             const html = `
-                <div class="skill-tree-detail">
+                <div class="skill-tree-detail ${isStage2 ? 'skill-tree-detail--stage2' : ''}">
                     <div class="skill-tree-detail__header">
                         <button id="skill-tree-back-btn" class="back-button">&larr; 返回所有阶段</button>
                         <h2>${stage.name}</h2>
                     </div>
-                    <div class="skill-tree-dag-container">
-                        <div class="dag-main-column">${leftColumnHtml}</div>
-                        <div class="dag-main-column">${rightColumnHtml}</div>
-                    </div>
+                    ${innerLayout}
                 </div>
             `;
             this.container.innerHTML = html;
@@ -442,6 +545,92 @@ export class SkillTreeView {
             this.container.innerHTML = `<div class="error">加载关卡详情失败，请稍后重试。</div>`;
         }
     }
+
+    // 渲染“占位/敬请期待”详情页（用于间章：拂晓）
+    renderComingSoonDetail(title) {
+        const html = `
+            <div class="skill-tree-detail">
+                <div class="skill-tree-detail__header">
+                    <button id="skill-tree-back-btn" class="back-button">&larr; 返回所有阶段</button>
+                    <h2>${title}</h2>
+                </div>
+                <div class="coming-soon"><h3>内容正在紧张建设中...</h3><p>敬请期待！</p></div>
+            </div>
+        `;
+        this.container.innerHTML = html;
+        this.bindDetailEvents();
+    }
+
+    // 渲染“间章：拂晓” —— 5个知识点的轻量布局
+    async renderInterludeDetail() {
+        const tree = this.skillTrees['newbie-130'];
+        const nodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
+        // 预取进度
+        try {
+            const tagIds = nodeIds.map(id => nodeIdToTagId[id]).filter(Boolean);
+            if (tagIds.length) {
+                const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, tagIds);
+                this.currentStageProgress = progressData || { nodeProgress: {} };
+            }
+        } catch (_) { /* ignore progress fetch error */ }
+
+        const chips = nodeIds.map((id, idx) => {
+            const n = tree.nodes[id];
+            const tagId = nodeIdToTagId[id];
+            let pct = 0;
+            if (this.currentStageProgress && this.currentStageProgress.nodeProgress) {
+                const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
+                pct = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
+            }
+            const stateInfo = { state: pct >= 100 ? 'completed' : (pct > 0 ? 'unlocked' : 'unlocked') };
+            const stateClass = stateInfo.state === 'completed' ? 'completed' : 'unlocked';
+            const posClass = `interlude-chip--pos${idx + 1}`;
+            return `
+                <div class="interlude-chip ${stateClass} ${posClass}" data-id="${id}">
+                    <div class="interlude-chip__title">${n.name}</div>
+                    <div class="interlude-chip__progress">${pct}%</div>
+                </div>
+            `;
+        }).join('');
+
+        const html = `
+            <div class="interlude-detail">
+                <div class="interlude-ribbon">间章：拂晓</div>
+                <div class="interlude-circle">
+                    <svg class="interlude-magic" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.5"></circle>
+                        <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(124,47,75,0.15)" stroke-width="1"></circle>
+                        <!-- 五角星 -->
+                        <path d="M50,10 L88,38 L74,82 L26,82 L12,38 Z" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.2"></path>
+                        <!-- 内五角星 -->
+                        <path d="M50,22 L79,43 L68,76 L32,76 L21,43 Z" fill="none" stroke="rgba(124,47,75,0.15)" stroke-width="1"></path>
+                    </svg>
+                    ${chips}
+                </div>
+            </div>
+        `;
+        this.container.innerHTML = html;
+
+        // 绑定点击 -> 展示面板（沿用节点面板逻辑）
+        this.container.querySelectorAll('.interlude-chip').forEach(el => {
+            el.addEventListener('click', (e) => {
+                const nodeId = e.currentTarget.getAttribute('data-id');
+                this.showNodePanel(nodeId);
+            });
+        });
+
+        // 返回按钮（复用详情页的绑定逻辑）
+        // 在标题栏左上角加一个返回按钮
+        const backBtn = document.createElement('button');
+        backBtn.className = 'back-button';
+        backBtn.textContent = '\u2190 返回所有阶段';
+        backBtn.style.marginBottom = '12px';
+        this.container.prepend(backBtn);
+        backBtn.addEventListener('click', () => {
+            this.currentView = 'summary';
+            this.render();
+        });
+    }
     
     // 计算所有知识点和题目的状态 (修改)
     calculateNodeStates(nodes) {
@@ -449,6 +638,7 @@ export class SkillTreeView {
         // 使用获取到的真实进度, 直接解构
         const { nodeProgress } = this.currentStageProgress; 
         
+        const isAdmin = this.state.isAdmin === true;
         for (const nodeId in nodes) {
             const node = nodes[nodeId];
             const tagId = nodeIdToTagId[nodeId];
@@ -466,7 +656,7 @@ export class SkillTreeView {
 
             if (isCompleted) {
                 tagState = 'completed';
-            } else if (areDependenciesMet) {
+            } else if (isAdmin || areDependenciesMet) {
                 tagState = 'unlocked';
             }
             
@@ -595,6 +785,15 @@ export class SkillTreeView {
                 this.render();
             });
         });
+
+        // 间章：拂晓（迷你卡）点击进入：自定义迷你详情
+        const mini = this.container.querySelector('.skill-tree-mini-card');
+        if (mini && !mini.classList.contains('locked')) {
+            mini.addEventListener('click', () => {
+                this.clearLines();
+                this.renderInterludeDetail();
+            });
+        }
     }
 
     // 在概览页绘制阶段之间的直线连接（第一章->第二章，第二章->第三章）
@@ -664,17 +863,8 @@ export class SkillTreeView {
             this.panelCloseBtn.addEventListener('click', () => this.hideNodePanel());
         }
 
-        // Bind click outside to close panel
-        document.addEventListener('click', (e) => {
-            if (!this.panel || !this.panel.classList.contains('visible')) return;
-            
-            const isClickInsidePanel = this.panel.contains(e.target);
-            const isClickOnNode = e.target.closest('.skill-node');
-
-            if (!isClickInsidePanel && !isClickOnNode) {
-                this.hideNodePanel();
-            }
-        });
+        // 确保全局“点击外部关闭”已绑定
+        this.attachGlobalPanelCloser();
     }
 
     async showNodePanel(nodeId) {
@@ -826,7 +1016,7 @@ export class SkillTreeView {
                 return pct < 60;
             });
             // 已通过的题目不锁定（即使依赖未达标）
-            const isLocked = !isSolved && unmetDeps.length > 0;
+            const isLocked = !this.state.isAdmin && !isSolved && unmetDeps.length > 0;
             const problemClass = `${isSolved ? 'completed' : ''} ${isLocked ? 'locked' : ''}`.trim();
             const baseUrl = `https://www.nowcoder.com/practice/${problem.uuid}`;
             const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, this.state.channelPut);

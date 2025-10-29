@@ -1477,6 +1477,12 @@ body .problems-table tbody tr td.status-none {
     font-weight: 600;
 }
 .video-tutorial-link:hover { background: #d9efff; text-decoration: none; }
+.video-tutorial-link.is-disabled {
+    background: #f0f2f5;
+    color: #9aa4b2;
+    cursor: not-allowed;
+    pointer-events: none;
+}
 
 /* Inline video player under daily video banner */
 .inline-video {
@@ -1492,6 +1498,65 @@ body .problems-table tbody tr td.status-none {
     height: 100%;
     border: 0;
 }
+
+/* Inline video with right sidebar list */
+.inline-video-layout {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    margin-top: 10px;
+}
+.inline-video-layout .inline-video { flex: 1 1 auto; margin-top: 0; order: 2; }
+.inline-video-sidebar {
+    order: 1;
+    width: 240px;
+    max-height: 420px;
+    overflow: auto;
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.video-ym {
+    border-bottom: 1px dashed var(--border-color);
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+}
+.video-ym:last-child { border-bottom: none; margin-bottom: 0; }
+.video-ym__header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; font-weight: 600; color: #333; padding: 6px 4px; border-radius: 6px; }
+.video-ym__header:hover { background: #f7f9fb; }
+.video-ym.open .video-ym__days { display: grid; }
+.video-ym__days { display: none; grid-template-columns: repeat(4, 1fr); gap: 6px; padding: 6px 2px; }
+.video-day { text-align: center; padding: 6px 0; border-radius: 6px; cursor: pointer; background: #f5f7fa; color: #333; font-weight: 600; }
+.video-day:hover { background: #e9f2ff; color: #007bff; }
+.video-day.is-today { border: 1px solid #007bff; }
+.video-day.is-selected { background: #007bff; color: #fff; }
+.video-day.is-disabled { background: #f0f2f5; color: #9aa4b2; cursor: not-allowed; pointer-events: none; }
+
+@media (max-width: 900px) {
+    .inline-video-layout { flex-direction: column; }
+    .inline-video-sidebar { width: 100%; max-height: none; }
+    .video-ym__days { grid-template-columns: repeat(7, 1fr); }
+}
+
+/* Admin sharelink panel */
+.admin-sharelink-panel {
+    margin-top: 10px;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: #fff;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.admin-sharelink-panel .row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+.admin-sharelink-panel label { color: #555; font-weight: 600; }
+.admin-sharelink-panel input[type="date"] { padding: 6px 8px; border: 1px solid #d0d7de; border-radius: 6px; }
+.admin-sharelink-panel input[type="url"] { flex: 1; padding: 6px 8px; border: 1px solid #d0d7de; border-radius: 6px; }
+.admin-sharelink-actions { display: flex; gap: 8px; }
+.admin-btn { display: inline-flex; align-items: center; background: #e8f5ff; color: #007bff; padding: 6px 10px; border-radius: 6px; font-weight: 600; cursor: pointer; border: none; }
+.admin-btn:hover { background: #d9efff; }
+.admin-toolbar { display: flex; gap: 10px; margin: 8px 0; }
 
 .niukeniang-large-img {
     width: 200px;
@@ -2941,6 +3006,14 @@ body.dark-theme .profile-avatar {
     min-width: 260px; /* 预留通关率一行的空间 */
     min-height: 64px; /* 预留两行文本高度 */
     text-align: center;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+
+.skill-tree-mini-card:not(.locked) { cursor: pointer; }
+.skill-tree-mini-card:not(.locked):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    border-color: var(--primary-color);
 }
 
 .skill-tree-mini-card__title { font-weight: 600; }
@@ -3010,6 +3083,88 @@ body.dark-theme .profile-avatar {
     flex: 0 1 calc(50% - 10px); /* Two columns, no grow, accounting for gap */
     box-sizing: border-box;
 }
+
+/* Interlude Detail Styles */
+.interlude-detail { padding: 12px 8px; }
+.interlude-ribbon {
+    display: inline-block;
+    background: linear-gradient(90deg, #fff0f6, #f8f9fa);
+    color: #7c2f4b;
+    border: 1px solid #f3d1dc;
+    padding: 6px 10px;
+    border-radius: 8px;
+    font-weight: 700;
+    margin-bottom: 12px;
+}
+/* 魔法阵容器 */
+.interlude-circle {
+    position: relative;
+    width: min(560px, 88vw);
+    height: min(560px, 88vw);
+    margin: 12px auto 0 auto;
+}
+.interlude-magic {
+    position: absolute;
+    inset: 0;
+}
+.interlude-chip {
+    position: absolute;
+    min-width: 120px;
+    transform: translate(-50%, -50%);
+    background: #fff;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 10px;
+    text-align: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.05);
+    cursor: pointer;
+    transition: transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
+.interlude-chip:hover {
+    /* 保持位置不动，仅增强光影与描边 */
+    box-shadow: 0 6px 16px rgba(0,0,0,0.08);
+    border-color: var(--primary-color);
+}
+.interlude-chip__title { font-weight: 600; color: #333; }
+.interlude-chip__progress { font-size: 12px; color: var(--text-color-secondary); margin-top: 4px; }
+.interlude-chip.completed { border-color: #40c057; }
+
+/* 将五个知识点放置到圆周五角星的五个顶点（R≈42%） */
+.interlude-chip--pos1 { left: 50%; top: 10%; }
+.interlude-chip--pos2 { left: 88%; top: 38%; }
+.interlude-chip--pos3 { left: 73.5%; top: 82%; }
+.interlude-chip--pos4 { left: 26.5%; top: 82%; }
+.interlude-chip--pos5 { left: 12%; top: 38%; }
+
+@media (max-width: 520px) {
+    .interlude-chip { min-width: 100px; font-size: 14px; }
+}
+
+/* 第二章菱形布局：四个大虚框（列）菱形对称，内部知识点每行两个 */
+.skill-tree-detail--stage2 .stage2-diamond {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 28px 28px;
+    justify-items: center;
+    align-items: start;
+    padding: 10px 0;
+}
+.skill-tree-detail--stage2 .skill-tree-column.two-per-row {
+    width: min(520px, 90%);
+}
+.skill-tree-detail--stage2 .skill-tree-column.two-per-row .skill-tree-column__nodes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+.skill-tree-detail--stage2 .skill-tree-column.two-per-row .skill-node { min-height: 56px; }
+
+/* 顶、左、右、底 四个位置（网格定位） */
+.skill-tree-detail--stage2 .stage2-pos-top { grid-column: 2; grid-row: 1; }
+.skill-tree-detail--stage2 .stage2-pos-left { grid-column: 1; grid-row: 2; }
+.skill-tree-detail--stage2 .stage2-pos-right { grid-column: 3; grid-row: 2; }
+.skill-tree-detail--stage2 .stage2-pos-bottom { grid-column: 2; grid-row: 3; }
 
 .skill-tree-card.locked {
     background-color: #f3f4f6;

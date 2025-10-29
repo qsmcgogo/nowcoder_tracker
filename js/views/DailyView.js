@@ -14,6 +14,7 @@ export class DailyView {
         this.state = state;
         this.apiService = apiService;
         this.todayInfoExtras = null;
+        this.currentVideoEmbedSrc = '';
         
         this.init();
     }
@@ -21,6 +22,12 @@ export class DailyView {
     init() {
         this.bindEvents();
         this.tooltip = document.getElementById('calendar-tooltip'); // 获取 tooltip 元素
+        // 预先绑定内联视频按钮，避免数据加载失败时无法绑定
+        this.setupInlineVideoControls();
+        // 若已是管理员（例如从其他页切换过来），优先挂载工具栏
+        if (this.state && this.state.isAdmin) {
+            this.setupAdminSharelinkControls();
+        }
     }
     
     bindEvents() {
@@ -35,6 +42,9 @@ export class DailyView {
         eventBus.on(EVENTS.USER_LOGIN, (userData) => {
             // 不需要重复设置，因为已经在loadAndRenderDailyTab中设置了
             this.renderUserSummaryPanel(userData);
+            if (this.state && this.state.isAdmin) {
+                this.setupAdminSharelinkControls();
+            }
         });
     }
     
@@ -63,6 +73,10 @@ export class DailyView {
                     acCount: 0
                 } : null;
                 
+                // 根据是否有可用视频地址，更新展开按钮状态（占位逻辑：无题或题目URL为空 → 视为无视频）
+                this.currentVideoEmbedSrc = (problem && problem.url) ? '//player.bilibili.com/player.html?isOutside=true&aid=115432346357527&bvid=BV1ajsXzUEqj&cid=33371785303&p=1' : '';
+                this.updateInlineVideoToggleState();
+
                 if (problem) {
                     this.renderDailyProblem(problem, false, false);
                 } else {
@@ -109,6 +123,9 @@ export class DailyView {
             } : null;
             
             this.state.setCurrentDailyProblem(problem);
+            // 占位：若无题或题目URL为空，则认为无视频，反之使用写死的B站嵌入
+            this.currentVideoEmbedSrc = (problem && problem.url) ? '//player.bilibili.com/player.html?isOutside=true&aid=115432346357527&bvid=BV1ajsXzUEqj&cid=33371785303&p=1' : '';
+            this.updateInlineVideoToggleState();
             
             // 获取用户数据（兼容两种返回结构）
             let user = responseData.user || null;
@@ -121,9 +138,10 @@ export class DailyView {
             this.renderUserSummaryPanel(user);
             
             // 显示调试面板（仅管理员）
-            if (this.state.loggedInUserId === '919247') {
+            if (this.state.isAdmin) {
                 const debugPanel = document.getElementById('debug-panel');
                 if (debugPanel) debugPanel.style.display = 'block';
+                this.setupAdminSharelinkControls();
             }
             
             // 渲染每日一题
@@ -139,8 +157,16 @@ export class DailyView {
             this.renderCalendarWithTodayInfo(responseData);
             
             eventBus.emit(EVENTS.DAILY_PROBLEM_LOADED, { problem, user });
-            // 初始化内联视频播放器的展开/收起
+            // 初始化内联视频播放器的展开/收起（今日若为 2025-10-01~07，也置为无视频，按钮置灰）
             this.setupInlineVideoControls();
+            const today = new Date();
+            if (today.getFullYear() === 2025 && (today.getMonth() + 1) === 10 && today.getDate() >= 1 && today.getDate() <= 7) {
+                this.currentVideoEmbedSrc = '';
+                this.updateInlineVideoToggleState();
+            }
+            if (this.state.isAdmin) {
+                this.setupAdminSharelinkControls();
+            }
         } catch (error) {
             console.error('Failed to load daily tab data:', error);
             this.renderDailyError(`加载失败: ${error.message}`);
@@ -154,16 +180,20 @@ export class DailyView {
     // 内联视频播放器（使用写死的B站嵌入地址）
     setupInlineVideoControls() {
         const toggleBtn = document.getElementById('inline-video-toggle');
+        const layout = document.getElementById('inline-video-layout');
         const container = document.getElementById('inline-video-container');
-        if (!toggleBtn || !container) return;
+        const sidebar = document.getElementById('inline-video-sidebar');
+        if (!toggleBtn || !layout || !container || !sidebar) return;
 
         if (toggleBtn.dataset.bound) return;
         toggleBtn.dataset.bound = '1';
 
-        const EMBED_SRC = '//player.bilibili.com/player.html?isOutside=true&aid=115432346357527&bvid=BV1ajsXzUEqj&cid=33371785303&p=1';
-
         const createSafeIframe = () => {
-            const url = EMBED_SRC.startsWith('//') ? `https:${EMBED_SRC}` : EMBED_SRC;
+            const raw = this.currentVideoEmbedSrc || '';
+            if (!raw) return null;
+            let url = raw.startsWith('//') ? `https:${raw}` : raw;
+            // 追加时间戳避免播放器缓存
+            url += (url.includes('?') ? '&' : '?') + `_ts=${Date.now()}`;
             try {
                 const u = new URL(url);
                 const allowedHosts = new Set(['player.bilibili.com']);
@@ -183,25 +213,235 @@ export class DailyView {
             return iframe;
         };
 
-        toggleBtn.addEventListener('click', () => {
-            const isOpen = container.style.display !== 'none';
+        toggleBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            const isOpen = layout.style.display !== 'none';
             if (isOpen) {
-                container.style.display = 'none';
+                layout.style.display = 'none';
                 container.innerHTML = '';
                 toggleBtn.textContent = '展开播放';
                 return;
             }
+            container.innerHTML = '';
+            layout.style.display = 'flex';
+            toggleBtn.textContent = '收起';
 
-            const iframe = createSafeIframe();
-            if (!iframe) {
-                alert('视频地址异常或不受信任的平台');
+            // 渲染右侧年月-日列表
+            this.renderInlineVideoSidebar(sidebar, (dateStr) => {
+                // 点击日播放视频：每次重建 iframe 以应用对应日期的地址
+                container.innerHTML = '';
+                const ifr = createSafeIframe();
+                if (ifr) container.appendChild(ifr);
+                // 高亮选择
+                sidebar.querySelectorAll('.video-day').forEach(el => el.classList.remove('is-selected'));
+                const dayEl = sidebar.querySelector(`[data-date="${dateStr}"]`);
+                if (dayEl) dayEl.classList.add('is-selected');
+                // 滚动到播放器顶部
+                container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            });
+        });
+    }
+
+    // 根据是否有有效视频地址更新按钮可用状态
+    updateInlineVideoToggleState() {
+        const toggleBtn = document.getElementById('inline-video-toggle');
+        const layout = document.getElementById('inline-video-layout');
+        if (!toggleBtn || !layout) return;
+        const hasVideo = !!this.currentVideoEmbedSrc;
+        if (!hasVideo) {
+            toggleBtn.classList.add('is-disabled');
+            toggleBtn.setAttribute('aria-disabled', 'true');
+            // 收起并清空
+            layout.style.display = 'none';
+            const container = document.getElementById('inline-video-container');
+            if (container) container.innerHTML = '';
+            toggleBtn.textContent = '展开播放';
+        } else {
+            toggleBtn.classList.remove('is-disabled');
+            toggleBtn.removeAttribute('aria-disabled');
+        }
+    }
+
+    // --- 管理员：设置某日分享链接 ---
+    setupAdminSharelinkControls() {
+        if (!this.state.isAdmin) return;
+        const banner = document.getElementById('daily-video-banner');
+        if (!banner) return;
+        // 工具栏：放在“视频讲解”横幅的上方
+        const parent = banner.parentElement;
+        let toolbar = document.getElementById('admin-sharelink-toolbar');
+        if (!toolbar) {
+            toolbar = document.createElement('div');
+            toolbar.id = 'admin-sharelink-toolbar';
+            toolbar.className = 'admin-toolbar';
+            parent.insertBefore(toolbar, banner);
+        }
+
+        // 触发按钮
+        let trigger = document.getElementById('admin-sharelink-trigger');
+        if (!trigger) {
+            trigger = document.createElement('button');
+            trigger.id = 'admin-sharelink-trigger';
+            trigger.className = 'admin-btn';
+            trigger.textContent = '🛠 设置分享链接';
+            toolbar.appendChild(trigger);
+        }
+
+        // 面板容器（紧跟视频横幅后）
+        let panel = document.getElementById('admin-sharelink-panel');
+        if (!panel) {
+            panel = document.createElement('div');
+            panel.id = 'admin-sharelink-panel';
+            panel.className = 'admin-sharelink-panel';
+            panel.style.display = 'none';
+            banner.insertAdjacentElement('afterend', panel);
+            panel.innerHTML = this.buildAdminSharelinkPanelHtml();
+            this.bindAdminSharelinkPanelEvents(panel);
+        }
+
+        trigger.onclick = () => {
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        };
+    }
+
+    buildAdminSharelinkPanelHtml() {
+        const today = new Date();
+        const pad = (n) => String(n).padStart(2, '0');
+        const todayStr = `${today.getFullYear()}-${pad(today.getMonth() + 1)}-${pad(today.getDate())}`;
+        return `
+            <div class="row">
+                <label for="admin-share-date">日期</label>
+                <input id="admin-share-date" type="date" value="${todayStr}">
+            </div>
+            <div class="row">
+                <label for="admin-share-link">嵌入代码</label>
+                <input id="admin-share-link" type="text" placeholder="粘贴B站iframe嵌入代码或src">
+            </div>
+            <div class="admin-sharelink-actions">
+                <button id="admin-share-save" class="admin-btn">保存</button>
+                <button id="admin-share-cancel" class="admin-btn" style="background:#f5f5f5;color:#333;">取消</button>
+            </div>
+        `;
+    }
+
+    bindAdminSharelinkPanelEvents(panel) {
+        const saveBtn = panel.querySelector('#admin-share-save');
+        const cancelBtn = panel.querySelector('#admin-share-cancel');
+        const dateInput = panel.querySelector('#admin-share-date');
+        const linkInput = panel.querySelector('#admin-share-link');
+
+        cancelBtn.onclick = () => { panel.style.display = 'none'; };
+
+        saveBtn.onclick = async () => {
+            const dateStr = dateInput.value;
+            const link = linkInput.value.trim();
+            if (!dateStr || !link) {
+                alert('请填写日期与嵌入代码');
                 return;
             }
-            container.innerHTML = '';
-            container.appendChild(iframe);
-            container.style.display = 'block';
-            toggleBtn.textContent = '收起';
+            try {
+                // 先调用后端接口
+                await this.apiService.setDailyShareLink(dateStr, link);
+
+                // 同步写本地缓存，便于后续读取
+                const cacheKey = 'admin.daily.sharelinks';
+                const map = JSON.parse(localStorage.getItem(cacheKey) || '{}');
+                map[dateStr] = link;
+                localStorage.setItem(cacheKey, JSON.stringify(map));
+
+                alert('已保存');
+                panel.style.display = 'none';
+            } catch (e) {
+                console.error('保存分享链接失败:', e);
+                alert('保存失败：' + e.message);
+            }
+        };
+    }
+
+    renderInlineVideoSidebar(sidebar, onSelectDate) {
+        // 生成从 2025-09 起到本月的年月列表；默认展开当月
+        const now = new Date();
+        const earliest = new Date(2025, 8, 1); // 最早月份：2025-09
+        const ymList = [];
+        let cursor = new Date(now.getFullYear(), now.getMonth(), 1);
+        // 以“年-月”维度比较，确保 2025-09 能被包含进来
+        while (
+            cursor.getFullYear() > earliest.getFullYear() ||
+            (cursor.getFullYear() === earliest.getFullYear() && cursor.getMonth() >= earliest.getMonth())
+        ) {
+            ymList.push({ y: cursor.getFullYear(), m: cursor.getMonth() + 1 });
+            cursor = new Date(cursor.getFullYear(), cursor.getMonth() - 1, 1);
+        }
+
+        const getDaysInMonth = (y, m) => new Date(y, m, 0).getDate();
+        const pad = (n) => String(n).padStart(2, '0');
+        const isNoVideoDate = (y, m, d) => (y === 2025 && m === 10 && d >= 1 && d <= 7);
+
+        sidebar.innerHTML = ymList.map(({ y, m }) => {
+            const isCurrent = y === now.getFullYear() && m === (now.getMonth() + 1);
+            const days = getDaysInMonth(y, m);
+            // 2025-09 从 27 日开始，其它月份从 1 日开始
+            const startDay = (y === 2025 && m === 9) ? 27 : 1;
+            const endDay = isCurrent ? now.getDate() : days;
+            const list = [];
+            for (let day = startDay; day <= endDay; day++) {
+                const dateStr = `${y}-${pad(m)}-${pad(day)}`;
+                const isToday = isCurrent && day === now.getDate();
+                const disabled = isNoVideoDate(y, m, day);
+                list.push(`<div class="video-day${isToday ? ' is-today' : ''}${disabled ? ' is-disabled' : ''}" data-date="${dateStr}" data-disabled="${disabled ? '1' : '0'}">${day}</div>`);
+            }
+            const daysHtml = list.join('');
+            return `
+                <div class="video-ym${isCurrent ? ' open' : ''}" data-ym="${y}-${pad(m)}">
+                    <div class="video-ym__header">${y}年${pad(m)}月 <span>${isCurrent ? '▾' : '▸'}</span></div>
+                    <div class="video-ym__days">${daysHtml}</div>
+                </div>
+            `;
+        }).join('');
+
+        // 绑定折叠
+        sidebar.querySelectorAll('.video-ym').forEach(section => {
+            const header = section.querySelector('.video-ym__header');
+            const daysEl = section.querySelector('.video-ym__days');
+            header.addEventListener('click', () => {
+                const isOpen = section.classList.toggle('open');
+                header.querySelector('span').textContent = isOpen ? '▾' : '▸';
+                if (isOpen) {
+                    daysEl.style.display = 'grid';
+                } else {
+                    daysEl.style.display = 'none';
+                }
+            });
         });
+
+        // 绑定日点击
+        sidebar.querySelectorAll('.video-day').forEach(dayEl => {
+            dayEl.addEventListener('click', (e) => {
+                const dateStr = dayEl.dataset.date;
+                // 禁用项不可点击
+                if (dayEl.dataset.disabled === '1') return;
+                // 根据写死规则：2025-10-01 ~ 2025-10-07 无视频
+                const [y, m, d] = dateStr.split('-').map(n => parseInt(n, 10));
+                const noVideo = (y === 2025 && m === 10 && d >= 1 && d <= 7);
+                if (noVideo) {
+                    this.currentVideoEmbedSrc = '';
+                } else if (y === 2025 && m === 10 && d === 28) {
+                    // 10月28日使用指定的B站嵌入地址
+                    this.currentVideoEmbedSrc = '//player.bilibili.com/player.html?isOutside=true&aid=115449291342267&bvid=BV1tYyqBhE11&cid=33455606947&p=1';
+                } else {
+                    this.currentVideoEmbedSrc = '//player.bilibili.com/player.html?isOutside=true&aid=115432346357527&bvid=BV1ajsXzUEqj&cid=33371785303&p=1';
+                }
+                if (onSelectDate) onSelectDate(dateStr);
+            });
+        });
+
+        // 默认选中：优先今天且未禁用，否则选中当月第一个未禁用的日
+        let defaultEl = sidebar.querySelector('.video-ym.open .video-day.is-today:not(.is-disabled)');
+        if (!defaultEl) {
+            defaultEl = sidebar.querySelector('.video-ym.open .video-day:not(.is-disabled)');
+        }
+        if (defaultEl) defaultEl.click();
     }
     
     renderDailyProblem(problem, isClockToday, hasPassedPreviously = false) {

@@ -166,7 +166,13 @@ export class RankingsView {
         // 根据排行榜类型显示不同的数据
         const rankType = this.state.activeRankingsTab;
         const count = user.count || 0;
-        const consecutiveDays = user.continueDays || 0;
+        let consecutiveDays = user.continueDays || 0;
+        // 清零逻辑：若昨天未打卡且今天未打卡，则显示为0（兼容多种后端字段名）
+        const todayVal = Number(user.todayClockRank ?? user.todayChecked ?? user.todayClocked ?? 0);
+        const yestVal = Number(user.yesterdayClockCount ?? user.yesterdayChecked ?? user.yesterdayClocked ?? 0);
+        if (todayVal === 0 && yestVal === 0) {
+            consecutiveDays = 0;
+        }
 
         // 根据排行榜类型生成数据列
         let statsHtml;
