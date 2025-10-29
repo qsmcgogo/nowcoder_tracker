@@ -1478,6 +1478,21 @@ body .problems-table tbody tr td.status-none {
 }
 .video-tutorial-link:hover { background: #d9efff; text-decoration: none; }
 
+/* Inline video player under daily video banner */
+.inline-video {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: 10px;
+}
+.inline-video iframe {
+    width: 100%;
+    height: 100%;
+    border: 0;
+}
+
 .niukeniang-large-img {
     width: 200px;
     height: auto;

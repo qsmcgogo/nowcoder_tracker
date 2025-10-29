@@ -70,6 +70,8 @@ export class DailyView {
                 }
                 
                 this.renderCalendar();
+                // 初始化内联视频播放器的展开/收起
+                this.setupInlineVideoControls();
                 return;
             }
             
@@ -137,6 +139,8 @@ export class DailyView {
             this.renderCalendarWithTodayInfo(responseData);
             
             eventBus.emit(EVENTS.DAILY_PROBLEM_LOADED, { problem, user });
+            // 初始化内联视频播放器的展开/收起
+            this.setupInlineVideoControls();
         } catch (error) {
             console.error('Failed to load daily tab data:', error);
             this.renderDailyError(`加载失败: ${error.message}`);
@@ -145,6 +149,59 @@ export class DailyView {
             }
             eventBus.emit(EVENTS.DATA_ERROR, { module: 'daily', error });
         }
+    }
+
+    // 内联视频播放器（使用写死的B站嵌入地址）
+    setupInlineVideoControls() {
+        const toggleBtn = document.getElementById('inline-video-toggle');
+        const container = document.getElementById('inline-video-container');
+        if (!toggleBtn || !container) return;
+
+        if (toggleBtn.dataset.bound) return;
+        toggleBtn.dataset.bound = '1';
+
+        const EMBED_SRC = '//player.bilibili.com/player.html?isOutside=true&aid=115432346357527&bvid=BV1ajsXzUEqj&cid=33371785303&p=1';
+
+        const createSafeIframe = () => {
+            const url = EMBED_SRC.startsWith('//') ? `https:${EMBED_SRC}` : EMBED_SRC;
+            try {
+                const u = new URL(url);
+                const allowedHosts = new Set(['player.bilibili.com']);
+                if (!allowedHosts.has(u.hostname)) return null;
+            } catch (_) { return null; }
+
+            const iframe = document.createElement('iframe');
+            iframe.src = url;
+            iframe.setAttribute('allowfullscreen', 'true');
+            iframe.setAttribute('loading', 'lazy');
+            iframe.setAttribute('referrerpolicy', 'no-referrer');
+            iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-presentation allow-popups');
+            iframe.setAttribute('allow', 'fullscreen; picture-in-picture');
+            iframe.style.width = '100%';
+            iframe.style.height = '100%';
+            iframe.style.border = '0';
+            return iframe;
+        };
+
+        toggleBtn.addEventListener('click', () => {
+            const isOpen = container.style.display !== 'none';
+            if (isOpen) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+                toggleBtn.textContent = '展开播放';
+                return;
+            }
+
+            const iframe = createSafeIframe();
+            if (!iframe) {
+                alert('视频地址异常或不受信任的平台');
+                return;
+            }
+            container.innerHTML = '';
+            container.appendChild(iframe);
+            container.style.display = 'block';
+            toggleBtn.textContent = '收起';
+        });
     }
     
     renderDailyProblem(problem, isClockToday, hasPassedPreviously = false) {
