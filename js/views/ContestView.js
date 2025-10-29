@@ -358,19 +358,49 @@ export class ContestView {
     }
     
     initTooltips() {
-        // 初始化题目提示框
-        const problemLinks = document.querySelectorAll('.problem-link');
+        // 初始化题目标题的原生title提示
+        const problemLinks = document.querySelectorAll('#contests-view .problem-link');
         problemLinks.forEach(link => {
-            const problemId = link.closest('td').dataset.problemId;
-            if (problemId) {
-                link.addEventListener('mouseenter', (e) => {
-                    // 显示题目详细信息提示框
-                    helpers.showCustomTooltip(e.target, e.target.title);
-                });
-                link.addEventListener('mouseleave', () => {
-                    helpers.hideCustomTooltip();
-                });
-            }
+            const td = link.closest('td');
+            const problemId = td && td.dataset.problemId;
+            if (!problemId) return;
+
+            link.addEventListener('mouseenter', (e) => {
+                helpers.showCustomTooltip(e.target, e.target.title);
+            });
+            link.addEventListener('mouseleave', () => {
+                helpers.hideCustomTooltip();
+            });
+        });
+
+        // 初始化难度圈的自定义提示框
+        const circles = document.querySelectorAll('#contests-view .difficulty-circle');
+        circles.forEach(circle => {
+            if (circle.dataset.tooltipBound) return;
+            circle.dataset.tooltipBound = 'true';
+
+            const tooltipContent = circle.getAttribute('data-tooltip');
+            if (!tooltipContent) return;
+
+            const showTooltip = (e) => {
+                helpers.hideCustomTooltip();
+                const tooltip = document.createElement('div');
+                tooltip.className = 'custom-tooltip';
+                tooltip.innerHTML = tooltipContent.replace(/\\n/g, '<br>');
+                document.body.appendChild(tooltip);
+
+                const rect = e.target.getBoundingClientRect();
+                tooltip.style.left = `${rect.left + window.scrollX}px`;
+                tooltip.style.top = `${rect.top + window.scrollY - tooltip.offsetHeight - 5}px`;
+                tooltip.style.opacity = '1';
+            };
+
+            const hideTooltip = () => {
+                helpers.hideCustomTooltip();
+            };
+
+            circle.addEventListener('mouseenter', showTooltip);
+            circle.addEventListener('mouseleave', hideTooltip);
         });
     }
 }
