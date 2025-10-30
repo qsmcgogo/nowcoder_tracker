@@ -123,8 +123,11 @@ export class DailyView {
             } : null;
             
             this.state.setCurrentDailyProblem(problem);
-            // 占位：若无题或题目URL为空，则认为无视频，反之使用写死的B站嵌入
-            this.currentVideoEmbedSrc = (problem && problem.url) ? '//player.bilibili.com/player.html?isOutside=true&aid=115432346357527&bvid=BV1ajsXzUEqj&cid=33371785303&p=1' : '';
+            // 默认不预设视频地址，用户点击具体日期后再取 daylink
+            this.currentVideoEmbedSrc = '';
+            this.updateInlineVideoToggleState();
+            // 默认不预设视频地址，用户点击具体日期后再取 daylink
+            this.currentVideoEmbedSrc = '';
             this.updateInlineVideoToggleState();
             
             // 获取用户数据（兼容两种返回结构）
@@ -157,13 +160,8 @@ export class DailyView {
             this.renderCalendarWithTodayInfo(responseData);
             
             eventBus.emit(EVENTS.DAILY_PROBLEM_LOADED, { problem, user });
-            // 初始化内联视频播放器的展开/收起（今日若为 2025-10-01~07，也置为无视频，按钮置灰）
+            // 初始化内联视频播放器的展开/收起
             this.setupInlineVideoControls();
-            const today = new Date();
-            if (today.getFullYear() === 2025 && (today.getMonth() + 1) === 10 && today.getDate() >= 1 && today.getDate() <= 7) {
-                this.currentVideoEmbedSrc = '';
-                this.updateInlineVideoToggleState();
-            }
             if (this.state.isAdmin) {
                 this.setupAdminSharelinkControls();
             }
@@ -243,24 +241,16 @@ export class DailyView {
         });
     }
 
-    // 根据是否有有效视频地址更新按钮可用状态
+    // 根据是否有有效视频地址更新按钮可用状态（允许无地址也能展开侧栏）
     updateInlineVideoToggleState() {
         const toggleBtn = document.getElementById('inline-video-toggle');
         const layout = document.getElementById('inline-video-layout');
         if (!toggleBtn || !layout) return;
-        const hasVideo = !!this.currentVideoEmbedSrc;
-        if (!hasVideo) {
-            toggleBtn.classList.add('is-disabled');
-            toggleBtn.setAttribute('aria-disabled', 'true');
-            // 收起并清空
-            layout.style.display = 'none';
-            const container = document.getElementById('inline-video-container');
-            if (container) container.innerHTML = '';
-            toggleBtn.textContent = '展开播放';
-        } else {
-            toggleBtn.classList.remove('is-disabled');
-            toggleBtn.removeAttribute('aria-disabled');
-        }
+        // 不再禁用按钮；仅在需要时复位布局与容器
+        const container = document.getElementById('inline-video-container');
+        if (layout.style.display === 'none' && container) container.innerHTML = '';
+        toggleBtn.classList.remove('is-disabled');
+        toggleBtn.removeAttribute('aria-disabled');
     }
 
     // --- 管理员：设置某日分享链接 ---
@@ -376,7 +366,17 @@ export class DailyView {
 
         const getDaysInMonth = (y, m) => new Date(y, m, 0).getDate();
         const pad = (n) => String(n).padStart(2, '0');
-        const isNoVideoDate = (y, m, d) => (y === 2025 && m === 10 && d >= 1 && d <= 7);
+        // 提取嵌入 src 的工具
+        const extractEmbedSrc = (raw) => {
+            if (!raw) return '';
+            const text = String(raw);
+            const m1 = text.match(/src\s*=\s*"([^"]+)"/i);
+            const m2 = text.match(/src\s*=\s*'([^']+)'/i);
+            const fromAttr = (m1 && m1[1]) || (m2 && m2[1]);
+            if (fromAttr) return fromAttr.trim();
+            if (/^(https?:)?\/\//i.test(text)) return text.trim();
+            return '';
+        };
 
         sidebar.innerHTML = ymList.map(({ y, m }) => {
             const isCurrent = y === now.getFullYear() && m === (now.getMonth() + 1);
@@ -388,8 +388,7 @@ export class DailyView {
             for (let day = startDay; day <= endDay; day++) {
                 const dateStr = `${y}-${pad(m)}-${pad(day)}`;
                 const isToday = isCurrent && day === now.getDate();
-                const disabled = isNoVideoDate(y, m, day);
-                list.push(`<div class="video-day${isToday ? ' is-today' : ''}${disabled ? ' is-disabled' : ''}" data-date="${dateStr}" data-disabled="${disabled ? '1' : '0'}">${day}</div>`);
+                list.push(`<div class="video-day${isToday ? ' is-today' : ''}" data-date="${dateStr}" data-disabled="0"></div>`);
             }
             const daysHtml = list.join('');
             return `
@@ -409,13 +408,47 @@ export class DailyView {
                 header.querySelector('span').textContent = isOpen ? '▾' : '▸';
                 if (isOpen) {
                     daysEl.style.display = 'grid';
+                    // 首次展开时加载该月的 shareLink 并标记禁用态
+                    if (section.dataset.loaded !== '1') {
+                        section.dataset.loaded = '1';
+                        const ym = section.getAttribute('data-ym');
+                        const [yy, mm] = ym.split('-').map(n => parseInt(n, 10));
+                        this.apiService.fetchMonthInfo(yy, mm).then(arr => {
+                            const map = new Map();
+                            (arr || []).forEach(d => {
+                                // 后端字段：createTime 和 shareLink
+                                let date = new Date(d.createTime);
+                                const ds = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+                                map.set(ds, d.shareLink || '');
+                            });
+                            daysEl.querySelectorAll('.video-day').forEach(dayEl => {
+                                const ds = dayEl.getAttribute('data-date');
+                                const raw = map.get(ds) || '';
+                                const src = extractEmbedSrc(raw);
+                                if (src) {
+                                    dayEl.dataset.embedSrc = src;
+                                    dayEl.dataset.disabled = '0';
+                                } else if (raw && String(raw).trim()) {
+                                    dayEl.dataset.embedRaw = String(raw).trim();
+                                    dayEl.dataset.disabled = '0';
+                                } else {
+                                    dayEl.classList.add('is-disabled');
+                                    dayEl.dataset.disabled = '1';
+                                }
+                                // 渲染日号文本
+                                if (!dayEl.textContent) {
+                                    dayEl.textContent = String(parseInt(ds.split('-')[2], 10));
+                                }
+                            });
+                        }).catch(() => {});
+                    }
                 } else {
                     daysEl.style.display = 'none';
                 }
             });
         });
 
-        // 绑定日点击（调用后端获取当日嵌入代码）
+        // 绑定日点击（优先使用 monthinfo 预加载的 shareLink；若只有占位raw则回退请求 daylink 解析）
         sidebar.querySelectorAll('.video-day').forEach(dayEl => {
             dayEl.addEventListener('click', async (e) => {
                 e.preventDefault();
@@ -424,8 +457,20 @@ export class DailyView {
                 // 禁用项不可点击
                 if (dayEl.dataset.disabled === '1') return;
                 try {
-                    const { src } = await this.apiService.fetchDailyDayLink(dateStr);
+                    let src = dayEl.dataset.embedSrc || '';
+                    if (!src && dayEl.dataset.embedRaw) {
+                        const r = await this.apiService.fetchDailyDayLink(dateStr);
+                        src = r.src || '';
+                        if (src) dayEl.dataset.embedSrc = src;
+                    }
                     this.currentVideoEmbedSrc = src || '';
+                    // 若为空，则将该日置为禁用并清空播放器
+                    if (!this.currentVideoEmbedSrc) {
+                        dayEl.classList.add('is-disabled');
+                        dayEl.dataset.disabled = '1';
+                        const container = document.getElementById('inline-video-container');
+                        if (container) container.innerHTML = '';
+                    }
                 } catch (_) {
                     this.currentVideoEmbedSrc = '';
                 }
@@ -433,12 +478,46 @@ export class DailyView {
             });
         });
 
-        // 默认选中：优先今天且未禁用，否则选中当月第一个未禁用的日
-        let defaultEl = sidebar.querySelector('.video-ym.open .video-day.is-today:not(.is-disabled)');
-        if (!defaultEl) {
-            defaultEl = sidebar.querySelector('.video-ym.open .video-day:not(.is-disabled)');
+        // 预加载当前打开月份的数据后再进行默认选中
+        const openSection = sidebar.querySelector('.video-ym.open');
+        if (openSection) {
+            const [yy, mm] = openSection.getAttribute('data-ym').split('-').map(n => parseInt(n, 10));
+            this.apiService.fetchMonthInfo(yy, mm).then(arr => {
+                const map = new Map();
+                (arr || []).forEach(d => {
+                    let date = new Date(d.createTime);
+                    const ds = `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+                    map.set(ds, d.shareLink || '');
+                });
+                const daysEl = openSection.querySelector('.video-ym__days');
+                daysEl.querySelectorAll('.video-day').forEach(dayEl => {
+                    const ds = dayEl.getAttribute('data-date');
+                    const raw = map.get(ds) || '';
+                    const src = extractEmbedSrc(raw);
+                    if (src) {
+                        dayEl.dataset.embedSrc = src;
+                        dayEl.dataset.disabled = '0';
+                    } else if (raw && String(raw).trim()) {
+                        dayEl.dataset.embedRaw = String(raw).trim();
+                        dayEl.dataset.disabled = '0';
+                    } else {
+                        dayEl.classList.add('is-disabled');
+                        dayEl.dataset.disabled = '1';
+                    }
+                    if (!dayEl.textContent) {
+                        dayEl.textContent = String(parseInt(ds.split('-')[2], 10));
+                    }
+                });
+                // 默认选中：优先今天且未禁用，否则选中当月第一个未禁用的日
+                let defaultEl = openSection.querySelector('.video-day.is-today:not(.is-disabled)');
+                if (!defaultEl) defaultEl = openSection.querySelector('.video-day:not(.is-disabled)');
+                if (defaultEl) defaultEl.click();
+            }).catch(() => {
+                // 即使失败也尝试点击一个日
+                let defaultEl = openSection.querySelector('.video-day');
+                if (defaultEl) defaultEl.click();
+            });
         }
-        if (defaultEl) defaultEl.click();
     }
     
     renderDailyProblem(problem, isClockToday, hasPassedPreviously = false) {

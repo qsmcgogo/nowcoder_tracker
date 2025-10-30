@@ -170,7 +170,7 @@ export class AchievementsView {
                 if (isUnlocked && b.finishedTime) {
                     const t = document.createElement('span');
                     t.className = 'achv-finish-time';
-                    t.textContent = this.formatTime(b.finishedTime);
+                    t.textContent = `完成于 ${this.formatTime(b.finishedTime)}`;
                     header.appendChild(t);
                 }
                 title.appendChild(header);
@@ -302,7 +302,7 @@ export class AchievementsView {
                 if (last && last.finishedTime) {
                     const t = document.createElement('span');
                     t.className = 'achv-finish-time';
-                    t.textContent = this.formatTime(last.finishedTime);
+                    t.textContent = `完成于 ${this.formatTime(last.finishedTime)}`;
                     header.appendChild(t);
                 }
                 header.appendChild(span);

@@ -1007,6 +1007,9 @@ export class SkillTreeView {
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
 
+        // 附加题（需要在列表中加重点标识）
+        const extraQuestionIds = new Set(['1497534', '11506730', '11269123']);
+
         const problemsHtml = problems.map(problem => {
             const isSolved = problem.solved;
             const depTagIds = parseDeps(problem);
@@ -1026,6 +1029,10 @@ export class SkillTreeView {
             if (problem.score) {
                  scoreHtml = `<span class="problem-score">${problem.score}分</span>`;
             }
+
+            // 附加题标识（根据 question_id/qid 判断）
+            const qid = String(problem.qid || problem.questionId || '');
+            const extraFlag = extraQuestionIds.has(qid) ? '<span class="problem-extra-flag" title="附加题">★</span>' : '';
 
             // Tooltip content for lock reasons, using Chinese node names
             let lockTooltipInner = '';
@@ -1047,7 +1054,7 @@ export class SkillTreeView {
                 <li class="problem-item ${problemClass}"${lockAttr}>
                     <a ${linkAttrs}>
                         <span class="problem-status-icon">${isSolved ? '✔' : ''}</span>
-                        <span class="problem-title">${problem.name}</span>
+                        ${extraFlag}<span class="problem-title">${problem.name}</span>
                         ${scoreHtml}
                         ${isLocked ? '<span class="problem-lock-icon" aria-label="未解锁" title="未解锁"><svg class="icon-lock" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 1a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 9V6a3 3 0 1 1 6 0v4H9z"></path></svg></span>' : ''}
                     </a>
