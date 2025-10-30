@@ -90,6 +90,7 @@ app.use('/problem/tracker/clock/add', manualProxyHandler('/problem/tracker/clock
 app.use('/problem/tracker/clock/add-share-link', manualProxyHandler('/problem/tracker/clock/add-share-link'));
 app.use('/problem/tracker/clock/list', manualProxyHandler('/problem/tracker/clock/list'));
 app.use('/problem/tracker/clock/monthinfo', manualProxyHandler('/problem/tracker/clock/monthinfo'));
+app.use('/problem/tracker/clock/daylink', manualProxyHandler('/problem/tracker/clock/daylink'));
 app.use('/problem/tracker/addcheckin', manualProxyHandler('/problem/tracker/addcheckin'));
 app.use('/problem/tracker/badge/userInfo', manualProxyHandler('/problem/tracker/badge/userInfo'));
 app.use('/problem/tracker/badge/list', manualProxyHandler('/problem/tracker/badge/list'));
