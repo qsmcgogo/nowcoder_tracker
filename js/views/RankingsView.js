@@ -166,7 +166,8 @@ export class RankingsView {
         // 根据排行榜类型显示不同的数据
         const rankType = this.state.activeRankingsTab;
         const count = user.count || 0;
-        let consecutiveDays = user.continueDays || 0;
+        // 兼容 continueday/continueDay/continueDays
+        let consecutiveDays = Number(user.continueday ?? user.continueDay ?? user.continueDays ?? 0) || 0;
         // 清零逻辑只在后端显式提供“今天/昨天”状态时才启用，避免列表页无该字段时被误清零
         const hasToday = ('todayClockRank' in user) || ('todayChecked' in user) || ('todayClocked' in user);
         const hasYest = ('yesterdayClockCount' in user) || ('yesterdayChecked' in user) || ('yesterdayClocked' in user);

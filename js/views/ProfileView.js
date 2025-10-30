@@ -50,6 +50,15 @@ export class ProfileView {
 
             const skillTreeStats = this._calculateSkillTreeStats(skillProgressData.nodeProgress);
 
+            // 连续打卡：若“今天”和“昨天”都未打卡则置 0，否则使用 continueday 参数（多名兼容）
+            const rawConsecutive = Number(checkinData?.continueday ?? checkinData?.continueDay ?? checkinData?.continueDays ?? 0) || 0;
+            const todayVal = (checkinData && (checkinData.todayClockRank ?? checkinData.todayChecked ?? checkinData.todayClocked))
+                ;
+            const yestVal = (checkinData && (checkinData.yesterdayClockCount ?? checkinData.yesterdayChecked ?? checkinData.yesterdayClocked))
+                ;
+            const bothFlagsPresent = (todayVal !== undefined && yestVal !== undefined);
+            const fixedConsecutive = (bothFlagsPresent && Number(todayVal) === 0 && Number(yestVal) === 0) ? 0 : rawConsecutive;
+
             const userData = {
                 uid: problemUser.uid,
                 name: problemUser.name,
@@ -58,7 +67,7 @@ export class ProfileView {
                 rank: problemUser.place === 0 ? '1w+' : problemUser.place,
                 checkin: {
                     count: checkinData?.count || 0,
-                    continueDays: checkinData?.continueDays || 0
+                    continueDays: fixedConsecutive
                 },
                 skillTree: { 
                     completedChapters: skillTreeStats.completedChapters 
