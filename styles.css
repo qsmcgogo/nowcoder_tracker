@@ -3149,12 +3149,9 @@ body.dark-theme .profile-avatar {
 
 /* 第二章菱形布局：四个大虚框（列）菱形对称，内部知识点每行两个 */
 .skill-tree-detail--stage2 .stage2-diamond {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 28px 28px;
-    justify-items: center;
-    align-items: start;
+    display: block; /* 改为绝对定位布局 */
+    position: relative;
+    height: 520px;
     padding: 10px 0;
 }
 .stage2-diamond { position: relative; }
@@ -3169,6 +3166,15 @@ body.dark-theme .profile-avatar {
     pointer-events: none;
 }
 .stage2-diamond .skill-tree-column { position: relative; z-index: 1; }
+
+/* 将四个板块定位到菱形四个顶点附近 */
+.skill-tree-detail--stage2 .stage2-pos-top { position: absolute; left: 50%; top: 12%; transform: translate(-50%, -50%); }
+.skill-tree-detail--stage2 .stage2-pos-left { position: absolute; left: 22%; top: 50%; transform: translate(-50%, -50%); }
+.skill-tree-detail--stage2 .stage2-pos-right { position: absolute; left: 78%; top: 50%; transform: translate(-50%, -50%); }
+.skill-tree-detail--stage2 .stage2-pos-bottom { position: absolute; left: 50%; top: 88%; transform: translate(-50%, -50%); }
+
+/* 调整第二章详情中四个板块的宽度，避免过宽互相遮挡 */
+.skill-tree-detail--stage2 .skill-tree-column.two-per-row { width: 420px; }
 .skill-tree-detail--stage2 .skill-tree-column.two-per-row {
     width: min(520px, 90%);
 }
