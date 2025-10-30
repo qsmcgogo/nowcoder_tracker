@@ -3160,7 +3160,11 @@ body.dark-theme .profile-avatar {
 .stage2-diamond { position: relative; }
 .stage2-diamond .stage2-diamond-decor {
     position: absolute;
-    inset: 0;
+    /* 缩小装饰范围，使顶点更贴近四个虚框 */
+    left: 18%;
+    right: 18%;
+    top: 6%;
+    bottom: 10%;
     z-index: 0;
     pointer-events: none;
 }
