@@ -1092,6 +1092,8 @@ export class SkillTreeView {
                     this.currentStageProgress.nodeProgress[tagId] = res.progress || 0;
                     // 仅重新渲染当前面板内容，避免跳回到概览
                     this.showPanelContent(staticNodeData, tagInfo, false);
+            // 如果当前是间章视图，顺手把对应按钮的进度和底色更新一下
+            this.updateInterludeChip(tagId, this.activeNodeId);
                     // 如需刷新概览，外部返回后会统一刷新
                 } finally {
                     refreshBtn.disabled = false;
@@ -1133,6 +1135,28 @@ export class SkillTreeView {
             li.addEventListener('mousemove', move);
             li.addEventListener('mouseleave', hide);
         });
+    }
+
+    // 在“间章：拂晓”页面上，刷新某个知识点后同步更新对应按钮
+    updateInterludeChip(tagId, nodeId) {
+        try {
+            const pctRaw = this.currentStageProgress && this.currentStageProgress.nodeProgress
+                ? this.currentStageProgress.nodeProgress[tagId] || 0 : 0;
+            const pct = pctRaw <= 1 ? Math.round(pctRaw * 100) : Math.round(pctRaw);
+            const chip = document.querySelector(`.interlude-chip[data-id="${nodeId}"]`);
+            if (!chip) return; // 不是在间章视图
+            const text = chip.querySelector('.skill-node__progress-text');
+            if (text) text.textContent = `${pct}%`;
+            // 渐变填充
+            if (pct > 0 && pct < 100) {
+                chip.style.background = `linear-gradient(to right, var(--primary-color-light) ${pct}%, #fff ${pct}%)`;
+            } else {
+                chip.style.background = pct >= 100 ? 'var(--primary-color-light)' : '#fff';
+            }
+            // 完成态样式
+            if (pct >= 100) chip.classList.add('skill-node--completed');
+            else chip.classList.remove('skill-node--completed');
+        } catch (_) {}
     }
 
     getDifficultyInfo(score) {
