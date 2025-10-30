@@ -609,10 +609,14 @@ export class SkillTreeView {
                     <svg class="interlude-magic" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
                         <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.5"></circle>
                         <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(124,47,75,0.15)" stroke-width="1"></circle>
-                        <!-- 五角星 -->
-                        <path d="M50,10 L88,38 L74,82 L26,82 L12,38 Z" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.2"></path>
-                        <!-- 内五角星 -->
-                        <path d="M50,22 L79,43 L68,76 L32,76 L21,43 Z" fill="none" stroke="rgba(124,47,75,0.15)" stroke-width="1"></path>
+                        <!-- 五角形轮廓（外） -->
+                        <path d="M50,10 L88,38 L74,82 L26,82 L12,38 Z" fill="none" stroke="rgba(124,47,75,0.18)" stroke-width="1.1"></path>
+                        <!-- 五角形轮廓（内） -->
+                        <path d="M50,22 L79,43 L68,76 L32,76 L21,43 Z" fill="none" stroke="rgba(124,47,75,0.12)" stroke-width="1"></path>
+                        <!-- 五角星（外顶点连线） -->
+                        <path d="M50,10 L74,82 L12,38 L88,38 L26,82 Z" fill="none" stroke="rgba(124,47,75,0.30)" stroke-width="1.4"></path>
+                        <!-- 五角星（内顶点连线） -->
+                        <path d="M50,22 L68,76 L21,43 L79,43 L32,76 Z" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.2"></path>
                     </svg>
                     ${chips}
                 </div>
