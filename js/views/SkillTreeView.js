@@ -615,8 +615,6 @@ export class SkillTreeView {
                         <path d="M50,22 L79,43 L68,76 L32,76 L21,43 Z" fill="none" stroke="rgba(124,47,75,0.12)" stroke-width="1"></path>
                         <!-- 五角星（外顶点连线） -->
                         <path d="M50,10 L74,82 L12,38 L88,38 L26,82 Z" fill="none" stroke="rgba(124,47,75,0.30)" stroke-width="1.4"></path>
-                        <!-- 五角星（内顶点连线） -->
-                        <path d="M50,22 L68,76 L21,43 L79,43 L32,76 Z" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.2"></path>
                     </svg>
                     ${chips}
                 </div>
