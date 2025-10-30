@@ -167,11 +167,15 @@ export class RankingsView {
         const rankType = this.state.activeRankingsTab;
         const count = user.count || 0;
         let consecutiveDays = user.continueDays || 0;
-        // 清零逻辑：若昨天未打卡且今天未打卡，则显示为0（兼容多种后端字段名）
-        const todayVal = Number(user.todayClockRank ?? user.todayChecked ?? user.todayClocked ?? 0);
-        const yestVal = Number(user.yesterdayClockCount ?? user.yesterdayChecked ?? user.yesterdayClocked ?? 0);
-        if (todayVal === 0 && yestVal === 0) {
-            consecutiveDays = 0;
+        // 清零逻辑只在后端显式提供“今天/昨天”状态时才启用，避免列表页无该字段时被误清零
+        const hasToday = ('todayClockRank' in user) || ('todayChecked' in user) || ('todayClocked' in user);
+        const hasYest = ('yesterdayClockCount' in user) || ('yesterdayChecked' in user) || ('yesterdayClocked' in user);
+        if (hasToday && hasYest) {
+            const todayVal = Number(user.todayClockRank ?? user.todayChecked ?? user.todayClocked ?? 0);
+            const yestVal = Number(user.yesterdayClockCount ?? user.yesterdayChecked ?? user.yesterdayClocked ?? 0);
+            if (todayVal === 0 && yestVal === 0) {
+                consecutiveDays = 0;
+            }
         }
 
         // 根据排行榜类型生成数据列
