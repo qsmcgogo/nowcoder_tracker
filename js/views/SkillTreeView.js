@@ -1090,9 +1090,9 @@ export class SkillTreeView {
                     // 更新内存中的进度
                     if (!this.currentStageProgress.nodeProgress) this.currentStageProgress.nodeProgress = {};
                     this.currentStageProgress.nodeProgress[tagId] = res.progress || 0;
-                    // 重新渲染当前面板与概要
+                    // 仅重新渲染当前面板内容，避免跳回到概览
                     this.showPanelContent(staticNodeData, tagInfo, false);
-                    this.render();
+                    // 如需刷新概览，外部返回后会统一刷新
                 } finally {
                     refreshBtn.disabled = false;
                 }
