@@ -258,28 +258,36 @@ export class SkillTreeView {
             }
             this.currentStageProgress = progressData; // 存储进度, 格式为 { nodeProgress: { ... } }
 
+            // 工具：将进度标准化为 0~100
+            const pctOf = (tagId) => {
+                const raw = (this.currentStageProgress.nodeProgress || {})[tagId] || 0;
+                return raw <= 1 ? raw * 100 : raw;
+            };
+            // 计算某一章所有知识点的平均进度
+            const calcStageAvg = (stage) => {
+                if (!stage || !stage.columns || stage.columns.length === 0) return 0;
+                const ids = stage.columns.flatMap(c => c.nodeIds || []);
+                if (ids.length === 0) return 0;
+                const vals = ids.map(n => pctOf(nodeIdToTagId[n]));
+                return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+            };
+
+            const stage1Obj = tree.stages.find(s => s.id === 'stage-1');
+            const stage2Obj = tree.stages.find(s => s.id === 'stage-2');
+            const stage3Obj = tree.stages.find(s => s.id === 'stage-3');
+            const stage1Avg = calcStageAvg(stage1Obj);
+            const stage2Avg = calcStageAvg(stage2Obj);
+            const stage3Avg = calcStageAvg(stage3Obj);
+            const interludeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
+            const interludeAvg = Math.round(interludeIds.map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / interludeIds.length);
+
             let previousStageProgress = 100; // 第一关的前置视为已解锁，用于统一逻辑
             const stagesToRender = tree.stages.slice(0, 3);
 
             const stagesHtml = stagesToRender.map(stage => {
+                // 每章通关率 = 该章所有知识点进度的平均值
                 let progress = 0;
-                if (stage.id === 'stage-1') {
-                    // 晨曦微光的进度 = 所有知识点进度的平均值
-                    const allStageNodeIds = stage.columns.flatMap(c => c.nodeIds);
-                    const values = allStageNodeIds.map(nodeId => {
-                        const tagId = nodeIdToTagId[nodeId];
-                        const v = this.currentStageProgress.nodeProgress[tagId] || 0;
-                        return v <= 1 ? v * 100 : v; // 后端返回0-1时转为百分比
-                    });
-                    if (isLoggedIn && values.length > 0) {
-                        const avg = values.reduce((a, b) => a + b, 0) / values.length;
-                        progress = Math.round(avg);
-                    } else {
-                        progress = 0;
-                    }
-                } else {
-                    progress = 0;
-                }
+                if (stage.id === 'stage-1') progress = stage1Avg; else if (stage.id === 'stage-2') progress = stage2Avg; else if (stage.id === 'stage-3') progress = stage3Avg; else progress = 0;
                 
                 // 第二章的解锁规则：第一章达到≥70%
                 let isLocked;
@@ -288,31 +296,14 @@ export class SkillTreeView {
                     isLocked = true;
                     lockReason = '请先登录开启技能树之旅';
                 } else if (stage.id === 'stage-2') {
-                    const stage1Progress = stagesToRender[0] && stagesToRender[0].id === 'stage-1' ? progress : 0;
-                    // 注意：这里的 progress 变量当前就是当前 stage 的进度。为避免混淆，单独读取 earlierProgress
-                    // 重新按节点计算第一章平均值
-                    const s1 = tree.stages.find(s => s.id === 'stage-1');
-                    const s1NodeIds = s1.columns.flatMap(c => c.nodeIds);
-                    const s1Vals = s1NodeIds.map(n => {
-                        const v = this.currentStageProgress.nodeProgress[nodeIdToTagId[n]] || 0;
-                        return v <= 1 ? v * 100 : v;
-                    });
-                    const s1Avg = s1Vals.length > 0 ? Math.round(s1Vals.reduce((a, b) => a + b, 0) / s1Vals.length) : 0;
-                    const meetProgress = s1Avg >= 70;
+                    const meetProgress = stage1Avg >= 70;
                     const meetSolved = solvedCount >= 50;
                     isLocked = isAdmin ? false : !(meetProgress || meetSolved);
                     if (isLocked) {
                         lockReason = `第一章平均进度达到70% <br>或<br>tracker累计通过50题：${solvedCount} / 50 <span class=\"dep-cross\">×</span>`;
                     }
                 } else if (stage.id === 'stage-3') {
-                    const s2 = tree.stages.find(s => s.id === 'stage-2');
-                    const s2NodeIds = (s2 && s2.columns) ? s2.columns.flatMap(c => c.nodeIds) : [];
-                    const s2Vals = s2NodeIds.map(n => {
-                        const v = this.currentStageProgress.nodeProgress[nodeIdToTagId[n]] || 0;
-                        return v <= 1 ? v * 100 : v;
-                    });
-                    const s2Avg = s2Vals.length > 0 ? Math.round(s2Vals.reduce((a, b) => a + b, 0) / s2Vals.length) : 0;
-                    isLocked = isAdmin ? false : (s2Avg < 70);
+                    isLocked = isAdmin ? false : (stage2Avg < 70);
                     if (isLocked) {
                         lockReason = `第二章平均进度达到70% <span class=\"dep-cross\">×</span>`;
                     }
@@ -340,7 +331,7 @@ export class SkillTreeView {
 
                 if (stage.id === 'stage-1') {
                     // 简章（间章：拂晓）解锁逻辑：第一章平均进度 ≥ 70%
-                    const miniMeetProgress = progress >= 70;
+                    const miniMeetProgress = stage1Avg >= 70;
                     const miniMeetSolved = solvedCount >= 50;
                     const miniIsLocked = isAdmin ? false : (!isLoggedIn || !(miniMeetProgress || miniMeetSolved));
                     const miniLockReason = !isLoggedIn
@@ -353,10 +344,10 @@ export class SkillTreeView {
                             <div class="skill-tree-mini-card ${miniIsLocked ? 'locked' : ''}" data-mini-of="stage-1" title="间章：拂晓">
                                 <div class="skill-tree-mini-card__header">
                                     <span class="skill-tree-mini-card__title">间章：拂晓</span>
-                                    <span class="skill-tree-mini-card__progress-text">通关率: ${progress}%</span>
+                                    <span class="skill-tree-mini-card__progress-text">通关率: ${interludeAvg}%</span>
                                 </div>
                                 <div class="skill-tree-mini-card__progress-bar">
-                                    <div class="skill-tree-mini-card__progress-bar-inner" style="width: ${progress}%;"></div>
+                                    <div class="skill-tree-mini-card__progress-bar-inner" style="width: ${interludeAvg}%;"></div>
                                 </div>
                                 ${miniIsLocked ? `<div class=\"skill-tree-card__tooltip\">${miniLockReason}</div>` : ''}
                             </div>
