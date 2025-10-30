@@ -196,6 +196,15 @@ export class SkillTreeView {
         // 全局：点击面板外关闭（对所有章节/视图通用）
         this._outsideCloseBound = false;
         this.attachGlobalPanelCloser();
+
+        // 当切换到其他主标签页时，清理所有连线（避免残留在其它页面）
+        try {
+            eventBus.on(EVENTS.VIEW_CHANGED, (view) => {
+                if (view !== 'skill-tree') {
+                    this.clearLines();
+                }
+            });
+        } catch (_) { /* ignore */ }
     }
 
     // 绑定一次全局“点击外部关闭面板”
@@ -379,6 +388,8 @@ export class SkillTreeView {
 
     // 渲染技能树详情页（单个阶段） - (修改)
     async renderDetailView(stageId) {
+        // 进入某章节详情前，先清理上一视图可能遗留的连线
+        this.clearLines();
         const tree = this.skillTrees['newbie-130'];
         const stage = tree.stages.find(s => s.id === stageId);
         if (!stage) return;
@@ -529,7 +540,10 @@ export class SkillTreeView {
             `;
             this.container.innerHTML = html;
             this.bindDetailEvents();
-            setTimeout(() => this.drawColumnDependencyLines(stage), 0);
+            // 仅在“第一章：晨曦微光”中绘制列间依赖箭头
+            if (stage.id === 'stage-1') {
+                setTimeout(() => this.drawColumnDependencyLines(stage), 0);
+            }
 
         } catch (error) {
             console.error(`Error rendering detail view for stage ${stageId}:`, error);
