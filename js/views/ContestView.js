@@ -184,9 +184,10 @@ export class ContestView {
         // 更新表头
         const headerRow = document.querySelector('#contests-view .problems-table thead tr');
         if (headerRow) {
-            // Check if current tab is XCPC (type 22)
-            const isXCPC = String(this.state.activeContestTab) === '22';
-            const contestColWidth = isXCPC ? 'style="width: 40%;"' : '';
+            // 放宽列宽：XCPC(22)、多校(20)、寒假营(21)
+            const tab = String(this.state.activeContestTab);
+            const wideTabs = new Set(['22', '20', '21']);
+            const contestColWidth = wideTabs.has(tab) ? 'style="width: 40%;"' : '';
             headerRow.innerHTML = `<th ${contestColWidth}>Contest</th>${Array.from({length: maxProblems}, (_, i) => `<th>${String.fromCharCode(65+i)}</th>`).join('')}`;
         }
         
