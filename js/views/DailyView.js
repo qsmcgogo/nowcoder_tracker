@@ -76,7 +76,7 @@ export class DailyView {
                 // 根据是否有可用视频地址，更新展开按钮状态（占位逻辑：无题或题目URL为空 → 视为无视频）
                 this.currentVideoEmbedSrc = (problem && problem.url) ? '//player.bilibili.com/player.html?isOutside=true&aid=115432346357527&bvid=BV1ajsXzUEqj&cid=33371785303&p=1' : '';
                 this.updateInlineVideoToggleState();
-
+                
                 if (problem) {
                     this.renderDailyProblem(problem, false, false);
                 } else {
@@ -415,22 +415,19 @@ export class DailyView {
             });
         });
 
-        // 绑定日点击
+        // 绑定日点击（调用后端获取当日嵌入代码）
         sidebar.querySelectorAll('.video-day').forEach(dayEl => {
-            dayEl.addEventListener('click', (e) => {
+            dayEl.addEventListener('click', async (e) => {
+                e.preventDefault();
+                e.stopPropagation();
                 const dateStr = dayEl.dataset.date;
                 // 禁用项不可点击
                 if (dayEl.dataset.disabled === '1') return;
-                // 根据写死规则：2025-10-01 ~ 2025-10-07 无视频
-                const [y, m, d] = dateStr.split('-').map(n => parseInt(n, 10));
-                const noVideo = (y === 2025 && m === 10 && d >= 1 && d <= 7);
-                if (noVideo) {
+                try {
+                    const { src } = await this.apiService.fetchDailyDayLink(dateStr);
+                    this.currentVideoEmbedSrc = src || '';
+                } catch (_) {
                     this.currentVideoEmbedSrc = '';
-                } else if (y === 2025 && m === 10 && d === 28) {
-                    // 10月28日使用指定的B站嵌入地址
-                    this.currentVideoEmbedSrc = '//player.bilibili.com/player.html?isOutside=true&aid=115449291342267&bvid=BV1tYyqBhE11&cid=33455606947&p=1';
-                } else {
-                    this.currentVideoEmbedSrc = '//player.bilibili.com/player.html?isOutside=true&aid=115432346357527&bvid=BV1ajsXzUEqj&cid=33371785303&p=1';
                 }
                 if (onSelectDate) onSelectDate(dateStr);
             });

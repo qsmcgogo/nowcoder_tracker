@@ -413,6 +413,50 @@ export class ApiService {
     }
 
     /**
+     * 获取指定日期的视频嵌入代码（或其 src）
+     * @param {string} dateStr - 形如 YYYY-MM-DD
+     * @returns {Promise<{src:string, raw?:string}>}
+     */
+    async fetchDailyDayLink(dateStr) {
+        if (!dateStr) return { src: '' };
+        const url = `${this.apiBase}/problem/tracker/clock/daylink?date=${encodeURIComponent(dateStr)}`;
+        const extractSrc = (htmlOrUrl) => {
+            if (!htmlOrUrl) return '';
+            const text = String(htmlOrUrl);
+            // 若是完整 iframe，提取 src；否则若看起来像 URL，则直接返回
+            const m1 = text.match(/src\s*=\s*"([^"]+)"/i);
+            const m2 = text.match(/src\s*=\s*'([^']+)'/i);
+            const fromAttr = (m1 && m1[1]) || (m2 && m2[1]);
+            if (fromAttr) return fromAttr.trim();
+            // 简单 URL 识别（以 http(s):// 或 // 开头）
+            if (/^(https?:)?\/\//i.test(text)) return text.trim();
+            return '';
+        };
+        try {
+            const res = await fetch(url, { cache: 'no-store' });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            // 兼容两种返回体：JSON 或 纯文本
+            const contentType = res.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const body = await res.json();
+                const d = body && (body.data ?? body);
+                let raw = '';
+                if (typeof d === 'string') raw = d;
+                else if (d && typeof d === 'object') raw = d.shareLink || d.link || d.url || d.html || '';
+                const src = extractSrc(raw);
+                return { src, raw };
+            } else {
+                const raw = await res.text();
+                const src = extractSrc(raw);
+                return { src, raw };
+            }
+        } catch (e) {
+            console.warn('fetchDailyDayLink failed:', e);
+            return { src: '' };
+        }
+    }
+
+    /**
      * Fetches detailed information for a specific skill tree tag (node).
      * @param {string} tagId - The ID of the skill tree tag.
      * @returns {Promise<Object>} - A promise that resolves to the tag's detailed info.
