@@ -3174,10 +3174,7 @@ body.dark-theme .profile-avatar {
 .skill-tree-detail--stage2 .stage2-pos-bottom { position: absolute; left: 50%; top: 88%; transform: translate(-50%, -50%); }
 
 /* 调整第二章详情中四个板块的宽度，避免过宽互相遮挡 */
-.skill-tree-detail--stage2 .skill-tree-column.two-per-row { width: 420px; }
-.skill-tree-detail--stage2 .skill-tree-column.two-per-row {
-    width: min(520px, 90%);
-}
+.skill-tree-detail--stage2 .skill-tree-column.two-per-row { width: auto; min-width: 540px; }
 .skill-tree-detail--stage2 .skill-tree-column.two-per-row .skill-tree-column__nodes {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
