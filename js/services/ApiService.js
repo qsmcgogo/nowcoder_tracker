@@ -384,15 +384,8 @@ export class ApiService {
         if (!dateStr || !shareLinkRaw) {
             throw new Error('参数缺失：需要日期与分享链接');
         }
-
-        // 若传入的是整段 iframe，提取 src；否则原样使用
-        const extractSrc = (html) => {
-            const text = String(html);
-            const m1 = text.match(/src\s*=\s*"([^"]+)"/i);
-            const m2 = text.match(/src\s*=\s*'([^']+)'/i);
-            return (m1 && m1[1]) || (m2 && m2[1]) || text.trim();
-        };
-        const shareLink = extractSrc(shareLinkRaw);
+        // 后端需要完整的 iframe 串；保持原样传递（仅做 URL 编码）
+        const shareLink = String(shareLinkRaw).trim();
 
         const qs = `date=${encodeURIComponent(dateStr)}&shareLink=${encodeURIComponent(shareLink)}`;
         const url = `${this.apiBase}/problem/tracker/clock/add-share-link?${qs}`;
