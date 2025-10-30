@@ -2,12 +2,13 @@ const express = require('express');
 const https = require('https');
 const HttpsProxyAgent = require('https-proxy-agent');
 const { URL } = require('url');
+const fs = require('fs');
 
 const app = express();
 const port = 3000;
 
 // 环境切换: 'www', 'pre', 或 'd'
-const CURRENT_ENV = 'd'; 
+const CURRENT_ENV = 'pre'; 
 
 const HOST_MAP = {
     'www': 'https://www.nowcoder.com',
@@ -16,6 +17,22 @@ const HOST_MAP = {
 };
 
 const targetHost = HOST_MAP[CURRENT_ENV] || HOST_MAP['www']; // 默认指向 www
+
+// 读取本地 Cookie（用于浏览器请求来自 localhost 时无法携带 nowcoder 域 Cookie 的情况）
+function loadDefaultCookie(env) {
+    const envFile = `cookie_${env}.txt`;
+    if (fs.existsSync(envFile)) {
+        console.log(`[Proxy] Using cookie file: ${envFile}`);
+        return fs.readFileSync(envFile, 'utf8').trim();
+    }
+    if (fs.existsSync('cookie.txt')) {
+        console.log('[Proxy] Using cookie file: cookie.txt');
+        return fs.readFileSync('cookie.txt', 'utf8').trim();
+    }
+    console.log('[Proxy] No local cookie file found; requests may be unauthenticated.');
+    return '';
+}
+const DEFAULT_COOKIE = loadDefaultCookie(CURRENT_ENV);
 
 // A generic, robust manual proxy handler
 const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
@@ -26,8 +43,13 @@ const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
 
     const targetUrl = new URL(`${targetHost}${correctPath}`);
 
-    // 透传客户端 Cookie，并从中提取 csrfToken
-    const cookieHeader = clientReq.headers['cookie'] || '';
+    // 透传客户端 Cookie；若浏览器未带 nowcoder 域 Cookie，则回退到本地 cookie 文件
+    let cookieHeader = clientReq.headers['cookie'] || '';
+    const looksEmpty = !cookieHeader || !/(NOWCODER|NOWCODERUID|csrfToken)/i.test(cookieHeader);
+    if (looksEmpty && DEFAULT_COOKIE) {
+        cookieHeader = DEFAULT_COOKIE;
+    }
+    // 从中提取 csrfToken
     const csrfMatch = cookieHeader.match(/csrfToken=([^;]+)/);
     const csrfToken = csrfMatch ? csrfMatch[1].trim() : '';
 
