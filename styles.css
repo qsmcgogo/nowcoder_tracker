@@ -3152,23 +3152,29 @@ body.dark-theme .profile-avatar {
     /* 表格(网格)布局：3行×3列。便于通过行列定位四个虚框 */
     display: grid;
     grid-template-columns: 1fr 1fr 1fr;
-    grid-template-rows: auto auto auto;
-    gap: 28px 28px;
+    grid-template-rows: repeat(5, auto);
+    gap: 48px 28px; /* 加大行距，提高上下两层间隔 */
     justify-items: center;
-    align-items: start;
+    align-items: center; /* 纵向居中每个格子中的虚框 */
     position: relative; /* 供钻石装饰 SVG 绝对定位 */
     padding: 10px 0;
 }
 .stage2-diamond { position: relative; }
 .stage2-diamond .stage2-diamond-decor {
     position: absolute;
-    /* 缩小装饰范围，使顶点更贴近四个虚框 */
-    left: 18%;
-    right: 18%;
+    /* 再缩小一些并整体上移，尽量贴合四个虚框中心 */
+    left: 24%;
+    right: 24%;
     top: 6%;
-    bottom: 10%;
+    bottom: 22%;
     z-index: 0;
     pointer-events: none;
+}
+
+/* 确保四个虚框在各自格子里绝对居中 */
+.skill-tree-detail--stage2 .stage2-diamond > .skill-tree-column {
+    justify-self: center;
+    align-self: center;
 }
 .stage2-diamond .skill-tree-column { position: relative; z-index: 1; }
 
@@ -3179,7 +3185,7 @@ body.dark-theme .profile-avatar {
 .skill-tree-detail--stage2 .stage2-pos-bottom { position: static; transform: none; }
 
 /* 调整第二章详情中四个板块的宽度，避免过宽互相遮挡 */
-.skill-tree-detail--stage2 .skill-tree-column.two-per-row { width: auto; min-width: 540px; }
+.skill-tree-detail--stage2 .skill-tree-column.two-per-row { width: 420px; }
 .skill-tree-detail--stage2 .skill-tree-column.two-per-row .skill-tree-column__nodes {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -3189,9 +3195,9 @@ body.dark-theme .profile-avatar {
 
 /* 顶、左、右、底 四个位置（网格定位） */
 .skill-tree-detail--stage2 .stage2-pos-top { grid-column: 2; grid-row: 1; }
-.skill-tree-detail--stage2 .stage2-pos-left { grid-column: 1; grid-row: 2; }
-.skill-tree-detail--stage2 .stage2-pos-right { grid-column: 3; grid-row: 2; }
-.skill-tree-detail--stage2 .stage2-pos-bottom { grid-column: 2; grid-row: 3; }
+.skill-tree-detail--stage2 .stage2-pos-left { grid-column: 1; grid-row: 3; }
+.skill-tree-detail--stage2 .stage2-pos-right { grid-column: 3; grid-row: 3; }
+.skill-tree-detail--stage2 .stage2-pos-bottom { grid-column: 2; grid-row: 5; }
 
 .skill-tree-card.locked {
     background-color: #f3f4f6;

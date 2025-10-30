@@ -394,6 +394,12 @@ export class SkillTreeView {
         const stage = tree.stages.find(s => s.id === stageId);
         if (!stage) return;
 
+        // 第三章暂未开放：直接显示“敬请期待”，不渲染虚框和知识点
+        if (stage.id === 'stage-3') {
+            this.renderComingSoonDetail(stage.name);
+            return;
+        }
+
         // 处理TBC的阶段
         if (!stage.columns || stage.columns.length === 0) {
             const html = `
@@ -528,9 +534,10 @@ export class SkillTreeView {
             const innerLayout = isStage2
                 ? `<div class="stage2-diamond">
                         <svg class="stage2-diamond-decor" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
-                            <path d="M5,50 L50,5 L95,50 L50,95 Z" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.2"></path>
-                            <path d="M20,50 L50,20 L80,50 L50,80 Z" fill="none" stroke="rgba(124,47,75,0.12)" stroke-width="1"></path>
-                            <path d="M50,15 L50,85 M15,50 L85,50" fill="none" stroke="rgba(124,47,75,0.18)" stroke-width="1"></path>
+                            <!-- 扁一些的菱形（减少上下高度） -->
+                            <path d="M18,50 L50,28 L82,50 L50,72 Z" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.2"></path>
+                            <path d="M30,50 L50,40 L70,50 L50,60 Z" fill="none" stroke="rgba(124,47,75,0.12)" stroke-width="1"></path>
+                            <path d="M50,34 L50,66 M24,50 L76,50" fill="none" stroke="rgba(124,47,75,0.18)" stroke-width="1"></path>
                         </svg>
                         ${stage2AllHtml}
                    </div>`

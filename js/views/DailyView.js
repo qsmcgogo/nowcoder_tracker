@@ -706,9 +706,9 @@ export class DailyView {
         // 优先复制文本到剪贴板，其次降级到系统分享/手动复制
         let shareText;
         if (!isClockToday && !hasPassedPreviously) {
-            shareText = `我做不出今天的每日一题：${problem.title}，我猜你也做不出来！`;
+            shareText = `每日刷题得牛币，可爱牛客娘抱回家！\n我做不出今天的每日一题：${problem.title}，我猜你也做不出来QAQ`;
         } else {
-            shareText = `我在牛客网完成了每日一题：${problem.title}！`;
+            shareText = `每日刷题得牛币，可爱牛客娘抱回家！\n我在牛客网完成了每日一题：${problem.title}！`;
         }
         const shareUrl = window.location.href;
         const content = `${shareText}\n${shareUrl}`;
