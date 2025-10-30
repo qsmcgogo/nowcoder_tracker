@@ -601,7 +601,8 @@ export class ApiService {
      */
     async fetchBadgeUserInfo() {
         try {
-            const url = `${this.apiBase}/problem/tracker/badge/userInfo?_=${Date.now()}`;
+            // 后端要求该接口路径后不带任何查询参数
+            const url = `${this.apiBase}/problem/tracker/badge/userInfo`;
             const res = await fetch(url, { cache: 'no-store' });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const body = await res.json();

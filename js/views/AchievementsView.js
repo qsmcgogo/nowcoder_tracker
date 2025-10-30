@@ -428,7 +428,8 @@ export class AchievementsView {
         const totalPoints = (userInfo && (userInfo.totalPoints != null)) ? userInfo.totalPoints : (this.mockOverview.totalPoints || 0);
         totalValue.textContent = String(totalPoints);
 
-        const recent = (userInfo && Array.isArray(userInfo.recent) && userInfo.recent.length > 0 ? userInfo.recent : (this.mockOverview.recent || [])).slice(0, 5);
+        // 使用后端返回。若后端为空则展示“暂无成就”，不再使用本地mock回退
+        const recent = (Array.isArray(userInfo?.recent) ? userInfo.recent : []).slice(0, 5);
         rowsContainer.innerHTML = '';
         if (recent.length === 0) {
             const empty = document.createElement('div');
