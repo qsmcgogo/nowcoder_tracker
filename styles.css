@@ -3136,11 +3136,12 @@ body.dark-theme .profile-avatar {
 
 /* 将五个知识点放置到圆周五角星的五个顶点（R≈42%） */
 /* 微调五个顶点坐标，使按钮恰好落在五角星顶点上 */
-.interlude-chip--pos1 { left: 50%;  top: 14.5%; }
-.interlude-chip--pos2 { left: 86%;  top: 40%; }
-.interlude-chip--pos3 { left: 71.5%; top: 83%; }
-.interlude-chip--pos4 { left: 28.5%; top: 83%; }
-.interlude-chip--pos5 { left: 14%;  top: 40%; }
+/* 对齐最外层大圆五个顶点（外接五角星顶点） */
+.interlude-chip--pos1 { left: 50%;  top: 6%;   }
+.interlude-chip--pos2 { left: 90%;  top: 36%;  }
+.interlude-chip--pos3 { left: 72%;  top: 90%;  }
+.interlude-chip--pos4 { left: 28%;  top: 90%;  }
+.interlude-chip--pos5 { left: 10%;  top: 36%;  }
 
 @media (max-width: 520px) {
     .interlude-chip { min-width: 100px; font-size: 14px; }
