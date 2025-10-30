@@ -587,13 +587,13 @@ export class SkillTreeView {
                 const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
                 pct = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
             }
-            const stateInfo = { state: pct >= 100 ? 'completed' : (pct > 0 ? 'unlocked' : 'unlocked') };
-            const stateClass = stateInfo.state === 'completed' ? 'completed' : 'unlocked';
+            const isCompleted = pct >= 100;
+            const stateClass = isCompleted ? 'skill-node--completed' : '';
             const posClass = `interlude-chip--pos${idx + 1}`;
             return `
-                <div class="interlude-chip ${stateClass} ${posClass}" data-id="${id}">
-                    <div class="interlude-chip__title">${n.name}</div>
-                    <div class="interlude-chip__progress">${pct}%</div>
+                <div class="interlude-chip skill-node ${stateClass} ${posClass}" data-id="${id}">
+                    <div class="skill-node__title">${n.name}</div>
+                    <div class="skill-node__progress-text">${pct}%</div>
                 </div>
             `;
         }).join('');
