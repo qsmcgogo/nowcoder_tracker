@@ -169,10 +169,10 @@ export class RankingsView {
         // 兼容 continueday/continueDay/continueDays
         let consecutiveDays = Number(user.continueday ?? user.continueDay ?? user.continueDays ?? 0) || 0;
         // 清零逻辑只在后端显式提供“今天/昨天”状态时才启用，避免列表页无该字段时被误清零
-        const hasToday = ('todayClockRank' in user) || ('todayChecked' in user) || ('todayClocked' in user);
+        const hasToday = ('todayClockRank' in user) || ('todayClockCount' in user) || ('todayChecked' in user) || ('todayClocked' in user);
         const hasYest = ('yesterdayClockCount' in user) || ('yesterdayChecked' in user) || ('yesterdayClocked' in user);
         if (hasToday && hasYest) {
-            const todayVal = Number(user.todayClockRank ?? user.todayChecked ?? user.todayClocked ?? 0);
+            const todayVal = Number(user.todayClockRank ?? user.todayClockCount ?? user.todayChecked ?? user.todayClocked ?? 0);
             const yestVal = Number(user.yesterdayClockCount ?? user.yesterdayChecked ?? user.yesterdayClocked ?? 0);
             if (todayVal === 0 && yestVal === 0) {
                 consecutiveDays = 0;

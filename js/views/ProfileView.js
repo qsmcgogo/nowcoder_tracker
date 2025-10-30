@@ -27,7 +27,8 @@ export class ProfileView {
             const userId = this.appState.loggedInUserId;
             
             // --- Fetch all data in parallel ---
-            const checkinPromise = this.apiService.fetchUserCheckinData(userId);
+            // 使用 todayinfo 以与“打卡”页保持完全一致的统计口径
+            const todayInfoPromise = this.apiService.fetchDailyTodayInfo();
             const problemRankPromise = this.apiService.fetchRankings('problem', 1, userId, 1);
             const badgeInfoPromise = this.apiService.fetchBadgeUserInfo();
             
@@ -35,8 +36,8 @@ export class ProfileView {
             const allTagIds = this._collectAllTrackedTagIds();
             const skillProgressPromise = this.apiService.fetchSkillTreeProgress(userId, allTagIds);
 
-            const [checkinData, problemRankData, skillProgressData, badgeInfo] = await Promise.all([
-                checkinPromise,
+            const [todayInfo, problemRankData, skillProgressData, badgeInfo] = await Promise.all([
+                todayInfoPromise,
                 problemRankPromise,
                 skillProgressPromise,
                 badgeInfoPromise
@@ -50,14 +51,13 @@ export class ProfileView {
 
             const skillTreeStats = this._calculateSkillTreeStats(skillProgressData.nodeProgress);
 
-            // 连续打卡：若“今天”和“昨天”都未打卡则置 0，否则使用 continueday 参数（多名兼容）
-            const rawConsecutive = Number(checkinData?.continueday ?? checkinData?.continueDay ?? checkinData?.continueDays ?? 0) || 0;
-            const todayVal = (checkinData && (checkinData.todayClockRank ?? checkinData.todayChecked ?? checkinData.todayClocked))
-                ;
-            const yestVal = (checkinData && (checkinData.yesterdayClockCount ?? checkinData.yesterdayChecked ?? checkinData.yesterdayClocked))
-                ;
-            const bothFlagsPresent = (todayVal !== undefined && yestVal !== undefined);
-            const fixedConsecutive = (bothFlagsPresent && Number(todayVal) === 0 && Number(yestVal) === 0) ? 0 : rawConsecutive;
+            // 与“打卡”页一致：来源 todayinfo
+            const ti = (todayInfo && todayInfo.data) ? todayInfo.data : {};
+            const tiTodayRank = Number(ti.todayClockRank) || 0;
+            const tiYCnt = Number(ti.yesterdayClockCount) || 0;
+            let fixedConsecutive = Number(ti.continueDay) || 0;
+            if (tiTodayRank === 0 && tiYCnt === 0) fixedConsecutive = 0;
+            const totalCountDay = Number(ti.countDay) || 0;
 
             const userData = {
                 uid: problemUser.uid,
@@ -66,7 +66,7 @@ export class ProfileView {
                 problemPassed: problemUser.count,
                 rank: problemUser.place === 0 ? '1w+' : problemUser.place,
                 checkin: {
-                    count: checkinData?.count || 0,
+                    count: totalCountDay,
                     continueDays: fixedConsecutive
                 },
                 skillTree: { 
