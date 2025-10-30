@@ -590,8 +590,12 @@ export class SkillTreeView {
             const isCompleted = pct >= 100;
             const stateClass = isCompleted ? 'skill-node--completed' : '';
             const posClass = `interlude-chip--pos${idx + 1}`;
+            let backgroundStyle = '';
+            if (pct > 0 && pct < 100) {
+                backgroundStyle = `style="background: linear-gradient(to right, var(--primary-color-light) ${pct}%, #fff ${pct}%);"`;
+            }
             return `
-                <div class="interlude-chip skill-node ${stateClass} ${posClass}" data-id="${id}">
+                <div class="interlude-chip skill-node ${stateClass} ${posClass}" data-id="${id}" ${backgroundStyle}>
                     <div class="skill-node__title">${n.name}</div>
                     <div class="skill-node__progress-text">${pct}%</div>
                 </div>
@@ -1073,10 +1077,10 @@ export class SkillTreeView {
         const refreshBtn = document.getElementById('skill-node-refresh-btn');
         if (refreshBtn) {
             try { refreshBtn.setAttribute('type', 'button'); } catch (_) {}
-            refreshBtn.addEventListener('click', async () => {
+            refreshBtn.addEventListener('click', async (e) => {
                 // 防止影响滚动或触发父级锚点
-                try { event && event.preventDefault && event.preventDefault(); } catch (_) {}
-                try { event && event.stopPropagation && event.stopPropagation(); } catch (_) {}
+                if (e && e.preventDefault) e.preventDefault();
+                if (e && e.stopPropagation) e.stopPropagation();
                 try {
                     refreshBtn.disabled = true;
                     const tagId = nodeIdToTagId[this.activeNodeId];
