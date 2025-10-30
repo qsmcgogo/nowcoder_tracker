@@ -526,7 +526,14 @@ export class SkillTreeView {
             }
 
             const innerLayout = isStage2
-                ? `<div class="stage2-diamond">${stage2AllHtml}</div>`
+                ? `<div class="stage2-diamond">
+                        <svg class="stage2-diamond-decor" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                            <path d="M5,50 L50,5 L95,50 L50,95 Z" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.2"></path>
+                            <path d="M20,50 L50,20 L80,50 L50,80 Z" fill="none" stroke="rgba(124,47,75,0.12)" stroke-width="1"></path>
+                            <path d="M50,15 L50,85 M15,50 L85,50" fill="none" stroke="rgba(124,47,75,0.18)" stroke-width="1"></path>
+                        </svg>
+                        ${stage2AllHtml}
+                   </div>`
                 : `<div class=\"skill-tree-dag-container\"><div class=\"dag-main-column\">${leftColumnHtml}</div><div class=\"dag-main-column\">${rightColumnHtml}</div></div>`;
 
             const html = `

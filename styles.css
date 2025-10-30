@@ -3137,11 +3137,11 @@ body.dark-theme .profile-avatar {
 /* 将五个知识点放置到圆周五角星的五个顶点（R≈42%） */
 /* 微调五个顶点坐标，使按钮恰好落在五角星顶点上 */
 /* 对齐最外层大圆五个顶点（外接五角星顶点） */
-.interlude-chip--pos1 { left: 50%;  top: 6%;   }
-.interlude-chip--pos2 { left: 90%;  top: 36%;  }
-.interlude-chip--pos3 { left: 72%;  top: 90%;  }
-.interlude-chip--pos4 { left: 28%;  top: 90%;  }
-.interlude-chip--pos5 { left: 10%;  top: 36%;  }
+.interlude-chip--pos1 { left: 40%;  top: 2%;   }
+.interlude-chip--pos2 { left: 88%;  top: 36%;  }
+.interlude-chip--pos3 { left: 72%;  top: 77%;  }
+.interlude-chip--pos4 { left: 8%;  top: 77%;  }
+.interlude-chip--pos5 { left: -10%;  top: 36%;  }
 
 @media (max-width: 520px) {
     .interlude-chip { min-width: 100px; font-size: 14px; }
@@ -3157,6 +3157,14 @@ body.dark-theme .profile-avatar {
     align-items: start;
     padding: 10px 0;
 }
+.stage2-diamond { position: relative; }
+.stage2-diamond .stage2-diamond-decor {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+.stage2-diamond .skill-tree-column { position: relative; z-index: 1; }
 .skill-tree-detail--stage2 .skill-tree-column.two-per-row {
     width: min(520px, 90%);
 }
