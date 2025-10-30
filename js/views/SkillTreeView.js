@@ -1072,7 +1072,11 @@ export class SkillTreeView {
         // 绑定刷新按钮：仅刷新此 tag 的进度
         const refreshBtn = document.getElementById('skill-node-refresh-btn');
         if (refreshBtn) {
+            try { refreshBtn.setAttribute('type', 'button'); } catch (_) {}
             refreshBtn.addEventListener('click', async () => {
+                // 防止影响滚动或触发父级锚点
+                try { event && event.preventDefault && event.preventDefault(); } catch (_) {}
+                try { event && event.stopPropagation && event.stopPropagation(); } catch (_) {}
                 try {
                     refreshBtn.disabled = true;
                     const tagId = nodeIdToTagId[this.activeNodeId];
