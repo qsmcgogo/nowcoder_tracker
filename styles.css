@@ -1450,6 +1450,10 @@ body .problems-table tbody tr td.status-none {
     text-align: center;
     background: transparent;
     padding: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
 }
 
 /* Daily video tutorial banner */
@@ -1565,6 +1569,47 @@ body .problems-table tbody tr td.status-none {
     border-radius: 0;
     object-fit: cover;
     box-shadow: none;
+}
+
+/* Speech bubble for Niukeniang */
+.niukeniang-speech {
+    background: #ffffff;
+    border: 4px solid #000;
+    border-radius: 12px;
+    padding: 12px 14px;
+    color: #222;
+    font-weight: 600;
+    max-width: 520px;
+    line-height: 1.5;
+    position: relative;
+}
+.niukeniang-speech::before {
+    content: '';
+    position: absolute;
+    left: -22px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border-top: 14px solid transparent;
+    border-bottom: 14px solid transparent;
+    border-right: 22px solid #000; /* outer border */
+}
+.niukeniang-speech::after {
+    content: '';
+    position: absolute;
+    left: -16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 0; height: 0;
+    border-top: 10px solid transparent;
+    border-bottom: 10px solid transparent;
+    border-right: 16px solid #ffffff; /* bubble fill */
+}
+
+@media (max-width: 720px) {
+    .niukeniang-container { flex-direction: column; gap: 10px; }
+    .niukeniang-speech { max-width: 100%; }
+    .niukeniang-speech::before, .niukeniang-speech::after { display: none; }
 }
 
 .daily-problem-card h3 {
