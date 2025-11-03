@@ -1177,12 +1177,9 @@ export class SkillTreeView {
             if (problem.score) {
                  scoreHtml = `<span class="problem-score">${problem.score}分</span>`;
             }
-            let passHtml = '';
             const passTotal = Number(problem.passTotal || 0);
-            if (passTotal > 0) {
-                 const passText = (typeof passTotal.toLocaleString === 'function') ? passTotal.toLocaleString() : String(passTotal);
-                 passHtml = `<span class="problem-pass-total" title="通过人数">👥 ${passText}</span>`;
-            }
+            const passText = (typeof passTotal.toLocaleString === 'function') ? passTotal.toLocaleString() : String(passTotal);
+            const passHtml = `<span class="problem-pass-total" title="通过人数">👥 ${passText}</span>`;
 
             // 附加题标识（根据 question_id/qid 判断）
             const qid = String(problem.qid || problem.questionId || '');

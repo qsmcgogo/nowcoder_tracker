@@ -3430,6 +3430,10 @@ body.dark-theme .profile-avatar {
     flex-shrink: 0;
 }
 
+/* Generic fallbacks when outside list context */
+.problem-pass-total { font-size: 0.85em; color: var(--text-color-secondary); margin-left: 16px; flex-shrink: 0; }
+.problem-score { font-size: 0.85em; color: var(--text-color-secondary); margin-left: 16px; flex-shrink: 0; }
+
 /* Override existing difficulty styles to be simpler */
 .problem-difficulty.difficulty-basic { background-color: transparent; color: inherit; }
 
