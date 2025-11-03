@@ -306,6 +306,12 @@ export class NowcoderTracker {
         const rawRoute = fromHash || fromQuery || 'daily';
         const initialTab = this.normalizeTabName(rawRoute);
         const initialSubview = this.extractProblemsSubview(rawRoute);
+
+        // 在任何标签页下先探测登录状态（通过 todayinfo），避免刷新后显示“未登录”
+        try {
+            await this.detectAndSetLoggedInUser();
+        } catch (_) { /* ignore login bootstrap errors */ }
+
         this.switchMainTab(initialTab, { subview: initialSubview });
 
         // 监听哈希变化，实现前进/后退导航
@@ -508,6 +514,26 @@ export class NowcoderTracker {
         if (key === 'practice') return 'practice';
         if (key === 'interview') return 'interview';
         return null;
+    }
+
+    // 在全局初始化阶段探测并设置登录态（使用 todayinfo，避免必须在“打卡”页才识别登录）
+    async detectAndSetLoggedInUser() {
+        try {
+            const data = await this.apiService.fetchDailyTodayInfo();
+            if (data && data.code === 0 && data.data) {
+                const d = data.data;
+                const uid = d.uid && d.uid !== 0 ? String(d.uid) : null;
+                this.state.setLoggedInUser(uid, d.user || null);
+                if (uid) {
+                    eventBus.emit(EVENTS.USER_LOGIN, { uid, user: d.user || null, ...d });
+                }
+            } else {
+                // 未登录或异常时，显式清空本地登录态
+                this.state.setLoggedInUser(null, null);
+            }
+        } catch (_) {
+            // 忽略错误，不影响其它页面加载
+        }
     }
     
     // 获取用户搜索数据（供RankingsView使用）
