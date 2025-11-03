@@ -85,11 +85,7 @@ export class AchievementsView {
             this.renderOverview();
             return;
         }
-        // 暂未开放的分类：过题、技能树 → 显示占位文案
-        if (this.activeCategory !== 'checkin') {
-            this.content.innerHTML = '<div class="achv-overview-card">敬请期待</div>';
-            return;
-        }
+        // 所有分类均可渲染；checkin/solve/skill 按动态数据决定展示细节
         const container = document.createElement('div');
         container.className = 'achv-grid achv-grid-vertical';
         const completedRows = [];
@@ -103,15 +99,22 @@ export class AchievementsView {
         const dynamicCat = this.dynamicCatalog[this.activeCategory];
         const useRaw = !!dynamicCat && Array.isArray(dynamicCat.rawList) && dynamicCat.rawList.length > 0;
         const useDynamic = !!dynamicCat && Array.isArray(dynamicCat.series) && dynamicCat.series.length > 0;
+        // 若已加载到动态分类但数据为空，不再回退到本地缺省，直接提示“待更新”
+        if (!!dynamicCat && !useRaw && !useDynamic) {
+            this.content.innerHTML = '<div class="achv-overview-card">待更新</div>';
+            return;
+        }
         const cat = (useDynamic || useRaw) ? dynamicCat : this.catalog[this.activeCategory];
         if (!cat) return;
 
-        // 优先：对于打卡分类（checkin），使用“系列合并”视图（累计/连续按下一个目标合并展示，单次型单独行）。
-        // 其他分类仍采用“原子项直出”视图，便于验数。
+        // 优先：对于打卡分类（checkin）与过题分类（solve），使用“系列合并”视图；
+        // 其中 checkin 的一次性成就仍走原子直出；solve 的题单制霸改为 series: single。
         const preferSeriesForCheckin = this.activeCategory === 'checkin' && useDynamic;
+        const preferSeriesForSolve = this.activeCategory === 'solve' && useDynamic;
+        const preferSeries = preferSeriesForCheckin || preferSeriesForSolve;
 
         // 直出模式（不合并）
-        if (useRaw && !preferSeriesForCheckin) {
+        if (useRaw && !preferSeries) {
             const list = dynamicCat.rawList.slice();
             // 已完成置顶
             list.sort((a, b) => Number(b.status === 1) - Number(a.status === 1));
@@ -254,10 +257,12 @@ export class AchievementsView {
                 achieved = milestones.filter(m => m.status === 1);
                 next = milestones.find(m => m.status !== 1) || null;
 
-                // 在打卡合并视图下（累计/连续），展示真实进度；否则（其他分类）先隐藏进度
+                // 在打卡合并视图下（累计/连续），展示真实进度；solve 的累计过题系列也展示进度
                 if (this.activeCategory === 'checkin') {
                     if (series.key === 'checkin_total') current = Number(dynamicCat.progress?.countDay || 0);
                     if (series.key === 'checkin_streak') current = Number(dynamicCat.progress?.continueDay || 0);
+                } else if (this.activeCategory === 'solve') {
+                    if (series.key === 'solve_total') current = Number(dynamicCat.progress?.solveCount || 0);
                 }
                 nextProgressRatio = next ? Math.max(0, Math.min(1, (current || 0) / (next.threshold || 1))) : 1;
             } else {
@@ -334,8 +339,8 @@ export class AchievementsView {
             const progressValue = document.createElement('div');
             progressValue.className = 'achv-progress-value';
             if (next) {
-                if (useDynamic && this.activeCategory !== 'checkin') {
-                    // 无当前值时隐藏进度（过题、技能树后续接上当前值再展示）
+                const canShowProgress = (useDynamic && (this.activeCategory === 'checkin' || (this.activeCategory === 'solve' && series.key === 'solve_total')));
+                if (!canShowProgress) {
                     progress.style.display = 'none';
                     progressValue.style.display = 'none';
                 } else {
@@ -528,6 +533,7 @@ export class AchievementsView {
             checkin_streak: '🔥',
             checkin_time: '⏰',
             solve_total: '✅',
+            solve_playlist: '📚',
             contest_weekly: '🏆',
             skill_progress: '🌳'
         };
@@ -589,9 +595,20 @@ export class AchievementsView {
                 series.push({ key: 'checkin_time', name: '时间段打卡', icon: icons.checkin_time, type: 'single', milestones });
             }
 
-            // solve types
+            // solve types（4）：拆分合并系列与题单制霸
             if (byType.has(4)) {
-                const milestones = byType.get(4)
+                const all = byType.get(4) || [];
+                const toNum = (v, d=0) => { const n = Number(v); return Number.isFinite(n) ? n : d; };
+                const isCumulative = (b) => {
+                    const id = toNum(b.id, 0);
+                    return id >= 401 && id <= 415; // 401~415：累计过题
+                };
+                const isPlaylist = (b) => {
+                    const id = toNum(b.id, 0);
+                    return id >= 451 && id <= 454; // 451~454：题单制霸
+                };
+
+                const cumMilestones = all.filter(isCumulative)
                     .sort((a, b) => (a.acquirement || 0) - (b.acquirement || 0))
                     .map(m => ({
                         name: m.name,
@@ -603,7 +620,20 @@ export class AchievementsView {
                         colorUrl: m.colorUrl || '',
                         grayUrl: m.grayUrl || ''
                     }));
-                series.push({ key: 'solve_total', name: '累计过题系列', icon: icons.solve_total, milestones });
+                if (cumMilestones.length) series.push({ key: 'solve_total', name: '累计过题系列', icon: icons.solve_total, milestones: cumMilestones });
+
+                const playlistMilestones = all.filter(isPlaylist)
+                    .sort((a, b) => (a.id || 0) - (b.id || 0))
+                    .map(m => ({
+                        name: m.name,
+                        desc: m.detail,
+                        points: Number(m.score) || 0,
+                        status: Number(m.status) || 0,
+                        finishedTime: m.finishedTime || null,
+                        colorUrl: m.colorUrl || '',
+                        grayUrl: m.grayUrl || ''
+                    }));
+                if (playlistMilestones.length) series.push({ key: 'solve_playlist', name: '题单制霸', icon: icons.solve_playlist, type: 'single', milestones: playlistMilestones });
             }
             if (byType.has(5)) {
                 const milestones = byType.get(5)
@@ -651,7 +681,12 @@ export class AchievementsView {
             if (categoryKey === 'checkin') {
                 todayPromise = this.api.fetchDailyTodayInfo().catch(() => null);
             }
-            const [badgeData, todayData] = await Promise.all([badgePromise, todayPromise]);
+            let solveProgressPromise = Promise.resolve(null);
+            if (categoryKey === 'solve') {
+                const uid = this.state && this.state.loggedInUserId;
+                if (uid) solveProgressPromise = this.api.fetchRankings('problem', 1, uid, 1).catch(() => null);
+            }
+            const [badgeData, todayData, solveRankData] = await Promise.all([badgePromise, todayPromise, solveProgressPromise]);
 
             let list = Array.isArray(badgeData)
                 ? badgeData
@@ -670,6 +705,10 @@ export class AchievementsView {
                 const continueDay = Number(d.continueDay) || 0;
                 const countDay = Number(d.countDay) || 0;
                 dynamic.progress = { continueDay, countDay };
+            } else if (categoryKey === 'solve') {
+                const u = (solveRankData && solveRankData.ranks && solveRankData.ranks[0]) || {};
+                const solveCount = Number(u.count) || 0;
+                dynamic.progress = { solveCount };
             }
 
             this.dynamicCatalog[categoryKey] = dynamic;

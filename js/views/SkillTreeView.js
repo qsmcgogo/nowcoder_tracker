@@ -1172,10 +1172,16 @@ export class SkillTreeView {
             // 技能树题目统一使用 w253acm 渠道标识
             const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, 'w253acm');
 
-            // Changed: Display score instead of difficulty text
+            // Changed: Display score and pass total
             let scoreHtml = '';
             if (problem.score) {
                  scoreHtml = `<span class="problem-score">${problem.score}分</span>`;
+            }
+            let passHtml = '';
+            const passTotal = Number(problem.passTotal || 0);
+            if (passTotal > 0) {
+                 const passText = (typeof passTotal.toLocaleString === 'function') ? passTotal.toLocaleString() : String(passTotal);
+                 passHtml = `<span class="problem-pass-total" title="通过人数">👥 ${passText}</span>`;
             }
 
             // 附加题标识（根据 question_id/qid 判断）
@@ -1212,6 +1218,7 @@ export class SkillTreeView {
                         <span class="problem-status-icon">${isSolved ? '✔' : ''}</span>
                         ${extraFlag}<span class="problem-title">${problem.name}</span>
                         ${scoreHtml}
+                        ${passHtml}
                         ${isLocked ? '<span class="problem-lock-icon" aria-label="未解锁" title="未解锁"><svg class="icon-lock" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 1a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 9V6a3 3 0 1 1 6 0v4H9z"></path></svg></span>' : ''}
                     </a>
                     ${adminControls}

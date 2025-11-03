@@ -479,6 +479,7 @@ export class ApiService {
                         uuid: q.uuid || '',
                         name: q.title || q.name || '',
                         score: Number(q.score) || 0,
+                        passTotal: Number(q.passTotal || q.acCount || 0) || 0,
                         dependencies: normalizeDeps(q.dependencies),
                         yilai: normalizeDeps(q.dependencies),
                     }));

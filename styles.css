@@ -3422,7 +3422,8 @@ body.dark-theme .profile-avatar {
 }
 
 .skill-node-panel__problems-list .problem-difficulty,
-.skill-node-panel__problems-list .problem-score {
+.skill-node-panel__problems-list .problem-score,
+.skill-node-panel__problems-list .problem-pass-total {
     font-size: 0.85em;
     color: var(--text-color-secondary);
     margin-left: 16px;
@@ -3450,7 +3451,8 @@ body.dark-theme .profile-avatar {
 }
 
 .skill-node-panel__problems-list .problem-difficulty,
-.skill-node-panel__problems-list .problem-score {
+.skill-node-panel__problems-list .problem-score,
+.skill-node-panel__problems-list .problem-pass-total {
     font-size: 0.85em;
     color: var(--text-color-secondary);
     margin-left: 16px;
