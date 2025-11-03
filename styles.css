@@ -1582,6 +1582,7 @@ body .problems-table tbody tr td.status-none {
     max-width: 520px;
     line-height: 1.5;
     position: relative;
+    margin-top: -60px; /* lift bubble a bit upwards */
 }
 .niukeniang-speech::before {
     content: '';
