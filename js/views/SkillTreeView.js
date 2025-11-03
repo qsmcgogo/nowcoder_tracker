@@ -372,13 +372,15 @@ export class SkillTreeView {
                 ? ''
                 : `<div class="skill-tree-login-banner">请先登录开启技能树之旅：<a class="login-link" href="${loginUrl}" target="_blank" rel="noopener noreferrer">前往登录</a></div>`;
 
-            this.container.innerHTML = `${banner}<div class="skill-tree-summary">${stagesHtml}
+            const adminPanel = this.state.isAdmin ? this.buildAdminQuestionPanelHtml() : '';
+            this.container.innerHTML = `${adminPanel}${banner}<div class="skill-tree-summary">${stagesHtml}
                 <!-- 占位空格：第四行，撑开视觉间距 -->
                 <div class="skill-tree-spacer" style="grid-column: 1 / 4; grid-row: 4; height: 10px;"></div>
             </div>`;
             this.bindSummaryEvents();
             // 待DOM稳定后绘制阶段之间的连线
             setTimeout(() => this.drawStageSummaryLines(), 0);
+            if (this.state.isAdmin) this.bindAdminQuestionPanelEvents();
 
         } catch (error) {
             console.error('Error rendering stage summary:', error);
@@ -543,7 +545,9 @@ export class SkillTreeView {
                    </div>`
                 : `<div class=\"skill-tree-dag-container\"><div class=\"dag-main-column\">${leftColumnHtml}</div><div class=\"dag-main-column\">${rightColumnHtml}</div></div>`;
 
+            const adminPanel = this.state.isAdmin ? this.buildAdminQuestionPanelHtml() : '';
             const html = `
+                ${adminPanel}
                 <div class="skill-tree-detail ${isStage2 ? 'skill-tree-detail--stage2' : ''}">
                     <div class="skill-tree-detail__header">
                         <button id="skill-tree-back-btn" class="back-button">&larr; 返回所有阶段</button>
@@ -558,6 +562,7 @@ export class SkillTreeView {
             if (stage.id === 'stage-1') {
                 setTimeout(() => this.drawColumnDependencyLines(stage), 0);
             }
+            if (this.state.isAdmin) this.bindAdminQuestionPanelEvents();
 
         } catch (error) {
             console.error(`Error rendering detail view for stage ${stageId}:`, error);
@@ -616,7 +621,9 @@ export class SkillTreeView {
             `;
         }).join('');
 
+        const adminPanel = this.state.isAdmin ? this.buildAdminQuestionPanelHtml() : '';
         const html = `
+            ${adminPanel}
             <div class="interlude-detail">
                 <div class="interlude-ribbon">间章：拂晓</div>
                 <div class="interlude-circle">
@@ -635,6 +642,7 @@ export class SkillTreeView {
             </div>
         `;
         this.container.innerHTML = html;
+        if (this.state.isAdmin) this.bindAdminQuestionPanelEvents();
 
         // 绑定点击 -> 展示面板（沿用节点面板逻辑）
         this.container.querySelectorAll('.interlude-chip').forEach(el => {
@@ -654,6 +662,120 @@ export class SkillTreeView {
         backBtn.addEventListener('click', () => {
             this.currentView = 'summary';
             this.render();
+        });
+    }
+
+    // --- 管理员：题目增删改面板（独立展示） ---
+    buildAdminQuestionPanelHtml() {
+        const nodes = this.skillTrees && this.skillTrees['newbie-130'] && this.skillTrees['newbie-130'].nodes ? this.skillTrees['newbie-130'].nodes : {};
+        const options = Object.entries(nodes)
+            .map(([nodeId, node]) => {
+                const tagId = nodeIdToTagId[nodeId];
+                if (!tagId) return '';
+                const name = node && node.name ? node.name : String(tagId);
+                return `<option value="${String(tagId)}">${name}（${tagId}）</option>`;
+            })
+            .filter(Boolean)
+            .join('');
+
+        return `
+            <div id="skill-tree-admin-panel" class="admin-panel" style="margin:10px 0 16px 0;padding:12px;border:1px solid #eee;border-radius:8px;background:#fff8e1;">
+                <div style="display:flex;gap:8px;margin-bottom:10px;">
+                    <button type="button" class="admin-tab-btn active" data-tab="add">新增题目</button>
+                    <button type="button" class="admin-tab-btn" data-tab="update">修改题目</button>
+                    <button type="button" class="admin-tab-btn" data-tab="delete">删除题目</button>
+                </div>
+                <div class="admin-tab-contents">
+                    <form id="admin-form-add" data-type="add" style="display:block;">
+                        <label>题目ID（qid） <input name="qid" type="text" style="width:160px;" required></label>
+                        <label style="margin-left:8px;">知识点 <select name="tagId" style="width:220px;">${options}</select></label>
+                        <label style="margin-left:8px;">分数 <input name="score" type="number" min="0" value="0" style="width:100px;" required></label>
+                        <button type="submit" style="margin-left:8px;">添加</button>
+                    </form>
+                    <form id="admin-form-update" data-type="update" style="display:none;">
+                        <label>题目ID（qid） <input name="qid" type="text" style="width:160px;" required></label>
+                        <label style="margin-left:8px;">知识点 <select name="tagId" style="width:220px;">${options}</select></label>
+                        <label style="margin-left:8px;">分数 <input name="score" type="number" min="0" value="0" style="width:100px;" required></label>
+                        <button type="submit" style="margin-left:8px;">更新</button>
+                    </form>
+                    <form id="admin-form-delete" data-type="delete" style="display:none;">
+                        <label>题目ID（qid） <input name="qid" type="text" style="width:160px;" required></label>
+                        <button type="submit" style="margin-left:8px;">删除</button>
+                    </form>
+                </div>
+            </div>
+        `;
+    }
+
+    bindAdminQuestionPanelEvents() {
+        const panel = document.getElementById('skill-tree-admin-panel');
+        if (!panel || panel.dataset.bound) return;
+        panel.dataset.bound = '1';
+
+        // 标签切换
+        panel.querySelectorAll('.admin-tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const tab = btn.getAttribute('data-tab');
+                panel.querySelectorAll('.admin-tab-btn').forEach(b => {
+                    b.classList.remove('active');
+                    b.setAttribute('aria-pressed', 'false');
+                });
+                btn.classList.add('active');
+                btn.setAttribute('aria-pressed', 'true');
+                panel.querySelectorAll('form[id^="admin-form-"]').forEach(f => {
+                    f.style.display = (f.dataset.type === tab) ? 'block' : 'none';
+                });
+            });
+        });
+
+        // 初始化 aria-pressed 辅助无障碍/色觉提示
+        panel.querySelectorAll('.admin-tab-btn').forEach(b => {
+            b.setAttribute('aria-pressed', b.classList.contains('active') ? 'true' : 'false');
+        });
+
+        const submitHandler = async (e) => {
+            e.preventDefault();
+            const form = e.currentTarget;
+            const type = form.dataset.type;
+            const qid = (form.querySelector('input[name="qid"]')?.value || '').trim();
+            const scoreInput = form.querySelector('input[name="score"]');
+            const tagSelect = form.querySelector('select[name="tagId"]');
+            const tagId = tagSelect ? tagSelect.value : '';
+            const score = scoreInput ? Number(scoreInput.value) : 0;
+
+            try {
+                if (!qid) { alert('请填写题目ID（qid）'); return; }
+                if (type !== 'delete') {
+                    if (!tagId) { alert('请选择知识点'); return; }
+                    if (!Number.isFinite(score) || score < 0) { alert('分数必须为非负'); return; }
+                }
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) submitBtn.disabled = true;
+                if (type === 'add') {
+                    const r = await this.apiService.addSkillTreeQuestion(tagId, qid, score);
+                    const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
+                    alert(ra > 0 ? '已添加' : '未添加：可能已存在或参数不合法');
+                } else if (type === 'update') {
+                    const r = await this.apiService.updateSkillTreeQuestion(tagId, qid, score);
+                    const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
+                    alert(ra > 0 ? '已更新' : '未更新：记录不存在或分数未变化');
+                } else if (type === 'delete') {
+                    const r = await this.apiService.deleteSkillTreeQuestion(qid);
+                    const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
+                    alert(ra > 0 ? '已删除' : '未删除：题目不存在');
+                }
+            } catch (err) {
+                console.error('管理员操作失败', err);
+                alert((err && err.message) || '操作失败');
+            } finally {
+                const submitBtn = form.querySelector('button[type="submit"]');
+                if (submitBtn) submitBtn.disabled = false;
+            }
+        };
+
+        ['admin-form-add', 'admin-form-update', 'admin-form-delete'].forEach(id => {
+            const f = panel.querySelector(`#${id}`);
+            if (f) f.addEventListener('submit', submitHandler);
         });
     }
     
@@ -1047,7 +1169,8 @@ export class SkillTreeView {
             const isLocked = !this.state.isAdmin && !isSolved && unmetDeps.length > 0;
             const problemClass = `${isSolved ? 'completed' : ''} ${isLocked ? 'locked' : ''}`.trim();
             const baseUrl = `https://www.nowcoder.com/practice/${problem.uuid}`;
-            const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, this.state.channelPut);
+            // 技能树题目统一使用 w253acm 渠道标识
+            const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, 'w253acm');
 
             // Changed: Display score instead of difficulty text
             let scoreHtml = '';
@@ -1075,6 +1198,14 @@ export class SkillTreeView {
                 ? ` data-lock-reason='${(lockTooltipInner || '前置知识点未达60%').replace(/'/g, '&#39;')}'`
                 : '';
 
+            const adminControls = this.state.isAdmin ? `
+                <div class="admin-controls">
+                    <input type="number" min="0" class="admin-score-input" data-qid="${qid}" value="${Number(problem.score) || 0}" style="width:72px;margin-left:8px;" />
+                    <button type="button" class="admin-update-btn" data-qid="${qid}" style="margin-left:6px;">更新分数</button>
+                    <button type="button" class="admin-delete-btn" data-qid="${qid}" style="margin-left:6px;">删除</button>
+                </div>
+            ` : '';
+
             return `
                 <li class="problem-item ${problemClass}"${lockAttr}>
                     <a ${linkAttrs}>
@@ -1083,11 +1214,122 @@ export class SkillTreeView {
                         ${scoreHtml}
                         ${isLocked ? '<span class="problem-lock-icon" aria-label="未解锁" title="未解锁"><svg class="icon-lock" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 1a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 9V6a3 3 0 1 1 6 0v4H9z"></path></svg></span>' : ''}
                     </a>
+                    ${adminControls}
                 </li>
             `;
         }).join('');
 
         this.panelProblems.innerHTML = `<ul>${problemsHtml}</ul>`;
+
+        // 管理员：附加新增题目表单 + 事件绑定
+        if (this.state.isAdmin) {
+            const addFormHtml = `
+                <div class="admin-add-form" style="margin-top:12px;padding-top:8px;border-top:1px dashed #ddd;">
+                    <strong>管理员工具：</strong>
+                    <label style="margin-left:8px;">题目ID <input id="admin-add-qid" type="text" style="width:140px;" /></label>
+                    <label style="margin-left:8px;">分数 <input id="admin-add-score" type="number" min="0" value="0" style="width:80px;" /></label>
+                    <button id="admin-add-btn" type="button" style="margin-left:8px;">添加题目</button>
+                </div>
+            `;
+            this.panelProblems.insertAdjacentHTML('beforeend', addFormHtml);
+
+            const tagId = nodeIdToTagId[this.activeNodeId];
+
+            // 更新分数
+            const updateBtns = this.panelProblems.querySelectorAll('.admin-update-btn');
+            updateBtns.forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    try {
+                        const qid = btn.getAttribute('data-qid');
+                        const input = this.panelProblems.querySelector(`.admin-score-input[data-qid="${qid}"]`);
+                        const score = Number(input && input.value);
+                        if (!qid) return;
+                        if (!Number.isFinite(score) || score < 0) {
+                            alert('分数必须为非负整数');
+                            return;
+                        }
+                        btn.disabled = true;
+                        const r = await this.apiService.updateSkillTreeQuestion(tagId, qid, score);
+                        const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
+                        if (ra > 0) {
+                            alert('已更新');
+                            const fresh = await this.apiService.fetchTagInfo(tagId);
+                            this.showPanelContent(staticNodeData, fresh, false);
+                        } else {
+                            alert('未更新：记录不存在或分数未变化');
+                        }
+                    } catch (err) {
+                        console.error('更新分数失败', err);
+                        alert('更新失败：' + (err && err.message || '未知错误'));
+                    } finally {
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            // 删除题目
+            const deleteBtns = this.panelProblems.querySelectorAll('.admin-delete-btn');
+            deleteBtns.forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const qid = btn.getAttribute('data-qid');
+                    if (!qid) return;
+                    if (!confirm(`确认删除题目 ${qid} 吗？`)) return;
+                    try {
+                        btn.disabled = true;
+                        const r = await this.apiService.deleteSkillTreeQuestion(qid);
+                        const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
+                        if (ra > 0) {
+                            alert('已删除');
+                            const fresh = await this.apiService.fetchTagInfo(tagId);
+                            this.showPanelContent(staticNodeData, fresh, false);
+                        } else {
+                            alert('未删除：题目不存在');
+                        }
+                    } catch (err) {
+                        console.error('删除题目失败', err);
+                        alert('删除失败：' + (err && err.message || '未知错误'));
+                    } finally {
+                        btn.disabled = false;
+                    }
+                });
+            });
+
+            // 新增题目
+            const addBtn = this.panelProblems.querySelector('#admin-add-btn');
+            if (addBtn) {
+                addBtn.addEventListener('click', async () => {
+                    const qidInput = this.panelProblems.querySelector('#admin-add-qid');
+                    const scoreInput = this.panelProblems.querySelector('#admin-add-score');
+                    const qid = qidInput && qidInput.value && qidInput.value.trim();
+                    const score = Number(scoreInput && scoreInput.value);
+                    if (!qid) {
+                        alert('请输入题目ID');
+                        return;
+                    }
+                    if (!Number.isFinite(score) || score < 0) {
+                        alert('分数必须为非负整数');
+                        return;
+                    }
+                    try {
+                        addBtn.disabled = true;
+                        const r = await this.apiService.addSkillTreeQuestion(tagId, qid, score);
+                        const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
+                        if (ra > 0) {
+                            alert('已添加');
+                            const fresh = await this.apiService.fetchTagInfo(tagId);
+                            this.showPanelContent(staticNodeData, fresh, false);
+                        } else {
+                            alert('未添加：可能已存在或参数不合法');
+                        }
+                    } catch (err) {
+                        console.error('添加题目失败', err);
+                        alert('添加失败：' + (err && err.message || '未知错误'));
+                    } finally {
+                        addBtn.disabled = false;
+                    }
+                });
+            }
+        }
 
         // 绑定刷新按钮：仅刷新此 tag 的进度
         const refreshBtn = document.getElementById('skill-node-refresh-btn');

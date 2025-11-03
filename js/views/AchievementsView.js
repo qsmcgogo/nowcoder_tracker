@@ -74,6 +74,13 @@ export class AchievementsView {
     }
 
     renderContent() {
+        // 未登录统一提示
+        if (!this.state || !this.state.isLoggedIn || !this.state.isLoggedIn()) {
+            if (this.content) {
+                this.content.innerHTML = '<div class="achv-overview-card">请用户登录查看成就</div>';
+            }
+            return;
+        }
         if (this.activeCategory === 'overview') {
             this.renderOverview();
             return;
@@ -391,6 +398,13 @@ export class AchievementsView {
     }
 
     async renderOverview() {
+        // 未登录直接提示
+        if (!this.state || !this.state.isLoggedIn || !this.state.isLoggedIn()) {
+            if (this.content) {
+                this.content.innerHTML = '<div class="achv-overview-card">请用户登录查看成就</div>';
+            }
+            return;
+        }
         const root = document.createElement('div');
         root.className = 'achv-overview';
 

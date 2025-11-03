@@ -140,10 +140,8 @@ export class DailyView {
             this.state.setLoggedInUser(responseData.uid, user);
             this.renderUserSummaryPanel(user);
             
-            // 显示调试面板（仅管理员）
+            // 管理员：仅保留分享链接工具
             if (this.state.isAdmin) {
-                const debugPanel = document.getElementById('debug-panel');
-                if (debugPanel) debugPanel.style.display = 'block';
                 this.setupAdminSharelinkControls();
             }
             
@@ -576,7 +574,6 @@ export class DailyView {
             buttonHtml = `
                 <div class="checked-in-actions">
                     <button id="daily-check-in-btn" class="go-to-problem-btn check-in-prompt">打卡</button>
-                    ${this.state.isAdmin ? '<button id="admin-check-in-btn" class="go-to-problem-btn check-in-prompt" style="background-color: #ff5722;">一键打卡</button>' : ''}
                     <button id="daily-share-btn" class="share-btn">分享</button>
                 </div>
             `;
@@ -584,7 +581,6 @@ export class DailyView {
             buttonHtml = `
                 <div class="checked-in-actions">
                     <button id="daily-problem-btn" class="go-to-problem-btn" data-url="${problemUrl}">做题</button>
-                    ${this.state.isAdmin ? '<button id="admin-check-in-btn" class="go-to-problem-btn check-in-prompt" style="background-color: #ff5722;">一键打卡</button>' : ''}
                     <button id="daily-share-btn" class="share-btn">分享</button>
                 </div>
             `;
@@ -630,10 +626,7 @@ export class DailyView {
             checkInButton.addEventListener('click', () => this.handleCheckIn());
         }
 
-        const adminCheckInButton = document.getElementById('admin-check-in-btn');
-        if (adminCheckInButton) {
-            adminCheckInButton.addEventListener('click', () => this.handleAdminCheckInBypass());
-        }
+        // 已移除管理员一键打卡按钮
         
         const problemButton = document.getElementById('daily-problem-btn');
         if (problemButton) {
@@ -674,33 +667,7 @@ export class DailyView {
         }
     }
     
-    async handleAdminCheckInBypass() {
-        try {
-            if (!this.state.currentDailyProblem || !this.state.currentDailyProblem.problemId) {
-                throw new Error('今日暂无题目可以打卡');
-            }
-            
-            // 仍然执行实际的打卡操作
-            const result = await this.apiService.checkInDailyProblem(this.state.currentDailyProblem.problemId);
-            
-            if (result.code !== 0) {
-                throw new Error(result.msg || '打卡失败');
-            }
-            
-            // 打卡成功后，手动将UI渲染成“已通过但未打卡”的状态，而不是完全刷新
-            // 用户需要再点一次“打卡”来看到最终的“已打卡”状态
-            this.renderDailyProblem(this.state.currentDailyProblem, false, true);
-            
-            // 在后台更新日历
-            this.renderCalendar();
-            
-            eventBus.emit(EVENTS.CHECK_IN_SUCCESS, { problem: this.state.currentDailyProblem });
-        } catch (error) {
-            console.error('Admin Check-in Bypass failed:', error);
-            alert(`管理员操作失败: ${error.message}`);
-            eventBus.emit(EVENTS.DATA_ERROR, { module: 'daily', error });
-        }
-    }
+    // 管理员一键打卡功能已废弃
     
     handleShare(problem, isClockToday, hasPassedPreviously) {
         // 优先复制文本到剪贴板，其次降级到系统分享/手动复制
@@ -1122,7 +1089,8 @@ export class DailyView {
     }
     
     buildUrlWithChannelPut(baseUrl, channelPut) {
-        const effectiveChannelPut = channelPut || (this.state && this.state.channelPut) || 'w251acm';
+        // 打卡页统一使用 w252acm，除非显式传入覆盖
+        const effectiveChannelPut = channelPut || 'w252acm';
         return helpers.buildUrlWithChannelPut(baseUrl, effectiveChannelPut);
     }
     

@@ -299,17 +299,42 @@ export class NowcoderTracker {
     async init() {
         console.log('🚀 NowcoderTracker App Initialized');
         
-        // 根据URL参数或默认值设置初始标签
+        // 优先使用哈希路由，其次回退到 ?tab=，最后默认 daily
+        const fromHash = this.getRouteFromHash();
         const urlParams = new URLSearchParams(window.location.search);
-        const initialTab = urlParams.get('tab') || 'daily';
-        
-        this.switchMainTab(initialTab);
+        const fromQuery = urlParams.get('tab');
+        const rawRoute = fromHash || fromQuery || 'daily';
+        const initialTab = this.normalizeTabName(rawRoute);
+        const initialSubview = this.extractProblemsSubview(rawRoute);
+        this.switchMainTab(initialTab, { subview: initialSubview });
+
+        // 监听哈希变化，实现前进/后退导航
+        window.addEventListener('hashchange', () => {
+            const route = this.getRouteFromHash();
+            const target = this.normalizeTabName(route || 'daily');
+            const subview = this.extractProblemsSubview(route);
+            if (target) {
+                this.switchMainTab(target, { subview });
+            }
+        });
         
         // 发布应用初始化完成事件
         eventBus.emit(EVENTS.PAGE_LOADED, { app: this });
     }
     
-    switchMainTab(tabName) {
+    switchMainTab(tabName, options = {}) {
+        // 将当前标签写入哈希，保持可分享/可返回
+        const normalized = this.normalizeTabName(tabName);
+        const currentHash = (window.location.hash || '').replace(/^#/, '');
+        let expectedHash = `/${normalized}`;
+        if (normalized === 'problems' && options && options.subview === 'contests') {
+            expectedHash = '/contest';
+        }
+        if (currentHash !== expectedHash) {
+            // 仅当不同再写入，避免触发重复 hashchange
+            window.location.hash = expectedHash;
+        }
+
         const previousTab = this.state.activeMainTab;
 
         // If leaving the skill tree tab, reset its view to summary.
@@ -325,29 +350,29 @@ export class NowcoderTracker {
         });
 
         // Update state
-        this.state.setActiveMainTab(tabName);
+        this.state.setActiveMainTab(normalized);
         
         // Update UI (button active)
         this.elements.mainTabs.forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.tab === tabName);
+            tab.classList.toggle('active', tab.dataset.tab === normalized);
         });
  
          // 切换主内容区域（与index.html的结构对应：.tab-content + section id）
          document.querySelectorAll('.tab-content').forEach(section => {
-             const isActive = section.id === tabName;
+            const isActive = section.id === normalized;
              section.classList.toggle('active', isActive);
              // The line below is removed to allow CSS to control display property
          });
          
          // 触发视图切换
-         switch (tabName) {
+         switch (normalized) {
             case 'daily':
                 // 不在此处重复触发事件，统一由函数末尾的通用 emit 触发
                 break;
             case 'problems':
                 // 默认展示practice视图（与原备份一致），并高亮按钮
                 {
-                    const defaultView = 'practice';
+                    const defaultView = (options && options.subview) || 'practice';
                     // 激活view-type按钮
                     document.querySelectorAll('.view-type-tab').forEach(b => {
                         b.classList.toggle('active', b.dataset.view === defaultView);
@@ -415,7 +440,7 @@ export class NowcoderTracker {
         }
         
         // 发布事件
-        eventBus.emit(EVENTS.MAIN_TAB_CHANGED, tabName);
+        eventBus.emit(EVENTS.MAIN_TAB_CHANGED, normalized);
     }
 
     async handleRankTabChange(rankType) {
@@ -455,6 +480,34 @@ export class NowcoderTracker {
     // 工具方法
     buildUrlWithChannelPut(baseUrl) {
         return helpers.buildUrlWithChannelPut(baseUrl, this.state.channelPut);
+    }
+
+    // --- Hash Routing helpers ---
+    getRouteFromHash() {
+        const h = (window.location.hash || '').replace(/^#/, '').trim();
+        if (!h) return '';
+        // 支持 #/tab 或 #tab 两种形式
+        const cleaned = h.startsWith('/') ? h.slice(1) : h;
+        const [first] = cleaned.split('?');
+        return first || '';
+    }
+
+    normalizeTabName(name) {
+        const key = String(name || '').toLowerCase();
+        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','profile','faq','changelog']);
+        if (allowed.has(key)) return key;
+        // 允许一些别名
+        if (key === 'skills' || key === 'skill' || key === 'skilltree') return 'skill-tree';
+        if (key === 'contest' || key === 'practice' || key === 'interview') return 'problems';
+        return 'daily';
+    }
+
+    extractProblemsSubview(name) {
+        const key = String(name || '').toLowerCase();
+        if (key === 'contest') return 'contests';
+        if (key === 'practice') return 'practice';
+        if (key === 'interview') return 'interview';
+        return null;
     }
     
     // 获取用户搜索数据（供RankingsView使用）

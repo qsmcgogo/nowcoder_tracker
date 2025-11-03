@@ -100,6 +100,11 @@ app.use('/problem/tracker/skill-tree/tagInfo', manualProxyHandler('/problem/trac
 app.use('/problem/tracker/skill-tree/progress', manualProxyHandler('/problem/tracker/skill-tree/progress'));
 app.use('/problem/tracker/skill-tree/update', manualProxyHandler('/problem/tracker/skill-tree/update'));
 
+// Admin endpoints for Skill Tree question management
+app.use('/problem/tracker/skill-tree/add-question', manualProxyHandler('/problem/tracker/skill-tree/add-question'));
+app.use('/problem/tracker/skill-tree/update-question', manualProxyHandler('/problem/tracker/skill-tree/update-question'));
+app.use('/problem/tracker/skill-tree/delete-question', manualProxyHandler('/problem/tracker/skill-tree/delete-question'));
+
 
 // New endpoint to proxy avatars and bypass CORS for canvas
 app.get('/avatar-proxy', (req, res) => {

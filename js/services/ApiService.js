@@ -594,6 +594,65 @@ export class ApiService {
     }
 
     /**
+     * 管理员：为指定知识点新增题目
+     * @param {number} tagId
+     * @param {number|string} questionId
+     * @param {number} score
+     */
+    async addSkillTreeQuestion(tagId, questionId, score) {
+        const url = `${this.apiBase}/problem/tracker/skill-tree/add-question`;
+        const body = `tagId=${encodeURIComponent(tagId)}&questionId=${encodeURIComponent(questionId)}&score=${encodeURIComponent(score)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || data;
+        throw new Error((data && data.msg) || '新增题目失败');
+    }
+    
+
+    /**
+     * 管理员：更新知识点题目分数
+     * @param {number} tagId
+     * @param {number|string} questionId
+     * @param {number} score
+     */
+    async updateSkillTreeQuestion(tagId, questionId, score) {
+        const url = `${this.apiBase}/problem/tracker/skill-tree/update-question`;
+        const body = `tagId=${encodeURIComponent(tagId)}&questionId=${encodeURIComponent(questionId)}&score=${encodeURIComponent(score)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || data;
+        throw new Error((data && data.msg) || '更新题目失败');
+    }
+
+    /**
+     * 管理员：删除知识点题目
+     * @param {number|string} questionId
+     */
+    async deleteSkillTreeQuestion(questionId) {
+        const url = `${this.apiBase}/problem/tracker/skill-tree/delete-question`;
+        const body = `questionId=${encodeURIComponent(questionId)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || data;
+        throw new Error((data && data.msg) || '删除题目失败');
+    }
+
+    /**
      * 获取成就徽章列表
      * 后端约定：/problem/tracker/badge/list?types=1,2,3
      * 渲染约定：打卡用 1/2/3，过题用 4/5，技能树用 6
