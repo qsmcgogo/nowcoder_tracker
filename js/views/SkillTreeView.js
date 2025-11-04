@@ -1227,7 +1227,7 @@ export class SkillTreeView {
             }
             const passTotal = Number(problem.passTotal || 0);
             const passText = (typeof passTotal.toLocaleString === 'function') ? passTotal.toLocaleString() : String(passTotal);
-            const passHtml = `<span class="problem-pass-total" title="通过人数">👥 ${passText}</span>`;
+            const passHtml = `<br><span class=\"problem-pass-total\" title=\"通过人数\">👥 ${passText}</span>`;
 
             // 附加题标识（根据 question_id/qid 判断）
             const qid = String(problem.qid || problem.questionId || '');
