@@ -2889,6 +2889,15 @@ body .problems-table tbody tr td.status-none {
 .toast-leave { transform: translateY(0); opacity: 1; }
 .toast-leave-active { transform: translateY(-8px); opacity: 0; transition: all .2s ease; }
 
+/* Skill tree summary SVG overlay */
+.skill-tree-summary { position: relative; }
+.skill-tree-svg {
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%; height: 100%;
+    pointer-events: none;
+}
+
 .profile-logged-out {
     text-align: center;
     padding: 40px;

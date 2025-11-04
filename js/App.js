@@ -26,6 +26,8 @@ export class NowcoderTracker {
         this.state = new AppState();
         // 成就轮询冷却时间（避免频繁触发）
         this._lastAchvCheck = 0;
+        // 题库搜索防抖时间戳
+        this._lastProblemSearchTs = 0;
         
         // 初始化服务
         this.apiService = new ApiService();
@@ -133,6 +135,8 @@ export class NowcoderTracker {
                 // 通知对应视图加载数据
                 this.state.setActiveView(view);
                 eventBus.emit(EVENTS.VIEW_CHANGED, view);
+                // 切换到竞赛/算法学习/笔面试后，通过“Search”按钮触发一次刷新，避免重复调用
+                if (this.state.loggedInUserId) this.triggerSearchWhenReady(view);
             });
         });
         
@@ -149,6 +153,8 @@ export class NowcoderTracker {
                 tab.classList.add('active');
 
                 this.switchContestTab(tabName);
+                // 切换竞赛子标签后，通过“Search”按钮触发刷新
+                if (this.state.loggedInUserId) this.triggerSearchWhenReady('contests');
             });
         });
         
@@ -172,6 +178,7 @@ export class NowcoderTracker {
                 }
 
                 this.switchInterviewTab(tabName);
+                if (this.state.loggedInUserId) this.triggerSearchWhenReady('interview');
             });
         });
         
@@ -189,6 +196,7 @@ export class NowcoderTracker {
                 tab.classList.add('active');
 
                 this.switchCampusSubTab(tabName);
+                if (this.state.loggedInUserId) this.triggerSearchWhenReady('interview');
             });
         });
         
@@ -205,6 +213,8 @@ export class NowcoderTracker {
                 tab.classList.add('active');
 
                 this.switchPracticeTab(tabName);
+                // 练习子标签（如新手入门130）切换后，通过“Search”按钮触发刷新
+                if (this.state.loggedInUserId) this.triggerSearchWhenReady('practice');
             });
         });
         
@@ -412,14 +422,9 @@ export class NowcoderTracker {
                     this.state.setActiveView(defaultView);
                     eventBus.emit(EVENTS.VIEW_CHANGED, defaultView);
 
-                    // If logged in, automatically fill UID and trigger a search
-                    if (this.state.loggedInUserId) {
-                        if (this.elements.userIdInput && !this.elements.userIdInput.value) {
-                            this.elements.userIdInput.value = this.state.loggedInUserId;
-                        }
-                        // Use a timeout to ensure the view is ready before searching
-                        setTimeout(() => this.handleUserStatusSearch(), 100);
-                    }
+                    // 如果需要刷新，由各子标签点击时统一触发Search按钮；此处不再自动调用，避免重复 /diff
+                    // 但当用户只是点击顶部“题库”标签进入时，仍需刷新一次以计算绿色高亮
+                    if (this.state.loggedInUserId) this.triggerSearchWhenReady(defaultView);
                 }
                 break;
             case 'rankings':
@@ -638,22 +643,79 @@ export class NowcoderTracker {
             }
         });
 
-        // contests/interview/practice 行首 “全AC” 标记
-        const allRows = document.querySelectorAll('#contests-view tbody tr, #practice-view tbody tr, #interview-view tbody tr');
-        allRows.forEach(row => {
+        // contests/interview 行首 “全AC” 标记（逐行）
+        const contestRows = document.querySelectorAll('#contests-view tbody tr, #interview-view tbody tr');
+        contestRows.forEach(row => {
             const cells = row.querySelectorAll('td[data-problem-id]');
             if (!cells.length) return;
             const allAc = Array.from(cells).every(c => ac1Set.has(c.getAttribute('data-problem-id')));
             const first = row.querySelector('td:first-child');
             if (!first) return;
-
-            // Ensure we don't remove the class if it should be there, and add it if needed
-            if (allAc) {
-                first.classList.add('status-all-ac');
-            } else {
-                first.classList.remove('status-all-ac');
-            }
+            if (allAc) first.classList.add('status-all-ac'); else first.classList.remove('status-all-ac');
         });
+
+        // practice 视图：按知识点维度（跨行）“全AC” 标记
+        const practiceProblems = document.querySelectorAll('#practice-view td[data-problem-id][data-kp]');
+        if (practiceProblems.length) {
+            const kpToPids = new Map();
+            practiceProblems.forEach(cell => {
+                const kp = cell.getAttribute('data-kp') || '';
+                const pid = cell.getAttribute('data-problem-id');
+                if (!kpToPids.has(kp)) kpToPids.set(kp, []);
+                kpToPids.get(kp).push(pid);
+            });
+            kpToPids.forEach((pids, kp) => {
+                const allAc = pids.every(pid => ac1Set.has(String(pid)));
+                const kpCells = document.querySelectorAll(`#practice-view td.knowledge-point-cell[data-kp="${kp.replace(/"/g, '\\"')}"]`);
+                kpCells.forEach((cell, idx) => {
+                    // 只在第一行显示绿色标记，其它行移除
+                    if (idx === 0 && allAc) cell.classList.add('status-all-ac');
+                    else cell.classList.remove('status-all-ac');
+                });
+            });
+        }
+    }
+
+    // 统一通过“Search”按钮触发题库刷新，带防抖，避免重复 /diff 请求
+    debouncedProblemSearch(delay = 0) {
+        const now = Date.now();
+        if (now - (this._lastProblemSearchTs || 0) < 150) return; // 150ms 防抖
+        this._lastProblemSearchTs = now;
+        setTimeout(() => {
+            try {
+                if (this.elements && this.elements.problemSearchBtn) {
+                    this.elements.problemSearchBtn.click();
+                } else {
+                    // 兜底：若按钮未挂载，直接调用逻辑
+                    this.handleUserStatusSearch();
+                }
+            } catch (_) {}
+        }, delay);
+    }
+
+    // 等待列表渲染完成后再触发搜索，避免空DOM导致qids收集不到
+    triggerSearchWhenReady(view) {
+        const map = {
+            contests: '#contests-view td[data-problem-id]',
+            practice: '#practice-view td[data-problem-id]',
+            interview: '#interview-view td[data-problem-id]'
+        };
+        const selector = map[view] || '#contests-view td[data-problem-id]';
+        let tries = 0;
+        const check = () => {
+            tries += 1;
+            if (document.querySelector(selector)) {
+                this.debouncedProblemSearch(0);
+                return;
+            }
+            if (tries < 25) { // 最多等待 ~2.5s
+                setTimeout(check, 100);
+            } else {
+                // 超时兜底也触发一次
+                this.debouncedProblemSearch(0);
+            }
+        };
+        check();
     }
 }
 

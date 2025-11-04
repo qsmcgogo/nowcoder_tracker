@@ -114,22 +114,11 @@ export class PracticeView {
             }
             
             eventBus.emit(EVENTS.DATA_LOADED, { module: 'practice', data });
-            
-            // 自动查询用户状态
-            if (this.elements.userIdInput && this.elements.userIdInput.value) {
-                setTimeout(() => {
-                    // 直接调用handleUserStatusSearch方法
-                    this.handleUserStatusSearch(this.elements.userIdInput.value);
-                }, 100);
-            } else if (this.state.loggedInUserId) {
-                // 如果有登录用户但没有输入框值，自动填充并查询
-                if (this.elements.userIdInput) {
-                    this.elements.userIdInput.value = this.state.loggedInUserId;
-                }
-                setTimeout(() => {
-                    this.handleUserStatusSearch(this.state.loggedInUserId);
-                }, 100);
-            }
+            // 统一通过题库的“Search”按钮触发刷新（由 App 处理高亮与知识点全绿）
+            setTimeout(() => {
+                const btn = document.getElementById('problem-search-btn');
+                if (btn) btn.click();
+            }, 80);
         } catch (error) {
             console.error('Error fetching practice data:', error);
             this.renderPracticeError('加载练习数据失败');
@@ -198,19 +187,22 @@ export class PracticeView {
                     }
                     // 新知识点，打印名称并重置计数器
                     currentProcessingKp = problem.knowledgePoint;
-                    finalHtml += `<td class="knowledge-point-cell">${currentProcessingKp}</td>`;
+                    const kpAttr = String(currentProcessingKp).replace(/"/g, '&quot;');
+                    finalHtml += `<td class="knowledge-point-cell" data-kp="${kpAttr}">${currentProcessingKp}</td>`;
                     problemsInCurrentRow = 0;
                 } 
                 // 情况2：知识点相同但当前行已满
                 else if (problemsInCurrentRow === 5) {
                      finalHtml += '</tr><tr>'; // 关闭旧行，开始新行
                      // 这是续行，所以为知识点名称添加空单元格
-                     finalHtml += `<td class="knowledge-point-cell"></td>`;
+                     const kpAttr = String(currentProcessingKp).replace(/"/g, '&quot;');
+                     finalHtml += `<td class="knowledge-point-cell" data-kp="${kpAttr}"></td>`;
                      problemsInCurrentRow = 0;
                 }
 
                 // 添加当前题目单元格到当前行
-                finalHtml += `<td data-problem-id="${problem.problemId}">${this.renderProblemHTML(problem)}</td>`;
+                const kpAttr = String(currentProcessingKp).replace(/"/g, '&quot;');
+                finalHtml += `<td data-problem-id="${problem.problemId}" data-kp="${kpAttr}">${this.renderProblemHTML(problem)}</td>`;
                 problemsInCurrentRow++;
             }
             
@@ -343,16 +335,11 @@ export class PracticeView {
     async handlePracticePageChange(page) {
         this.state.practiceCurrentPage = page;
         this.renderPracticeView();
-        // 自动查询用户状态（直接调用）
-        if (this.elements.userIdInput && this.elements.userIdInput.value) {
-            setTimeout(() => this.handleUserStatusSearch(this.elements.userIdInput.value), 100);
-        } else if (this.state.loggedInUserId) {
-            // 如果有登录用户但没有输入框值，自动填充并查询
-            if (this.elements.userIdInput) {
-                this.elements.userIdInput.value = this.state.loggedInUserId;
-            }
-            setTimeout(() => this.handleUserStatusSearch(this.state.loggedInUserId), 100);
-        }
+        // 统一触发题库“Search”按钮，由 App 负责刷新高亮
+        setTimeout(() => {
+            const btn = document.getElementById('problem-search-btn');
+            if (btn) btn.click();
+        }, 80);
     }
     
     renderPracticeError(message) {

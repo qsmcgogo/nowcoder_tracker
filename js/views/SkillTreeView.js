@@ -183,6 +183,18 @@ export class SkillTreeView {
         this.lines = [];
         this.currentView = 'summary'; // 'summary' or 'detail'
         this.selectedStageId = null;
+        // 控制是否绘制概览页阶段之间的连线（默认关闭，以避免缩放时的错位视觉）
+        this.enableSummaryLines = true;
+        
+        // 统一的连线重定位处理（窗口缩放/视口变化/滚动）
+        this._repositionLines = () => {
+            try {
+                if (this.lines && this.lines.length) {
+                    this.lines.forEach(line => { try { line.position(); } catch (_) {} });
+                }
+            } catch (_) {}
+        };
+        this._viewportListenersBound = false;
         this.activeNodeId = null; // To track which node panel is open
         
         // ------------------ 模拟数据更新 ------------------
@@ -204,10 +216,16 @@ export class SkillTreeView {
                     this.clearLines();
                 }
             });
+            // 当主标签切换离开技能树时，清除已绘制的连线，避免回来重复叠加
+            eventBus.on(EVENTS.MAIN_TAB_CHANGED, (tab) => {
+                if (tab !== 'skill-tree') {
+                    this.clearLines();
+                }
+            });
         } catch (_) { /* ignore */ }
     }
 
-    // 绑定一次全局“点击外部关闭面板”
+    // 绑定一次全局"点击外部关闭面板"
     attachGlobalPanelCloser() {
         if (this._outsideCloseBound) return;
         this._outsideCloseBound = true;
@@ -254,7 +272,7 @@ export class SkillTreeView {
         try {
             // 获取所有节点的进度
             const progressData = await this.apiService.fetchSkillTreeProgress(isLoggedIn ? this.state.loggedInUserId : null, allTagIds);
-            // 额外：获取用户累计过题数，用于“跳过解锁”判定（>=50）
+            // 额外：获取用户累计过题数，用于"跳过解锁"判定（>=50）
             let solvedCount = 0;
             if (isLoggedIn) {
                 try {
@@ -378,8 +396,8 @@ export class SkillTreeView {
                 <div class="skill-tree-spacer" style="grid-column: 1 / 4; grid-row: 4; height: 10px;"></div>
             </div>`;
             this.bindSummaryEvents();
-            // 待DOM稳定后绘制阶段之间的连线
-            setTimeout(() => this.drawStageSummaryLines(), 0);
+            // 概览页连线（使用SVG覆盖层，避免重复与错位）
+            if (this.enableSummaryLines) setTimeout(() => this.setupSummarySvg(), 0);
             if (this.state.isAdmin) this.bindAdminQuestionPanelEvents();
 
         } catch (error) {
@@ -396,7 +414,7 @@ export class SkillTreeView {
         const stage = tree.stages.find(s => s.id === stageId);
         if (!stage) return;
 
-        // 第三章暂未开放：直接显示“敬请期待”，不渲染虚框和知识点
+        // 第三章暂未开放：直接显示"敬请期待"，不渲染虚框和知识点
         if (stage.id === 'stage-3') {
             this.renderComingSoonDetail(stage.name);
             return;
@@ -558,7 +576,7 @@ export class SkillTreeView {
             `;
             this.container.innerHTML = html;
             this.bindDetailEvents();
-            // 仅在“第一章：晨曦微光”中绘制列间依赖箭头
+            // 仅在"第一章：晨曦微光"中绘制列间依赖箭头
             if (stage.id === 'stage-1') {
                 setTimeout(() => this.drawColumnDependencyLines(stage), 0);
             }
@@ -570,7 +588,7 @@ export class SkillTreeView {
         }
     }
 
-    // 渲染“占位/敬请期待”详情页（用于间章：拂晓）
+    // 渲染"占位/敬请期待"详情页（用于间章：拂晓）
     renderComingSoonDetail(title) {
         const html = `
             <div class="skill-tree-detail">
@@ -585,7 +603,7 @@ export class SkillTreeView {
         this.bindDetailEvents();
     }
 
-    // 渲染“间章：拂晓” —— 5个知识点的轻量布局
+    // 渲染"间章：拂晓" —— 5个知识点的轻量布局
     async renderInterludeDetail() {
         const tree = this.skillTrees['newbie-130'];
         const nodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
@@ -877,6 +895,8 @@ export class SkillTreeView {
                 this.lines.push(line);
             }
         });
+        // 绑定重定位监听，缩放/滚动时同步位置
+        try { if (this._bindViewportListeners) this._bindViewportListeners(); } catch (_) {}
     }
 
     // 绘制依赖连线 (旧函数，保留备用)
@@ -914,6 +934,7 @@ export class SkillTreeView {
             this.lines.forEach(line => line.remove());
             this.lines = [];
         }
+        try { if (this._unbindViewportListeners) this._unbindViewportListeners(); } catch (_) {}
     }
 
 
@@ -927,6 +948,7 @@ export class SkillTreeView {
             }
             card.addEventListener('click', () => {
                 this.clearLines();
+                this.teardownSummarySvg && this.teardownSummarySvg();
                 this.selectedStageId = card.dataset.stageId;
                 this.currentView = 'detail';
                 this.render();
@@ -938,44 +960,70 @@ export class SkillTreeView {
         if (mini && !mini.classList.contains('locked')) {
             mini.addEventListener('click', () => {
                 this.clearLines();
+                this.teardownSummarySvg && this.teardownSummarySvg();
                 this.renderInterludeDetail();
             });
         }
     }
 
-    // 在概览页绘制阶段之间的直线连接（第一章->第二章，第二章->第三章）
-    drawStageSummaryLines() {
-        try {
-            const s1 = this.container.querySelector('.skill-tree-card.stage-1');
-            const s2 = this.container.querySelector('.skill-tree-card.stage-2');
-            const s3 = this.container.querySelector('.skill-tree-card.stage-3');
+    // 使用 SVG 覆盖层绘制概览页连线（第一章->第二章，第二章->第三章）
+    setupSummarySvg() {
+        const summary = this.container.querySelector('.skill-tree-summary');
+        if (!summary) return;
+        this.teardownSummarySvg && this.teardownSummarySvg();
+        // 创建 SVG 覆盖层
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.classList.add('skill-tree-svg');
+        svg.setAttribute('preserveAspectRatio', 'none');
+        summary.appendChild(svg);
+        this._summarySvg = svg;
 
-            const baseOptions = {
-                color: 'rgba(173, 181, 189, 0.9)',
-                size: 2,
-                path: 'straight',
-                startPlug: 'behind',
-                endPlug: 'behind'
-            };
+        // 绑定更新
+        this._summarySvgUpdate = () => this.updateSummarySvg();
+        window.addEventListener('resize', this._summarySvgUpdate, { passive: true });
+        window.addEventListener('scroll', this._summarySvgUpdate, true);
+        this.updateSummarySvg();
+    }
 
-            if (s1 && s2) {
-                // 第一章右下角 → 第二章左上角
-                const startA = LeaderLine.pointAnchor(s1, { x: '100%', y: '100%' });
-                const endA = LeaderLine.pointAnchor(s2, { x: '0%', y: '0%' });
-                const line12 = new LeaderLine(startA, endA, { ...baseOptions });
-                this.lines.push(line12);
-            }
-            if (s2 && s3) {
-                // 第二章左下角 → 第三章右上角
-                const startB = LeaderLine.pointAnchor(s2, { x: '0%', y: '100%' });
-                const endB = LeaderLine.pointAnchor(s3, { x: '100%', y: '0%' });
-                const line23 = new LeaderLine(startB, endB, { ...baseOptions });
-                this.lines.push(line23);
-            }
-        } catch (e) {
-            // 忽略绘制失败（例如库未加载）
-            console.warn('Stage summary lines draw failed:', e);
+    updateSummarySvg() {
+        const summary = this.container.querySelector('.skill-tree-summary');
+        if (!summary || !this._summarySvg) return;
+        const s1 = summary.querySelector('.skill-tree-card.stage-1');
+        const s2 = summary.querySelector('.skill-tree-card.stage-2');
+        const s3 = summary.querySelector('.skill-tree-card.stage-3');
+        const rect = summary.getBoundingClientRect();
+        const getPoint = (el, px, py) => {
+            const r = el.getBoundingClientRect();
+            const x = r.left - rect.left + r.width * px;
+            const y = r.top - rect.top + r.height * py;
+            return { x, y };
+        };
+        // 清空
+        while (this._summarySvg.firstChild) this._summarySvg.removeChild(this._summarySvg.firstChild);
+        const draw = (a, b) => {
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', a.x);
+            line.setAttribute('y1', a.y);
+            line.setAttribute('x2', b.x);
+            line.setAttribute('y2', b.y);
+            line.setAttribute('stroke', 'rgba(173,181,189,0.9)');
+            line.setAttribute('stroke-width', '2');
+            this._summarySvg.appendChild(line);
+        };
+        if (s1 && s2) draw(getPoint(s1, 1, 1), getPoint(s2, 0, 0));
+        if (s2 && s3) draw(getPoint(s2, 0, 1), getPoint(s3, 1, 0));
+    }
+
+    teardownSummarySvg() {
+        if (this._summarySvgUpdate) {
+            window.removeEventListener('resize', this._summarySvgUpdate, { passive: true });
+            window.removeEventListener('scroll', this._summarySvgUpdate, true);
+            this._summarySvgUpdate = null;
         }
+        if (this._summarySvg && this._summarySvg.parentNode) {
+            this._summarySvg.parentNode.removeChild(this._summarySvg);
+        }
+        this._summarySvg = null;
     }
 
     // 已移除全量同步入口
@@ -1010,7 +1058,7 @@ export class SkillTreeView {
             this.panelCloseBtn.addEventListener('click', () => this.hideNodePanel());
         }
 
-        // 确保全局“点击外部关闭”已绑定
+        // 确保全局"点击外部关闭"已绑定
         this.attachGlobalPanelCloser();
     }
 
@@ -1399,7 +1447,7 @@ export class SkillTreeView {
         });
     }
 
-    // 在“间章：拂晓”页面上，刷新某个知识点后同步更新对应按钮
+    // 在"间章：拂晓"页面上，刷新某个知识点后同步更新对应按钮
     updateInterludeChip(tagId, nodeId) {
         try {
             const pctRaw = this.currentStageProgress && this.currentStageProgress.nodeProgress
@@ -1455,5 +1503,35 @@ export class SkillTreeView {
 
     hide() {
         this.clearLines();
+        this.teardownSummarySvg && this.teardownSummarySvg();
     }
 }
+
+// Attach viewport listeners outside the class definition to avoid reflow inside class
+SkillTreeView.prototype._bindViewportListeners = function () {
+    if (this._viewportListenersBound) return;
+    this._viewportListenersBound = true;
+    if (!this._repositionLines) return;
+    window.addEventListener('resize', this._repositionLines, { passive: true });
+    window.addEventListener('scroll', this._repositionLines, true);
+    if (window.visualViewport) {
+        try {
+            window.visualViewport.addEventListener('resize', this._repositionLines, { passive: true });
+            window.visualViewport.addEventListener('scroll', this._repositionLines, { passive: true });
+        } catch (_) {}
+    }
+};
+
+SkillTreeView.prototype._unbindViewportListeners = function () {
+    if (!this._viewportListenersBound) return;
+    this._viewportListenersBound = false;
+    if (!this._repositionLines) return;
+    window.removeEventListener('resize', this._repositionLines, { passive: true });
+    window.removeEventListener('scroll', this._repositionLines, true);
+    if (window.visualViewport) {
+        try {
+            window.visualViewport.removeEventListener('resize', this._repositionLines, { passive: true });
+            window.visualViewport.removeEventListener('scroll', this._repositionLines, { passive: true });
+        } catch (_) {}
+    }
+};

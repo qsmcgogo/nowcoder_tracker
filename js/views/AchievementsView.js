@@ -142,18 +142,29 @@ export class AchievementsView {
                 info.appendChild(title);
                 if (b.detail) info.appendChild(requirementRow);
 
-                // 未合并模式下：对累计/连续/累计过题等未完成项显示进度条
+                // 未合并模式下：对累计/连续/累计过题(401~415)显示进度条；
+                // 四个“题单制霸”（451~454）不显示进度条
                 if (!isUnlocked) {
                     const t = Number(b.type);
+                    const id = Number(b.id);
                     const threshold = Number(b.acquirement) || 0;
                     let current = 0;
+                    let shouldShow = false;
                     if (this.activeCategory === 'checkin') {
-                        if (t === 1) current = Number((dynamicCat.progress && dynamicCat.progress.countDay) || 0); // 累计
-                        if (t === 2) current = Number((dynamicCat.progress && dynamicCat.progress.continueDay) || 0); // 连续
+                        if (t === 1) { current = Number((dynamicCat.progress && dynamicCat.progress.countDay) || 0); shouldShow = true; }
+                        if (t === 2) { current = Number((dynamicCat.progress && dynamicCat.progress.continueDay) || 0); shouldShow = true; }
                     } else if (this.activeCategory === 'solve') {
-                        if (t === 4) current = Number((dynamicCat.progress && dynamicCat.progress.solveCount) || 0); // 累计过题
+                        if (t === 4) {
+                            // 仅对累计过题系列(401~415)展示进度；题单制霸(451~454)不展示
+                            const isPlaylist = id >= 451 && id <= 454;
+                            const isCumulative = id >= 401 && id <= 415;
+                            if (!isPlaylist && isCumulative) {
+                                current = Number((dynamicCat.progress && dynamicCat.progress.solveCount) || 0);
+                                shouldShow = true;
+                            }
+                        }
                     }
-                    if (threshold > 0 && current >= 0) {
+                    if (shouldShow && threshold > 0 && current >= 0) {
                         const progress = document.createElement('div');
                         progress.className = 'achv-progress';
                         const inner = document.createElement('div');
