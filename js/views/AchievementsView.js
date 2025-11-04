@@ -135,7 +135,21 @@ export class AchievementsView {
                 const span = document.createElement('span');
                 span.className = `achv-frame ${this.pickRarityClass(Number(b.score) || 0)}`;
                 span.textContent = b.name || '';
-                title.appendChild(span);
+                // 显示完成时间（未合并模式下也展示）
+                if (isUnlocked && b.finishedTime) {
+                    const header = document.createElement('div');
+                    header.className = 'achv-header';
+                    const left = document.createElement('div');
+                    left.appendChild(span);
+                    header.appendChild(left);
+                    const t = document.createElement('span');
+                    t.className = 'achv-finish-time';
+                    t.textContent = `完成于 ${this.formatTime(b.finishedTime)}`;
+                    header.appendChild(t);
+                    title.appendChild(header);
+                } else {
+                    title.appendChild(span);
+                }
                 const requirementRow = document.createElement('div');
                 requirementRow.className = 'achv-target-row';
                 requirementRow.textContent = b.detail || '';
