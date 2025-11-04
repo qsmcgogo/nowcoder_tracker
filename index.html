@@ -526,5 +526,38 @@
 
     <script src="js/lib/leader-line.min.js"></script>
     <script type="module" src="script.js"></script>
+    <script>
+        (function () {
+        !function (e, t, n, g, i) {
+            e[i] = e[i] || function () {
+                (e[i].q = e[i].q || []).push(arguments)
+            }, n = t.createElement("script"), n.setAttribute('crossorigin', 'anonymous'), tag = t.getElementsByTagName("script")[0], n.async = 1, n.src = ('https:' == document.location.protocol ? 'https://' : 'http://') + g, tag.parentNode.insertBefore(n, tag)
+        }(window, document, "script", "static.nowcoder.com/lib/oig.2.1.js", "gio");
+                gio('init', 'c196c3667d214851b11233f5c17f99d5', {});
+                gio('config',  {'host' : 'grow.nowcoder.com'});
+                gio('send');
+            })();
+    </script>
+    
+    <!-- 2.调用  -->
+    <script>
+      (function () {
+        // 取 channelPut 参数（兼容性处理）
+        var entranceType = '';
+        try {
+          var url = new URL(window.location.href);
+          entranceType = url.searchParams.get('channelPut') || '';
+        } catch (e) {
+          var m = (window.location.search.match(/[?&]channelPut=([^&]+)/) || [,''])[1];
+          entranceType = m ? decodeURIComponent(m.replace(/\+/g, ' ')) : '';
+        }
+    
+        gio('track', 'PCpageView', {
+          pageName_var: 'questiontracker',
+          entranceType_var: entranceType
+        });
+      })();
+    </script>
 </body>
 </html>
+
