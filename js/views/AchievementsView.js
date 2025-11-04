@@ -16,6 +16,8 @@ export class AchievementsView {
         this.mockOverview = mockOverview; // { totalPoints, recent: [] }
 
         this.activeCategory = 'overview';
+        // 是否将相似成就合并为系列视图（默认不合并）
+        this.mergeSeries = false;
         this.activeSeries = '';
 
         // 动态数据（来自后端徽章接口），按类别缓存
@@ -107,17 +109,20 @@ export class AchievementsView {
         const cat = (useDynamic || useRaw) ? dynamicCat : this.catalog[this.activeCategory];
         if (!cat) return;
 
-        // 优先：对于打卡分类（checkin）与过题分类（solve），使用“系列合并”视图；
-        // 其中 checkin 的一次性成就仍走原子直出；solve 的题单制霸改为 series: single。
-        const preferSeriesForCheckin = this.activeCategory === 'checkin' && useDynamic;
-        const preferSeriesForSolve = this.activeCategory === 'solve' && useDynamic;
+        // 是否使用“系列合并”视图：受 mergeSeries 开关控制
+        // checkin：累计/连续系列可合并；solve：累计过题可合并
+        const preferSeriesForCheckin = this.mergeSeries && this.activeCategory === 'checkin' && useDynamic;
+        const preferSeriesForSolve = this.mergeSeries && this.activeCategory === 'solve' && useDynamic;
         const preferSeries = preferSeriesForCheckin || preferSeriesForSolve;
 
         // 直出模式（不合并）
         if (useRaw && !preferSeries) {
             const list = dynamicCat.rawList.slice();
-            // 已完成置顶
-            list.sort((a, b) => Number(b.status === 1) - Number(a.status === 1));
+            // 排序：已获得优先，其次按成就点从高到低
+            list.sort((a, b) =>
+                (Number(b.status === 1) - Number(a.status === 1)) ||
+                ((Number(a.score) || 0) - (Number(b.score) || 0))
+            );
             list.forEach(b => {
                 const isUnlocked = Number(b.status) === 1;
                 const card = document.createElement('div');
@@ -137,6 +142,33 @@ export class AchievementsView {
                 info.appendChild(title);
                 if (b.detail) info.appendChild(requirementRow);
 
+                // 未合并模式下：对累计/连续/累计过题等未完成项显示进度条
+                if (!isUnlocked) {
+                    const t = Number(b.type);
+                    const threshold = Number(b.acquirement) || 0;
+                    let current = 0;
+                    if (this.activeCategory === 'checkin') {
+                        if (t === 1) current = Number((dynamicCat.progress && dynamicCat.progress.countDay) || 0); // 累计
+                        if (t === 2) current = Number((dynamicCat.progress && dynamicCat.progress.continueDay) || 0); // 连续
+                    } else if (this.activeCategory === 'solve') {
+                        if (t === 4) current = Number((dynamicCat.progress && dynamicCat.progress.solveCount) || 0); // 累计过题
+                    }
+                    if (threshold > 0 && current >= 0) {
+                        const progress = document.createElement('div');
+                        progress.className = 'achv-progress';
+                        const inner = document.createElement('div');
+                        inner.className = 'achv-progress-inner';
+                        const ratio = Math.max(0, Math.min(1, current / threshold));
+                        inner.style.width = `${Math.round(ratio * 100)}%`;
+                        progress.appendChild(inner);
+                        const progressValue = document.createElement('div');
+                        progressValue.className = 'achv-progress-value';
+                        progressValue.textContent = `${current}/${threshold}`;
+                        info.appendChild(progress);
+                        info.appendChild(progressValue);
+                    }
+                }
+
                 const pointsBadge = document.createElement('div');
                 pointsBadge.className = 'achv-points-badge';
                 pointsBadge.textContent = String(Number(b.score) || 0);
@@ -151,6 +183,9 @@ export class AchievementsView {
             pendingRows.forEach(el => container.appendChild(el));
 
             this.content.innerHTML = '';
+            this.content.appendChild(this.buildToolbar());
+            const header = this.buildListHeader();
+            this.content.appendChild(header);
             this.content.appendChild(container);
             return;
         }
@@ -398,8 +433,41 @@ export class AchievementsView {
             this.content.textContent = '加载中...';
         } else {
             this.content.innerHTML = '';
+            this.content.appendChild(this.buildToolbar());
+            const header = this.buildListHeader();
+            this.content.appendChild(header);
             this.content.appendChild(container);
         }
+    }
+
+    // 构建列表头部：“成就名 | 成就点”
+    buildListHeader() {
+        const header = document.createElement('div');
+        header.className = 'achv-list-header';
+        const left = document.createElement('span');
+        left.className = 'achv-list-header__left';
+        left.textContent = '成就名';
+        const right = document.createElement('span');
+        right.className = 'achv-list-header__right';
+        right.textContent = '成就点';
+        header.appendChild(left);
+        header.appendChild(right);
+        return header;
+    }
+
+    // 顶部工具栏：合并/取消合并 按钮
+    buildToolbar() {
+        const bar = document.createElement('div');
+        bar.className = 'achv-toolbar';
+        const btn = document.createElement('button');
+        btn.className = 'achv-merge-toggle';
+        btn.textContent = this.mergeSeries ? '取消合并' : '合并成就';
+        btn.addEventListener('click', () => {
+            this.mergeSeries = !this.mergeSeries;
+            this.renderContent();
+        });
+        bar.appendChild(btn);
+        return bar;
     }
 
     async renderOverview() {

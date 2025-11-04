@@ -2849,6 +2849,46 @@ body .problems-table tbody tr td.status-none {
 .achv-recent-time { color: #999; font-size: 12px; margin-top: 2px; }
 .flex-1 { flex: 1; }
 
+/* Achievements list header */
+.achv-list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    color: #6c757d;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border-color);
+    margin-bottom: 8px;
+}
+.achv-list-header__left { letter-spacing: 1px; }
+.achv-list-header__right { letter-spacing: 1px; }
+
+/* Achievements toolbar */
+.achv-toolbar { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.achv-merge-toggle {
+    padding: 6px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: #f6f8fa;
+    color: #333;
+    cursor: pointer;
+}
+.achv-merge-toggle:hover { background: #eef2f6; }
+
+/* Toasts */
+.toast-root { position: fixed; bottom: 16px; right: 16px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; pointer-events: none; }
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 10px; background: #fff; border: 1px solid var(--border-color); border-radius: 12px; padding: 10px 12px; box-shadow: 0 6px 24px rgba(0,0,0,0.12); min-width: 260px; max-width: 420px; }
+.toast__icon { width: 36px; height: 36px; border-radius: 8px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f6f8fa; }
+.toast__icon img { width: 100%; height: 100%; object-fit: cover; }
+.toast__body { flex: 1; min-width: 0; }
+.toast__title { font-weight: 700; color: #111; }
+.toast__desc { color: #555; font-size: 12px; margin-top: 2px; }
+.toast__points { font-weight: 800; color: #111; }
+.toast-enter { transform: translateY(-8px); opacity: 0; }
+.toast-enter-active { transform: translateY(0); opacity: 1; transition: all .25s ease; }
+.toast-leave { transform: translateY(0); opacity: 1; }
+.toast-leave-active { transform: translateY(-8px); opacity: 0; transition: all .2s ease; }
+
 .profile-logged-out {
     text-align: center;
     padding: 40px;

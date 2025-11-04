@@ -18,14 +18,18 @@ import { InterviewView } from './views/InterviewView.js';
 import { SkillTreeView } from './views/SkillTreeView.js';
 import { ProfileView } from './views/ProfileView.js';
 import { AchievementsView } from './views/AchievementsView.js';
+import { AchievementNotifier } from './services/AchievementNotifier.js';
 
 export class NowcoderTracker {
     constructor() {
         // 初始化状态管理
         this.state = new AppState();
+        // 成就轮询冷却时间（避免频繁触发）
+        this._lastAchvCheck = 0;
         
         // 初始化服务
         this.apiService = new ApiService();
+        this.achvNotifier = new AchievementNotifier(this.apiService);
         
         // 初始化DOM元素
         this.elements = this.initElements();
@@ -226,6 +230,20 @@ export class NowcoderTracker {
                 this.handleRankTabChange(rankType);
             });
         });
+
+        // 当用户从其它标签页/应用切回本页时，做一次成就增量检查（带冷却）
+        const onRefocus = () => {
+            if (document.visibilityState !== 'visible') return;
+            const now = Date.now();
+            // 冷却：至少间隔 60s
+            if (now - (this._lastAchvCheck || 0) < 60000) return;
+            this._lastAchvCheck = now;
+            setTimeout(() => {
+                try { this.achvNotifier && this.achvNotifier.diffAndNotify([1,2,3,4,6]); } catch (_) {}
+            }, 300);
+        };
+        document.addEventListener('visibilitychange', onRefocus);
+        window.addEventListener('focus', onRefocus);
 
         // Rankings 搜索
         if (this.elements.userSearchBtn) {
@@ -439,6 +457,10 @@ export class NowcoderTracker {
                 break;
             case 'achievements':
                 this.views.achievements.render();
+                // 进入成就页时尝试检查是否有新成就（模拟或站外触发的情况）
+                setTimeout(() => {
+                    try { this.achvNotifier.diffAndNotify([1,2,3,4,6]); } catch (_) {}
+                }, 500);
                 break;
             case 'profile':
                 this.views.profile.render();
