@@ -110,4 +110,7 @@ export const EVENTS = {
     // 页面状态事件
     PAGE_LOADED: 'pageLoaded',
     PAGE_ERROR: 'pageError'
+    ,
+    // 团队子标签
+    TEAM_TAB_CHANGED: 'teamTabChanged'
 };

@@ -7,7 +7,7 @@ const app = express();
 const port = 3000;
 
 // 环境切换: 'www', 'pre', 或 'd'
-const CURRENT_ENV = 'pre'; 
+const CURRENT_ENV = 'd'; 
 
 const HOST_MAP = {
     'www': 'https://www.nowcoder.com',
@@ -104,6 +104,30 @@ app.use('/problem/tracker/skill-tree/update', manualProxyHandler('/problem/track
 app.use('/problem/tracker/skill-tree/add-question', manualProxyHandler('/problem/tracker/skill-tree/add-question'));
 app.use('/problem/tracker/skill-tree/update-question', manualProxyHandler('/problem/tracker/skill-tree/update-question'));
 app.use('/problem/tracker/skill-tree/delete-question', manualProxyHandler('/problem/tracker/skill-tree/delete-question'));
+
+// Team endpoints
+app.use('/problem/tracker/team/my', manualProxyHandler('/problem/tracker/team/my'));
+app.use('/problem/tracker/team/create', manualProxyHandler('/problem/tracker/team/create'));
+app.use('/problem/tracker/team/update', manualProxyHandler('/problem/tracker/team/update'));
+app.use('/problem/tracker/team/members', manualProxyHandler('/problem/tracker/team/members'));
+app.use('/problem/tracker/team/member/add', manualProxyHandler('/problem/tracker/team/member/add'));
+app.use('/problem/tracker/team/member/delete', manualProxyHandler('/problem/tracker/team/member/delete'));
+app.use('/problem/tracker/team/transfer', manualProxyHandler('/problem/tracker/team/transfer'));
+app.use('/problem/tracker/team/invite/create', manualProxyHandler('/problem/tracker/team/invite/create'));
+app.use('/problem/tracker/team/invite', manualProxyHandler('/problem/tracker/team/invite'));
+app.use('/problem/tracker/team/apply', manualProxyHandler('/problem/tracker/team/apply'));
+app.use('/problem/tracker/team/apply/approve', manualProxyHandler('/problem/tracker/team/apply/approve'));
+app.use('/problem/tracker/team/apply/reject', manualProxyHandler('/problem/tracker/team/apply/reject'));
+app.use('/problem/tracker/team/invite/user', manualProxyHandler('/problem/tracker/team/invite/user'));
+app.use('/problem/tracker/team/invite/accept', manualProxyHandler('/problem/tracker/team/invite/accept'));
+app.use('/problem/tracker/team/invite/decline', manualProxyHandler('/problem/tracker/team/invite/decline'));
+app.use('/problem/tracker/team/invite/cancel', manualProxyHandler('/problem/tracker/team/invite/cancel'));
+app.use('/problem/tracker/team/stats/summary', manualProxyHandler('/problem/tracker/team/stats/summary'));
+app.use('/problem/tracker/team/leaderboard', manualProxyHandler('/problem/tracker/team/leaderboard'));
+app.use('/problem/tracker/team/apply/list', manualProxyHandler('/problem/tracker/team/apply/list'));
+app.use('/problem/tracker/team/invite/list', manualProxyHandler('/problem/tracker/team/invite/list'));
+app.use('/problem/tracker/team/my/apply', manualProxyHandler('/problem/tracker/team/my/apply'));
+app.use('/problem/tracker/team/my/invite', manualProxyHandler('/problem/tracker/team/my/invite'));
 
 
 // New endpoint to proxy avatars and bypass CORS for canvas

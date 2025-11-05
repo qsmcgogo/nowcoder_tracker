@@ -148,8 +148,8 @@ export class ContestView {
     // 将 API 原始字段（contestId/contestName/contestUrl/questions）
     // 转换为视图渲染所需字段（id/name/url/problems，并计算 difficultyScore）
     transformApiData(contests) {
-        const difficultyScoreMap = { 1: 800, 2: 1200, 3: 1600, 4: 2000, 5: 2400 };
-        // 非校园类（周赛/小白/练习/挑战/寒假营/多校/XCPC）不应将 1~5 难度映射为分数圈
+        const difficultyScoreMap = { 1: 800, 2: 1200, 3: 1600, 4: 2000, 5: 2400, 6: 2800, 7: 3000, 8: 3200, 9: 3400, 10: 3500 };
+        // 非校园类（周赛/小白/练习/挑战/寒假营/多校/XCPC）
         const nonCampusContestTabs = ['19', '9', '6', '2', '20', '21', '22'];
         const isNonCampusSpecificView = nonCampusContestTabs.includes(String(this.state.activeContestTab));
         
@@ -159,11 +159,15 @@ export class ContestView {
             url: contest.contestUrl,
             problems: (contest.questions || []).map(p => {
                 let score = null;
-                // 校招类（非 nonCampus 类型）才做 1~5 的映射；否则仅当后端给出 >5 的“分数型难度”才显示圈
-                if (!isNonCampusSpecificView) {
-                    score = difficultyScoreMap[p.difficulty] || null;
-                } else if (p.difficulty > 5) {
-                    score = p.difficulty;
+                const d = Number(p.difficulty);
+                if (!isNaN(d) && d > 0) {
+                    if (d > 10) {
+                        // 已是分数型（如 1200/1600/...）
+                        score = d;
+                    } else {
+                        // 1~10 等级映射为分数，确保 >6 也能正确渲染
+                        score = difficultyScoreMap[d] || null;
+                    }
                 }
                 return { ...p, difficultyScore: score };
             })

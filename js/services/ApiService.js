@@ -31,6 +31,253 @@ export class ApiService {
         }
     }
 
+    // ================= TEAM APIs =================
+    async teamListMy() {
+        const url = `${this.apiBase}/problem/tracker/team/my`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = await res.json();
+        if (body && (body.code === 0 || body.code === 200)) return body.data || [];
+        return Array.isArray(body) ? body : [];
+    }
+
+    async teamCreate(name, description = '') {
+        const url = `${this.apiBase}/problem/tracker/team/create`;
+        const body = `name=${encodeURIComponent(name)}&description=${encodeURIComponent(description || '')}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || data;
+        throw new Error((data && data.msg) || '创建团队失败');
+    }
+
+    async teamUpdate(teamId, name, description = '') {
+        const url = `${this.apiBase}/problem/tracker/team/update`;
+        const body = `teamId=${encodeURIComponent(teamId)}&name=${encodeURIComponent(name)}&description=${encodeURIComponent(description || '')}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '更新团队失败');
+    }
+
+    async teamMembers(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/members?teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const body = await res.json();
+        if (body && (body.code === 0 || body.code === 200)) return body.data || [];
+        return Array.isArray(body) ? body : [];
+    }
+
+    async teamAddMember(teamId, userId) {
+        const url = `${this.apiBase}/problem/tracker/team/member/add`;
+        const body = `teamId=${encodeURIComponent(teamId)}&userId=${encodeURIComponent(userId)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '添加成员失败');
+    }
+
+    async teamDeleteMember(teamId, userId) {
+        const url = `${this.apiBase}/problem/tracker/team/member/delete`;
+        const body = `teamId=${encodeURIComponent(teamId)}&userId=${encodeURIComponent(userId)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '删除成员失败');
+    }
+
+    async teamTransferOwner(teamId, userId) {
+        const url = `${this.apiBase}/problem/tracker/team/transfer`;
+        const body = `teamId=${encodeURIComponent(teamId)}&userId=${encodeURIComponent(userId)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '转移队长失败');
+    }
+
+    async teamInviteCreate(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/invite/create`;
+        const body = `teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            const d = data.data;
+            if (typeof d === 'string') return { inviteLink: d };
+            return d || data;
+        }
+        throw new Error((data && data.msg) || '生成邀请失败');
+    }
+
+    async teamInviteGet(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/invite?teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            const d = data.data;
+            if (typeof d === 'string') return { inviteLink: d };
+            return d || {};
+        }
+        if (typeof data === 'string') return { inviteLink: data };
+        return {};
+    }
+
+    async teamStatsSummary(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/stats/summary?teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        return {};
+    }
+
+    async teamLeaderboard(teamId, limit = 20) {
+        const url = `${this.apiBase}/problem/tracker/team/leaderboard?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(limit)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || [];
+        return [];
+    }
+
+    async teamApply(teamId, message = '') {
+        const url = `${this.apiBase}/problem/tracker/team/apply`;
+        const body = `teamId=${encodeURIComponent(teamId)}&message=${encodeURIComponent(message)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || data;
+        throw new Error((data && data.msg) || '申请加入失败');
+    }
+
+    async teamApplyApprove(applyId) {
+        const url = `${this.apiBase}/problem/tracker/team/apply/approve`;
+        const body = `applyId=${encodeURIComponent(applyId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '同意申请失败');
+    }
+
+    async teamApplyReject(applyId) {
+        const url = `${this.apiBase}/problem/tracker/team/apply/reject`;
+        const body = `applyId=${encodeURIComponent(applyId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '拒绝申请失败');
+    }
+
+    async teamInviteUser(teamId, userId) {
+        const url = `${this.apiBase}/problem/tracker/team/invite/user`;
+        const body = `teamId=${encodeURIComponent(teamId)}&userId=${encodeURIComponent(userId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || data;
+        throw new Error((data && data.msg) || '邀请失败');
+    }
+
+    async teamInviteAccept(applyId) {
+        const url = `${this.apiBase}/problem/tracker/team/invite/accept`;
+        const body = `applyId=${encodeURIComponent(applyId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '接受邀请失败');
+    }
+
+    async teamInviteDecline(applyId) {
+        const url = `${this.apiBase}/problem/tracker/team/invite/decline`;
+        const body = `applyId=${encodeURIComponent(applyId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '拒绝邀请失败');
+    }
+
+    async teamInviteCancel(applyId) {
+        const url = `${this.apiBase}/problem/tracker/team/invite/cancel`;
+        const body = `applyId=${encodeURIComponent(applyId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '撤销邀请失败');
+    }
+
+    async teamApplyList(teamId, limit = 100) {
+        const url = `${this.apiBase}/problem/tracker/team/apply/list?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(limit)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || [];
+        return [];
+    }
+
+    async teamInviteList(teamId, limit = 100) {
+        const url = `${this.apiBase}/problem/tracker/team/invite/list?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(limit)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || [];
+        return [];
+    }
+
+    // 用户侧：我申请中的团队列表
+    async teamMyApplies() {
+        const url = `${this.apiBase}/problem/tracker/team/my/apply`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) return [];
+        const data = await res.json().catch(() => ([]));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || [];
+        return Array.isArray(data) ? data : [];
+    }
+
+    // 用户侧：邀请我的团队列表
+    async teamMyInvites() {
+        const url = `${this.apiBase}/problem/tracker/team/my/invite`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) return [];
+        const data = await res.json().catch(() => ([]));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || [];
+        return Array.isArray(data) ? data : [];
+    }
+
     async fetchRankings(rankType, page, userId = null, limit = 20) {
         let url;
         if (userId) {

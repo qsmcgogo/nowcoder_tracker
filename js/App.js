@@ -18,6 +18,7 @@ import { InterviewView } from './views/InterviewView.js';
 import { SkillTreeView } from './views/SkillTreeView.js';
 import { ProfileView } from './views/ProfileView.js';
 import { AchievementsView } from './views/AchievementsView.js';
+import { TeamView } from './views/TeamView.js';
 import { AchievementNotifier } from './services/AchievementNotifier.js';
 
 export class NowcoderTracker {
@@ -86,6 +87,12 @@ export class NowcoderTracker {
             cardModalClose: document.getElementById('card-modal-close'),
             // 我的页面容器
             profile: document.getElementById('profile'),
+            team: document.getElementById('team'),
+            // team sub containers
+            teamDashboard: document.getElementById('team-dashboard'),
+            teamMembers: document.getElementById('team-members'),
+            teamSettings: document.getElementById('team-settings'),
+            teamInvites: document.getElementById('team-invites'),
             faq: document.getElementById('faq')
         };
     }
@@ -99,6 +106,7 @@ export class NowcoderTracker {
             interview: new InterviewView(this.elements, this.state, this.apiService),
             skillTree: new SkillTreeView(this.elements, this.state, this.apiService),
             achievements: new AchievementsView(this.elements, this.state, this.apiService),
+            team: new TeamView(this.elements, this.state, this.apiService),
             profile: new ProfileView(this.elements, this.state, this.apiService)
         };
     }
@@ -137,6 +145,18 @@ export class NowcoderTracker {
                 eventBus.emit(EVENTS.VIEW_CHANGED, view);
                 // 切换到竞赛/算法学习/笔面试后，通过“Search”按钮触发一次刷新，避免重复调用
                 if (this.state.loggedInUserId) this.triggerSearchWhenReady(view);
+            });
+        });
+
+        // team 子标签切换
+        document.querySelectorAll('.team-tab').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const tab = btn.dataset.teamTab; // dashboard|members|settings|invites
+                if (!tab) return;
+                document.querySelectorAll('.team-tab').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                eventBus.emit(EVENTS.TEAM_TAB_CHANGED, tab);
             });
         });
         
@@ -467,6 +487,9 @@ export class NowcoderTracker {
                     try { this.achvNotifier.diffAndNotify([1,2,3,4,6]); } catch (_) {}
                 }, 500);
                 break;
+            case 'team':
+                this.views.team.render();
+                break;
             case 'profile':
                 this.views.profile.render();
                 break;
@@ -527,7 +550,7 @@ export class NowcoderTracker {
 
     normalizeTabName(name) {
         const key = String(name || '').toLowerCase();
-        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','profile','faq','changelog']);
+        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','team','profile','faq','changelog']);
         if (allowed.has(key)) return key;
         // 允许一些别名
         if (key === 'skills' || key === 'skill' || key === 'skilltree') return 'skill-tree';
