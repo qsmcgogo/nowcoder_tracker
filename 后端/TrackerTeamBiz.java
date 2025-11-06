@@ -498,6 +498,9 @@ public class TrackerTeamBiz {
     java.util.List<Integer> allTypes = java.util.Arrays.asList(
         ACMTeamTypeInfoEnum.ACM.getCode(), ACMTeamTypeInfoEnum.TRACKER.getCode());
     Map<Long, ACMTeamInfo> teamMap = acmTeamInfoService.getMapByIds(teamIds, allTypes);
+    // 批量拉取队长信息
+    java.util.Set<Long> ownerIds = teamMap.values().stream().map(ACMTeamInfo::getUid).collect(java.util.stream.Collectors.toSet());
+    Map<Long, User> ownerMap = ownerIds.isEmpty() ? java.util.Collections.emptyMap() : userService.getUserMapsByIds(new java.util.ArrayList<>(ownerIds));
     for (ACMTeamApply a : list) {
       JSONObject o = new JSONObject();
       o.put("id", a.getId());
@@ -508,6 +511,11 @@ public class TrackerTeamBiz {
         o.put("teamName", t.getName());
         o.put("ownerUserId", t.getUid());
         o.put("description", t.getDescription());
+        User owner = ownerMap.get(t.getUid());
+        if (owner != null) {
+          o.put("ownerName", owner.getDisplayname());
+          o.put("ownerHeadUrl", owner.getTinnyHeaderUrl());
+        }
       }
       o.put("message", a.getMessage());
       o.put("status", (int)a.getStatus());

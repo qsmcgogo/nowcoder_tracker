@@ -732,7 +732,7 @@ export class TeamView {
     async fetchAndRenderTeamList() {
         const tbody = document.getElementById('team-list-tbody');
         if (!tbody) return;
-        tbody.innerHTML = `<tr><td colspan="4">加载中...</td></tr>`;
+        tbody.innerHTML = `<tr><td colspan="5">加载中...</td></tr>`;
         try {
             const list = await this.api.teamListMy();
             this.myTeams = Array.isArray(list) ? list : [];
@@ -773,7 +773,7 @@ export class TeamView {
             // 更新“我的团队”页面顶部提醒
             try { await this.updateTeamHomeAlerts(); } catch (_) {}
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan="4">加载失败：${e.message || '请稍后重试'}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="5">加载失败：${e.message || '请稍后重试'}</td></tr>`;
         }
     }
 
@@ -1018,7 +1018,7 @@ export class TeamView {
         try {
             const list = await this.api.teamMyApplies();
             if (!Array.isArray(list) || list.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="4">暂无数据</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="5">暂无数据</td></tr>`;
             } else {
                 const fmtYmd = (t) => {
                     const ts = Number(t);
@@ -1070,22 +1070,18 @@ export class TeamView {
                     const team = i.teamName || i.teamId || '';
                     const time = fmtYmd(i.createTime);
                     const ownerName = i.ownerName || i.ownerUserName || '';
-                    const ownerUid = i.ownerUserId || '';
                     const ownerHead = i.ownerHeadUrl || '';
                     const teamType = Number(i.teamType);
                     const typeLabel = (teamType === 0 ? 'ACM' : (teamType === 1 ? '练习' : ''));
                     const typeBadge = typeLabel ? `<span class="team-type-badge ${teamType===0?'team-type-badge-acm':''}" style="display:inline-block;padding:2px 6px;border-radius:10px;font-size:12px;line-height:1;border:1px solid ${teamType===0?'#adc6ff':'#95de64'};color:${teamType===0?'#1d39c4':'#237804'};background:${teamType===0?'#f0f5ff':'#f6ffed'};cursor:${teamType===0?'help':'default'};">${typeLabel}</span>` : '';
-                    const ownerHtml = (ownerName || ownerUid || ownerHead) ? `
-                        <div style="margin-top:2px;color:#888;font-size:12px;display:flex;align-items:center;gap:6px;">
-                            ${ownerHead ? `<img src="${ownerHead}" alt="owner" style="width:16px;height:16px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />` : ''}
-                            <span>队长：${ownerName || ownerUid || '-'}</span>
-                        </div>` : '';
-                    const teamCell = `<div style="display:flex;flex-direction:column;">
-                        <div style="display:flex;align-items:center;gap:8px;">${typeBadge}<span>${team}</span></div>
-                        ${ownerHtml}
-                    </div>`;
+                    const teamCell = `<div style="display:flex;align-items:center;gap:8px;">${typeBadge}<span>${team}</span></div>`;
+                    const ownerCell = (ownerName || ownerHead) ? `
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            ${ownerHead ? `<img src="${ownerHead}" alt="owner" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />` : ''}
+                            <span>${ownerName || '-'}</span>
+                        </div>` : '-';
                     return `<tr>
-                        <td>${id}</td><td>${teamCell}</td><td>${time}</td>
+                        <td>${id}</td><td>${teamCell}</td><td>${ownerCell}</td><td>${time}</td>
                         <td>
                             <button class="admin-btn my-invite-accept" data-apply-id="${id}">接受</button>
                             <button class="admin-btn my-invite-decline" data-apply-id="${id}" style="background:#ffecec;color:#e00;">拒绝</button>
