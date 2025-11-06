@@ -249,6 +249,18 @@ export class ApiService {
         throw new Error((data && data.msg) || '一键拒绝失败');
     }
 
+    // 管理员：更新某用户的过题数（用于排行榜刷新）
+    async adminUpdateUserAcceptCount(userId) {
+        if (!userId) throw new Error('userId required');
+        const url = `${this.apiBase}/problem/tracker/rank/update-accept-count`;
+        const body = `userId=${encodeURIComponent(userId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || 'update accept count failed');
+    }
+
     async teamInviteUser(teamId, userId) {
         const url = `${this.apiBase}/problem/tracker/team/invite/user`;
         const body = `teamId=${encodeURIComponent(teamId)}&userId=${encodeURIComponent(userId)}`;

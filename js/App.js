@@ -282,6 +282,32 @@ export class NowcoderTracker {
                 eventBus.emit(EVENTS.USER_SEARCH, userId);
             });
         }
+        // 管理员：更新某用户过题数
+        const adminUpdateBtn = document.getElementById('rank-admin-update-btn');
+        if (adminUpdateBtn) {
+            // 根据管理员态显示/隐藏
+            adminUpdateBtn.style.display = this.state.isAdmin ? 'inline-block' : 'none';
+            adminUpdateBtn.addEventListener('click', async () => {
+                if (!this.state.isAdmin) return alert('需要管理员权限');
+                const uid = this.elements.rankUserIdInput?.value?.trim();
+                if (!uid) { alert('请输入用户ID'); return; }
+                adminUpdateBtn.disabled = true;
+                const oldText = adminUpdateBtn.textContent;
+                adminUpdateBtn.textContent = '更新中...';
+                try {
+                    await this.apiService.adminUpdateUserAcceptCount(uid);
+                    // 更新成功后刷新当前页 / 或定位到该用户
+                    eventBus.emit(EVENTS.USER_SEARCH, uid);
+                    alert('已触发更新');
+                } catch (e) {
+                    console.error(e);
+                    alert(e.message || '更新失败');
+                } finally {
+                    adminUpdateBtn.disabled = false;
+                    adminUpdateBtn.textContent = oldText;
+                }
+            });
+        }
         if (this.elements.rankUserIdInput) {
             this.elements.rankUserIdInput.addEventListener('keypress', (e) => {
                 if (e.key === 'Enter') {
