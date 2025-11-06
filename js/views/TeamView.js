@@ -736,6 +736,14 @@ export class TeamView {
         try {
             const list = await this.api.teamListMy();
             this.myTeams = Array.isArray(list) ? list : [];
+            // 排序：练习团队(1) 在上、ACM 团队(0) 在下；同类型按成员数降序
+            const getCount = (t) => (t.memberCount != null ? t.memberCount : (t.personCount != null ? t.personCount : ((t.members || []).length || 0)));
+            this.myTeams.sort((a, b) => {
+                const ta = Number(a.teamType);
+                const tb = Number(b.teamType);
+                if (ta !== tb) return tb - ta; // 1(练习)优先，其次0(ACM)
+                return getCount(b) - getCount(a); // 同类型按人数降序
+            });
             if (!this.myTeams.length) {
                 tbody.innerHTML = `<tr><td colspan="4">暂无团队，点击上方“创建团队”</td></tr>`;
                 return;
