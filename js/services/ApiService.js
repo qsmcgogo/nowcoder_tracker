@@ -181,14 +181,20 @@ export class ApiService {
         return { inTeam: false };
     }
 
-    async teamLeaderboard(teamId, limit = 20, type = 'total') {
+    async teamLeaderboard(teamId, limit = 20, type = 'total', page = 1) {
         const t = (type == null ? 'total' : String(type)).toLowerCase();
-        const url = `${this.apiBase}/problem/tracker/team/leaderboard?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(limit)}&type=${encodeURIComponent(t)}`;
+        const p = Math.max(1, Number(page) || 1);
+        const url = `${this.apiBase}/problem/tracker/team/leaderboard?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(limit)}&type=${encodeURIComponent(t)}&page=${encodeURIComponent(p)}`;
         const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (data && (data.code === 0 || data.code === 200)) return data.data || [];
-        return [];
+        if (data && (data.code === 0 || data.code === 200)) {
+            const d = data.data || {};
+            const list = Array.isArray(d.list) ? d.list : (Array.isArray(d) ? d : []);
+            const total = (typeof d.total === 'number') ? d.total : list.length;
+            return { list, total };
+        }
+        return { list: [], total: 0 };
     }
 
     async teamApply(teamId, message = '') {

@@ -453,7 +453,7 @@
                         <div class="achv-overview-card" style="margin-top:8px;">
                             <div class="achv-overview-title">团队看板</div>
                             <div class="contest-tabs sub-tabs" style="margin-bottom:8px;">
-                                <button class="contest-tab team-rank-tab active" data-metric="solve_total">总过题</button>
+                                <button class="contest-tab team-rank-tab active" data-metric="solve_total">总过题 <span title="目前只统计主站提交" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid #d9d9d9;color:#595959;font-size:12px;margin-left:6px;cursor:help;">?</span></button>
                                 <button class="contest-tab team-rank-tab" data-metric="solve_7d">7日刷题</button>
                                 <button class="contest-tab team-rank-tab" data-metric="solve_today">今日刷题</button>
                             </div>
@@ -463,6 +463,24 @@
                                 </thead>
                                 <tbody id="team-rankings-tbody"><tr><td colspan="3">加载中...</td></tr></tbody>
                             </table>
+                            <div id="team-leaderboard-pagination" class="pagination" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                                <div style="display:flex;align-items:center;gap:8px;">
+                                    <span>每页</span>
+                                    <select id="teamLeaderboardPageSize" class="pagination-select" style="padding:4px 6px;">
+                                        <option value="10">10</option>
+                                        <option value="20" selected>20</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                    <span>条</span>
+                                    <div id="teamLeaderboardPaginationInfo" class="pagination-info"></div>
+                                </div>
+                                <div class="pagination-controls">
+                                    <button id="teamLeaderboardPrev" class="pagination-btn">上一页</button>
+                                    <span id="teamLeaderboardPage" style="margin:0 8px;">1</span>
+                                    <button id="teamLeaderboardNext" class="pagination-btn">下一页</button>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

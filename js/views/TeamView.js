@@ -11,6 +11,11 @@ export class TeamView {
         this.role = 'owner'; // 预设：owner|admin|member，后续从接口赋值
         this.teamInfo = null; // { name, desc, memberCount }
         this.myTeams = [];
+        // 看板分页状态
+        this.teamLeaderboardPage = 1;
+        this.teamLeaderboardLimit = 20;
+        this.teamLeaderboardTotal = 0;
+        this.teamLeaderboardMetric = 'solve_total';
 
         this.bindEvents();
     }
@@ -396,7 +401,7 @@ export class TeamView {
                         <div id="metric-seven-accept" style="font-size:24px; font-weight:700; margin-top:6px;">-</div>
                     </div>
                     <div class="metric-card" style="flex:1; border:1px solid #eee; border-radius:8px; padding:14px; background:#fff;">
-                        <div style="color:#777; font-size:12px;">总过题</div>
+                        <div style="color:#777; font-size:12px;">总过题 <span title="目前只统计主站提交" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid #d9d9d9;color:#595959;font-size:12px;margin-left:6px;cursor:help;">?</span></div>
                         <div id="metric-total-accept" style="font-size:24px; font-weight:700; margin-top:6px;">-</div>
                     </div>
                     <div class="metric-card" style="flex:1; border:1px solid #eee; border-radius:8px; padding:14px; background:#fff;">
@@ -1120,7 +1125,6 @@ export class TeamView {
     async renderLeaderboard() {
         const tb = document.getElementById('team-rankings-tbody');
         if (!tb) return;
-
         // 绑定子页签
         const tabs = document.querySelectorAll('#team-leaderboard .team-rank-tab');
         tabs.forEach(btn => {
@@ -1129,12 +1133,48 @@ export class TeamView {
                 tabs.forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 const metric = btn.getAttribute('data-metric') || 'solve_total';
+                this.teamLeaderboardMetric = metric;
+                this.teamLeaderboardPage = 1; // 切换指标重置页码
                 this.loadLeaderboard(metric);
             });
         });
 
-        // 默认加载总过题
-        this.loadLeaderboard('solve_total');
+        // 绑定分页按钮
+        const prevBtn = document.getElementById('teamLeaderboardPrev');
+        const nextBtn = document.getElementById('teamLeaderboardNext');
+        const sizeSel = document.getElementById('teamLeaderboardPageSize');
+        if (prevBtn && !prevBtn._bound) {
+            prevBtn._bound = true;
+            prevBtn.addEventListener('click', () => {
+                if (this.teamLeaderboardPage > 1) {
+                    this.teamLeaderboardPage -= 1;
+                    this.loadLeaderboard(this.teamLeaderboardMetric);
+                }
+            });
+        }
+        if (nextBtn && !nextBtn._bound) {
+            nextBtn._bound = true;
+            nextBtn.addEventListener('click', () => {
+                const totalPages = Math.max(1, Math.ceil(this.teamLeaderboardTotal / this.teamLeaderboardLimit));
+                if (this.teamLeaderboardPage < totalPages) {
+                    this.teamLeaderboardPage += 1;
+                    this.loadLeaderboard(this.teamLeaderboardMetric);
+                }
+            });
+        }
+        if (sizeSel && !sizeSel._bound) {
+            sizeSel._bound = true;
+            sizeSel.value = String(this.teamLeaderboardLimit);
+            sizeSel.addEventListener('change', () => {
+                const v = Number(sizeSel.value) || 20;
+                this.teamLeaderboardLimit = Math.max(1, v);
+                this.teamLeaderboardPage = 1; // 改变每页条数重置到第一页
+                this.loadLeaderboard(this.teamLeaderboardMetric);
+            });
+        }
+
+        // 默认加载
+        this.loadLeaderboard(this.teamLeaderboardMetric || 'solve_total');
     }
 
     /**
@@ -1191,12 +1231,17 @@ export class TeamView {
             const type = (() => {
                 switch (metric) {
                     case 'solve_today': return 'today';
-                    case 'solve_7days': return '7days';
+                    case 'solve_7days':
+                    case 'solve_7d':
+                        return '7days';
                     case 'solve_total':
                     default: return 'total';
                 }
             })();
-            const rows = await this.api.teamLeaderboard(this.currentTeamId, 20, type);
+            const result = await this.api.teamLeaderboard(this.currentTeamId, this.teamLeaderboardLimit, type, this.teamLeaderboardPage);
+            const rows = (result && Array.isArray(result.list)) ? result.list : (Array.isArray(result) ? result : []);
+            this.teamLeaderboardTotal = (result && typeof result.total === 'number') ? result.total : 0; // 0 表示未知总数（旧接口）
+
             if (Array.isArray(rows) && rows.length > 0) {
                 tb.innerHTML = rows.map(r => {
                     const rank = r.rank || '-';
@@ -1211,6 +1256,26 @@ export class TeamView {
                 }).join('');
             } else {
                 tb.innerHTML = `<tr><td colspan="3">暂无数据</td></tr>`;
+            }
+
+            // 刷新分页信息
+            const info = document.getElementById('teamLeaderboardPaginationInfo');
+            const pageText = document.getElementById('teamLeaderboardPage');
+            const prevBtn = document.getElementById('teamLeaderboardPrev');
+            const nextBtn = document.getElementById('teamLeaderboardNext');
+            if (this.teamLeaderboardTotal > 0) {
+                const totalPages = Math.max(1, Math.ceil(this.teamLeaderboardTotal / this.teamLeaderboardLimit));
+                if (info) info.textContent = `共 ${this.teamLeaderboardTotal} 条`;
+                if (pageText) pageText.textContent = `第 ${this.teamLeaderboardPage} / ${totalPages} 页`;
+                if (prevBtn) prevBtn.disabled = this.teamLeaderboardPage <= 1;
+                if (nextBtn) nextBtn.disabled = this.teamLeaderboardPage >= totalPages;
+            } else {
+                // 兼容旧接口（无 total）——仅根据当前页数据是否满页来判断是否还有下一页
+                const hasNext = rows.length === this.teamLeaderboardLimit;
+                if (info) info.textContent = '';
+                if (pageText) pageText.textContent = `第 ${this.teamLeaderboardPage} 页`;
+                if (prevBtn) prevBtn.disabled = this.teamLeaderboardPage <= 1;
+                if (nextBtn) nextBtn.disabled = !hasNext;
             }
         } catch (e) {
             tb.innerHTML = `<tr><td colspan="3">加载失败：${e.message || '请稍后重试'}</td></tr>`;
