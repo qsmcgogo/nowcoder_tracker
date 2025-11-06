@@ -320,9 +320,15 @@ export class RankingsView {
                 const place = userData.place;
 
                 if (place > 0) {
-                    // Step 2: "Fetch the cargo" - calculate the correct page and fetch it
-                    const targetPage = Math.ceil(place / this.rankingsPageSize);
-                    await this.fetchAndRenderRankingsPage(targetPage, rankType, trimmedUserId);
+                    // Step 2: 根据排名跳转页面；若排名超过1000，固定跳到最后一页，并将该用户附加到末尾
+                    if (place > 1000) {
+                        const totalUsers = userRankDataResponse.totalCount || this.state.rankingsTotalUsers || 1;
+                        const lastPage = Math.ceil(totalUsers / this.rankingsPageSize) || 1;
+                        await this.fetchAndRenderRankingsPage(lastPage, rankType, trimmedUserId);
+                    } else {
+                        const targetPage = Math.ceil(place / this.rankingsPageSize);
+                        await this.fetchAndRenderRankingsPage(targetPage, rankType, trimmedUserId);
+                    }
                 } else {
                     // User has 0 count or is unranked, just show them on the last page
                     const totalUsers = userRankDataResponse.totalCount || this.state.rankingsTotalUsers || 1;
