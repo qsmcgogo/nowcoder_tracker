@@ -401,7 +401,7 @@ export class TeamView {
                         <div id="metric-seven-accept" style="font-size:24px; font-weight:700; margin-top:6px;">-</div>
                     </div>
                     <div class="metric-card" style="flex:1; border:1px solid #eee; border-radius:8px; padding:14px; background:#fff;">
-                        <div style="color:#777; font-size:12px;">总过题 <span title="目前只统计主站提交" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;border:1px solid #d9d9d9;color:#595959;font-size:12px;margin-left:6px;cursor:help;">?</span></div>
+                        <div style="color:#777; font-size:12px;">总过题</div>
                         <div id="metric-total-accept" style="font-size:24px; font-weight:700; margin-top:6px;">-</div>
                     </div>
                     <div class="metric-card" style="flex:1; border:1px solid #eee; border-radius:8px; padding:14px; background:#fff;">
