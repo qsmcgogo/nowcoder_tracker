@@ -283,12 +283,19 @@
                                 <button class="contest-tab view-type-tab team-home-tab" id="team-home-tab-applying">申请中团队</button>
                                 <button class="contest-tab view-type-tab team-home-tab" id="team-home-tab-invited">邀请我的团队</button>
                                 <div style="flex:1"></div>
+                                <button id="team-join-open-btn" class="admin-btn" style="margin-right:8px;">加入团队</button>
                                 <button id="team-create-btn" class="admin-btn">创建团队</button>
                             </div>
                             <div id="team-home-my" style="display:block;">
                                 <table class="rankings-table">
+                                    <colgroup>
+                                        <col style="width:36%;" />
+                                        <col style="width:12%;" />
+                                        <col style="width:auto;" />
+                                        <col style="width:80px;" />
+                                    </colgroup>
                                     <thead>
-                                        <tr><th>团队名称</th><th>成员数</th><th>简介</th><th>进入</th></tr>
+                                        <tr><th>团队名称</th><th>成员数</th><th>简介</th><th style="width:80px;"></th></tr>
                                     </thead>
                                     <tbody id="team-list-tbody"><tr><td colspan="4">暂无团队，点击上方“创建团队”</td></tr></tbody>
                                 </table>
@@ -296,9 +303,9 @@
                             <div id="team-home-applying" style="display:none;">
                                 <table class="rankings-table">
                                     <thead>
-                                        <tr><th>申请ID</th><th>团队</th><th>留言</th><th>时间</th><th>状态</th></tr>
+                                        <tr><th>申请ID</th><th>团队</th><th>时间</th><th>状态</th></tr>
                                     </thead>
-                                    <tbody id="team-my-apply-tbody"><tr><td colspan="5">暂无数据</td></tr></tbody>
+                                    <tbody id="team-my-apply-tbody"><tr><td colspan="4">暂无数据</td></tr></tbody>
                                 </table>
                             </div>
                             <div id="team-home-invited" style="display:none;">
@@ -336,109 +343,134 @@
                         </div>
                     </div>
 
+                    <!-- Edit Team Modal -->
+                    <div id="team-edit-modal" class="modal" style="display:none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>编辑团队资料</h3>
+                                <button id="team-edit-close" class="modal-close" aria-label="关闭">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-row">
+                                    <label for="team-edit-name">团队名称</label>
+                                    <input id="team-edit-name" type="text" maxlength="32" />
+                                </div>
+                                <div class="form-row">
+                                    <label for="team-edit-desc">简介</label>
+                                    <textarea id="team-edit-desc" rows="3" maxlength="140"></textarea>
+                                </div>
+                            </div>
+                            <div class="modal-actions">
+                                <button id="team-edit-confirm" class="admin-btn">保存</button>
+                                <button id="team-edit-cancel" class="admin-btn modal-secondary">取消</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Join Team Modal -->
+                    <div id="team-join-modal" class="modal" style="display:none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>加入团队</h3>
+                                <button id="team-join-close" class="modal-close" aria-label="关闭">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-row">
+                                    <label for="team-join-id-input">团队ID</label>
+                                    <input id="team-join-id-input" type="text" placeholder="输入团队ID进行搜索" />
+                                    <button id="team-join-search-btn" class="admin-btn">搜索</button>
+                                </div>
+                                <div id="team-join-result" style="margin-top:8px; color:#666;">请输入团队ID搜索</div>
+                            </div>
+                            <div class="modal-actions">
+                                <button id="team-join-cancel" class="admin-btn modal-secondary">关闭</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Add Member Modal -->
+                    <div id="team-add-member-modal" class="modal" style="display:none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                            <h3>邀请成员</h3>
+                                <button id="team-add-member-close" class="modal-close" aria-label="关闭">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <div class="form-row">
+                                    <label for="team-add-userid-input">用户ID</label>
+                                    <input id="team-add-userid-input" type="text" placeholder="输入用户ID后发送邀请" />
+                                    <button id="team-add-invite-confirm" class="admin-btn">发送邀请</button>
+                                </div>
+                                <div class="form-row">
+                                    <label>邀请链接</label>
+                                    <button id="team-add-copy-link" class="admin-btn">复制邀请链接</button>
+                                    <span id="team-add-link-shown" style="margin-left:8px;color:#666;"></span>
+                                </div>
+                            </div>
+                            <div class="modal-actions">
+                                <button id="team-add-member-cancel" class="admin-btn modal-secondary">关闭</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Approvals Modal -->
+                    <div id="team-approve-modal" class="modal" style="display:none;">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h3>入队审批</h3>
+                                <button id="team-approve-close" class="modal-close" aria-label="关闭">&times;</button>
+                            </div>
+                            <div class="modal-body">
+                                <table class="rankings-table" style="width:100%">
+                                    <thead>
+                                        <tr><th>申请人</th><th>过题数</th><th>时间</th><th>操作</th></tr>
+                                    </thead>
+                                    <tbody id="team-approve-tbody"><tr><td colspan="4">加载中...</td></tr></tbody>
+                                </table>
+                            </div>
+                            <div class="modal-actions">
+                                <button id="team-approve-cancel" class="admin-btn modal-secondary">关闭</button>
+                            </div>
+                        </div>
+                    </div>
+
                     <!-- Sub tabs -->
                     <div class="contest-tabs view-type-tabs" id="team-subtabs" style="display:none;">
                         <button id="team-back-btn" class="contest-tab view-type-tab" data-team-tab="back">← 返回我的团队</button>
-                        <button class="contest-tab view-type-tab team-tab active" data-team-tab="dashboard">看板</button>
-                        <button class="contest-tab view-type-tab team-tab" data-team-tab="members">成员管理</button>
-                        <button class="contest-tab view-type-tab team-tab" data-team-tab="settings">团队资料</button>
-                        <button class="contest-tab view-type-tab team-tab" data-team-tab="invites">邀请链接</button>
+                        <button class="contest-tab view-type-tab team-tab active" data-team-tab="dashboard">团队概览</button>
+                        <button class="contest-tab view-type-tab team-tab" data-team-tab="leaderboard">看板</button>
                     </div>
 
                     <!-- Team Dashboard -->
                     <div id="team-dashboard" class="team-view" style="display:none;">
                         <div class="achv-overview-card" style="margin-top:8px;">
-                            <div class="achv-overview-title">团队概览</div>
                             <div class="team-metrics" id="team-dashboard-metrics">加载中...</div>
                         </div>
+                    </div>
+
+                    <!-- Team Leaderboard -->
+                    <div id="team-leaderboard" class="team-view" style="display:none;">
                         <div class="achv-overview-card" style="margin-top:8px;">
-                            <div class="achv-overview-title">排行榜</div>
+                            <div class="achv-overview-title">团队看板</div>
                             <div class="contest-tabs sub-tabs" style="margin-bottom:8px;">
-                                <button class="contest-tab team-rank-tab active" data-metric="solve_today">今日过题</button>
-                                <button class="contest-tab team-rank-tab" data-metric="solve_7d">7日过题</button>
-                                <button class="contest-tab team-rank-tab" data-metric="solve_total">历史过题</button>
-                                <button class="contest-tab team-rank-tab" data-metric="skill_stage1">技能树·第一章</button>
+                                <button class="contest-tab team-rank-tab active" data-metric="solve_total">总过题</button>
+                                <button class="contest-tab team-rank-tab" data-metric="solve_7d">7日刷题</button>
+                                <button class="contest-tab team-rank-tab" data-metric="solve_today">今日刷题</button>
                             </div>
                             <table class="rankings-table">
                                 <thead>
-                                    <tr><th class="rank-header">排名</th><th class="user-header">成员</th><th class="ac-header">数值</th></tr>
+                                    <tr><th class="rank-header">排名</th><th class="user-header">成员</th><th class="ac-header">过题数</th></tr>
                                 </thead>
                                 <tbody id="team-rankings-tbody"><tr><td colspan="3">加载中...</td></tr></tbody>
                             </table>
                         </div>
                     </div>
 
-                    <!-- Team Members -->
-                    <div id="team-members" class="team-view" style="display:none;">
-                        <div class="achv-overview-card" style="margin-top:8px;">
-                            <div class="achv-overview-title">成员管理</div>
-                            <!-- 队长仅能邀请成员，不支持直接添加 -->
-                            <div class="team-invite-actions" style="margin-bottom:8px;">
-                                <input id="team-invite-user-id" type="text" placeholder="输入用户ID（发送邀请）" style="width:180px;" />
-                                <button id="team-invite-user-btn" class="admin-btn">发送邀请</button>
-                            </div>
-                            <table class="rankings-table">
-                                <thead>
-                                    <tr><th>成员</th><th>角色</th><th>过题</th><th>打卡</th><th>操作</th></tr>
-                                </thead>
-                                <tbody id="team-members-tbody"><tr><td colspan="5">加载中...</td></tr></tbody>
-                            </table>
-                            <div class="achv-overview-title" style="margin-top:16px;">待审批申请</div>
-                            <table class="rankings-table">
-                                <thead>
-                                    <tr><th>ID</th><th>申请人</th><th>留言</th><th>时间</th><th>操作</th></tr>
-                                </thead>
-                                <tbody id="team-apply-list-tbody"><tr><td colspan="5">暂无待审批</td></tr></tbody>
-                            </table>
-                            <div class="achv-overview-title" style="margin-top:16px;">待接受邀请</div>
-                            <table class="rankings-table">
-                                <thead>
-                                    <tr><th>ID</th><th>被邀请人</th><th>时间</th></tr>
-                                </thead>
-                                <tbody id="team-invite-list-tbody"><tr><td colspan="3">暂无待接受</td></tr></tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <!-- removed team-members view -->
 
-                    <!-- Team Settings -->
-                    <div id="team-settings" class="team-view" style="display:none;">
-                        <div class="achv-overview-card" style="margin-top:8px;">
-                            <div class="achv-overview-title">团队资料</div>
-                            <div class="team-settings-form">
-                                <div style="margin-bottom:8px;">
-                                    <label>团队名称</label>
-                                    <input id="team-name-input" type="text" style="width:260px;margin-left:8px;" />
-                                </div>
-                                <div style="margin-bottom:8px;">
-                                    <label>简介</label>
-                                    <input id="team-desc-input" type="text" style="width:360px;margin-left:8px;" />
-                                </div>
-                                <div style="margin-bottom:8px;">
-                                    <button id="team-save-btn" class="admin-btn">保存</button>
-                                </div>
-                                <div style="margin-bottom:8px;">
-                                    <button id="team-transfer-btn" class="admin-btn" style="background:#ffe8c2;color:#a46400;">转移队长</button>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
+                    <!-- removed team-settings view -->
 
-                    <!-- Team Invites -->
-                    <div id="team-invites" class="team-view" style="display:none;">
-                        <div class="achv-overview-card" style="margin-top:8px;">
-                            <div class="achv-overview-title">邀请链接</div>
-                            <div class="team-invite-actions" style="margin-bottom:8px;">
-                                <button id="team-create-invite-btn" class="admin-btn">生成邀请链接</button>
-                                <span id="team-invite-created" style="margin-left:10px;color:#666;"></span>
-                            </div>
-                            <table class="rankings-table">
-                                <thead>
-                                    <tr><th>邀请码</th><th>状态</th><th>有效期</th><th>次数</th><th>操作</th></tr>
-                                </thead>
-                                <tbody id="team-invites-tbody"><tr><td colspan="5">暂无数据</td></tr></tbody>
-                            </table>
-                        </div>
-                    </div>
+                    <!-- removed team-invites view -->
                 </div>
             </section>
             

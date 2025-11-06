@@ -57,17 +57,7 @@ public class TrackerTeamController {
     return InstructionUtils.jsonOk();
   }
 
-  // 4) 添加成员，这个需要admin权限
-  @Post("member/add")
-  @AdminRequired
-  public JSONObject addMember(@Param("teamId") long teamId, @Param("userId") long userId) {
-    long uid = hostHolder.getUser().getId();
-    if (!trackerTeamBiz.isTeamAdmin(teamId, uid)) {
-      return InstructionUtils.jsonError("不是队长，无权操作");
-    }
-    trackerTeamBiz.addMember(teamId, userId);
-    return InstructionUtils.jsonOk();
-  }
+  // 4) 添加成员：已迁至 Admin Controller（仅管理员）
 
   // 5) 删除成员
   @Post("member/delete")
@@ -87,6 +77,27 @@ public class TrackerTeamController {
   public JSONObject listMembers(@Param("teamId") long teamId) {
     JSONArray members = trackerTeamBiz.listMembers(teamId);
     return InstructionUtils.jsonOkData(members);
+  }
+
+  // 6.1) 成员自查是否在团队中
+  @Get("member/check")
+  @LoginRequired
+  public JSONObject checkMember(@Param("teamId") long teamId) {
+    long uid = hostHolder.getUser().getId();
+    JSONObject data = trackerTeamBiz.checkMember(teamId, uid);
+    return InstructionUtils.jsonOkData(data);
+  }
+
+  // 6.2) 队长在邀请前检查指定用户是否在团队中
+  @Get("member/check/uid")
+  @LoginRequired
+  public JSONObject checkMemberByUid(@Param("teamId") long teamId, @Param("userId") long userId) {
+    long uid = hostHolder.getUser().getId();
+    if (!trackerTeamBiz.isTeamAdmin(teamId, uid)) {
+      return InstructionUtils.jsonError("不是队长，无权查看");
+    }
+    JSONObject data = trackerTeamBiz.checkMember(teamId, userId);
+    return InstructionUtils.jsonOkData(data);
   }
 
   // 7) 转让队长
@@ -136,12 +147,53 @@ public class TrackerTeamController {
   // 团队过题榜
   @Get("leaderboard")
   @LoginRequired
-  public JSONObject leaderboard(@Param("teamId") long teamId, @Param("limit") @DefValue("20") int limit) {
-    JSONArray lb = trackerTeamBiz.getTeamLeaderboard(teamId, Math.min(100, Math.max(1, limit)));
+  public JSONObject leaderboard(@Param("teamId") long teamId,
+                                @Param("limit") @DefValue("20") int limit,
+                                @Param("type") @DefValue("total") String type) {
+    JSONArray lb = trackerTeamBiz.getTeamLeaderboard(teamId, Math.min(100, Math.max(1, limit)), type);
     return InstructionUtils.jsonOkData(lb);
   }
 
+  // 成员退出团队（队长不可直接退出）
+  @Post("quit")
+  @LoginRequired
+  public JSONObject quit(@Param("teamId") long teamId) throws WenyibiException {
+    long uid = hostHolder.getUser().getId();
+    trackerTeamBiz.quitTeam(teamId, uid);
+    return InstructionUtils.jsonOk();
+  }
+
+  // 解散团队（队长专用）
+  @Post("disband")
+  @LoginRequired
+  public JSONObject disband(@Param("teamId") long teamId) throws WenyibiException {
+    long uid = hostHolder.getUser().getId();
+    if (!trackerTeamBiz.isTeamAdmin(teamId, uid)) {
+      return InstructionUtils.jsonError("不是队长，无权操作");
+    }
+    trackerTeamBiz.disbandTeam(teamId, uid);
+    return InstructionUtils.jsonOk();
+  }
+
   // ============== 申请 / 邀请 流程 ==============
+  // 我提交的申请列表
+  @Get("my/apply")
+  @LoginRequired
+  public JSONObject myApply(@Param("limit") @DefValue("100") int limit) {
+    long uid = hostHolder.getUser().getId();
+    JSONArray data = trackerTeamBiz.listMyApply(uid, limit);
+    return InstructionUtils.jsonOkData(data);
+  }
+
+  // 邀请我的列表（默认仅 INIT）
+  @Get("my/invite")
+  @LoginRequired
+  public JSONObject myInvite(@Param("limit") @DefValue("100") int limit) {
+    long uid = hostHolder.getUser().getId();
+    JSONArray data = trackerTeamBiz.listMyInvite(uid, limit);
+    return InstructionUtils.jsonOkData(data);
+  }
+
   // 申请加入
   @Post("apply")
   @LoginRequired
@@ -219,6 +271,34 @@ public class TrackerTeamController {
     }
     JSONArray data = trackerTeamBiz.listTeamPendingApply(teamId, limit);
     return InstructionUtils.jsonOkData(data);
+  }
+
+  // 批量同意全部待处理申请
+  @Post("apply/approve-all")
+  @LoginRequired
+  public JSONObject approveAll(@Param("teamId") long teamId, @Param("limit") @DefValue("500") int limit) throws WenyibiException {
+    long uid = hostHolder.getUser().getId();
+    if (!trackerTeamBiz.isTeamAdmin(teamId, uid)) {
+      return InstructionUtils.jsonError("不是队长，无权操作");
+    }
+    int processed = trackerTeamBiz.approveAllApplies(teamId, uid, limit);
+    com.alibaba.fastjson.JSONObject res = new com.alibaba.fastjson.JSONObject();
+    res.put("processed", processed);
+    return InstructionUtils.jsonOkData(res);
+  }
+
+  // 批量拒绝全部待处理申请
+  @Post("apply/reject-all")
+  @LoginRequired
+  public JSONObject rejectAll(@Param("teamId") long teamId, @Param("limit") @DefValue("500") int limit) throws WenyibiException {
+    long uid = hostHolder.getUser().getId();
+    if (!trackerTeamBiz.isTeamAdmin(teamId, uid)) {
+      return InstructionUtils.jsonError("不是队长，无权操作");
+    }
+    int processed = trackerTeamBiz.rejectAllApplies(teamId, uid, limit);
+    com.alibaba.fastjson.JSONObject res = new com.alibaba.fastjson.JSONObject();
+    res.put("processed", processed);
+    return InstructionUtils.jsonOkData(res);
   }
 
   // 邀请列表（队长查看待接受）

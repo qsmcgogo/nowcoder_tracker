@@ -161,8 +161,29 @@ export class ApiService {
         return {};
     }
 
-    async teamLeaderboard(teamId, limit = 20) {
-        const url = `${this.apiBase}/problem/tracker/team/leaderboard?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(limit)}`;
+    // 成员自查：我是否在该团队
+    async teamMemberCheck(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/member/check?teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || { inTeam: false };
+        return { inTeam: false };
+    }
+
+    // 队长侧：检查指定 uid 是否在团队中
+    async teamMemberCheckByUid(teamId, userId) {
+        const url = `${this.apiBase}/problem/tracker/team/member/check/uid?teamId=${encodeURIComponent(teamId)}&userId=${encodeURIComponent(userId)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || { inTeam: false };
+        return { inTeam: false };
+    }
+
+    async teamLeaderboard(teamId, limit = 20, type = 'total') {
+        const t = (type == null ? 'total' : String(type)).toLowerCase();
+        const url = `${this.apiBase}/problem/tracker/team/leaderboard?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(limit)}&type=${encodeURIComponent(t)}`;
         const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
@@ -198,6 +219,28 @@ export class ApiService {
         const data = await res.json();
         if (data && (data.code === 0 || data.code === 200)) return true;
         throw new Error((data && data.msg) || '拒绝申请失败');
+    }
+
+    // 批量：一键通过全部
+    async teamApplyApproveAll(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/apply/approve-all`;
+        const body = `teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '一键通过失败');
+    }
+
+    // 批量：一键拒绝全部
+    async teamApplyRejectAll(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/apply/reject-all`;
+        const body = `teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '一键拒绝失败');
     }
 
     async teamInviteUser(teamId, userId) {
@@ -238,6 +281,28 @@ export class ApiService {
         const data = await res.json();
         if (data && (data.code === 0 || data.code === 200)) return true;
         throw new Error((data && data.msg) || '撤销邀请失败');
+    }
+
+    // 退出团队（成员）
+    async teamQuit(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/quit`;
+        const body = `teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '退出团队失败');
+    }
+
+    // 解散团队（队长）
+    async teamDisband(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/disband`;
+        const body = `teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '解散团队失败');
     }
 
     async teamApplyList(teamId, limit = 100) {

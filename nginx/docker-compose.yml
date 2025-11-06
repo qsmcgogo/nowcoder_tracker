@@ -1,0 +1,40 @@
+# Docker Compose配置文件 - nowcoder_tracker
+version: '3.8'
+
+services:
+  # Nginx Web服务器
+  nginx:
+    image: nginx:alpine
+    container_name: nowcoder-tracker-nginx
+    ports:
+      - "80:80"
+      - "443:443"  # HTTPS端口（可选）
+    volumes:
+      - ./nginx-domain.conf:/etc/nginx/nginx.conf:ro
+      - ..:/usr/share/nginx/html:ro
+      - ./ssl:/etc/nginx/ssl:ro  # SSL证书目录（可选）
+    restart: unless-stopped
+    networks:
+      - nowcoder-network
+    
+  # 可选：Node.js后端服务（如果需要API）
+  # api:
+  #   build: .
+  #   container_name: nowcoder-tracker-api
+  #   ports:
+  #     - "3000:3000"
+  #   environment:
+  #     - NODE_ENV=production
+  #   restart: unless-stopped
+  #   networks:
+  #     - nowcoder-network
+
+networks:
+  nowcoder-network:
+    driver: bridge
+
+# 可选：数据卷（如果需要持久化数据）
+# volumes:
+#   nginx-logs:
+#     driver: local
+

@@ -19,9 +19,12 @@ const targetHost = HOST_MAP[CURRENT_ENV] || HOST_MAP['www']; // 默认指向 www
 
 // A generic, robust manual proxy handler
 const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
-    // Construct the path by combining the fixed base path and the client's query string.
-    const queryString = clientReq.url.includes('?') ? clientReq.url.substring(clientReq.url.indexOf('?')) : '';
-    const correctPath = `${basePath}${queryString}`;
+    // Preserve sub-path after the mounted prefix; include query string
+    // Example: mount '/problem/tracker/team/my' and request '/apply' ->
+    // final path should be '/problem/tracker/team/my/apply'
+    const subPathWithQuery = clientReq.url || '';
+    const prefix = basePath || '';
+    const correctPath = `${prefix}${subPathWithQuery}`;
     console.log(`[Manual Proxy] Intercepted request for '${clientReq.url}'. Corrected path to: '${correctPath}'`);
 
     const targetUrl = new URL(`${targetHost}${correctPath}`);
@@ -110,6 +113,8 @@ app.use('/problem/tracker/team/my', manualProxyHandler('/problem/tracker/team/my
 app.use('/problem/tracker/team/create', manualProxyHandler('/problem/tracker/team/create'));
 app.use('/problem/tracker/team/update', manualProxyHandler('/problem/tracker/team/update'));
 app.use('/problem/tracker/team/members', manualProxyHandler('/problem/tracker/team/members'));
+app.use('/problem/tracker/team/member/check', manualProxyHandler('/problem/tracker/team/member/check'));
+app.use('/problem/tracker/team/member/check/uid', manualProxyHandler('/problem/tracker/team/member/check/uid'));
 app.use('/problem/tracker/team/member/add', manualProxyHandler('/problem/tracker/team/member/add'));
 app.use('/problem/tracker/team/member/delete', manualProxyHandler('/problem/tracker/team/member/delete'));
 app.use('/problem/tracker/team/transfer', manualProxyHandler('/problem/tracker/team/transfer'));
@@ -118,6 +123,8 @@ app.use('/problem/tracker/team/invite', manualProxyHandler('/problem/tracker/tea
 app.use('/problem/tracker/team/apply', manualProxyHandler('/problem/tracker/team/apply'));
 app.use('/problem/tracker/team/apply/approve', manualProxyHandler('/problem/tracker/team/apply/approve'));
 app.use('/problem/tracker/team/apply/reject', manualProxyHandler('/problem/tracker/team/apply/reject'));
+app.use('/problem/tracker/team/apply/approve-all', manualProxyHandler('/problem/tracker/team/apply/approve-all'));
+app.use('/problem/tracker/team/apply/reject-all', manualProxyHandler('/problem/tracker/team/apply/reject-all'));
 app.use('/problem/tracker/team/invite/user', manualProxyHandler('/problem/tracker/team/invite/user'));
 app.use('/problem/tracker/team/invite/accept', manualProxyHandler('/problem/tracker/team/invite/accept'));
 app.use('/problem/tracker/team/invite/decline', manualProxyHandler('/problem/tracker/team/invite/decline'));
@@ -128,6 +135,8 @@ app.use('/problem/tracker/team/apply/list', manualProxyHandler('/problem/tracker
 app.use('/problem/tracker/team/invite/list', manualProxyHandler('/problem/tracker/team/invite/list'));
 app.use('/problem/tracker/team/my/apply', manualProxyHandler('/problem/tracker/team/my/apply'));
 app.use('/problem/tracker/team/my/invite', manualProxyHandler('/problem/tracker/team/my/invite'));
+app.use('/problem/tracker/team/quit', manualProxyHandler('/problem/tracker/team/quit'));
+app.use('/problem/tracker/team/disband', manualProxyHandler('/problem/tracker/team/disband'));
 
 
 // New endpoint to proxy avatars and bypass CORS for canvas

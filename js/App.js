@@ -90,9 +90,7 @@ export class NowcoderTracker {
             team: document.getElementById('team'),
             // team sub containers
             teamDashboard: document.getElementById('team-dashboard'),
-            teamMembers: document.getElementById('team-members'),
-            teamSettings: document.getElementById('team-settings'),
-            teamInvites: document.getElementById('team-invites'),
+            teamLeaderboard: document.getElementById('team-leaderboard'),
             faq: document.getElementById('faq')
         };
     }

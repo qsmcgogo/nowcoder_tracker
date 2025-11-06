@@ -62,8 +62,12 @@ public class TrackerTeamBiz {
     if (teamIds.isEmpty()) {
       return new JSONArray();
     }
-    List<Integer> trackerType = java.util.Collections.singletonList(ACMTeamTypeInfoEnum.TRACKER.getCode());
-    Map<Long, ACMTeamInfo> teamMap = acmTeamInfoService.getMapByIds(teamIds, trackerType);
+    // 展示所有团队类型（ACM + TRACKER）
+    java.util.List<Integer> allTypes = java.util.Arrays.asList(
+        ACMTeamTypeInfoEnum.ACM.getCode(),
+        ACMTeamTypeInfoEnum.TRACKER.getCode()
+    );
+    Map<Long, ACMTeamInfo> teamMap = acmTeamInfoService.getMapByIds(teamIds, allTypes);
     Map<Long, Integer> myRoleMap = myMembers.stream().collect(Collectors.toMap(ACMTeamMember::getTeamId, m -> (int)m.getType()));
     JSONArray result = new JSONArray();
     for (Long teamId : teamIds) {
@@ -74,6 +78,7 @@ public class TrackerTeamBiz {
       JSONObject o = new JSONObject();
       o.put("teamId", t.getId());
       o.put("name", t.getName());
+      o.put("teamType", t.getTeamType());
       o.put("logoUrl", t.getLogoUrl());
       o.put("description", t.getDescription());
       o.put("personCount", t.getPersonCount());
@@ -81,7 +86,7 @@ public class TrackerTeamBiz {
       o.put("ownerUserId", t.getUid());
       o.put("status", t.getStatus());
       o.put("createTime", t.getCreateTime());
-      o.put("myRole", myRoleMap.getOrDefault(teamId, ACMTeamMemberTypeEnum.NORMAL.getType()));
+      o.put("myRole", myRoleMap.getOrDefault(teamId, (int) ACMTeamMemberTypeEnum.NORMAL.getType()));
       result.add(o);
     }
     return result;
@@ -90,6 +95,11 @@ public class TrackerTeamBiz {
   public long createTeam(Long ownerUserId, String name, String description) throws WenyibiException {
     if (ownerUserId == null || ownerUserId <= 0) {
       throw new WenyibiException("ownerUserId非法");
+    }
+    // 名称唯一性校验，避免唯一索引冲突
+    ACMTeamInfo exists = acmTeamInfoService.getByName(name);
+    if (exists != null) {
+      throw new WenyibiException("团队名已被占用");
     }
     // 生成团队用户ID（与 ACM 创建方式保持一致）
     int teamId = accountBiz.createOauthUserAccount((Invocation) null,
@@ -100,6 +110,8 @@ public class TrackerTeamBiz {
     teamInfo.setName(name);
     teamInfo.setLogoUrl("https://images.nowcoder.com/images/20220303/795430173_1646313501743/64188F08D61F98C9EE5212F58672A8F4");
     teamInfo.setDescription(description);
+    // TRACKER 创建的队伍默认类型为 1（TRACKER）
+    teamInfo.setTeamType(ACMTeamTypeInfoEnum.TRACKER.getCode());
     teamInfo.setPersonal(1); // 申请/邀请
     teamInfo.setPersonCount(1);
     teamInfo.setPersonLimit(500); // tracker 团队上限
@@ -117,11 +129,14 @@ public class TrackerTeamBiz {
   }
 
   public int updateTeamInfo(long teamId, String name, String description) {
-    ACMTeamInfo teamInfo = new ACMTeamInfo();
-    teamInfo.setId(teamId);
-    teamInfo.setName(name);
-    teamInfo.setDescription(description);
-    return acmTeamInfoService.update(teamInfo);
+    int affected = 0;
+    if (name != null && name.trim().length() > 0) {
+      affected += acmTeamInfoService.updateName(teamId, name);
+    }
+    if (description != null) {
+      affected += acmTeamInfoService.updateDescription(teamId, description);
+    }
+    return affected;
   }
 
   public boolean isTeamAdmin(long teamId, long userId) {
@@ -131,7 +146,11 @@ public class TrackerTeamBiz {
 
   public long addMember(long teamId, long userId) {
     ACMTeamMember member = ACMTeamMember.build(teamId, userId, ACMTeamMemberTypeEnum.NORMAL);
-    return acmTeamMemberService.save(member);
+    long id = acmTeamMemberService.save(member);
+    // 同步更新团队人数
+    int count = acmTeamMemberService.getCountByGroupId(teamId);
+    acmTeamInfoService.updatePersonCount(teamId, count);
+    return id;
   }
 
   public int removeMember(long teamId, long userId) {
@@ -139,7 +158,11 @@ public class TrackerTeamBiz {
     if (member == null) {
       return 0;
     }
-    return acmTeamMemberService.delete(member.getId());
+    int ret = acmTeamMemberService.delete(member.getId());
+    // 同步更新团队人数
+    int count = acmTeamMemberService.getCountByGroupId(teamId);
+    acmTeamInfoService.updatePersonCount(teamId, count);
+    return ret;
   }
 
   public JSONArray listMembers(long teamId) {
@@ -173,6 +196,42 @@ public class TrackerTeamBiz {
     return acmTeamInfoService.updateUid(teamId, newOwnerUserId);
   }
 
+  /**
+   * 成员主动退出团队（队长不可直接退出）
+   */
+  public int quitTeam(long teamId, long userId) throws WenyibiException {
+    ACMTeamInfo team = acmTeamInfoService.getById(teamId);
+    if (team == null || !team.isNormal()) {
+      throw new WenyibiException("团队不存在或已解散");
+    }
+    if (team.getUid() == userId) {
+      throw new WenyibiException("队长不能直接退出，请先转让或解散团队");
+    }
+    ACMTeamMember member = acmTeamMemberService.getByGroupAndUid(teamId, userId);
+    if (member == null) {
+      return 0;
+    }
+    int ret = acmTeamMemberService.delete(member.getId());
+    int count = acmTeamMemberService.getCountByGroupId(teamId);
+    acmTeamInfoService.updatePersonCount(teamId, count);
+    return ret;
+  }
+
+  /**
+   * 队长解散团队：设置状态为已解散并移除所有成员
+   */
+  public int disbandTeam(long teamId, long operatorUserId) throws WenyibiException {
+    if (!isTeamAdmin(teamId, operatorUserId)) {
+      throw new WenyibiException("不是队长，无权操作");
+    }
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    for (ACMTeamMember m : members) {
+      acmTeamMemberService.delete(m.getId());
+    }
+    acmTeamInfoService.updatePersonCount(teamId, 0);
+    return acmTeamInfoService.updateStatus(teamId, ACMTeamInfoStatusEnum.DISSOLVE.getType());
+  }
+
   public String createInviteLink(long teamId) {
     // 简单返回一个包含 teamId 的链接（后续可接入令牌/短链）
     return String.format("/tracker/team/join?teamId=%s", teamId);
@@ -182,11 +241,30 @@ public class TrackerTeamBiz {
     return createInviteLink(teamId);
   }
 
+  /**
+   * 查询某用户是否在指定团队中
+   */
+  public JSONObject checkMember(long teamId, long userId) {
+    JSONObject res = new JSONObject();
+    ACMTeamMember member = acmTeamMemberService.getByGroupAndUid(teamId, userId);
+    boolean inTeam = member != null;
+    res.put("inTeam", inTeam);
+    if (inTeam) {
+      res.put("role", (int)member.getType());
+      res.put("joinTime", member.getCreateTime());
+    }
+    return res;
+  }
+
   // ============== 申请 / 邀请 逻辑 ==============
   public long applyJoin(long teamId, long userId, String message) throws WenyibiException {
     ACMTeamInfo team = acmTeamInfoService.getById(teamId);
     if (team == null || !team.isNormal()) {
       throw new WenyibiException("团队不存在或已解散");
+    }
+    // 已在团队则禁止重复申请
+    if (acmTeamMemberService.getByGroupAndUid(teamId, userId) != null) {
+      throw new WenyibiException("已在团队中");
     }
     // 是否已有未处理记录
     if (!acmTeamApplyService.getByGroupIdAndApplyUid(teamId, userId, ACMTeamApplyStatusEnum.INIT.getType()).isEmpty()) {
@@ -215,6 +293,9 @@ public class TrackerTeamBiz {
     // 通过，加入成员
     acmTeamApplyService.updateStatus(applyId, ACMTeamApplyStatusEnum.ACCEPTED.getType(), operatorUserId);
     acmTeamMemberService.save(ACMTeamMember.build(teamId, apply.getApplyUid(), ACMTeamMemberTypeEnum.NORMAL));
+    // 同步更新团队人数
+    int countAfter = acmTeamMemberService.getCountByGroupId(teamId);
+    acmTeamInfoService.updatePersonCount(teamId, countAfter);
     return 1;
   }
 
@@ -229,6 +310,50 @@ public class TrackerTeamBiz {
     }
     acmTeamApplyService.updateStatus(applyId, ACMTeamApplyStatusEnum.REJECT.getType(), operatorUserId);
     return 1;
+  }
+
+  /**
+   * 批量通过待处理申请
+   */
+  public int approveAllApplies(long teamId, long operatorUserId, int limit) throws WenyibiException {
+    if (!isTeamAdmin(teamId, operatorUserId)) {
+      throw new WenyibiException("不是队长，无权操作");
+    }
+    int lim = Math.max(1, Math.min(500, limit));
+    java.util.List<ACMTeamApply> list = acmTeamApplyService
+        .getByGroupIdAndType(teamId, ACMTeamApplyTypeEnum.APPLY.getType(), ACMTeamApplyStatusEnum.INIT.getType(), lim);
+    int processed = 0;
+    for (ACMTeamApply a : list) {
+      try {
+        approveApply(a.getId(), operatorUserId);
+        processed++;
+      } catch (WenyibiException ignore) {
+        // 单条失败不影响整体
+      }
+    }
+    return processed;
+  }
+
+  /**
+   * 批量拒绝待处理申请
+   */
+  public int rejectAllApplies(long teamId, long operatorUserId, int limit) throws WenyibiException {
+    if (!isTeamAdmin(teamId, operatorUserId)) {
+      throw new WenyibiException("不是队长，无权操作");
+    }
+    int lim = Math.max(1, Math.min(500, limit));
+    java.util.List<ACMTeamApply> list = acmTeamApplyService
+        .getByGroupIdAndType(teamId, ACMTeamApplyTypeEnum.APPLY.getType(), ACMTeamApplyStatusEnum.INIT.getType(), lim);
+    int processed = 0;
+    for (ACMTeamApply a : list) {
+      try {
+        rejectApply(a.getId(), operatorUserId);
+        processed++;
+      } catch (WenyibiException ignore) {
+        // 单条失败不影响整体
+      }
+    }
+    return processed;
   }
 
   public long inviteUser(long teamId, long operatorUserId, long targetUserId) throws WenyibiException {
@@ -264,6 +389,9 @@ public class TrackerTeamBiz {
     }
     acmTeamApplyService.updateStatus(applyId, ACMTeamApplyStatusEnum.ACCEPTED.getType(), userId);
     acmTeamMemberService.save(ACMTeamMember.build(teamId, userId, ACMTeamMemberTypeEnum.NORMAL));
+    // 同步更新团队人数
+    int countAfter = acmTeamMemberService.getCountByGroupId(teamId);
+    acmTeamInfoService.updatePersonCount(teamId, countAfter);
     return 1;
   }
 
@@ -319,6 +447,14 @@ public class TrackerTeamBiz {
     // 批量拉取用户信息
     List<Long> uids = list.stream().map(ACMTeamApply::getApplyUid).collect(Collectors.toList());
     Map<Long, User> userMap = userService.getUserMapsByIds(uids);
+    // 批量拉取团队信息
+    List<Long> teamIds = list.stream().map(ACMTeamApply::getTeamId).collect(Collectors.toList());
+    java.util.List<Integer> allTypes = java.util.Arrays.asList(
+        ACMTeamTypeInfoEnum.ACM.getCode(), ACMTeamTypeInfoEnum.TRACKER.getCode());
+    Map<Long, ACMTeamInfo> teamMap = acmTeamInfoService.getMapByIds(teamIds, allTypes);
+    // 批量拉取队长信息
+    java.util.Set<Long> ownerIds = teamMap.values().stream().map(ACMTeamInfo::getUid).collect(java.util.stream.Collectors.toSet());
+    Map<Long, User> ownerMap = ownerIds.isEmpty() ? java.util.Collections.emptyMap() : userService.getUserMapsByIds(new java.util.ArrayList<>(ownerIds));
     for (ACMTeamApply a : list) {
       JSONObject o = new JSONObject();
       o.put("id", a.getId());
@@ -327,8 +463,19 @@ public class TrackerTeamBiz {
       o.put("applyUid", a.getApplyUid());
       o.put("sender", a.getSender());
       o.put("message", a.getMessage());
-      o.put("status", a.getStatus());
+      o.put("status", (int)a.getStatus());
       o.put("createTime", a.getCreateTime());
+      ACMTeamInfo t = teamMap.get(a.getTeamId());
+      if (t != null) {
+        o.put("teamName", t.getName());
+        o.put("ownerUserId", t.getUid());
+        o.put("description", t.getDescription());
+        User owner = ownerMap.get(t.getUid());
+        if (owner != null) {
+          o.put("ownerName", owner.getDisplayname());
+          o.put("ownerHeadUrl", owner.getTinnyHeaderUrl());
+        }
+      }
       User u = userMap.get(a.getApplyUid());
       if (u != null) {
         o.put("applyUserName", u.getDisplayname());
@@ -337,6 +484,71 @@ public class TrackerTeamBiz {
       arr.add(o);
     }
     return arr;
+  }
+
+  /**
+   * 我提交的申请 / 邀请列表装饰（含 teamName、statusText）
+   */
+  private JSONArray decorateMyApplyOrInviteList(List<ACMTeamApply> list) {
+    JSONArray arr = new JSONArray();
+    if (list == null || list.isEmpty()) {
+      return arr;
+    }
+    List<Long> teamIds = list.stream().map(ACMTeamApply::getTeamId).collect(Collectors.toList());
+    java.util.List<Integer> allTypes = java.util.Arrays.asList(
+        ACMTeamTypeInfoEnum.ACM.getCode(), ACMTeamTypeInfoEnum.TRACKER.getCode());
+    Map<Long, ACMTeamInfo> teamMap = acmTeamInfoService.getMapByIds(teamIds, allTypes);
+    for (ACMTeamApply a : list) {
+      JSONObject o = new JSONObject();
+      o.put("id", a.getId());
+      o.put("applyId", a.getId());
+      o.put("teamId", a.getTeamId());
+      ACMTeamInfo t = teamMap.get(a.getTeamId());
+      if (t != null) {
+        o.put("teamName", t.getName());
+        o.put("ownerUserId", t.getUid());
+        o.put("description", t.getDescription());
+      }
+      o.put("message", a.getMessage());
+      o.put("status", (int)a.getStatus());
+      o.put("statusText", statusText(a.getStatus()));
+      o.put("createTime", a.getCreateTime());
+      arr.add(o);
+    }
+    return arr;
+  }
+
+  private String statusText(int status) {
+    ACMTeamApplyStatusEnum e = ACMTeamApplyStatusEnum.getByType(status);
+    if (e == null) {
+      return String.valueOf(status);
+    }
+    switch (e) {
+      case INIT:
+        return "INIT";
+      case ACCEPTED:
+        return "ACCEPTED";
+      case REJECT:
+        return "REJECT";
+      default:
+        return e.name();
+    }
+  }
+
+  // 我提交的申请列表
+  public JSONArray listMyApply(long userId, int limit) {
+    int lim = Math.max(1, Math.min(500, limit));
+    List<ACMTeamApply> list = acmTeamApplyService
+        .getByApplyUidAndType(userId, ACMTeamApplyTypeEnum.APPLY.getType(), ACMTeamApplyStatusEnum.INIT.getType(), lim);
+    return decorateMyApplyOrInviteList(list);
+  }
+
+  // 邀请我的列表（默认仅 INIT）
+  public JSONArray listMyInvite(long userId, int limit) {
+    int lim = Math.max(1, Math.min(500, limit));
+    List<ACMTeamApply> list = acmTeamApplyService
+        .getByApplyUidAndType(userId, ACMTeamApplyTypeEnum.INVITE.getType(), ACMTeamApplyStatusEnum.INIT.getType(), lim);
+    return decorateMyApplyOrInviteList(list);
   }
 
   // ============== 看板与榜单 ==============
@@ -380,11 +592,34 @@ public class TrackerTeamBiz {
   }
 
   public JSONArray getTeamLeaderboard(long teamId, int limit) {
+    return getTeamLeaderboard(teamId, limit, "total");
+  }
+
+  /**
+   * 团队榜单：按总/今日/7日过题数排序
+   * type 可为：total | today | 7days（忽略大小写）
+   */
+  public JSONArray getTeamLeaderboard(long teamId, int limit, String type) {
     List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
     Map<Long, User> userMap = userService.getUserMapsByIds(uids);
     List<JSONObject> rows = new ArrayList<>();
-    Map<Long, Integer> acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(uids);
+
+    Map<Long, Integer> acceptCountMap;
+    String t = type == null ? "total" : type.toLowerCase();
+    if ("today".equals(t) || "7days".equals(t)) {
+      Date now = new Date();
+      Date todayBegin = com.wenyibi.futuremail.util.NcDateUtils.getDayBeginDate(now);
+      Date begin = todayBegin;
+      if ("7days".equals(t)) {
+        begin = com.wenyibi.futuremail.util.DateUtil.getDateAfter(todayBegin, -6);
+      }
+      acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, begin, now);
+    } else {
+      // 默认 total
+      acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(uids);
+    }
+
     for (ACMTeamMember m : members) {
       int ac = acceptCountMap.getOrDefault(m.getUid(), 0);
       JSONObject row = new JSONObject();
