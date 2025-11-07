@@ -149,9 +149,11 @@ public class TrackerTeamController {
   @LoginRequired
   public JSONObject leaderboard(@Param("teamId") long teamId,
                                 @Param("limit") @DefValue("20") int limit,
-                                @Param("type") @DefValue("total") String type) {
-    JSONArray lb = trackerTeamBiz.getTeamLeaderboard(teamId, Math.min(100, Math.max(1, limit)), type);
-    return InstructionUtils.jsonOkData(lb);
+                                @Param("type") @DefValue("total") String type,
+                                @Param("page") @DefValue("1") int page) {
+    com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamLeaderboardWithTotal(
+        teamId, Math.min(100, Math.max(1, limit)), type, Math.max(1, page));
+    return InstructionUtils.jsonOkData(data);
   }
 
   // 成员退出团队（队长不可直接退出）

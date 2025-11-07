@@ -27,7 +27,11 @@ export class RankingsView {
         // 监听视图切换事件
         eventBus.on(EVENTS.VIEW_CHANGED, (view) => {
             if (view === 'rankings') {
-                this.fetchAndRenderRankingsPage(1, this.state.activeRankingsTab);
+                // 若即将进行按用户搜索（输入框已有值或已登录后App会自动触发搜索），则避免预拉取第1页
+                const input = document.getElementById('rank-user-id-input');
+                const pendingSearch = input && input.value && String(input.value).trim();
+                if (pendingSearch || this.state.loggedInUserId) return;
+                this.fetchAndRenderRankingsPage(1, this.state.activeRankingsTab, null, true);
             }
         });
         
@@ -322,18 +326,17 @@ export class RankingsView {
                 if (place > 0) {
                     // Step 2: 根据排名跳转页面；若排名超过1000，固定跳到最后一页，并将该用户附加到末尾
                     if (place > 1000) {
-                        const totalUsers = userRankDataResponse.totalCount || this.state.rankingsTotalUsers || 1;
-                        const lastPage = Math.ceil(totalUsers / this.rankingsPageSize) || 1;
-                        await this.fetchAndRenderRankingsPage(lastPage, rankType, trimmedUserId);
+                        // 直接跳到“1000名所对应的页”以确保不是第1页
+                        const capPage = Math.max(1, Math.ceil(1000 / (this.rankingsPageSize || 20)));
+                        await this.fetchAndRenderRankingsPage(capPage, rankType, trimmedUserId);
                     } else {
                         const targetPage = Math.ceil(place / this.rankingsPageSize);
                         await this.fetchAndRenderRankingsPage(targetPage, rankType, trimmedUserId);
                     }
                 } else {
-                    // User has 0 count or is unranked, just show them on the last page
-                    const totalUsers = userRankDataResponse.totalCount || this.state.rankingsTotalUsers || 1;
-                    const lastPage = Math.ceil(totalUsers / this.rankingsPageSize) || 1;
-                    await this.fetchAndRenderRankingsPage(lastPage, rankType, trimmedUserId);
+                    // place==0 -> 1w+：直接跳到封顶页（例如第50页），再将该用户附加在末尾
+                    const capPage = Math.max(1, Math.ceil(1000 / (this.rankingsPageSize || 20)));
+                    await this.fetchAndRenderRankingsPage(capPage, rankType, trimmedUserId);
                 }
             } else {
                 this.showRankSearchError('用户未找到');

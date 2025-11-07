@@ -608,6 +608,13 @@ public class TrackerTeamBiz {
    * type 可为：total | today | 7days（忽略大小写）
    */
   public JSONArray getTeamLeaderboard(long teamId, int limit, String type) {
+    return getTeamLeaderboard(teamId, limit, type, 1);
+  }
+
+  /**
+   * 分页版榜单
+   */
+  public JSONArray getTeamLeaderboard(long teamId, int limit, String type, int page) {
     List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
     Map<Long, User> userMap = userService.getUserMapsByIds(uids);
@@ -641,14 +648,77 @@ public class TrackerTeamBiz {
       rows.add(row);
     }
     rows.sort((a, b) -> Integer.compare(b.getIntValue("acceptCount"), a.getIntValue("acceptCount")));
-    JSONArray top = new JSONArray();
-    int n = Math.min(limit, rows.size());
-    for (int i = 0; i < n; i++) {
-      JSONObject r = rows.get(i);
-      r.put("rank", i + 1);
-      top.add(r);
+    // 分页切片
+    int safeLimit = Math.max(1, Math.min(100, limit));
+    int safePage = Math.max(1, page);
+    int start = (safePage - 1) * safeLimit;
+    if (start >= rows.size()) {
+      return new JSONArray();
     }
-    return top;
+    int end = Math.min(rows.size(), start + safeLimit);
+    JSONArray pageArr = new JSONArray();
+    for (int i = start; i < end; i++) {
+      JSONObject r = rows.get(i);
+      // 全局排名
+      r.put("rank", i + 1);
+      pageArr.add(r);
+    }
+    return pageArr;
+  }
+
+  /**
+   * 返回带 total 的分页榜单
+   */
+  public JSONObject getTeamLeaderboardWithTotal(long teamId, int limit, String type, int page) {
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    Map<Long, User> userMap = userService.getUserMapsByIds(uids);
+    List<JSONObject> rows = new ArrayList<>();
+
+    Map<Long, Integer> acceptCountMap;
+    String t = type == null ? "total" : type.toLowerCase();
+    if ("today".equals(t) || "7days".equals(t)) {
+      Date now = new Date();
+      Date todayBegin = com.wenyibi.futuremail.util.NcDateUtils.getDayBeginDate(now);
+      Date begin = todayBegin;
+      if ("7days".equals(t)) {
+        begin = com.wenyibi.futuremail.util.DateUtil.getDateAfter(todayBegin, -6);
+      }
+      acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, begin, now);
+    } else {
+      acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(uids);
+    }
+
+    for (ACMTeamMember m : members) {
+      int ac = acceptCountMap.getOrDefault(m.getUid(), 0);
+      JSONObject row = new JSONObject();
+      row.put("userId", m.getUid());
+      row.put("acceptCount", ac);
+      User u = userMap.get(m.getUid());
+      if (u != null) {
+        row.put("name", u.getDisplayname());
+        row.put("headUrl", u.getTinnyHeaderUrl());
+      }
+      rows.add(row);
+    }
+    rows.sort((a, b) -> Integer.compare(b.getIntValue("acceptCount"), a.getIntValue("acceptCount")));
+    int total = rows.size();
+    int safeLimit = Math.max(1, Math.min(100, limit));
+    int safePage = Math.max(1, page);
+    int start = (safePage - 1) * safeLimit;
+    JSONArray list = new JSONArray();
+    if (start < total) {
+      int end = Math.min(total, start + safeLimit);
+      for (int i = start; i < end; i++) {
+        JSONObject r = rows.get(i);
+        r.put("rank", i + 1);
+        list.add(r);
+      }
+    }
+    JSONObject res = new JSONObject();
+    res.put("total", total);
+    res.put("list", list);
+    return res;
   }
 }
 
