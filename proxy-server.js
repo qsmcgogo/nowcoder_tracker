@@ -108,6 +108,9 @@ app.use('/problem/tracker/skill-tree/add-question', manualProxyHandler('/problem
 app.use('/problem/tracker/skill-tree/update-question', manualProxyHandler('/problem/tracker/skill-tree/update-question'));
 app.use('/problem/tracker/skill-tree/delete-question', manualProxyHandler('/problem/tracker/skill-tree/delete-question'));
 
+// Admin endpoint for Rankings
+app.use('/problem/tracker/rank/update-accept-count', manualProxyHandler('/problem/tracker/rank/update-accept-count'));
+
 // Team endpoints
 app.use('/problem/tracker/team/my', manualProxyHandler('/problem/tracker/team/my'));
 app.use('/problem/tracker/team/create', manualProxyHandler('/problem/tracker/team/create'));

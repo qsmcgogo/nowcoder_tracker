@@ -337,6 +337,12 @@ export class NowcoderTracker {
                 document.querySelector('h1').appendChild(adminBadge);
             }
 
+            // 登录后根据管理员身份刷新“更新过题数”按钮可见性
+            const adminUpdateBtn2 = document.getElementById('rank-admin-update-btn');
+            if (adminUpdateBtn2) {
+                adminUpdateBtn2.style.display = this.state.isAdmin ? 'inline-block' : 'none';
+            }
+
             if (this.state.activeMainTab === 'problems') {
                 this.handleUserStatusSearch();
             }
