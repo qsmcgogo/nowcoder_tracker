@@ -379,6 +379,9 @@ export class NowcoderTracker {
         
         // 优先使用哈希路由，其次回退到 ?tab=，最后默认 daily
         const fromHash = this.getRouteFromHash();
+        // 提前记录是否为邀请路由以及原始hash，避免后续被重写
+        const initialInviteTid = this.parseTeamInviteRoute();
+        const initialHashRaw = window.location.hash || '';
         const urlParams = new URLSearchParams(window.location.search);
         const fromQuery = urlParams.get('tab');
         const rawRoute = fromHash || fromQuery || 'daily';
@@ -390,7 +393,12 @@ export class NowcoderTracker {
             await this.detectAndSetLoggedInUser();
         } catch (_) { /* ignore login bootstrap errors */ }
 
-        this.switchMainTab(initialTab, { subview: initialSubview });
+        if (initialInviteTid) {
+            // 直接进入团队页，避免默认跳转到 daily
+            this.switchMainTab('team', { subview: null });
+        } else {
+            this.switchMainTab(initialTab, { subview: initialSubview });
+        }
 
         // 监听哈希变化，实现前进/后退导航
         window.addEventListener('hashchange', () => {
@@ -400,23 +408,40 @@ export class NowcoderTracker {
             if (target) {
                 this.switchMainTab(target, { subview });
             }
+            const tid = this.parseTeamInviteRoute();
+            if (tid) this.showTeamInviteLanding(tid);
         });
         
         // 发布应用初始化完成事件
         eventBus.emit(EVENTS.PAGE_LOADED, { app: this });
+        // 初始化时处理邀请落地，并恢复原始hash（若被重写）
+        if (initialInviteTid) {
+            if ((window.location.hash || '') !== initialHashRaw) {
+                window.location.hash = initialHashRaw;
+            }
+            this.showTeamInviteLanding(initialInviteTid);
+        }
     }
     
     switchMainTab(tabName, options = {}) {
         // 将当前标签写入哈希，保持可分享/可返回
         const normalized = this.normalizeTabName(tabName);
         const currentHash = (window.location.hash || '').replace(/^#/, '');
-        let expectedHash = `/${normalized}`;
-        if (normalized === 'problems' && options && options.subview === 'contests') {
-            expectedHash = '/contest';
+        // 邀请链接：当路由以 /team/ 或 /inviteTeam 开头时，保留完整哈希（避免被重写为 /team 导致丢参）
+        let shouldPreserveHash = false;
+        if (normalized === 'team') {
+            const h = (currentHash || '').toLowerCase();
+            if (h.startsWith('/team/') || h.startsWith('/inviteteam')) shouldPreserveHash = true;
         }
-        if (currentHash !== expectedHash) {
-            // 仅当不同再写入，避免触发重复 hashchange
-            window.location.hash = expectedHash;
+        if (!shouldPreserveHash) {
+            let expectedHash = `/${normalized}`;
+            if (normalized === 'problems' && options && options.subview === 'contests') {
+                expectedHash = '/contest';
+            }
+            if (currentHash !== expectedHash) {
+                // 仅当不同再写入，避免触发重复 hashchange
+                window.location.hash = expectedHash;
+            }
         }
 
         const previousTab = this.state.activeMainTab;
@@ -568,6 +593,40 @@ export class NowcoderTracker {
         return helpers.buildUrlWithChannelPut(baseUrl, this.state.channelPut);
     }
 
+    // --- Team invite landing ---
+    async showTeamInviteLanding(teamId) {
+        try {
+            const modal = document.getElementById('team-invite-landing');
+            const txt = document.getElementById('team-invite-text');
+            const btnJoin = document.getElementById('team-invite-join');
+            const btnCancel = document.getElementById('team-invite-cancel');
+            if (!modal || !txt || !btnJoin || !btnCancel) return;
+
+            let teamName = '';
+            try {
+                const summary = await this.apiService.teamStatsSummary(teamId);
+                teamName = summary && (summary.teamName || summary.name || '');
+            } catch (_) {}
+            txt.textContent = teamName ? `是否加入 ${teamName}` : '是否加入该团队？';
+
+            modal.style.display = 'flex';
+            const close = () => { modal.style.display = 'none'; };
+            if (!btnCancel._bound) { btnCancel._bound = true; btnCancel.addEventListener('click', close); }
+            if (!btnJoin._bound) {
+                btnJoin._bound = true;
+                btnJoin.addEventListener('click', async () => {
+                    try {
+                        await this.apiService.teamApply(teamId, '');
+                        alert('已提交加入申请');
+                        close();
+                    } catch (e) {
+                        alert(e.message || '申请失败');
+                    }
+                });
+            }
+        } catch (_) {}
+    }
+
     // --- Hash Routing helpers ---
     getRouteFromHash() {
         const h = (window.location.hash || '').replace(/^#/, '').trim();
@@ -581,11 +640,38 @@ export class NowcoderTracker {
     normalizeTabName(name) {
         const key = String(name || '').toLowerCase();
         const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','team','profile','faq','changelog']);
+        if (key.startsWith('team/')) return 'team';
+        if (key.startsWith('invitet') || key.startsWith('inviteTeam'.toLowerCase())) return 'team';
         if (allowed.has(key)) return key;
         // 允许一些别名
         if (key === 'skills' || key === 'skill' || key === 'skilltree') return 'skill-tree';
         if (key === 'contest' || key === 'practice' || key === 'interview') return 'problems';
         return 'daily';
+    }
+
+    parseTeamInviteRoute() {
+        // 直接从完整 hash 解析，保留查询参数
+        const full = String(window.location.hash || '').replace(/^#\/?/, '');
+        const s = full.replace(/^\/?/, '');
+        // 支持两种形式：team/{id} 或 team/join?teamId={id}
+        let m = s.match(/^team\/(\d+)/i);
+        if (m) return m[1];
+        if (s.toLowerCase().startsWith('team/join')) {
+            const q = s.split('?')[1] || '';
+            const sp = new URLSearchParams(q);
+            const tid = sp.get('teamId');
+            if (tid) return tid;
+        }
+        // 新前缀：inviteTeam/{id} 或 inviteTeam?teamId=...
+        m = s.match(/^inviteTeam\/(\d+)/i);
+        if (m) return m[1];
+        if (s.toLowerCase().startsWith('inviteteam')) {
+            const q = s.split('?')[1] || '';
+            const sp = new URLSearchParams(q);
+            const tid = sp.get('teamId');
+            if (tid) return tid;
+        }
+        return null;
     }
 
     extractProblemsSubview(name) {

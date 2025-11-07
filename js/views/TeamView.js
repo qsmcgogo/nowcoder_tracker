@@ -94,6 +94,23 @@ export class TeamView {
         if (!section) return;
         section.classList.add('active');
 
+        // 邀请链接落地：如果 hash 为 /team/join?teamId=... 或 /team/{id}，在团队页生命周期内兜底弹窗
+        try {
+            const h = String(window.location.hash || '');
+            if (/^#\/?(team\/(join|\d+)|inviteteam(\/|\?|$))/i.test(h)) {
+                const app = window.app;
+                if (app && typeof app.parseTeamInviteRoute === 'function' && typeof app.showTeamInviteLanding === 'function') {
+                    const tid = app.parseTeamInviteRoute();
+                    const modal = document.getElementById('team-invite-landing');
+                    const shownFor = modal ? modal.getAttribute('data-shown-for') : '';
+                    if (tid && modal && shownFor !== String(tid)) {
+                        modal.setAttribute('data-shown-for', String(tid));
+                        app.showTeamInviteLanding(tid);
+                    }
+                }
+            }
+        } catch (_) {}
+
         // 若未选择团队，展示团队列表
         const listView = document.getElementById('team-list');
         const subTabs = document.getElementById('team-subtabs');
@@ -298,15 +315,18 @@ export class TeamView {
                         return;
                     }
                     const data = await this.api.teamInviteCreate(this.currentTeamId);
-                    let link = (data && (data.inviteLink || data.url)) || '';
-                    if (!link) link = `${window.location.origin}/#/team-join?teamId=${encodeURIComponent(this.currentTeamId)}`;
+                    const info = this.teamInfo || {};
+                    const teamName = info.name || info.teamName || '我的团队';
+                    // 无论后端返回什么路径，统一使用新的哈希路由前缀：/#/inviteTeam/{teamId}
+                    const finalLink = `https://www.nowcoder.com/problem/tracker/#/inviteTeam/${encodeURIComponent(this.currentTeamId)}`;
+                    const copyText = `点击链接加入${teamName}：${finalLink}`;
                     const span = document.getElementById('team-invite-created');
-                    if (span) span.textContent = `邀请链接：${link}`;
+                    if (span) span.textContent = `邀请链接：${finalLink}`;
                     if (navigator.clipboard?.writeText) {
-                        await navigator.clipboard.writeText(link);
-                        alert('邀请链接已复制到剪贴板');
+                        await navigator.clipboard.writeText(copyText);
+                        alert('邀请信息已复制到剪贴板');
                     } else {
-                        const ta = document.createElement('textarea'); ta.value = link; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('邀请链接已复制到剪贴板');
+                        const ta = document.createElement('textarea'); ta.value = copyText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('邀请信息已复制到剪贴板');
                     }
                 } catch (e) { alert(e.message || '生成邀请失败'); }
             });
@@ -486,13 +506,16 @@ export class TeamView {
                         return;
                     }
                     const data = await this.api.teamInviteCreate(this.currentTeamId);
-                    let link = (data && (data.inviteLink || data.url)) || '';
-                    if (!link) link = `${window.location.origin}/#/team-join?teamId=${encodeURIComponent(this.currentTeamId)}`;
+                    const info = this.teamInfo || {};
+                    const teamName = info.name || info.teamName || '我的团队';
+                    // 无论后端返回什么路径，统一使用新的哈希路由前缀
+                    const finalLink = `https://www.nowcoder.com/problem/tracker/#/inviteTeam/${encodeURIComponent(this.currentTeamId)}`;
+                    const copyText = `点击链接加入${teamName}：${finalLink}`;
                     const span = document.getElementById('team-add-link-shown');
-                    if (span) span.textContent = link;
-                    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(link); alert('已复制邀请链接'); }
+                    if (span) span.textContent = finalLink;
+                    if (navigator.clipboard?.writeText) { await navigator.clipboard.writeText(copyText); alert('已复制邀请信息'); }
                     else {
-                        const ta = document.createElement('textarea'); ta.value = link; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('已复制邀请链接');
+                        const ta = document.createElement('textarea'); ta.value = copyText; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); document.body.removeChild(ta); alert('已复制邀请信息');
                     }
                 } catch (e) { alert(e.message || '生成邀请失败'); }
             });
