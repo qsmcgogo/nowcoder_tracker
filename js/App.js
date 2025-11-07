@@ -611,7 +611,15 @@ export class NowcoderTracker {
 
             modal.style.display = 'flex';
             const close = () => { modal.style.display = 'none'; };
-            if (!btnCancel._bound) { btnCancel._bound = true; btnCancel.addEventListener('click', close); }
+            const redirectToTeamHome = () => {
+                // 重定向到团队首页（hash路由）
+                setTimeout(() => { window.location.hash = '/team'; }, 0);
+            };
+
+            if (!btnCancel._bound) {
+                btnCancel._bound = true;
+                btnCancel.addEventListener('click', () => { close(); redirectToTeamHome(); });
+            }
             if (!btnJoin._bound) {
                 btnJoin._bound = true;
                 btnJoin.addEventListener('click', async () => {
@@ -619,8 +627,12 @@ export class NowcoderTracker {
                         await this.apiService.teamApply(teamId, '');
                         alert('已提交加入申请');
                         close();
+                        redirectToTeamHome();
                     } catch (e) {
                         alert(e.message || '申请失败');
+                        // 即使失败也回到团队首页，避免停留在邀请页
+                        close();
+                        redirectToTeamHome();
                     }
                 });
             }

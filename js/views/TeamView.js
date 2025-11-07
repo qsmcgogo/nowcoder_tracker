@@ -318,7 +318,7 @@ export class TeamView {
                     const info = this.teamInfo || {};
                     const teamName = info.name || info.teamName || '我的团队';
                     // 无论后端返回什么路径，统一使用新的哈希路由前缀：/#/inviteTeam/{teamId}
-                    const finalLink = `https://www.nowcoder.com/problem/tracker#/inviteTeam/${encodeURIComponent(this.currentTeamId)}`;
+                    const finalLink = `https://www.nowcoder.com/problem/tracker/#/inviteTeam/${encodeURIComponent(this.currentTeamId)}`;
                     const copyText = `点击链接加入${teamName}：${finalLink}`;
                     const span = document.getElementById('team-invite-created');
                     if (span) span.textContent = `邀请链接：${finalLink}`;
@@ -509,7 +509,7 @@ export class TeamView {
                     const info = this.teamInfo || {};
                     const teamName = info.name || info.teamName || '我的团队';
                     // 无论后端返回什么路径，统一使用新的哈希路由前缀
-                    const finalLink = `https://www.nowcoder.com/problem/tracker#/inviteTeam/${encodeURIComponent(this.currentTeamId)}`;
+                    const finalLink = `https://www.nowcoder.com/problem/tracker/#/inviteTeam/${encodeURIComponent(this.currentTeamId)}`;
                     const copyText = `点击链接加入${teamName}：${finalLink}`;
                     const span = document.getElementById('team-add-link-shown');
                     if (span) span.textContent = finalLink;
