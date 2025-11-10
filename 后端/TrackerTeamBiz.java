@@ -87,42 +87,7 @@ public class TrackerTeamBiz {
         }
       });
 
-  /** 用户维度刷题指标缓存（30分钟）：userId -> (acceptCount, submissionCount) */
-  private final LoadingCache<Long, Pair<Integer, Integer>> userMetricsCache = CacheBuilder
-      .newBuilder()
-      .expireAfterWrite(30, TimeUnit.MINUTES)
-      .initialCapacity(1024)
-      .concurrencyLevel(128)
-      .maximumSize(100_000)
-      .build(new CacheLoader<Long, Pair<Integer, Integer>>() {
-        @Override
-        public Pair<Integer, Integer> load(Long uid) {
-          java.util.List<Long> ids = java.util.Collections.singletonList(uid);
-          Map<Long, Integer> acMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(ids);
-          Map<Long, Integer> subMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(ids);
-          int ac = acMap.getOrDefault(uid, 0);
-          int sub = subMap.getOrDefault(uid, 0);
-          return Pair.of(ac, sub);
-        }
-
-        @Override
-        public Map<Long, Pair<Integer, Integer>> loadAll(Iterable<? extends Long> keys) {
-          java.util.List<Long> ids = new java.util.ArrayList<>();
-          for (Long k : keys) {
-            ids.add(k);
-          }
-          if (ids.isEmpty()) {
-            return java.util.Collections.emptyMap();
-          }
-          Map<Long, Integer> acMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(ids);
-          Map<Long, Integer> subMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(ids);
-          Map<Long, Pair<Integer, Integer>> res = new java.util.HashMap<>();
-          for (Long id : ids) {
-            res.put(id, Pair.of(acMap.getOrDefault(id, 0), subMap.getOrDefault(id, 0)));
-          }
-          return res;
-        }
-      });
+  // 用户指标缓存移动至 QuestionTrackerBiz，统一复用
 
 
 
@@ -283,24 +248,8 @@ public class TrackerTeamBiz {
     List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
     Map<Long, User> userMap = userService.getUserMapsByIds(uids);
-    // 批量从缓存获取（未命中则差量回源并回填）
-    Map<Long, Pair<Integer, Integer>> present = userMetricsCache.getAllPresent(uids);
-    Map<Long, Pair<Integer, Integer>> metrics = new java.util.HashMap<>(present);
-    List<Long> missing = new ArrayList<>();
-    for (Long id : uids) {
-      if (!present.containsKey(id)) {
-        missing.add(id);
-      }
-    }
-    if (!missing.isEmpty()) {
-      Map<Long, Integer> acMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(missing);
-      Map<Long, Integer> subMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(missing);
-      for (Long id : missing) {
-        Pair<Integer, Integer> p = Pair.of(acMap.getOrDefault(id, 0), subMap.getOrDefault(id, 0));
-        userMetricsCache.put(id, p);
-        metrics.put(id, p);
-      }
-    }
+    // 批量从 QuestionTrackerBiz 的用户指标缓存获取（未命中则差量回源并回填）
+    Map<Long, Pair<Integer, Integer>> metrics = questionTrackerBiz.getTrackerMetricsCached(uids);
     JSONArray arr = new JSONArray();
     for (ACMTeamMember m : members) {
       User u = userMap.get(m.getUid());
@@ -342,23 +291,7 @@ public class TrackerTeamBiz {
 
     List<Long> uids = pageMembers.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
     Map<Long, User> userMap = userService.getUserMapsByIds(uids);
-    Map<Long, Pair<Integer, Integer>> present = userMetricsCache.getAllPresent(uids);
-    Map<Long, Pair<Integer, Integer>> metrics = new java.util.HashMap<>(present);
-    List<Long> missing = new ArrayList<>();
-    for (Long id : uids) {
-      if (!present.containsKey(id)) {
-        missing.add(id);
-      }
-    }
-    if (!missing.isEmpty()) {
-      Map<Long, Integer> acMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(missing);
-      Map<Long, Integer> subMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(missing);
-      for (Long id : missing) {
-        Pair<Integer, Integer> p = Pair.of(acMap.getOrDefault(id, 0), subMap.getOrDefault(id, 0));
-        userMetricsCache.put(id, p);
-        metrics.put(id, p);
-      }
-    }
+    Map<Long, Pair<Integer, Integer>> metrics = questionTrackerBiz.getTrackerMetricsCached(uids);
 
     JSONArray arr = new JSONArray();
     for (ACMTeamMember m : pageMembers) {
@@ -793,6 +726,7 @@ public class TrackerTeamBiz {
     int totalAccept = 0;
     int totalSubmission = 0;
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    Map<Long, User> userMap = userService.getUserMapsByIds(uids);
     Map<Long, Integer> acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(uids);
     Map<Long, Integer> totalSubmitMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(uids);
     // today / 7 days
@@ -862,6 +796,13 @@ public class TrackerTeamBiz {
       yesterdayKing.put("userId", topUid);
       yesterdayKing.put("acceptCount", topAc);
       yesterdayKing.put("submissionCount", topSubmit);
+      // 头像与个人页URL
+      User king = userMap.get(topUid);
+      if (king != null) {
+        yesterdayKing.put("headUrl", king.getTinnyHeaderUrl());
+        yesterdayKing.put("url", "/profile/" + king.getId());
+        yesterdayKing.put("name", king.getDisplayname());
+      }
       summary.put("yesterdayKing", yesterdayKing);
     }
     if (team != null) {
@@ -959,27 +900,12 @@ public class TrackerTeamBiz {
       }
       acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, begin, now);
     } else {
-      // total：优先命中 per-user 缓存，缺失差量回源并回填
-      Map<Long, Pair<Integer, Integer>> present = userMetricsCache.getAllPresent(uids);
+      // total：优先命中 QuestionTrackerBiz 的 per-user 缓存
+      Map<Long, Pair<Integer, Integer>> metrics = questionTrackerBiz.getTrackerMetricsCached(uids);
       acceptCountMap = new java.util.HashMap<>();
-      List<Long> missing = new ArrayList<>();
       for (Long id : uids) {
-        Pair<Integer, Integer> p = present.get(id);
-        if (p != null) {
-          acceptCountMap.put(id, p.getLeft());
-        } else {
-          missing.add(id);
-        }
-      }
-      if (!missing.isEmpty()) {
-        Map<Long, Integer> acMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(missing);
-        Map<Long, Integer> subMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(missing);
-        for (Long id : missing) {
-          int ac = acMap.getOrDefault(id, 0);
-          int sub = subMap.getOrDefault(id, 0);
-          userMetricsCache.put(id, Pair.of(ac, sub));
-          acceptCountMap.put(id, ac);
-        }
+        Pair<Integer, Integer> p = metrics.get(id);
+        if (p != null) acceptCountMap.put(id, p.getLeft());
       }
     }
 

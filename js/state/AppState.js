@@ -61,7 +61,8 @@ export class AppState {
     
     getChannelPut() {
         const urlParams = new URLSearchParams(window.location.search);
-        return urlParams.get('channelPut') || 'w251acm';
+        // 若URL未带channelPut，则返回空字符串；由各功能位自行回退到历史默认
+        return urlParams.get('channelPut') || '';
     }
     
     // 状态更新方法

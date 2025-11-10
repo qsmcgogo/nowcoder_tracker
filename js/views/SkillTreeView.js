@@ -1218,7 +1218,10 @@ export class SkillTreeView {
             const problemClass = `${isSolved ? 'completed' : ''} ${isLocked ? 'locked' : ''}`.trim();
             const baseUrl = `https://www.nowcoder.com/practice/${problem.uuid}`;
             // 技能树题目统一使用 w253acm 渠道标识
-            const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, 'w253acm');
+            // 若入口URL带 channelPut，则技能树题目加后缀“3”，否则回落到历史默认 w253acm
+            const chan = (this.state?.channelPut || '');
+            const cp = chan ? (chan + '3') : 'w253acm';
+            const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, cp);
 
             // Changed: Display score and pass total
             let scoreHtml = '';

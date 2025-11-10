@@ -1089,8 +1089,9 @@ export class DailyView {
     }
     
     buildUrlWithChannelPut(baseUrl, channelPut) {
-        // 打卡页统一使用 w252acm，除非显式传入覆盖
-        const effectiveChannelPut = channelPut || 'w252acm';
+        // 若入口URL带 channelPut，则每日一题加后缀“2”，否则回落到历史默认 w252acm
+        const rootCp = (typeof channelPut === 'string' ? channelPut : this.state?.channelPut) || '';
+        const effectiveChannelPut = rootCp ? (rootCp + '2') : 'w252acm';
         return helpers.buildUrlWithChannelPut(baseUrl, effectiveChannelPut);
     }
     

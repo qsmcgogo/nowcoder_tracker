@@ -462,6 +462,8 @@ export class TeamView {
         if (tbody) {
             tbody.innerHTML = `<tr><td colspan="3">请选择指标或稍候接入后端数据</td></tr>`;
         }
+        // 昨日卷王：先渲染占位（后续拉到 summary 会覆盖/更新）
+        try { this.renderYesterdayKing(null); } catch (_) {}
         const editEntry = document.getElementById('team-edit-entry-btn');
         if (editEntry && !editEntry._bound) {
             editEntry._bound = true;
@@ -1402,18 +1404,73 @@ export class TeamView {
         const box = document.getElementById('team-yesterday-king');
         if (!box) return;
         if (!yk || !yk.userId || (Number(yk.acceptCount) || 0) <= 0) {
+            // 注入一次性动画样式
+            const styleId = 'team-yesterday-king-style';
+            if (!document.getElementById(styleId)) {
+                const st = document.createElement('style');
+                st.id = styleId;
+                st.textContent = `
+                    @keyframes ykShimmer { 
+                        0% { background-position: 0% 50%; } 
+                        100% { background-position: 100% 50%; } 
+                    }
+                    @keyframes ykPulse {
+                        0% { box-shadow: 0 0 0 0 rgba(24,144,255,0.28); }
+                        70% { box-shadow: 0 0 0 12px rgba(24,144,255,0); }
+                        100% { box-shadow: 0 0 0 0 rgba(24,144,255,0); }
+                    }
+                    #team-yesterday-king .yk-empty-card .yk-cta { animation: ykPulse 2.6s ease-out infinite; }
+                `;
+                document.head.appendChild(st);
+            }
             box.innerHTML = `
-                <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 10px;border:1px dashed #e5e5e5;border-radius:8px;background:#fafafa;color:#666;">
-                    <span style="font-size:13px;">昨日卷王：无</span>
+                <div class="yk-empty-card" style="position:relative;overflow:hidden;border-radius:12px;padding:14px 16px;border:1px solid #e5e5e5;background:linear-gradient(120deg,#fff1f0,#e6fffb,#f9f0ff);background-size:200% 200%;animation:ykShimmer 8s linear infinite;">
+                    <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(600px 180px at 20% -20%,rgba(255,214,102,0.25),transparent),radial-gradient(600px 180px at 120% 120%,rgba(24,144,255,0.18),transparent);"></div>
+                    <div style="position:relative;display:flex;align-items:center;gap:12px;justify-content:space-between;">
+                        <div style="display:flex;align-items:center;gap:10px;min-width:0;">
+                            <span style="font-size:18px;">👑</span>
+                            <div style="min-width:0;">
+                                <div style="font-weight:700;color:#1f1f1f;">昨日卷王：<span style="color:#8c8c8c;font-weight:600;">空缺</span></div>
+                                <div style="color:#555;font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">就差你了！现在冲一波，明天可能就是你 <span style="margin-left:4px;">🚀</span></div>
+                            </div>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-shrink:0;">
+                            <button id="team-yk-go-rank" class="admin-btn yk-cta" style="padding:6px 12px;">去冲榜</button>
+                        </div>
+                    </div>
                 </div>
             `;
+            const go = document.getElementById('team-yk-go-rank');
+            if (go && !go._bound) {
+                go._bound = true;
+                go.addEventListener('click', () => {
+                    // 切到看板并默认选中“今日刷题”
+                    this.teamLeaderboardMetric = 'solve_today';
+                    this.teamLeaderboardPage = 1;
+                    this.activeTeamTab = 'leaderboard';
+                    this.render();
+                    // 同步高亮今日标签（渲染后设置）
+                    setTimeout(() => {
+                        const tabs = document.querySelectorAll('#team-leaderboard .team-rank-tab');
+                        tabs.forEach(b => b.classList.remove('active'));
+                        const todayTab = Array.from(tabs).find(b => (b.getAttribute('data-metric') || '') === 'solve_today');
+                        if (todayTab) todayTab.classList.add('active');
+                    }, 0);
+                });
+            }
             return;
         }
         const uid = String(yk.userId);
-        const info = await this.resolveUserInfoById(uid);
-        const name = info.name || `用户${uid}`;
-        const avatar = info.headUrl || '';
-        const profileUrl = `https://www.nowcoder.com/users/${uid}`;
+        // 后端新版本可能直接返回 name/headUrl/url，优先使用，缺失再回退查询
+        let name = (yk.name || '').trim();
+        let avatar = (yk.headUrl || '').trim();
+        // 不使用后端返回的 url，统一按 uid 拼接个人主页
+        let profileUrl = `https://www.nowcoder.com/users/${uid}`;
+        if (!name || !avatar) {
+            const info = await this.resolveUserInfoById(uid);
+            name = name || info.name || `用户${uid}`;
+            avatar = avatar || info.headUrl || '';
+        }
         box.innerHTML = `
             <div style="position:relative; overflow:hidden; border-radius:12px; padding:14px; background:linear-gradient(135deg,#fffbe6,#e6f7ff); border:1px solid #f0f0f0;">
                 <div style="position:absolute; inset:0; background:radial-gradient(600px 180px at 20% -20%, rgba(255,214,102,0.25), transparent), radial-gradient(600px 180px at 120% 120%, rgba(24,144,255,0.2), transparent); pointer-events:none;"></div>
@@ -1429,17 +1486,9 @@ export class TeamView {
                         </div>
                         <div style="color:#555;margin-top:2px;font-size:13px;">昨日过题 <b style="color:#d48806;">${Number(yk.acceptCount)||0}</b> 题 · 提交 <b style="color:#1890ff;">${Number(yk.submissionCount)||0}</b> 次</div>
                     </div>
-                    <div style="display:flex;gap:8px;">
-                        <button id="team-yesterday-king-view" class="admin-btn" style="padding:4px 10px;">查看资料</button>
-                    </div>
                 </div>
             </div>
         `;
-        const viewBtn = document.getElementById('team-yesterday-king-view');
-        if (viewBtn && !viewBtn._bound) {
-            viewBtn._bound = true;
-            viewBtn.addEventListener('click', () => { window.open(profileUrl, '_blank'); });
-        }
     }
 
     /**
