@@ -3,7 +3,9 @@ package com.wenyibi.futuremail.biz.tracker;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.wenyibi.futuremail.biz.AccountBiz;
+import com.wenyibi.futuremail.biz.ml.SpamFilterJudgeService;
 import com.wenyibi.futuremail.biz.questionrpc.QuestionTrackerBiz;
+import com.wenyibi.futuremail.constants.ErrorCodeConstants;
 import com.wenyibi.futuremail.model.User;
 import com.wenyibi.futuremail.model.UserTypeEnum;
 import com.wenyibi.futuremail.model.WenyibiException;
@@ -15,20 +17,35 @@ import com.wenyibi.futuremail.model.acm.team.ACMTeamTypeInfoEnum;
 import com.wenyibi.futuremail.model.acm.team.ACMTeamApply;
 import com.wenyibi.futuremail.model.acm.team.ACMTeamApplyStatusEnum;
 import com.wenyibi.futuremail.model.acm.team.ACMTeamApplyTypeEnum;
+import com.wenyibi.futuremail.model.sns.EntityTypeEnum;
+import com.wenyibi.futuremail.model.spam.SpamCheckActionEnum;
 import com.wenyibi.futuremail.service.UserService;
 import com.wenyibi.futuremail.service.acm.team.ACMTeamInfoService;
 import com.wenyibi.futuremail.service.acm.team.ACMTeamMemberService;
 import com.wenyibi.futuremail.service.acm.team.ACMTeamApplyService;
 import com.wenyibi.futuremail.service.CodingSubmissionService;
 import com.wenyibi.futuremail.service.acm.contest.ACMCodingSubmissionService;
+import com.wenyibi.futuremail.util.DFASensitiveUtil;
+
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import net.paoding.rose.web.Invocation;
+
+import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+
+import com.google.common.cache.CacheBuilder;
+import com.google.common.cache.CacheLoader;
+import com.google.common.cache.LoadingCache;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class TrackerTeamBiz {
@@ -49,6 +66,77 @@ public class TrackerTeamBiz {
   private QuestionTrackerBiz questionTrackerBiz;
   @Autowired
   private ACMCodingSubmissionService acmCodingSubmissionService;
+  @Autowired
+  private SpamFilterJudgeService spamFilterJudgeService;
+  // https://stackoverflow.com/questions/6198986/how-can-i-replace-non-printable-unicode-characters-in-java
+  // 单引号、双引号、反斜杠（转义）和非可见unicode字符
+  private static final String NAME_EMPTY_REGEX = "['\"\\\\\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}]";
+
+  private static Pattern NAME_EMPTY_PATTERN = Pattern.compile(NAME_EMPTY_REGEX);
+
+  /** 团队统计看板缓存（8小时） */
+  private final LoadingCache<Long, JSONObject> teamSummaryCache = CacheBuilder
+      .newBuilder()
+      .expireAfterWrite(8, TimeUnit.HOURS)
+      .initialCapacity(256)
+      .concurrencyLevel(128)
+      .build(new CacheLoader<Long, JSONObject>() {
+        @Override
+        public JSONObject load(Long teamId) {
+          return computeTeamStatsSummary(teamId);
+        }
+      });
+
+  /** 用户维度刷题指标缓存（30分钟）：userId -> (acceptCount, submissionCount) */
+  private final LoadingCache<Long, Pair<Integer, Integer>> userMetricsCache = CacheBuilder
+      .newBuilder()
+      .expireAfterWrite(30, TimeUnit.MINUTES)
+      .initialCapacity(1024)
+      .concurrencyLevel(128)
+      .maximumSize(100_000)
+      .build(new CacheLoader<Long, Pair<Integer, Integer>>() {
+        @Override
+        public Pair<Integer, Integer> load(Long uid) {
+          java.util.List<Long> ids = java.util.Collections.singletonList(uid);
+          Map<Long, Integer> acMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(ids);
+          Map<Long, Integer> subMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(ids);
+          int ac = acMap.getOrDefault(uid, 0);
+          int sub = subMap.getOrDefault(uid, 0);
+          return Pair.of(ac, sub);
+        }
+
+        @Override
+        public Map<Long, Pair<Integer, Integer>> loadAll(Iterable<? extends Long> keys) {
+          java.util.List<Long> ids = new java.util.ArrayList<>();
+          for (Long k : keys) {
+            ids.add(k);
+          }
+          if (ids.isEmpty()) {
+            return java.util.Collections.emptyMap();
+          }
+          Map<Long, Integer> acMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(ids);
+          Map<Long, Integer> subMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(ids);
+          Map<Long, Pair<Integer, Integer>> res = new java.util.HashMap<>();
+          for (Long id : ids) {
+            res.put(id, Pair.of(acMap.getOrDefault(id, 0), subMap.getOrDefault(id, 0)));
+          }
+          return res;
+        }
+      });
+
+
+
+  private static String filterBadWord(String content) throws WenyibiException {
+    String filterContent = DFASensitiveUtil.filter(content, true);
+    if (!StringUtils.equals(filterContent, content)) {
+      throw new WenyibiException(ErrorCodeConstants.NICKNAME_FORBIDDEN_ERROR, "含有违禁词汇，请修改后输入");
+    }
+    return filterContent;
+  }
+
+  private static String filterEncodeHtml(String content) throws WenyibiException {
+    return StringEscapeUtils.escapeHtml4(filterBadWord(content));
+  }
 
   public List<Long> listMyTeamIds(long userId) {
     return acmTeamMemberService.getByUid(userId).stream()
@@ -96,15 +184,39 @@ public class TrackerTeamBiz {
     if (ownerUserId == null || ownerUserId <= 0) {
       throw new WenyibiException("ownerUserId非法");
     }
-    // 名称唯一性校验，避免唯一索引冲突
-    ACMTeamInfo exists = acmTeamInfoService.getByName(name);
-    if (exists != null) {
-      throw new WenyibiException("团队名已被占用");
+    /**
+     * 网易违禁词汇检测
+     */
+    String sensitiveWord = null;
+    List<String> hitWords = null;
+    Pair<SpamCheckActionEnum, List<String>> sensitiveResult = null;
+    name = checkName(ownerUserId, name, 0);
+    sensitiveResult = spamFilterJudgeService.judgeShortTextSensitive(name);
+    if (sensitiveResult.getKey().getAction() == 2) {
+      throw new WenyibiException("队名含有违禁词汇 ，用户不得添加");
+    } else if (sensitiveResult.getKey().getAction() == 1) {
+      sensitiveWord = name;
+      hitWords = sensitiveResult.getValue();
     }
+    description = checkDescription(ownerUserId, description, 0);
+    sensitiveResult = spamFilterJudgeService.judgeShortTextSensitive(description);
+    if (sensitiveResult.getKey().getAction() == 2) {
+      throw new WenyibiException("描述含有违禁词汇 ，用户不得添加");
+    } else if (sensitiveResult.getKey().getAction() == 1) {
+      sensitiveWord = description;
+      hitWords = sensitiveResult.getValue();
+    }
+
     // 生成团队用户ID（与 ACM 创建方式保持一致）
     int teamId = accountBiz.createOauthUserAccount((Invocation) null,
         com.wenyibi.futuremail.model.login.ClientPlatformEnum.PC.getValue(),
         name, UserTypeEnum.ACM_TEAM, null, null);
+    if (sensitiveResult.getKey().getAction() == 1) {
+      spamFilterJudgeService
+              .sendSensitiveReviewListEvent(sensitiveWord, EntityTypeEnum.ACM_TEAM, teamId, ownerUserId,
+                      hitWords);
+    }
+
     ACMTeamInfo teamInfo = new ACMTeamInfo();
     teamInfo.setId(teamId);
     teamInfo.setName(name);
@@ -128,7 +240,9 @@ public class TrackerTeamBiz {
     return teamId;
   }
 
-  public int updateTeamInfo(long teamId, String name, String description) {
+  public int updateTeamInfo(long uid, long teamId, String name, String description) throws WenyibiException {
+    name = checkName(uid, name, teamId);
+    description = checkDescription(uid, description, teamId);
     int affected = 0;
     if (name != null && name.trim().length() > 0) {
       affected += acmTeamInfoService.updateName(teamId, name);
@@ -169,8 +283,24 @@ public class TrackerTeamBiz {
     List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
     Map<Long, User> userMap = userService.getUserMapsByIds(uids);
-    // 批量获取 tracker 范围的 AC 数
-    Map<Long, Integer> acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(uids);
+    // 批量从缓存获取（未命中则差量回源并回填）
+    Map<Long, Pair<Integer, Integer>> present = userMetricsCache.getAllPresent(uids);
+    Map<Long, Pair<Integer, Integer>> metrics = new java.util.HashMap<>(present);
+    List<Long> missing = new ArrayList<>();
+    for (Long id : uids) {
+      if (!present.containsKey(id)) {
+        missing.add(id);
+      }
+    }
+    if (!missing.isEmpty()) {
+      Map<Long, Integer> acMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(missing);
+      Map<Long, Integer> subMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(missing);
+      for (Long id : missing) {
+        Pair<Integer, Integer> p = Pair.of(acMap.getOrDefault(id, 0), subMap.getOrDefault(id, 0));
+        userMetricsCache.put(id, p);
+        metrics.put(id, p);
+      }
+    }
     JSONArray arr = new JSONArray();
     for (ACMTeamMember m : members) {
       User u = userMap.get(m.getUid());
@@ -182,9 +312,68 @@ public class TrackerTeamBiz {
         one.put("headUrl", u.getTinnyHeaderUrl());
       }
       one.put("joinTime", m.getCreateTime());
-      // 刷题情况（仅 tracker 范围）
-      int totalAc = acceptCountMap.getOrDefault(m.getUid(), 0);
-      int totalAll = codingSubmissionService.getAllCountByUserId(m.getUid());
+      // 刷题情况（仅 tracker 范围），优先用缓存
+      Pair<Integer, Integer> p = metrics.get(m.getUid());
+      int totalAc = p == null ? 0 : p.getLeft();
+      int totalAll = p == null ? 0 : p.getRight();
+      one.put("acceptCount", totalAc);
+      one.put("submissionCount", totalAll);
+      arr.add(one);
+    }
+    return arr;
+  }
+
+  /**
+   * 分页版成员列表：仅对当前页成员做批量统计，降低单次负载
+   */
+  public JSONArray listMembers(long teamId, int page, int limit) {
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    // 角色优先级：OWNER(2) > ADMIN(1) > NORMAL(0)
+    members.sort((a, b) -> Long.compare(b.getType(), a.getType()));
+    int total = members.size();
+    int safeLimit = Math.max(1, Math.min(100, limit));
+    int safePage = Math.max(1, page);
+    int start = (safePage - 1) * safeLimit;
+    if (start >= total) {
+      return new JSONArray();
+    }
+    int end = Math.min(total, start + safeLimit);
+    List<ACMTeamMember> pageMembers = members.subList(start, end);
+
+    List<Long> uids = pageMembers.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    Map<Long, User> userMap = userService.getUserMapsByIds(uids);
+    Map<Long, Pair<Integer, Integer>> present = userMetricsCache.getAllPresent(uids);
+    Map<Long, Pair<Integer, Integer>> metrics = new java.util.HashMap<>(present);
+    List<Long> missing = new ArrayList<>();
+    for (Long id : uids) {
+      if (!present.containsKey(id)) {
+        missing.add(id);
+      }
+    }
+    if (!missing.isEmpty()) {
+      Map<Long, Integer> acMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(missing);
+      Map<Long, Integer> subMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(missing);
+      for (Long id : missing) {
+        Pair<Integer, Integer> p = Pair.of(acMap.getOrDefault(id, 0), subMap.getOrDefault(id, 0));
+        userMetricsCache.put(id, p);
+        metrics.put(id, p);
+      }
+    }
+
+    JSONArray arr = new JSONArray();
+    for (ACMTeamMember m : pageMembers) {
+      User u = userMap.get(m.getUid());
+      JSONObject one = new JSONObject();
+      one.put("userId", m.getUid());
+      one.put("role", (int)m.getType());
+      if (u != null) {
+        one.put("name", u.getDisplayname());
+        one.put("headUrl", u.getTinnyHeaderUrl());
+      }
+      one.put("joinTime", m.getCreateTime());
+      Pair<Integer, Integer> p = metrics.get(m.getUid());
+      int totalAc = p == null ? 0 : p.getLeft();
+      int totalAll = p == null ? 0 : p.getRight();
       one.put("acceptCount", totalAc);
       one.put("submissionCount", totalAll);
       arr.add(one);
@@ -193,7 +382,39 @@ public class TrackerTeamBiz {
   }
 
   public int transferOwner(long teamId, long newOwnerUserId) {
-    return acmTeamInfoService.updateUid(teamId, newOwnerUserId);
+    // 获取当前队长
+    ACMTeamInfo team = acmTeamInfoService.getById(teamId);
+    if (team == null) {
+      return 0;
+    }
+    long oldOwnerUserId = team.getUid();
+    if (oldOwnerUserId == newOwnerUserId) {
+      return 1; // 无变更
+    }
+
+    // 旧队长降级为普通成员（如存在）
+    ACMTeamMember oldOwnerMember = acmTeamMemberService.getByGroupAndUid(teamId, oldOwnerUserId);
+    if (oldOwnerMember != null && oldOwnerMember.getType() != ACMTeamMemberTypeEnum.NORMAL.getType()) {
+      acmTeamMemberService.updateType(oldOwnerMember.getId(), ACMTeamMemberTypeEnum.NORMAL.getType());
+    }
+
+    // 新队长加入团队（如未加入）
+    ACMTeamMember newOwnerMember = acmTeamMemberService.getByGroupAndUid(teamId, newOwnerUserId);
+    if (newOwnerMember == null) {
+      acmTeamMemberService.save(ACMTeamMember.build(teamId, newOwnerUserId, ACMTeamMemberTypeEnum.NORMAL));
+      int count = acmTeamMemberService.getCountByGroupId(teamId);
+      acmTeamInfoService.updatePersonCount(teamId, count);
+      newOwnerMember = acmTeamMemberService.getByGroupAndUid(teamId, newOwnerUserId);
+    }
+    // 新队长设置为 OWNER
+    if (newOwnerMember != null && newOwnerMember.getType() != ACMTeamMemberTypeEnum.OWNER.getType()) {
+      acmTeamMemberService.updateType(newOwnerMember.getId(), ACMTeamMemberTypeEnum.OWNER.getType());
+    }
+
+    // 更新团队拥有者
+    int ret = acmTeamInfoService.updateUid(teamId, newOwnerUserId);
+
+    return ret;
   }
 
   /**
@@ -561,6 +782,11 @@ public class TrackerTeamBiz {
 
   // ============== 看板与榜单 ==============
   public JSONObject getTeamStatsSummary(long teamId) {
+    return teamSummaryCache.getUnchecked(teamId);
+  }
+
+  /** 实际统计计算，供缓存loader使用 */
+  private JSONObject computeTeamStatsSummary(long teamId) {
     JSONObject summary = new JSONObject();
     List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
     int memberCount = members.size();
@@ -568,15 +794,18 @@ public class TrackerTeamBiz {
     int totalSubmission = 0;
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
     Map<Long, Integer> acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(uids);
+    Map<Long, Integer> totalSubmitMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(uids);
     // today / 7 days
     Date now = new Date();
     Date todayBegin = com.wenyibi.futuremail.util.NcDateUtils.getDayBeginDate(now);
     Date sevenDaysBegin = com.wenyibi.futuremail.util.DateUtil.getDateAfter(todayBegin, -6);
+    Date yesterdayBegin = com.wenyibi.futuremail.util.DateUtil.getDateAfter(todayBegin, -1);
     Map<Long, Integer> todayMap = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, todayBegin, now);
     Map<Long, Integer> sevenDaysMap = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, sevenDaysBegin, now);
+    Map<Long, Integer> yesterdayMap = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, yesterdayBegin, todayBegin);
     for (ACMTeamMember m : members) {
       totalAccept += acceptCountMap.getOrDefault(m.getUid(), 0);
-      totalSubmission += codingSubmissionService.getAllCountByUserId(m.getUid());
+      totalSubmission += totalSubmitMap.getOrDefault(m.getUid(), 0);
     }
     ACMTeamInfo team = acmTeamInfoService.getById(teamId);
     summary.put("teamId", teamId);
@@ -591,6 +820,50 @@ public class TrackerTeamBiz {
     }
     summary.put("todayAcceptCount", todayAccept);
     summary.put("sevenDaysAcceptCount", sevenDaysAccept);
+    // 昨日卷王：按昨日AC最多，若并列，用昨日提交次数最多打破（提交数以WWW站统计为准）
+    long topUid = 0L;
+    int topAc = -1;
+    java.util.List<Long> tieUids = new java.util.ArrayList<>();
+    for (Long uid : uids) {
+      int ac = yesterdayMap.getOrDefault(uid, 0);
+      if (ac > topAc) {
+        topAc = ac;
+        tieUids.clear();
+        tieUids.add(uid);
+      } else if (ac == topAc) {
+        tieUids.add(uid);
+      }
+    }
+    // 特判：昨日AC最大为0，则不产生“昨日卷王”
+    if (topAc <= 0) {
+      summary.put("yesterdayKing", null);
+    } else {
+      int topSubmit = 0;
+      if (!tieUids.isEmpty()) {
+        if (tieUids.size() == 1) {
+          topUid = tieUids.get(0);
+          // 昨日提交次数（WWW站）
+          topSubmit = codingSubmissionService.getSubmissonCountByUidBetweenDate(topUid, yesterdayBegin, todayBegin);
+        } else {
+          int maxSubmit = -1;
+          long pick = 0L;
+          for (Long uid : tieUids) {
+            int sub = codingSubmissionService.getSubmissonCountByUidBetweenDate(uid, yesterdayBegin, todayBegin);
+            if (sub > maxSubmit || (sub == maxSubmit && uid < pick)) {
+              maxSubmit = sub;
+              pick = uid;
+            }
+          }
+          topUid = pick;
+          topSubmit = Math.max(0, maxSubmit);
+        }
+      }
+      JSONObject yesterdayKing = new JSONObject();
+      yesterdayKing.put("userId", topUid);
+      yesterdayKing.put("acceptCount", topAc);
+      yesterdayKing.put("submissionCount", topSubmit);
+      summary.put("yesterdayKing", yesterdayKing);
+    }
     if (team != null) {
       summary.put("name", team.getName());
       summary.put("ownerUserId", team.getUid());
@@ -686,7 +959,28 @@ public class TrackerTeamBiz {
       }
       acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, begin, now);
     } else {
-      acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(uids);
+      // total：优先命中 per-user 缓存，缺失差量回源并回填
+      Map<Long, Pair<Integer, Integer>> present = userMetricsCache.getAllPresent(uids);
+      acceptCountMap = new java.util.HashMap<>();
+      List<Long> missing = new ArrayList<>();
+      for (Long id : uids) {
+        Pair<Integer, Integer> p = present.get(id);
+        if (p != null) {
+          acceptCountMap.put(id, p.getLeft());
+        } else {
+          missing.add(id);
+        }
+      }
+      if (!missing.isEmpty()) {
+        Map<Long, Integer> acMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(missing);
+        Map<Long, Integer> subMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(missing);
+        for (Long id : missing) {
+          int ac = acMap.getOrDefault(id, 0);
+          int sub = subMap.getOrDefault(id, 0);
+          userMetricsCache.put(id, Pair.of(ac, sub));
+          acceptCountMap.put(id, ac);
+        }
+      }
     }
 
     for (ACMTeamMember m : members) {
@@ -719,6 +1013,73 @@ public class TrackerTeamBiz {
     res.put("total", total);
     res.put("list", list);
     return res;
+  }
+  private String checkName(long userId, String oldName, long oldTeamId) throws WenyibiException {
+    oldName = StringUtils.trim(oldName);
+    final int maxLength = 30;
+    if (StringUtils.length(oldName) > maxLength) {
+      throw new WenyibiException(String.format("团队名最多允许%s字符", maxLength));
+    }
+    String name = filterBadWord(oldName);
+    //牛客作为内部保留名称
+    if (!StringUtils.equals(oldName, name) || StringUtils.contains(name, "牛客")) {
+      throw new WenyibiException("团队名包含非法字符");
+    }
+    name = filterEncodeHtml(name);
+    // 过滤不可见字符,空白字符
+    name = NAME_EMPTY_PATTERN.matcher(name).replaceAll("");
+    name = StringUtils.deleteWhitespace(name);
+    if (StringUtils.isBlank(name)) {
+      throw new WenyibiException("团队名不能都是空白字符");
+    }
+    ACMTeamInfo teamInfo = acmTeamInfoService.getByName(name);
+    //重名不包括自己
+    if (teamInfo != null && teamInfo.getId() != oldTeamId) {
+      throw new WenyibiException(String.format("很抱歉，这个团队名字已被占用(%s)", name));
+    }
+    //通过网易过滤敏感词
+    Pair<SpamCheckActionEnum, List<String>> sensitiveResult = Pair.of(
+            SpamCheckActionEnum.PASS, new ArrayList<>());
+    // 更新的情况进行检测
+    if (oldTeamId != 0) {
+      sensitiveResult = spamFilterJudgeService
+              .judgeShortTextSensitive(name);
+    }
+    if (sensitiveResult.getKey().getAction() == 2) {
+      throw new WenyibiException("队名含有违禁词汇 ，用户不得添加");
+    } else if (sensitiveResult.getKey().getAction() == 1) {
+      spamFilterJudgeService
+              .sendSensitiveReviewListEvent(name, EntityTypeEnum.ACM_TEAM, oldTeamId, userId,
+                      sensitiveResult.getValue());
+    }
+
+    return name;
+  }
+
+  private String checkDescription(long userId, String oldDescription, long oldTeamId) throws WenyibiException {
+    oldDescription = StringUtils.trim(oldDescription);
+    final int maxLength = 30;
+    if (StringUtils.length(oldDescription) > maxLength) {
+      throw new WenyibiException(String.format("描述最多允许%s字符", maxLength));
+    }
+    String description = filterBadWord(oldDescription);
+    description = filterEncodeHtml(description);
+    //通过网易过滤spam敏感词
+    // 更新的情况进行检测
+    Pair<SpamCheckActionEnum, List<String>> sensitiveResult = Pair.of(
+            SpamCheckActionEnum.PASS, new ArrayList<>());
+    if (oldTeamId != 0) {
+      sensitiveResult = spamFilterJudgeService
+              .judgeShortTextSensitive(description);
+    }
+    if (sensitiveResult.getKey().getAction() == 2) {
+      throw new WenyibiException("描述含有违禁词汇 ，用户不得添加");
+    } else if (sensitiveResult.getKey().getAction() == 1) {
+      spamFilterJudgeService
+              .sendSensitiveReviewListEvent(description, EntityTypeEnum.ACM_TEAM, oldTeamId,
+                      userId, sensitiveResult.getValue());
+    }
+    return description;
   }
 }
 

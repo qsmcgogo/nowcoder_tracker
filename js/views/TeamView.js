@@ -16,6 +16,13 @@ export class TeamView {
         this.teamLeaderboardLimit = 20;
         this.teamLeaderboardTotal = 0;
         this.teamLeaderboardMetric = 'solve_total';
+        // 成员分页状态（团队概览）
+        this.teamMembersPage = 1;
+        this.teamMembersLimit = 10;
+        // 用户信息本地缓存（userId -> {name, headUrl}）
+        this.userInfoCache = new Map();
+        // 队长管理成员开关（仅队长可见），默认关闭
+        this.manageMembersEnabled = false;
 
         this.bindEvents();
     }
@@ -318,7 +325,7 @@ export class TeamView {
                     const info = this.teamInfo || {};
                     const teamName = info.name || info.teamName || '我的团队';
                     // 无论后端返回什么路径，统一使用新的哈希路由前缀：/#/inviteTeam/{teamId}
-                    const finalLink = `https://www.nowcoder.com/problem/tracker/#/inviteTeam/${encodeURIComponent(this.currentTeamId)}`;
+                    const finalLink = `https://www.nowcoder.com/problem/tracker#/inviteTeam/${encodeURIComponent(this.currentTeamId)}`;
                     const copyText = `点击链接加入${teamName}：${finalLink}`;
                     const span = document.getElementById('team-invite-created');
                     if (span) span.textContent = `邀请链接：${finalLink}`;
@@ -375,8 +382,24 @@ export class TeamView {
             backBtn._bound = true;
             backBtn.addEventListener('click', () => {
                 this.currentTeamId = null;
+                // 进入团队时重置成员分页与管理开关
+                this.teamMembersPage = 1;
+                this.teamMembersLimit = 10;
+                this.manageMembersEnabled = false;
                 this.activeTeamTab = 'dashboard';
                 this.render();
+                // 进入团队后，将焦点与视图重心移到“团队概览”
+                setTimeout(() => {
+                    const dash = document.getElementById('team-dashboard');
+                    if (dash) {
+                        try { dash.scrollIntoView({ behavior: 'smooth', block: 'start' }); } catch (_) {}
+                        // 为可聚焦性增加 tabindex（不影响视觉）
+                        if (!dash.hasAttribute('tabindex')) {
+                            dash.setAttribute('tabindex', '-1');
+                        }
+                        try { dash.focus({ preventScroll: true }); } catch (_) {}
+                    }
+                }, 0);
             });
         }
     }
@@ -429,6 +452,8 @@ export class TeamView {
                         <div id="metric-total-submission" style="font-size:24px; font-weight:700; margin-top:6px;">-</div>
                     </div>
                 </div>
+                <!-- 昨日卷王 -->
+                <div id="team-yesterday-king" style="margin-top:12px;"></div>
                 <div id="team-dashboard-members" style="margin-top:12px; text-align:left;"></div>
             </div>
         `;
@@ -509,7 +534,7 @@ export class TeamView {
                     const info = this.teamInfo || {};
                     const teamName = info.name || info.teamName || '我的团队';
                     // 无论后端返回什么路径，统一使用新的哈希路由前缀
-                    const finalLink = `https://www.nowcoder.com/problem/tracker/#/inviteTeam/${encodeURIComponent(this.currentTeamId)}`;
+                    const finalLink = `https://www.nowcoder.com/problem/tracker#/inviteTeam/${encodeURIComponent(this.currentTeamId)}`;
                     const copyText = `点击链接加入${teamName}：${finalLink}`;
                     const span = document.getElementById('team-add-link-shown');
                     if (span) span.textContent = finalLink;
@@ -662,61 +687,122 @@ export class TeamView {
                 if (!this.teamInfo) this.teamInfo = {};
                 this.teamInfo.memberCount = Number(sum?.memberCount || this.teamInfo.memberCount || 0);
                 this.teamInfo.personLimit = Number(sum?.personLimit || this.teamInfo.personLimit || 0);
+                // 昨日卷王渲染
+                try { await this.renderYesterdayKing(sum?.yesterdayKing); } catch (_) {}
             } catch (_) {}
             try {
-                const members = await this.api.teamMembers(this.currentTeamId);
                 const box = document.getElementById('team-dashboard-members');
-                if (box && Array.isArray(members)) {
-                    const tableRows = members.map(m => {
-                        const isOwner = (typeof m.role === 'number' ? m.role === 2 : String(m.role||'').toLowerCase()==='owner');
-                        const uid = m.userId || m.id;
-                        const name = m.name || (`用户${uid}`);
-                        const avatar = m.headUrl || '';
-                        const profileUrl = `https://www.nowcoder.com/users/${uid}`;
-                        const crown = isOwner ? `<span title="队长" style="margin-left:6px;">👑</span>` : '';
-                        const actionBtnHtml = (this.role === 'owner' && !isOwner)
-                            ? `<button class="admin-btn team-btn-transfer" data-user-id="${uid}" style="margin-left:10px;">转让队长</button>
-                               <button class="admin-btn team-btn-kick" data-user-id="${uid}" style="margin-left:6px;background:#ffecec;color:#e00;">踢出</button>`
-                            : '';
-                        return `
-                            <tr style="border-bottom:1px dashed #f0f0f0;">
-                                <td style="padding:8px 6px;">
-                                    <div style="display:flex;align-items:center;gap:8px;">
-                                        <img src="${avatar}" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                                        <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="color:#333;text-decoration:none;">${name}</a>
-                                        ${crown}
-                                        ${actionBtnHtml}
-                                    </div>
-                                </td>
-                            </tr>`;
-                    }).join('');
+                if (box) {
+                    // 成员区骨架 + 分页控件
                     box.innerHTML = `
-                        <div style="margin-bottom:6px; font-weight:600;">成员一览</div>
+                        <div style="margin-bottom:6px; font-weight:600; display:flex; align-items:center; justify-content:space-between;">
+                            <span>成员一览</span>
+                            ${this.role === 'owner' ? `<div style="display:flex;align-items:center;gap:8px;">
+                                <button id="teamMembersManageToggle" class="admin-btn" style="padding:2px 8px;${this.manageMembersEnabled ? '' : 'background:#f5f5f5;color:#666;border:1px solid #e5e5e5;'}">${this.manageMembersEnabled ? '管理成员：ON' : '管理成员：OFF'}</button>
+                            </div>` : ''}
+                        </div>
                         <table style="width:100%; border-collapse:collapse;">
-                            <tbody>
-                                ${tableRows}
+                            <tbody id="team-dashboard-members-tbody">
+                                <tr><td style="padding:8px 6px;color:#888;">加载中...</td></tr>
                             </tbody>
                         </table>
+                        <div id="team-members-pagination" style="display:flex; align-items:center; justify-content:center; gap:8px; margin-top:8px;">
+                            <span style="color:#666;font-size:12px;">每页 10 条</span>
+                            <button id="teamMembersFirst" class="admin-btn" style="padding:2px 8px;">首页</button>
+                            <button id="teamMembersPrev" class="admin-btn" style="padding:2px 8px;">上一页</button>
+                            <span id="teamMembersPageText" style="color:#666;font-size:12px;">第 ${this.teamMembersPage} 页</span>
+                            <button id="teamMembersNext" class="admin-btn" style="padding:2px 8px;">下一页</button>
+                            <button id="teamMembersLast" class="admin-btn" style="padding:2px 8px;">尾页</button>
+                            <span style="color:#666;font-size:12px;margin-left:6px;">跳转</span>
+                            <input id="teamMembersJumpInput" type="number" min="1" value="${this.teamMembersPage}" style="width:64px;padding:2px 6px;border:1px solid #e5e5e5;border-radius:4px;" />
+                            <button id="teamMembersJumpBtn" class="admin-btn" style="padding:2px 8px;">跳转</button>
+                        </div>
                     `;
-                    // 绑定行内操作（仅队长）
-                    if (this.role === 'owner') {
-                        document.querySelectorAll('.team-btn-kick').forEach(btn => {
-                            if (btn._bound) return; btn._bound = true;
-                            btn.addEventListener('click', async () => {
-                                const uid = btn.getAttribute('data-user-id');
-                                if (!uid) return;
-                                if (!confirm('确认踢出该成员？')) return;
-                                try { await this.api.teamDeleteMember(this.currentTeamId, uid); this.render(); } catch (e) { alert(e.message || '操作失败'); }
-                            });
+                    await this.loadMembersDashboard();
+                    // 绑定分页控件
+                    const manageToggle = document.getElementById('teamMembersManageToggle');
+                    const firstBtn = document.getElementById('teamMembersFirst');
+                    const prevBtn = document.getElementById('teamMembersPrev');
+                    const nextBtn = document.getElementById('teamMembersNext');
+                    const lastBtn = document.getElementById('teamMembersLast');
+                    const jumpBtn = document.getElementById('teamMembersJumpBtn');
+                    const jumpInput = document.getElementById('teamMembersJumpInput');
+                    if (manageToggle && !manageToggle._bound) {
+                        manageToggle._bound = true;
+                        manageToggle.addEventListener('click', async () => {
+                            this.manageMembersEnabled = !this.manageMembersEnabled;
+                            manageToggle.textContent = this.manageMembersEnabled ? '管理成员：ON' : '管理成员：OFF';
+                            manageToggle.style.background = this.manageMembersEnabled ? '' : '#f5f5f5';
+                            manageToggle.style.color = this.manageMembersEnabled ? '' : '#666';
+                            manageToggle.style.border = this.manageMembersEnabled ? '' : '1px solid #e5e5e5';
+                            await this.loadMembersDashboard();
                         });
-                        document.querySelectorAll('.team-btn-transfer').forEach(btn => {
-                            if (btn._bound) return; btn._bound = true;
-                            btn.addEventListener('click', async () => {
-                                const uid = btn.getAttribute('data-user-id');
-                                if (!uid) return;
-                                if (!confirm('确认将队长转移给该成员？')) return;
-                                try { await this.api.teamTransferOwner(this.currentTeamId, uid); alert('已转移队长'); this.render(); } catch (e) { alert(e.message || '操作失败'); }
-                            });
+                    }
+                    if (firstBtn && !firstBtn._bound) {
+                        firstBtn._bound = true;
+                        firstBtn.addEventListener('click', async () => {
+                            if (this.teamMembersPage !== 1) {
+                                this.teamMembersPage = 1;
+                                await this.loadMembersDashboard();
+                            }
+                        });
+                    }
+                    if (prevBtn && !prevBtn._bound) {
+                        prevBtn._bound = true;
+                        prevBtn.addEventListener('click', async () => {
+                            if (this.teamMembersPage > 1) {
+                                this.teamMembersPage -= 1;
+                                await this.loadMembersDashboard();
+                            }
+                        });
+                    }
+                    if (nextBtn && !nextBtn._bound) {
+                        nextBtn._bound = true;
+                        nextBtn.addEventListener('click', async () => {
+                            // 是否有下一页由 loadMembersDashboard 内根据总页数或返回条数判断、设置 disabled
+                            const memberCount = Number(this.teamInfo?.memberCount || 0);
+                            const totalPages = memberCount > 0 ? Math.max(1, Math.ceil(memberCount / this.teamMembersLimit)) : 0;
+                            if (totalPages > 0) {
+                                if (this.teamMembersPage < totalPages) this.teamMembersPage += 1;
+                            } else {
+                                this.teamMembersPage += 1;
+                            }
+                            await this.loadMembersDashboard();
+                        });
+                    }
+                    if (lastBtn && !lastBtn._bound) {
+                        lastBtn._bound = true;
+                        lastBtn.addEventListener('click', async () => {
+                            const memberCount = Number(this.teamInfo?.memberCount || 0);
+                            const totalPages = memberCount > 0 ? Math.max(1, Math.ceil(memberCount / this.teamMembersLimit)) : 1;
+                            this.teamMembersPage = totalPages;
+                            await this.loadMembersDashboard();
+                        });
+                    }
+                    if (jumpBtn && !jumpBtn._bound) {
+                        jumpBtn._bound = true;
+                        jumpBtn.addEventListener('click', async () => {
+                            const v = Number(jumpInput && jumpInput.value) || 1;
+                            const memberCount = Number(this.teamInfo?.memberCount || 0);
+                            const totalPages = memberCount > 0 ? Math.max(1, Math.ceil(memberCount / this.teamMembersLimit)) : 0;
+                            let to = Math.max(1, Math.floor(v));
+                            if (totalPages > 0) to = Math.min(to, totalPages);
+                            this.teamMembersPage = to;
+                            await this.loadMembersDashboard();
+                        });
+                    }
+                    if (jumpInput && !jumpInput._bound) {
+                        jumpInput._bound = true;
+                        jumpInput.addEventListener('keydown', async (e) => {
+                            if (e.key === 'Enter') {
+                                const v = Number(jumpInput && jumpInput.value) || 1;
+                                const memberCount = Number(this.teamInfo?.memberCount || 0);
+                                const totalPages = memberCount > 0 ? Math.max(1, Math.ceil(memberCount / this.teamMembersLimit)) : 0;
+                                let to = Math.max(1, Math.floor(v));
+                                if (totalPages > 0) to = Math.min(to, totalPages);
+                                this.teamMembersPage = to;
+                                await this.loadMembersDashboard();
+                            }
                         });
                     }
                 }
@@ -842,6 +928,9 @@ export class TeamView {
                 } else {
                     this.teamInfo = { name: '我的团队', desc: '', memberCount: '-' };
                 }
+                // 进入团队时重置成员分页到第一页（每页固定10条）
+                this.teamMembersPage = 1;
+                this.teamMembersLimit = 10;
                 this.activeTeamTab = 'dashboard';
                 this.render();
             });
@@ -1302,6 +1391,184 @@ export class TeamView {
             }
         } catch (e) {
             tb.innerHTML = `<tr><td colspan="3">加载失败：${e.message || '请稍后重试'}</td></tr>`;
+        }
+    }
+
+    /**
+     * 渲染“昨日卷王”卡片
+     * @param {{userId:number, acceptCount:number, submissionCount:number}|null} yk
+     */
+    async renderYesterdayKing(yk) {
+        const box = document.getElementById('team-yesterday-king');
+        if (!box) return;
+        if (!yk || !yk.userId || (Number(yk.acceptCount) || 0) <= 0) {
+            box.innerHTML = `
+                <div style="display:flex;align-items:center;justify-content:center;gap:8px;padding:8px 10px;border:1px dashed #e5e5e5;border-radius:8px;background:#fafafa;color:#666;">
+                    <span style="font-size:13px;">昨日卷王：无</span>
+                </div>
+            `;
+            return;
+        }
+        const uid = String(yk.userId);
+        const info = await this.resolveUserInfoById(uid);
+        const name = info.name || `用户${uid}`;
+        const avatar = info.headUrl || '';
+        const profileUrl = `https://www.nowcoder.com/users/${uid}`;
+        box.innerHTML = `
+            <div style="position:relative; overflow:hidden; border-radius:12px; padding:14px; background:linear-gradient(135deg,#fffbe6,#e6f7ff); border:1px solid #f0f0f0;">
+                <div style="position:absolute; inset:0; background:radial-gradient(600px 180px at 20% -20%, rgba(255,214,102,0.25), transparent), radial-gradient(600px 180px at 120% 120%, rgba(24,144,255,0.2), transparent); pointer-events:none;"></div>
+                <div style="position:relative; display:flex; align-items:center; gap:12px;">
+                    <div style="position:relative; width:48px; height:48px;">
+                        <img src="${avatar}" alt="avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,193,7,0.6);" onerror="this.style.display='none'" />
+                        <span style="position:absolute; right:-6px; top:-8px; font-size:18px;">👑</span>
+                    </div>
+                    <div style="flex:1; min-width:0;">
+                        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                            <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="font-weight:700;color:#222;text-decoration:none;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</a>
+                            <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:12px;color:#ad4e00;background:#fff7e6;border:1px solid #ffd591;">昨日卷王</span>
+                        </div>
+                        <div style="color:#555;margin-top:2px;font-size:13px;">昨日过题 <b style="color:#d48806;">${Number(yk.acceptCount)||0}</b> 题 · 提交 <b style="color:#1890ff;">${Number(yk.submissionCount)||0}</b> 次</div>
+                    </div>
+                    <div style="display:flex;gap:8px;">
+                        <button id="team-yesterday-king-view" class="admin-btn" style="padding:4px 10px;">查看资料</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        const viewBtn = document.getElementById('team-yesterday-king-view');
+        if (viewBtn && !viewBtn._bound) {
+            viewBtn._bound = true;
+            viewBtn.addEventListener('click', () => { window.open(profileUrl, '_blank'); });
+        }
+    }
+
+    /**
+     * 通过 userId 解析 name/headUrl（尽量少请求：优先缓存，其次查排行榜分页）
+     */
+    async resolveUserInfoById(userId) {
+        const id = String(userId);
+        if (this.userInfoCache && this.userInfoCache.has(id)) {
+            return this.userInfoCache.get(id);
+        }
+        try {
+            // 优先从“总过题”榜单拿（包含 name/headUrl），分页查找最多 5 页，每页 50
+            const limit = 50;
+            let page = 1;
+            let total = 0;
+            for (let i = 0; i < 5; i++) {
+                const res = await this.api.teamLeaderboard(this.currentTeamId, limit, 'total', page);
+                const list = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
+                total = Number(res?.total || total || 0);
+                const hit = list.find(r => String(r.userId) === id);
+                if (hit) {
+                    const info = { name: hit.name || '', headUrl: hit.headUrl || '' };
+                    this.userInfoCache.set(id, info);
+                    return info;
+                }
+                if (!list.length) break;
+                const totalPages = total > 0 ? Math.max(1, Math.ceil(total / limit)) : (list.length === limit ? page + 1 : page);
+                page += 1;
+                if (page > totalPages) break;
+            }
+        } catch (_) {}
+        const fallback = { name: '', headUrl: '' };
+        this.userInfoCache.set(id, fallback);
+        return fallback;
+    }
+    /**
+     * 团队概览：加载成员分页
+     */
+    async loadMembersDashboard() {
+        const tbody = document.getElementById('team-dashboard-members-tbody');
+        if (!tbody) return;
+        tbody.innerHTML = `<tr><td style="padding:8px 6px;color:#888;">加载中...</td></tr>`;
+        try {
+            const list = await this.api.teamMembers(this.currentTeamId, this.teamMembersLimit, this.teamMembersPage);
+            if (Array.isArray(list) && list.length === 0 && this.teamMembersPage > 1) {
+                // 回退一页以避免越界空页
+                this.teamMembersPage = Math.max(1, this.teamMembersPage - 1);
+                const list2 = await this.api.teamMembers(this.currentTeamId, this.teamMembersLimit, this.teamMembersPage);
+                return this.renderMembersDashboardRows(list2);
+            }
+            this.renderMembersDashboardRows(Array.isArray(list) ? list : []);
+        } catch (e) {
+            tbody.innerHTML = `<tr><td style="padding:8px 6px;color:#888;">加载失败：${e.message || '请稍后重试'}</td></tr>`;
+        }
+    }
+
+    renderMembersDashboardRows(members) {
+        const tbody = document.getElementById('team-dashboard-members-tbody');
+        const pageText = document.getElementById('teamMembersPageText');
+        const firstBtn = document.getElementById('teamMembersFirst');
+        const prevBtn = document.getElementById('teamMembersPrev');
+        const nextBtn = document.getElementById('teamMembersNext');
+        const lastBtn = document.getElementById('teamMembersLast');
+        if (!tbody) return;
+        if (!Array.isArray(members) || members.length === 0) {
+            tbody.innerHTML = `<tr><td style="padding:8px 6px;color:#888;">暂无成员</td></tr>`;
+        } else {
+            tbody.innerHTML = members.map(m => {
+                const isOwner = (typeof m.role === 'number' ? m.role === 2 : String(m.role||'').toLowerCase()==='owner');
+                const uid = m.userId || m.id;
+                const name = m.name || (`用户${uid}`);
+                const avatar = m.headUrl || '';
+                const profileUrl = `https://www.nowcoder.com/users/${uid}`;
+                const crown = isOwner ? `<span title="队长" style="margin-left:6px;">👑</span>` : '';
+                const actionBtnHtml = (this.role === 'owner' && this.manageMembersEnabled && !isOwner)
+                    ? `<button class="admin-btn team-btn-transfer" data-user-id="${uid}" style="margin-left:10px;">转让队长</button>
+                       <button class="admin-btn team-btn-kick" data-user-id="${uid}" style="margin-left:6px;background:#ffecec;color:#e00;">踢出</button>`
+                    : '';
+                return `
+                    <tr style="border-bottom:1px dashed #f0f0f0;">
+                        <td style="padding:8px 6px;">
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                <img src="${avatar}" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
+                                <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="color:#333;text-decoration:none;">${name}</a>
+                                ${crown}
+                                ${actionBtnHtml}
+                            </div>
+                        </td>
+                    </tr>`;
+            }).join('');
+        }
+        // 更新分页状态（优先使用总人数计算）
+        const memberCount = Number(this.teamInfo?.memberCount || 0);
+        const totalPages = memberCount > 0 ? Math.max(1, Math.ceil(memberCount / this.teamMembersLimit)) : 0;
+        if (totalPages > 0) {
+            if (pageText) pageText.textContent = `第 ${this.teamMembersPage} / ${totalPages} 页`;
+            if (firstBtn) firstBtn.disabled = this.teamMembersPage <= 1;
+            if (prevBtn) prevBtn.disabled = this.teamMembersPage <= 1;
+            if (nextBtn) nextBtn.disabled = this.teamMembersPage >= totalPages;
+            if (lastBtn) lastBtn.disabled = this.teamMembersPage >= totalPages;
+        } else {
+            // 兼容未知总人数：仅依据当前返回条数推断是否还有下一页
+            const hasNext = Array.isArray(members) && members.length === this.teamMembersLimit;
+            if (pageText) pageText.textContent = `第 ${this.teamMembersPage} 页`;
+            if (firstBtn) firstBtn.disabled = this.teamMembersPage <= 1;
+            if (prevBtn) prevBtn.disabled = this.teamMembersPage <= 1;
+            if (nextBtn) nextBtn.disabled = !hasNext;
+            if (lastBtn) lastBtn.disabled = true;
+        }
+        // 绑定行内操作（仅队长）
+        if (this.role === 'owner') {
+            document.querySelectorAll('.team-btn-kick').forEach(btn => {
+                if (btn._bound) return; btn._bound = true;
+                btn.addEventListener('click', async () => {
+                    const uid = btn.getAttribute('data-user-id');
+                    if (!uid) return;
+                    if (!confirm('确认踢出该成员？')) return;
+                    try { await this.api.teamDeleteMember(this.currentTeamId, uid); await this.loadMembersDashboard(); } catch (e) { alert(e.message || '操作失败'); }
+                });
+            });
+            document.querySelectorAll('.team-btn-transfer').forEach(btn => {
+                if (btn._bound) return; btn._bound = true;
+                btn.addEventListener('click', async () => {
+                    const uid = btn.getAttribute('data-user-id');
+                    if (!uid) return;
+                    if (!confirm('确认将队长转移给该成员？')) return;
+                    try { await this.api.teamTransferOwner(this.currentTeamId, uid); alert('已转移队长'); this.teamMembersPage = 1; await this.loadMembersDashboard(); } catch (e) { alert(e.message || '操作失败'); }
+                });
+            });
         }
     }
 

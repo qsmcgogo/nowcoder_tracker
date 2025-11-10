@@ -69,8 +69,10 @@ export class ApiService {
         throw new Error((data && data.msg) || '更新团队失败');
     }
 
-    async teamMembers(teamId) {
-        const url = `${this.apiBase}/problem/tracker/team/members?teamId=${encodeURIComponent(teamId)}`;
+    async teamMembers(teamId, limit = 10, page = 1) {
+        const p = Math.max(1, Number(page) || 1);
+        const l = Math.max(1, Number(limit) || 10);
+        const url = `${this.apiBase}/problem/tracker/team/members?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(l)}&page=${encodeURIComponent(p)}`;
         const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const body = await res.json();

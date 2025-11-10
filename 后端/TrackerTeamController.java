@@ -48,12 +48,12 @@ public class TrackerTeamController {
   @Post("update")
   @LoginRequired
   public JSONObject update(@Param("teamId") long teamId, @Param("name") String name,
-      @Param("description") @DefValue("") String description) {
+      @Param("description") @DefValue("") String description) throws WenyibiException {
     long uid = hostHolder.getUser().getId();
     if (!trackerTeamBiz.isTeamAdmin(teamId, uid)) {
       return InstructionUtils.jsonError("不是队长，无权操作");
     }
-    trackerTeamBiz.updateTeamInfo(teamId, name, description);
+    trackerTeamBiz.updateTeamInfo(uid, teamId, name, description);
     return InstructionUtils.jsonOk();
   }
 
@@ -74,8 +74,12 @@ public class TrackerTeamController {
   // 6) 获取全部成员信息
   @Get("members")
   @LoginRequired
-  public JSONObject listMembers(@Param("teamId") long teamId) {
-    JSONArray members = trackerTeamBiz.listMembers(teamId);
+  public JSONObject listMembers(@Param("teamId") long teamId,
+                                @Param("limit") @DefValue("10") int limit,
+                                @Param("page") @DefValue("1") int page) {
+    int safeLimit = Math.max(1, Math.min(100, limit));
+    int safePage = Math.max(1, page);
+    JSONArray members = trackerTeamBiz.listMembers(teamId, safePage, safeLimit);
     return InstructionUtils.jsonOkData(members);
   }
 
