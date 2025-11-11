@@ -1016,6 +1016,59 @@ export class ApiService {
     }
 
     /**
+     * 批量替换：重建某知识点下的全部题目（按顺序、分数、依赖）
+     * @param {number|string} tagId
+     * @param {Array<{questionId:string|number, score:number, dependencies?:Array<string|number>}>} items
+     */
+    async batchReplaceSkillTree(tagId, items) {
+        if (!tagId) throw new Error('tagId required');
+        const url = `${this.apiBase}/problem/tracker/skill-tree/batch-replace`;
+        // 后端期望 dependencies 为逗号分隔的字符串
+        const safeItems = (Array.isArray(items) ? items : []).map((it) => {
+            // 兼容 questionId/qid/questionid 三种写法
+            const qid = it && (it.questionId ?? it.qid ?? it.questionid);
+            const score = Number(it && it.score);
+            let depsStr = '';
+            if (Array.isArray(it && it.dependencies)) {
+                depsStr = it.dependencies.map(String).filter(Boolean).join(',');
+            } else if (it && typeof it.dependencies === 'string') {
+                depsStr = it.dependencies.trim();
+            }
+            return {
+                questionId: qid,
+                score: Number.isFinite(score) && score >= 0 ? score : 0,
+                dependencies: depsStr
+            };
+        });
+        const body = `tagId=${encodeURIComponent(tagId)}&items=${encodeURIComponent(JSON.stringify(safeItems))}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                'Accept': 'application/json'
+            },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const ct = (res.headers.get('content-type') || '').toLowerCase();
+        if (ct.includes('application/json')) {
+            const data = await res.json();
+            if (data && (data.code === 0 || data.code === 200)) return data.data || data;
+            throw new Error((data && data.msg) || '批量替换失败');
+        } else {
+            const text = await res.text();
+            // 尝试解析为 JSON，否则抛出原文（常见为HTML报错/登录页）
+            try {
+                const data = JSON.parse(text);
+                if (data && (data.code === 0 || data.code === 200)) return data.data || data;
+                throw new Error((data && data.msg) || '批量替换失败');
+            } catch (_) {
+                throw new Error(text.slice(0, 300) || '批量替换失败（非JSON响应）');
+            }
+        }
+    }
+
+    /**
      * 获取成就徽章列表
      * 后端约定：/problem/tracker/badge/list?types=1,2,3
      * 渲染约定：打卡用 1/2/3，过题用 4/5，技能树用 6

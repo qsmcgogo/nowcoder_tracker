@@ -390,15 +390,13 @@ export class SkillTreeView {
                 ? ''
                 : `<div class="skill-tree-login-banner">请先登录开启技能树之旅：<a class="login-link" href="${loginUrl}" target="_blank" rel="noopener noreferrer">前往登录</a></div>`;
 
-            const adminPanel = this.state.isAdmin ? this.buildAdminQuestionPanelHtml() : '';
-            this.container.innerHTML = `${adminPanel}${banner}<div class="skill-tree-summary">${stagesHtml}
+            this.container.innerHTML = `${banner}<div class="skill-tree-summary">${stagesHtml}
                 <!-- 占位空格：第四行，撑开视觉间距 -->
                 <div class="skill-tree-spacer" style="grid-column: 1 / 4; grid-row: 4; height: 10px;"></div>
             </div>`;
             this.bindSummaryEvents();
             // 概览页连线（使用SVG覆盖层，避免重复与错位）
             if (this.enableSummaryLines) setTimeout(() => this.setupSummarySvg(), 0);
-            if (this.state.isAdmin) this.bindAdminQuestionPanelEvents();
 
         } catch (error) {
             console.error('Error rendering stage summary:', error);
@@ -563,9 +561,7 @@ export class SkillTreeView {
                    </div>`
                 : `<div class=\"skill-tree-dag-container\"><div class=\"dag-main-column\">${leftColumnHtml}</div><div class=\"dag-main-column\">${rightColumnHtml}</div></div>`;
 
-            const adminPanel = this.state.isAdmin ? this.buildAdminQuestionPanelHtml() : '';
             const html = `
-                ${adminPanel}
                 <div class="skill-tree-detail ${isStage2 ? 'skill-tree-detail--stage2' : ''}">
                     <div class="skill-tree-detail__header">
                         <button id="skill-tree-back-btn" class="back-button">&larr; 返回所有阶段</button>
@@ -580,7 +576,6 @@ export class SkillTreeView {
             if (stage.id === 'stage-1') {
                 setTimeout(() => this.drawColumnDependencyLines(stage), 0);
             }
-            if (this.state.isAdmin) this.bindAdminQuestionPanelEvents();
 
         } catch (error) {
             console.error(`Error rendering detail view for stage ${stageId}:`, error);
@@ -639,9 +634,7 @@ export class SkillTreeView {
             `;
         }).join('');
 
-        const adminPanel = this.state.isAdmin ? this.buildAdminQuestionPanelHtml() : '';
         const html = `
-            ${adminPanel}
             <div class="interlude-detail">
                 <div class="interlude-ribbon">间章：拂晓</div>
                 <div class="interlude-circle">
@@ -660,7 +653,6 @@ export class SkillTreeView {
             </div>
         `;
         this.container.innerHTML = html;
-        if (this.state.isAdmin) this.bindAdminQuestionPanelEvents();
 
         // 绑定点击 -> 展示面板（沿用节点面板逻辑）
         this.container.querySelectorAll('.interlude-chip').forEach(el => {
@@ -683,119 +675,7 @@ export class SkillTreeView {
         });
     }
 
-    // --- 管理员：题目增删改面板（独立展示） ---
-    buildAdminQuestionPanelHtml() {
-        const nodes = this.skillTrees && this.skillTrees['newbie-130'] && this.skillTrees['newbie-130'].nodes ? this.skillTrees['newbie-130'].nodes : {};
-        const options = Object.entries(nodes)
-            .map(([nodeId, node]) => {
-                const tagId = nodeIdToTagId[nodeId];
-                if (!tagId) return '';
-                const name = node && node.name ? node.name : String(tagId);
-                return `<option value="${String(tagId)}">${name}（${tagId}）</option>`;
-            })
-            .filter(Boolean)
-            .join('');
-
-        return `
-            <div id="skill-tree-admin-panel" class="admin-panel" style="margin:10px 0 16px 0;padding:12px;border:1px solid #eee;border-radius:8px;background:#fff8e1;">
-                <div style="display:flex;gap:8px;margin-bottom:10px;">
-                    <button type="button" class="admin-tab-btn active" data-tab="add">新增题目</button>
-                    <button type="button" class="admin-tab-btn" data-tab="update">修改题目</button>
-                    <button type="button" class="admin-tab-btn" data-tab="delete">删除题目</button>
-                </div>
-                <div class="admin-tab-contents">
-                    <form id="admin-form-add" data-type="add" style="display:block;">
-                        <label>题目ID（qid） <input name="qid" type="text" style="width:160px;" required></label>
-                        <label style="margin-left:8px;">知识点 <select name="tagId" style="width:220px;">${options}</select></label>
-                        <label style="margin-left:8px;">分数 <input name="score" type="number" min="0" value="0" style="width:100px;" required></label>
-                        <button type="submit" style="margin-left:8px;">添加</button>
-                    </form>
-                    <form id="admin-form-update" data-type="update" style="display:none;">
-                        <label>题目ID（qid） <input name="qid" type="text" style="width:160px;" required></label>
-                        <label style="margin-left:8px;">知识点 <select name="tagId" style="width:220px;">${options}</select></label>
-                        <label style="margin-left:8px;">分数 <input name="score" type="number" min="0" value="0" style="width:100px;" required></label>
-                        <button type="submit" style="margin-left:8px;">更新</button>
-                    </form>
-                    <form id="admin-form-delete" data-type="delete" style="display:none;">
-                        <label>题目ID（qid） <input name="qid" type="text" style="width:160px;" required></label>
-                        <button type="submit" style="margin-left:8px;">删除</button>
-                    </form>
-                </div>
-            </div>
-        `;
-    }
-
-    bindAdminQuestionPanelEvents() {
-        const panel = document.getElementById('skill-tree-admin-panel');
-        if (!panel || panel.dataset.bound) return;
-        panel.dataset.bound = '1';
-
-        // 标签切换
-        panel.querySelectorAll('.admin-tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                const tab = btn.getAttribute('data-tab');
-                panel.querySelectorAll('.admin-tab-btn').forEach(b => {
-                    b.classList.remove('active');
-                    b.setAttribute('aria-pressed', 'false');
-                });
-                btn.classList.add('active');
-                btn.setAttribute('aria-pressed', 'true');
-                panel.querySelectorAll('form[id^="admin-form-"]').forEach(f => {
-                    f.style.display = (f.dataset.type === tab) ? 'block' : 'none';
-                });
-            });
-        });
-
-        // 初始化 aria-pressed 辅助无障碍/色觉提示
-        panel.querySelectorAll('.admin-tab-btn').forEach(b => {
-            b.setAttribute('aria-pressed', b.classList.contains('active') ? 'true' : 'false');
-        });
-
-        const submitHandler = async (e) => {
-            e.preventDefault();
-            const form = e.currentTarget;
-            const type = form.dataset.type;
-            const qid = (form.querySelector('input[name="qid"]')?.value || '').trim();
-            const scoreInput = form.querySelector('input[name="score"]');
-            const tagSelect = form.querySelector('select[name="tagId"]');
-            const tagId = tagSelect ? tagSelect.value : '';
-            const score = scoreInput ? Number(scoreInput.value) : 0;
-
-            try {
-                if (!qid) { alert('请填写题目ID（qid）'); return; }
-                if (type !== 'delete') {
-                    if (!tagId) { alert('请选择知识点'); return; }
-                    if (!Number.isFinite(score) || score < 0) { alert('分数必须为非负'); return; }
-                }
-                const submitBtn = form.querySelector('button[type="submit"]');
-                if (submitBtn) submitBtn.disabled = true;
-                if (type === 'add') {
-                    const r = await this.apiService.addSkillTreeQuestion(tagId, qid, score);
-                    const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
-                    alert(ra > 0 ? '已添加' : '未添加：可能已存在或参数不合法');
-                } else if (type === 'update') {
-                    const r = await this.apiService.updateSkillTreeQuestion(tagId, qid, score);
-                    const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
-                    alert(ra > 0 ? '已更新' : '未更新：记录不存在或分数未变化');
-                } else if (type === 'delete') {
-                    const r = await this.apiService.deleteSkillTreeQuestion(qid);
-                    const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
-                    alert(ra > 0 ? '已删除' : '未删除：题目不存在');
-                }
-            } catch (err) {
-                console.error('管理员操作失败', err);
-                alert((err && err.message) || '操作失败');
-            } finally {
-                const submitBtn = form.querySelector('button[type="submit"]');
-                if (submitBtn) submitBtn.disabled = false;
-            }
-        };
-
-        ['admin-form-add', 'admin-form-update', 'admin-form-delete'].forEach(id => {
-            const f = panel.querySelector(`#${id}`);
-            if (f) f.addEventListener('submit', submitHandler);
-        });
-    }
+    // 旧版管理员增删改面板已移除
     
     // 计算所有知识点和题目的状态 (修改)
     calculateNodeStates(nodes) {
@@ -1252,13 +1132,7 @@ export class SkillTreeView {
                 ? ` data-lock-reason='${(lockTooltipInner || '前置知识点未达60%').replace(/'/g, '&#39;')}'`
                 : '';
 
-            const adminControls = this.state.isAdmin ? `
-                <div class="admin-controls">
-                    <input type="number" min="0" class="admin-score-input" data-qid="${qid}" value="${Number(problem.score) || 0}" style="width:72px;margin-left:8px;" />
-                    <button type="button" class="admin-update-btn" data-qid="${qid}" style="margin-left:6px;">更新分数</button>
-                    <button type="button" class="admin-delete-btn" data-qid="${qid}" style="margin-left:6px;">删除</button>
-                </div>
-            ` : '';
+            const adminControls = '';
 
             return `
                 <li class="problem-item ${problemClass}"${lockAttr}>
@@ -1276,112 +1150,39 @@ export class SkillTreeView {
 
         this.panelProblems.innerHTML = `<ul>${problemsHtml}</ul>`;
 
-        // 管理员：附加新增题目表单 + 事件绑定
+        // 管理员：批量管理入口
         if (this.state.isAdmin) {
-            const addFormHtml = `
-                <div class="admin-add-form" style="margin-top:12px;padding-top:8px;border-top:1px dashed #ddd;">
-                    <strong>管理员工具：</strong>
-                    <label style="margin-left:8px;">题目ID <input id="admin-add-qid" type="text" style="width:140px;" /></label>
-                    <label style="margin-left:8px;">分数 <input id="admin-add-score" type="number" min="0" value="0" style="width:80px;" /></label>
-                    <button id="admin-add-btn" type="button" style="margin-left:8px;">添加题目</button>
+            const tagId = nodeIdToTagId[this.activeNodeId];
+            const manageHtml = `
+                <div class="admin-batch-panel" style="margin-top:12px;padding-top:8px;border-top:1px dashed #ddd;">
+                    <button id="skill-manage-problems-btn" type="button" class="admin-btn">管理题目（批量）</button>
                 </div>
             `;
-            this.panelProblems.insertAdjacentHTML('beforeend', addFormHtml);
-
-            const tagId = nodeIdToTagId[this.activeNodeId];
-
-            // 更新分数
-            const updateBtns = this.panelProblems.querySelectorAll('.admin-update-btn');
-            updateBtns.forEach(btn => {
-                btn.addEventListener('click', async (e) => {
-                    try {
-                        const qid = btn.getAttribute('data-qid');
-                        const input = this.panelProblems.querySelector(`.admin-score-input[data-qid="${qid}"]`);
-                        const score = Number(input && input.value);
-                        if (!qid) return;
-                        if (!Number.isFinite(score) || score < 0) {
-                            alert('分数必须为非负整数');
-                            return;
-                        }
-                        btn.disabled = true;
-                        const r = await this.apiService.updateSkillTreeQuestion(tagId, qid, score);
-                        const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
-                        if (ra > 0) {
-                            alert('已更新');
+            this.panelProblems.insertAdjacentHTML('beforeend', manageHtml);
+            const manageBtn = this.panelProblems.querySelector('#skill-manage-problems-btn');
+            if (manageBtn && !manageBtn._bound) {
+                manageBtn._bound = true;
+                manageBtn.addEventListener('click', () => {
+                    this.openBatchManageModal({
+                        tagId,
+                        problems: (tagInfo.problems || []).map(p => ({
+                            questionId: String(p.qid || p.questionId || ''),
+                            score: Number(p.score || 0),
+                            dependencies: parseDeps(p)
+                        })),
+                        stageNodeOptions: this.getStageNodeOptionsForActiveNode()
+                    }, async (saved) => {
+                        if (!saved) return;
+                        try {
+                            await this.apiService.batchReplaceSkillTree(tagId, saved);
+                            alert('已保存');
                             const fresh = await this.apiService.fetchTagInfo(tagId);
                             this.showPanelContent(staticNodeData, fresh, false);
-                        } else {
-                            alert('未更新：记录不存在或分数未变化');
+                        } catch (e) {
+                            console.error('批量保存失败', e);
+                            alert(e.message || '保存失败');
                         }
-                    } catch (err) {
-                        console.error('更新分数失败', err);
-                        alert('更新失败：' + (err && err.message || '未知错误'));
-                    } finally {
-                        btn.disabled = false;
-                    }
-                });
-            });
-
-            // 删除题目
-            const deleteBtns = this.panelProblems.querySelectorAll('.admin-delete-btn');
-            deleteBtns.forEach(btn => {
-                btn.addEventListener('click', async () => {
-                    const qid = btn.getAttribute('data-qid');
-                    if (!qid) return;
-                    if (!confirm(`确认删除题目 ${qid} 吗？`)) return;
-                    try {
-                        btn.disabled = true;
-                        const r = await this.apiService.deleteSkillTreeQuestion(qid);
-                        const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
-                        if (ra > 0) {
-                            alert('已删除');
-                            const fresh = await this.apiService.fetchTagInfo(tagId);
-                            this.showPanelContent(staticNodeData, fresh, false);
-                        } else {
-                            alert('未删除：题目不存在');
-                        }
-                    } catch (err) {
-                        console.error('删除题目失败', err);
-                        alert('删除失败：' + (err && err.message || '未知错误'));
-                    } finally {
-                        btn.disabled = false;
-                    }
-                });
-            });
-
-            // 新增题目
-            const addBtn = this.panelProblems.querySelector('#admin-add-btn');
-            if (addBtn) {
-                addBtn.addEventListener('click', async () => {
-                    const qidInput = this.panelProblems.querySelector('#admin-add-qid');
-                    const scoreInput = this.panelProblems.querySelector('#admin-add-score');
-                    const qid = qidInput && qidInput.value && qidInput.value.trim();
-                    const score = Number(scoreInput && scoreInput.value);
-                    if (!qid) {
-                        alert('请输入题目ID');
-                        return;
-                    }
-                    if (!Number.isFinite(score) || score < 0) {
-                        alert('分数必须为非负整数');
-                        return;
-                    }
-                    try {
-                        addBtn.disabled = true;
-                        const r = await this.apiService.addSkillTreeQuestion(tagId, qid, score);
-                        const ra = Number((r && (r.rowsAffected ?? (r.data && r.data.rowsAffected))) || 0);
-                        if (ra > 0) {
-                            alert('已添加');
-                            const fresh = await this.apiService.fetchTagInfo(tagId);
-                            this.showPanelContent(staticNodeData, fresh, false);
-                        } else {
-                            alert('未添加：可能已存在或参数不合法');
-                        }
-                    } catch (err) {
-                        console.error('添加题目失败', err);
-                        alert('添加失败：' + (err && err.message || '未知错误'));
-                    } finally {
-                        addBtn.disabled = false;
-                    }
+                    });
                 });
             }
         }
@@ -1507,6 +1308,206 @@ export class SkillTreeView {
     hide() {
         this.clearLines();
         this.teardownSummarySvg && this.teardownSummarySvg();
+    }
+
+    // 获取与当前知识点同一章节的tag选项（找不到则回退为全量）
+    getStageNodeOptionsForActiveNode() {
+        const tree = this.skillTrees && this.skillTrees['newbie-130'];
+        const nodesDict = tree && tree.nodes ? tree.nodes : {};
+        const activeId = this.activeNodeId;
+        let stage = null;
+        if (tree && Array.isArray(tree.stages)) {
+            for (const s of tree.stages) {
+                const ids = (s.columns || []).flatMap(c => c.nodeIds || []);
+                if (ids.includes(activeId)) { stage = s; break; }
+            }
+        }
+        const pickIds = stage ? (stage.columns || []).flatMap(c => c.nodeIds || []) : Object.keys(nodesDict);
+        const uniqIds = Array.from(new Set(pickIds));
+        return uniqIds.map(nid => {
+            const tagId = nodeIdToTagId[nid];
+            const name = (nodesDict[nid] && nodesDict[nid].name) || String(tagId);
+            return { tagId: String(tagId), label: `${tagId} - ${name}` };
+        }).filter(o => o.tagId && o.tagId !== 'undefined');
+    }
+
+    // 打开批量管理对话框
+    openBatchManageModal(context, onSave) {
+        const { tagId, problems = [], stageNodeOptions = [] } = context || {};
+        let modal = document.getElementById('skill-batch-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'skill-batch-modal';
+            modal.className = 'modal';
+            modal.style.display = 'none';
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:920px;">
+                    <div class="modal-header">
+                        <h3>管理题目（Tag ${tagId}）</h3>
+                        <button id="skill-batch-close" class="modal-close" aria-label="关闭">&times;</button>
+                    </div>
+                    <div class="modal-body" style="max-height:60vh;overflow:auto;">
+                        <table class="rankings-table" style="width:100%;">
+                            <thead>
+                                <tr>
+                                    <th style="width:60px;">顺序</th>
+                                    <th style="width:140px;">questionId</th>
+                                    <th style="width:100px;">分数</th>
+                                    <th>依赖（可多选）</th>
+                                    <th style="width:120px;">调整</th>
+                                </tr>
+                            </thead>
+                            <tbody id="skill-batch-tbody"></tbody>
+                        </table>
+                    </div>
+                    <div class="modal-actions" style="display:flex;gap:8px;justify-content:flex-end;">
+                        <button id="skill-batch-cancel" class="admin-btn modal-secondary" style="background:#f5f5f5;color:#333;border:1px solid #e5e5e5;">取消</button>
+                        <button id="skill-batch-save" class="admin-btn" style="background:#52c41a;color:#fff;border:1px solid #52c41a;">保存</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+        const tbody = modal.querySelector('#skill-batch-tbody');
+        const renderRows = (list) => {
+            tbody.innerHTML = list.map((it, idx) => {
+                const depIds = Array.isArray(it.dependencies) ? it.dependencies.map(String) : [];
+                const depLabels = depIds.length
+                    ? depIds.map(id => {
+                        const opt = stageNodeOptions.find(o => String(o.tagId) === String(id));
+                        return opt ? opt.label : id;
+                    }).join('、')
+                    : '未选择';
+                return `
+                    <tr data-idx="${idx}">
+                        <td>${idx + 1}</td>
+                        <td><input type="text" class="skill-batch-qid" value="${(it.questionId || '').replace(/"/g,'&quot;')}" style="width:120px;"></td>
+                        <td><input type="number" min="0" class="skill-batch-score" value="${Number(it.score)||0}" style="width:80px;"></td>
+                        <td>
+                            <div class="dep-select-cell" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                                <span class="dep-summary" title="${depLabels}">${depLabels}</span>
+                                <button type="button" class="admin-btn skill-batch-choose-deps" style="padding:2px 8px;">选择依赖</button>
+                            </div>
+                        </td>
+                        <td>
+                            <button type="button" class="admin-btn skill-batch-up" style="padding:2px 8px;">↑</button>
+                            <button type="button" class="admin-btn skill-batch-down" style="padding:2px 8px;margin-left:6px;">↓</button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        };
+        // 深拷贝用于编辑
+        const state = problems.map(p => ({ questionId: String(p.questionId || ''), score: Number(p.score)||0, dependencies: Array.isArray(p.dependencies) ? p.dependencies.map(String) : [] }));
+        renderRows(state);
+
+        // 绑定上下移动与依赖对话框
+        const bindReorder = () => {
+            tbody.querySelectorAll('.skill-batch-up').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tr = btn.closest('tr'); const idx = Number(tr.getAttribute('data-idx'));
+                    if (idx <= 0) return;
+                    const tmp = state[idx-1]; state[idx-1] = state[idx]; state[idx] = tmp;
+                    renderRows(state); bindReorder();
+                });
+            });
+            tbody.querySelectorAll('.skill-batch-down').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tr = btn.closest('tr'); const idx = Number(tr.getAttribute('data-idx'));
+                    if (idx >= state.length - 1) return;
+                    const tmp = state[idx+1]; state[idx+1] = state[idx]; state[idx] = tmp;
+                    renderRows(state); bindReorder();
+                });
+            });
+            // 依赖弹窗
+            tbody.querySelectorAll('.skill-batch-choose-deps').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tr = btn.closest('tr'); const idx = Number(tr.getAttribute('data-idx'));
+                    openDepsDialog(idx);
+                });
+            });
+        };
+        bindReorder();
+
+        const openDepsDialog = (rowIdx) => {
+            // 先移除已存在的
+            let d = document.getElementById('skill-batch-deps-modal');
+            if (d) d.remove();
+            d = document.createElement('div');
+            d.id = 'skill-batch-deps-modal';
+            d.className = 'modal';
+            d.style.display = 'none';
+            const current = Array.isArray(state[rowIdx].dependencies) ? state[rowIdx].dependencies.map(String) : [];
+            const optionsHtml = stageNodeOptions.map(opt => {
+                const checked = current.includes(String(opt.tagId)) ? 'checked' : '';
+                return `<label style="display:flex;align-items:center;gap:6px;margin:4px 0;">
+                    <input type="checkbox" class="deps-opt" value="${opt.tagId}" ${checked} />
+                    <span>${opt.label}</span>
+                </label>`;
+            }).join('');
+            d.innerHTML = `
+                <div class="modal-content" style="max-width:640px;">
+                    <div class="modal-header">
+                        <h3>选择依赖</h3>
+                        <button id="deps-modal-close" class="modal-close" aria-label="关闭">&times;</button>
+                    </div>
+                    <div class="modal-body" style="max-height:50vh;overflow:auto;">
+                        <div style="margin-bottom:8px;">
+                            <input id="deps-search" type="text" placeholder="搜索（支持tagId/名称）" style="width:100%;padding:6px;border:1px solid #e5e5e5;border-radius:6px;">
+                        </div>
+                        <div id="deps-list">${optionsHtml}</div>
+                    </div>
+                    <div class="modal-actions">
+                        <button id="deps-cancel" class="admin-btn modal-secondary">取消</button>
+                        <button id="deps-save" class="admin-btn">确定</button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(d);
+            const open = () => { d.style.display = 'flex'; };
+            const close = () => { d.style.display = 'none'; d.remove(); };
+            d.querySelector('#deps-modal-close').onclick = close;
+            d.querySelector('#deps-cancel').onclick = close;
+            // 搜索过滤
+            const searchInput = d.querySelector('#deps-search');
+            const listDiv = d.querySelector('#deps-list');
+            searchInput.addEventListener('input', () => {
+                const kw = searchInput.value.trim().toLowerCase();
+                Array.from(listDiv.querySelectorAll('label')).forEach(lb => {
+                    const text = lb.innerText.toLowerCase();
+                    lb.style.display = text.includes(kw) ? '' : 'none';
+                });
+            });
+            d.querySelector('#deps-save').onclick = () => {
+                const vals = Array.from(listDiv.querySelectorAll('.deps-opt:checked')).map(i => i.value);
+                state[rowIdx].dependencies = vals;
+                renderRows(state); bindReorder();
+                close();
+            };
+            open();
+        };
+
+        // 打开与关闭
+        const open = () => { modal.style.display = 'flex'; };
+        const close = () => { modal.style.display = 'none'; };
+        modal.querySelector('#skill-batch-close').onclick = close;
+        modal.querySelector('#skill-batch-cancel').onclick = close;
+
+        // 保存
+        modal.querySelector('#skill-batch-save').onclick = async () => {
+            // 采集最新值（从 state，而非 DOM 多选）
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const payload = rows.map((tr, order) => {
+                const idx = Number(tr.getAttribute('data-idx'));
+                const qid = tr.querySelector('.skill-batch-qid').value.trim();
+                const score = Number(tr.querySelector('.skill-batch-score').value);
+                const deps = Array.isArray(state[idx].dependencies) ? state[idx].dependencies.map(String) : [];
+                return { questionId: qid, score: (Number.isFinite(score) && score >= 0) ? score : 0, dependencies: deps };
+            });
+            if (onSave) await onSave(payload);
+            close();
+        };
+        open();
     }
 }
 

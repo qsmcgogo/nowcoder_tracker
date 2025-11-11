@@ -7,7 +7,7 @@ const app = express();
 const port = 3000;
 
 // 环境切换: 'www', 'pre', 或 'd'
-const CURRENT_ENV = 'pre'; 
+const CURRENT_ENV = 'd'; 
 
 const HOST_MAP = {
     'www': 'https://www.nowcoder.com',
@@ -107,9 +107,12 @@ app.use('/problem/tracker/skill-tree/update', manualProxyHandler('/problem/track
 app.use('/problem/tracker/skill-tree/add-question', manualProxyHandler('/problem/tracker/skill-tree/add-question'));
 app.use('/problem/tracker/skill-tree/update-question', manualProxyHandler('/problem/tracker/skill-tree/update-question'));
 app.use('/problem/tracker/skill-tree/delete-question', manualProxyHandler('/problem/tracker/skill-tree/delete-question'));
+// Batch replace questions for a tag
+app.use('/problem/tracker/skill-tree/batch-replace', manualProxyHandler('/problem/tracker/skill-tree/batch-replace'));
 
 // Admin endpoint for Rankings
 app.use('/problem/tracker/rank/update-accept-count', manualProxyHandler('/problem/tracker/rank/update-accept-count'));
+app.use('/problem/tracker/rank/update-submission-count', manualProxyHandler('/problem/tracker/rank/update-submission-count'));
 
 // Team endpoints
 app.use('/problem/tracker/team/my', manualProxyHandler('/problem/tracker/team/my'));
@@ -134,6 +137,7 @@ app.use('/problem/tracker/team/invite/decline', manualProxyHandler('/problem/tra
 app.use('/problem/tracker/team/invite/cancel', manualProxyHandler('/problem/tracker/team/invite/cancel'));
 app.use('/problem/tracker/team/stats/summary', manualProxyHandler('/problem/tracker/team/stats/summary'));
 app.use('/problem/tracker/team/leaderboard', manualProxyHandler('/problem/tracker/team/leaderboard'));
+app.use('/problem/tracker/team/rank/rebuild', manualProxyHandler('/problem/tracker/team/rank/rebuild'));
 app.use('/problem/tracker/team/apply/list', manualProxyHandler('/problem/tracker/team/apply/list'));
 app.use('/problem/tracker/team/invite/list', manualProxyHandler('/problem/tracker/team/invite/list'));
 app.use('/problem/tracker/team/my/apply', manualProxyHandler('/problem/tracker/team/my/apply'));
