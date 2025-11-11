@@ -413,6 +413,7 @@ export class TeamView {
         const nameLineBtns = canEdit
             ? `<button id="team-add-member-top" class="admin-btn">邀请成员</button>
                <button id="team-approve-open-btn" class="admin-btn">审批</button>
+               <button id="team-rebuild-rank-btn" class="admin-btn" title="每日限一次；批量刷新成员的过题/提交缓存（首次重建可能较久）">刷新成员指标</button>
                <button id="team-disband-btn" class="admin-btn" style="background:#ffecec;color:#e00;">解散团队</button>`
             : (this.role !== 'owner' ? `<button id="team-quit-btn" class="admin-btn" style="background:#ffecec;color:#e00;">退出团队</button>` : '');
         metrics.innerHTML = `
@@ -663,6 +664,20 @@ export class TeamView {
             quitBtn.addEventListener('click', async () => {
                 if (!confirm('确认退出该团队？')) return;
                 try { await this.api.teamQuit(this.currentTeamId); alert('已退出团队'); this.currentTeamId = null; this.render(); } catch (e) { alert(e.message || '操作失败'); }
+            });
+        }
+        // 刷新成员指标（队长每日一次）
+        const rebuildBtn = document.getElementById('team-rebuild-rank-btn');
+        if (rebuildBtn && !rebuildBtn._bound) {
+            rebuildBtn._bound = true;
+            rebuildBtn.addEventListener('click', async () => {
+                if (!confirm('确认刷新本团队所有成员的指标缓存？（每日限一次，首次重建可能较久，视队伍规模与缓存情况）')) return;
+                try {
+                    const queued = await this.api.teamRankRebuild(this.currentTeamId);
+                    alert(`已提交刷新任务（队员数：${queued}）。预计几分钟内生效；首次重建请耐心等待（可能较久）。`);
+                } catch (e) {
+                    alert(e.message || '提交刷新失败（可能今日已刷新过）');
+                }
             });
         }
 

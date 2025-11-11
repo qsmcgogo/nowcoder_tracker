@@ -29,7 +29,6 @@ import com.wenyibi.futuremail.util.DFASensitiveUtil;
 
 import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
@@ -46,9 +45,17 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.CompletableFuture;
+import com.wenyibi.futuremail.util.NcDateUtils;
+import com.wenyibi.futuremail.util.DateUtil;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import com.wenyibi.futuremail.cache.JedisAdapter;
 
 @Component
 public class TrackerTeamBiz {
+
+  private static final Log logger = LogFactory.getLog(TrackerTeamBiz.class);
 
   @Autowired
   private ACMTeamInfoService acmTeamInfoService;
@@ -229,6 +236,8 @@ public class TrackerTeamBiz {
     // 同步更新团队人数
     int count = acmTeamMemberService.getCountByGroupId(teamId);
     acmTeamInfoService.updatePersonCount(teamId, count);
+    // 异步刷新该用户的 Redis 指标（总过题 / 总提交）
+    refreshUserTrackerMetricsAsync(userId);
     return id;
   }
 
@@ -338,6 +347,8 @@ public class TrackerTeamBiz {
       int count = acmTeamMemberService.getCountByGroupId(teamId);
       acmTeamInfoService.updatePersonCount(teamId, count);
       newOwnerMember = acmTeamMemberService.getByGroupAndUid(teamId, newOwnerUserId);
+      // 新增成员：异步刷新 Redis 指标
+      refreshUserTrackerMetricsAsync(newOwnerUserId);
     }
     // 新队长设置为 OWNER
     if (newOwnerMember != null && newOwnerMember.getType() != ACMTeamMemberTypeEnum.OWNER.getType()) {
@@ -450,6 +461,8 @@ public class TrackerTeamBiz {
     // 同步更新团队人数
     int countAfter = acmTeamMemberService.getCountByGroupId(teamId);
     acmTeamInfoService.updatePersonCount(teamId, countAfter);
+    // 异步刷新该用户的 Redis 指标
+    refreshUserTrackerMetricsAsync(apply.getApplyUid());
     return 1;
   }
 
@@ -546,6 +559,8 @@ public class TrackerTeamBiz {
     // 同步更新团队人数
     int countAfter = acmTeamMemberService.getCountByGroupId(teamId);
     acmTeamInfoService.updatePersonCount(teamId, countAfter);
+    // 异步刷新该用户的 Redis 指标
+    refreshUserTrackerMetricsAsync(userId);
     return 1;
   }
 
@@ -720,23 +735,67 @@ public class TrackerTeamBiz {
 
   /** 实际统计计算，供缓存loader使用 */
   private JSONObject computeTeamStatsSummary(long teamId) {
+    long allStart = System.currentTimeMillis();
     JSONObject summary = new JSONObject();
     List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
     int memberCount = members.size();
-    int totalAccept = 0;
-    int totalSubmission = 0;
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
     Map<Long, User> userMap = userService.getUserMapsByIds(uids);
-    Map<Long, Integer> acceptCountMap = questionTrackerBiz.getTrackerAcceptCountByUserIds(uids);
-    Map<Long, Integer> totalSubmitMap = questionTrackerBiz.getTrackerSubmissionCountByUserIds(uids);
     // today / 7 days
     Date now = new Date();
-    Date todayBegin = com.wenyibi.futuremail.util.NcDateUtils.getDayBeginDate(now);
-    Date sevenDaysBegin = com.wenyibi.futuremail.util.DateUtil.getDateAfter(todayBegin, -6);
-    Date yesterdayBegin = com.wenyibi.futuremail.util.DateUtil.getDateAfter(todayBegin, -1);
-    Map<Long, Integer> todayMap = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, todayBegin, now);
-    Map<Long, Integer> sevenDaysMap = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, sevenDaysBegin, now);
-    Map<Long, Integer> yesterdayMap = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, yesterdayBegin, todayBegin);
+    Date todayBegin = NcDateUtils.getDayBeginDate(now);
+    Date sevenDaysBegin = DateUtil.getDateAfter(todayBegin, -6);
+    Date yesterdayBegin = DateUtil.getDateAfter(todayBegin, -1);
+    // 并行化子任务：总量 AC、总量提交、今日 AC、7日 AC、昨日 AC
+    CompletableFuture<Map<Long, Integer>> totalAcceptFuture =
+        CompletableFuture.supplyAsync(() -> {
+          long s = System.currentTimeMillis();
+          Map<Long, Integer> r = questionTrackerBiz.getTrackerAcceptCountByUserIds(uids);
+          logger.error(String.format("[teamSummary] teamId=%d totalAccept cost=%dms size=%d",
+              teamId, System.currentTimeMillis() - s, uids.size()));
+          return r;
+        });
+    CompletableFuture<Map<Long, Integer>> totalSubmitFuture =
+        CompletableFuture.supplyAsync(() -> {
+          long s = System.currentTimeMillis();
+          Map<Long, Integer> r = questionTrackerBiz.getTrackerSubmissionCountByUserIds(uids);
+          logger.error(String.format("[teamSummary] teamId=%d totalSubmit cost=%dms size=%d",
+              teamId, System.currentTimeMillis() - s, uids.size()));
+          return r;
+        });
+    CompletableFuture<Map<Long, Integer>> todayMapFuture =
+        CompletableFuture.supplyAsync(() -> {
+          long s = System.currentTimeMillis();
+          Map<Long, Integer> r = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, todayBegin, now);
+          logger.error(String.format("[teamSummary] teamId=%d todayAccept cost=%dms size=%d window=[%tF %<tT, %tF %<tT]",
+              teamId, System.currentTimeMillis() - s, uids.size(), todayBegin, now));
+          return r;
+        });
+    CompletableFuture<Map<Long, Integer>> sevenDaysMapFuture =
+        CompletableFuture.supplyAsync(() -> {
+          long s = System.currentTimeMillis();
+          Map<Long, Integer> r = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, sevenDaysBegin, now);
+          logger.error(String.format("[teamSummary] teamId=%d sevenDaysAccept cost=%dms size=%d window=[%tF %<tT, %tF %<tT]",
+              teamId, System.currentTimeMillis() - s, uids.size(), sevenDaysBegin, now));
+          return r;
+        });
+    CompletableFuture<Map<Long, Integer>> yesterdayMapFuture =
+        CompletableFuture.supplyAsync(() -> {
+          long s = System.currentTimeMillis();
+          Map<Long, Integer> r = questionTrackerBiz.getTrackerAcceptCountByUserIdsBetweenDates(uids, yesterdayBegin, todayBegin);
+          logger.error(String.format("[teamSummary] teamId=%d yesterdayAccept cost=%dms size=%d window=[%tF %<tT, %tF %<tT]",
+              teamId, System.currentTimeMillis() - s, uids.size(), yesterdayBegin, todayBegin));
+          return r;
+        });
+
+    Map<Long, Integer> acceptCountMap = totalAcceptFuture.join();
+    Map<Long, Integer> totalSubmitMap = totalSubmitFuture.join();
+    Map<Long, Integer> todayMap = todayMapFuture.join();
+    Map<Long, Integer> sevenDaysMap = sevenDaysMapFuture.join();
+    Map<Long, Integer> yesterdayMap = yesterdayMapFuture.join();
+
+    int totalAccept = 0;
+    int totalSubmission = 0;
     for (ACMTeamMember m : members) {
       totalAccept += acceptCountMap.getOrDefault(m.getUid(), 0);
       totalSubmission += totalSubmitMap.getOrDefault(m.getUid(), 0);
@@ -776,13 +835,17 @@ public class TrackerTeamBiz {
       if (!tieUids.isEmpty()) {
         if (tieUids.size() == 1) {
           topUid = tieUids.get(0);
-          // 昨日提交次数（WWW站）
-          topSubmit = codingSubmissionService.getSubmissonCountByUidBetweenDate(topUid, yesterdayBegin, todayBegin);
+          // 昨日提交次数（WWW + ACM）
+          int www = codingSubmissionService.getSubmissonCountByUidBetweenDate(topUid, yesterdayBegin, todayBegin);
+          int acm = acmCodingSubmissionService.getSubmissonCountByUidBetweenDate(topUid, yesterdayBegin, todayBegin);
+          topSubmit = www + acm;
         } else {
           int maxSubmit = -1;
           long pick = 0L;
           for (Long uid : tieUids) {
-            int sub = codingSubmissionService.getSubmissonCountByUidBetweenDate(uid, yesterdayBegin, todayBegin);
+            int www = codingSubmissionService.getSubmissonCountByUidBetweenDate(uid, yesterdayBegin, todayBegin);
+            int acm = acmCodingSubmissionService.getSubmissonCountByUidBetweenDate(uid, yesterdayBegin, todayBegin);
+            int sub = www + acm;
             if (sub > maxSubmit || (sub == maxSubmit && uid < pick)) {
               maxSubmit = sub;
               pick = uid;
@@ -800,7 +863,6 @@ public class TrackerTeamBiz {
       User king = userMap.get(topUid);
       if (king != null) {
         yesterdayKing.put("headUrl", king.getTinnyHeaderUrl());
-        yesterdayKing.put("url", "/profile/" + king.getId());
         yesterdayKing.put("name", king.getDisplayname());
       }
       summary.put("yesterdayKing", yesterdayKing);
@@ -810,6 +872,8 @@ public class TrackerTeamBiz {
       summary.put("ownerUserId", team.getUid());
       summary.put("personLimit", team.getPersonLimit());
     }
+    logger.error(String.format("[teamSummary] teamId=%d build done in %dms, members=%d",
+        teamId, System.currentTimeMillis() - allStart, memberCount));
     return summary;
   }
 
@@ -1006,6 +1070,59 @@ public class TrackerTeamBiz {
                       userId, sensitiveResult.getValue());
     }
     return description;
+  }
+
+  /** 异步刷新某用户在 Redis 中的 tracker 指标（总过题 / 总提交） */
+  private void refreshUserTrackerMetricsAsync(long userId) {
+    try {
+      CompletableFuture.runAsync(() -> {
+        try {
+          questionTrackerBiz.updateAcceptCount(userId);
+        } catch (Exception e) {
+          logger.error("refreshUserTrackerMetricsAsync updateAcceptCount error, uid=" + userId, e);
+        }
+        try {
+          questionTrackerBiz.updateSubmissionCount(userId);
+        } catch (Exception e) {
+          logger.error("refreshUserTrackerMetricsAsync updateSubmissionCount error, uid=" + userId, e);
+        }
+      });
+    } catch (Exception ignore) {
+      // 忽略刷新异常，不影响主流程
+    }
+  }
+
+  /**
+   * 队长触发：异步重建团队成员的 Redis 指标（总过题 / 总提交）
+   * 每个团队每天仅允许一次，使用 Redis 锁进行限制
+   * 返回排队处理的成员数量
+   */
+  public int rebuildTeamMetrics(long teamId, long operatorUserId) throws WenyibiException {
+    if (!isTeamAdmin(teamId, operatorUserId)) {
+      throw new WenyibiException("不是队长，无权操作");
+    }
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    // 每日一次：使用日期作为分片
+    String day = com.wenyibi.futuremail.util.NcDateUtils.getTodayDateString();
+    String lockKey = String.format("tracker:metrics:rebuild:%s:%s", teamId, day);
+    // 24小时窗口；如需更精确可计算当日剩余秒数
+    boolean ok = JedisAdapter.setNxEx(lockKey, "1", 24 * 60 * 60);
+    if (!ok) {
+      throw new WenyibiException("今日已触发重建，请明日再试");
+    }
+    try {
+      CompletableFuture.runAsync(() -> {
+        try {
+          questionTrackerBiz.rebuildTrackerMetricsForUserIds(uids);
+        } catch (Exception e) {
+          logger.error("rebuildTeamMetrics async error, teamId=" + teamId, e);
+        }
+      });
+    } catch (Exception e) {
+      logger.error("submit rebuild task error", e);
+    }
+    return uids.size();
   }
 }
 

@@ -148,6 +148,20 @@ public class TrackerTeamController {
     return InstructionUtils.jsonOkData(summary);
   }
 
+  // 队长触发：重建团队成员 Redis 指标（每日最多一次）
+  @Post("rank/rebuild")
+  @LoginRequired
+  public JSONObject rebuildRank(@Param("teamId") long teamId) throws WenyibiException {
+    long uid = hostHolder.getUser().getId();
+    if (!trackerTeamBiz.isTeamAdmin(teamId, uid)) {
+      return InstructionUtils.jsonError("不是队长，无权操作");
+    }
+    int queued = trackerTeamBiz.rebuildTeamMetrics(teamId, uid);
+    com.alibaba.fastjson.JSONObject data = new com.alibaba.fastjson.JSONObject();
+    data.put("queued", queued);
+    return InstructionUtils.jsonOkData(data);
+  }
+
   // 团队过题榜
   @Get("leaderboard")
   @LoginRequired

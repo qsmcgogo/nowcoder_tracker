@@ -295,10 +295,12 @@ export class NowcoderTracker {
                 const oldText = adminUpdateBtn.textContent;
                 adminUpdateBtn.textContent = '更新中...';
                 try {
+                    // 同时更新过题数与提交数
                     await this.apiService.adminUpdateUserAcceptCount(uid);
+                    try { await this.apiService.adminUpdateUserSubmissionCount(uid); } catch (_) {}
                     // 更新成功后刷新当前页 / 或定位到该用户
                     eventBus.emit(EVENTS.USER_SEARCH, uid);
-                    alert('已触发更新');
+                    alert('已触发更新（过题数 + 提交数）');
                 } catch (e) {
                     console.error(e);
                     alert(e.message || '更新失败');

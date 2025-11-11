@@ -263,6 +263,18 @@ export class ApiService {
         throw new Error((data && data.msg) || 'update accept count failed');
     }
 
+    // 管理员：更新用户提交总数（用于排行榜刷新）
+    async adminUpdateUserSubmissionCount(userId) {
+        if (!userId) throw new Error('userId required');
+        const url = `${this.apiBase}/problem/tracker/rank/update-submission-count`;
+        const body = `userId=${encodeURIComponent(userId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || 'update submission count failed');
+    }
+
     async teamInviteUser(teamId, userId) {
         const url = `${this.apiBase}/problem/tracker/team/invite/user`;
         const body = `teamId=${encodeURIComponent(teamId)}&userId=${encodeURIComponent(userId)}`;
@@ -301,6 +313,24 @@ export class ApiService {
         const data = await res.json();
         if (data && (data.code === 0 || data.code === 200)) return true;
         throw new Error((data && data.msg) || '撤销邀请失败');
+    }
+
+    // 队长：触发重建团队成员的指标（每日最多一次）
+    async teamRankRebuild(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/rank/rebuild`;
+        const body = `teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            const d = data.data || {};
+            return typeof d.queued === 'number' ? d.queued : 0;
+        }
+        throw new Error((data && data.msg) || '触发重建失败');
     }
 
     // 退出团队（成员）
