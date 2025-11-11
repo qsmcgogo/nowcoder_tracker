@@ -69,7 +69,7 @@ export const skillTreeData = {
                     { 
                         id: 'col-3', 
                         name: '算术运算', 
-                        nodeIds: ['arithmetic-add', 'arithmetic-sub', 'arithmetic-div-mod', 'bit-shift', 'arithmetic-mod'] 
+                        nodeIds: ['arithmetic-add', 'arithmetic-sub', 'arithmetic-div-mod', 'arithmetic-mod'] 
                     },
                     { 
                         id: 'col-4', 
@@ -89,7 +89,7 @@ export const skillTreeData = {
                 // 章为大虚框（列），节为知识点
                 columns: [
                     { id: 's2-col-struct', name: '线性数据结构', nodeIds: ['stack', 'queue', 'deque'] },
-                    { id: 's2-col-math', name: '简单数学', nodeIds: ['bit-ops', 'primes-divisors', 'gcd-lcm'] },
+                    { id: 's2-col-math', name: '简单数学', nodeIds: ['bit-ops', 'bit-shift', 'primes-divisors', 'gcd-lcm'] },
                     { id: 's2-col-func', name: '函数', nodeIds: ['func-def-call', 'recursion'] },
                     { id: 's2-col-dp', name: '动态规划入门', nodeIds: ['dp-basic', 'dp-linear', 'prefix-diff', 'dp-practice'] }
                 ]
@@ -1097,10 +1097,10 @@ export class SkillTreeView {
             const isLocked = !this.state.isAdmin && !isSolved && unmetDeps.length > 0;
             const problemClass = `${isSolved ? 'completed' : ''} ${isLocked ? 'locked' : ''}`.trim();
             const baseUrl = `https://www.nowcoder.com/practice/${problem.uuid}`;
-            // 技能树题目统一使用 w253acm 渠道标识
-            // 若入口URL带 channelPut，则技能树题目加后缀“3”，否则回落到历史默认 w253acm
+            // 技能树题目默认使用 tracker3 渠道标识
+            // 若入口URL带 channelPut，则技能树题目加后缀“3”，否则回落到缺省 tracker3
             const chan = (this.state?.channelPut || '');
-            const cp = chan ? (chan + '3') : 'w253acm';
+            const cp = chan ? (chan + '3') : 'tracker3';
             const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, cp);
 
             // Changed: Display score and pass total

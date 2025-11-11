@@ -7,7 +7,7 @@ import { APP_CONFIG } from '../config.js';
  * @param {string} channelPut - 渠道参数
  * @returns {string} 完整URL
  */
-export function buildUrlWithChannelPut(baseUrl, channelPut = 'w251acm') {
+export function buildUrlWithChannelPut(baseUrl, channelPut = 'tracker1') {
     if (!baseUrl || typeof baseUrl !== 'string' || !baseUrl.trim()) {
         return '';
     }
