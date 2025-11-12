@@ -91,6 +91,7 @@ export class NowcoderTracker {
             // team sub containers
             teamDashboard: document.getElementById('team-dashboard'),
             teamLeaderboard: document.getElementById('team-leaderboard'),
+            teamActivity: document.getElementById('team-activity'),
             faq: document.getElementById('faq')
         };
     }

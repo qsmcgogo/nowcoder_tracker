@@ -53,6 +53,7 @@ import com.wenyibi.futuremail.util.NcDateUtils;
 import com.wenyibi.futuremail.util.PagingUtils;
 import com.wenyibi.futuremail.util.RedisKeyUtil;
 import com.wenyibi.futuremail.biz.tracker.TrackerBadgeBiz;
+import com.wenyibi.futuremail.model.tracker.TrackerStageEnum;
 
 import org.apache.commons.collections4.CollectionUtils;
 import org.apache.commons.compress.utils.Lists;
@@ -477,7 +478,7 @@ public class QuestionTrackerBiz {
       return result;
     }
     // 从 Redis 读取“总提交数”ZSET 分数（新key）
-    final String submissionKey = "tracker:submission:total";
+    final String submissionKey = RedisKeyUtil.getTrackerSubmissionTotalboard();
     for (Long uid : userIds) {
       Double score = JedisAdapter.zScore(submissionKey, String.valueOf(uid));
       result.put(uid, score == null ? 0 : score.intValue());
@@ -539,8 +540,7 @@ public class QuestionTrackerBiz {
     Map<Long, Integer> acmSubmit = acmCodingSubmissionService.countAllSubmissionByUserIdsAndProblemIds(uids, problemIds);
     int total = wwwSubmit.getOrDefault(userId, 0) + acmSubmit.getOrDefault(userId, 0);
     // 回写 Redis
-    final String submissionKey = "tracker:submission:total";
-    JedisAdapter.zAdd(submissionKey, total, String.valueOf(userId));
+    JedisAdapter.zAdd(RedisKeyUtil.getTrackerSubmissionTotalboard(), total, String.valueOf(userId));
   }
 
   /**
@@ -553,7 +553,7 @@ public class QuestionTrackerBiz {
     }
     Map<Long, Pair<Integer, Integer>> computed = computeTrackerMetricsRaw(userIds);
     final String acceptKey = RedisKeyUtil.getTrackerRankboard();
-    final String submissionKey = "tracker:submission:total";
+    final String submissionKey = RedisKeyUtil.getTrackerSubmissionTotalboard();
     for (Map.Entry<Long, Pair<Integer, Integer>> e : computed.entrySet()) {
       Long uid = e.getKey();
       Pair<Integer, Integer> p = e.getValue();
@@ -1137,5 +1137,87 @@ public class QuestionTrackerBiz {
 
   public void addShareLink(Date date, String shareLink) {
     trackerClockRecordSerice.updateShareLink(shareLink, date);
+  }
+
+  // ======================= 技能树章节（枚举版） =======================
+  public List<Integer> getSkillTreeTagIdsByChapter(TrackerStageEnum stage) {
+    if (stage == null) return Collections.emptyList();
+    return stage.getTagIds();
+  }
+  // 兼容字符串 key 调用
+  public List<Integer> getSkillTreeTagIdsByChapter(String chapterKey) {
+    return getSkillTreeTagIdsByChapter(TrackerStageEnum.fromKey(chapterKey));
+  }
+
+  /**
+   * 聚合获取某章节下的全部 problemId（去重）。
+   * 依赖 trackerTagService.getQuestionsByTagId(tagId) 获取题目清单。
+   */
+  public Set<Long> getSkillTreeProblemIdsByChapter(TrackerStageEnum stage) {
+    List<Integer> tagIds = getSkillTreeTagIdsByChapter(stage);
+    if (tagIds == null || tagIds.isEmpty()) {
+      return Collections.emptySet();
+    }
+    Set<Long> problemIds = new HashSet<>();
+    for (Integer tagId : tagIds) {
+      List<TrackerTagQuestion> list = trackerTagService.getQuestionsByTagId(tagId);
+      if (list == null || list.isEmpty()) {
+        continue;
+      }
+      for (TrackerTagQuestion q : list) {
+        Long pid = q.getProblemId();
+        if (pid != null && pid > 0) {
+          problemIds.add(pid);
+        }
+      }
+    }
+    return problemIds;
+  }
+  // 兼容字符串 key 调用
+  public Set<Long> getSkillTreeProblemIdsByChapter(String chapterKey) {
+    return getSkillTreeProblemIdsByChapter(TrackerStageEnum.fromKey(chapterKey));
+  }
+
+  /**
+   * 统计：给定题目集合，按用户统计累计 AC 去重数量（WWW+ACM 并集）。
+   */
+  public Map<Long, Integer> getAcceptCountInProblemSetByUserIds(List<Long> userIds, List<Long> problemIds) {
+    Map<Long, Integer> result = new HashMap<>();
+    if (CollectionUtils.isEmpty(userIds) || CollectionUtils.isEmpty(problemIds)) {
+      return result;
+    }
+    Map<Long, List<Long>> wwwMap = codingSubmissionService
+        .getAcceptedProblemIdsByUserIdsAndProblemIds(userIds, problemIds);
+    Map<Long, List<Long>> acmMap = acmCodingSubmissionService
+        .getAcceptedProblemIdsByUserIdsAndProblemIds(userIds, problemIds);
+    for (Long uid : userIds) {
+      Set<Long> union = new HashSet<>();
+      union.addAll(wwwMap.getOrDefault(uid, Collections.emptyList()));
+      union.addAll(acmMap.getOrDefault(uid, Collections.emptyList()));
+      result.put(uid, union.size());
+    }
+    return result;
+  }
+
+  /**
+   * 统计：给定题目集合，按用户统计时间窗口内 AC 去重数量（[begin,end]，WWW+ACM 并集）。
+   */
+  public Map<Long, Integer> getAcceptCountInProblemSetByUserIdsBetweenDates(
+      List<Long> userIds, List<Long> problemIds, Date beginDate, Date endDate) {
+    Map<Long, Integer> result = new HashMap<>();
+    if (CollectionUtils.isEmpty(userIds) || CollectionUtils.isEmpty(problemIds)) {
+      return result;
+    }
+    Map<Long, List<Long>> wwwMap = codingSubmissionService
+        .getAcceptedProblemIdsByUserIdsAndProblemIdsBetweenDates(userIds, problemIds, beginDate, endDate);
+    Map<Long, List<Long>> acmMap = acmCodingSubmissionService
+        .getAcceptedProblemIdsByUserIdsAndProblemIdsBetweenDates(userIds, problemIds, beginDate, endDate);
+    for (Long uid : userIds) {
+      Set<Long> union = new HashSet<>();
+      union.addAll(wwwMap.getOrDefault(uid, Collections.emptyList()));
+      union.addAll(acmMap.getOrDefault(uid, Collections.emptyList()));
+      result.put(uid, union.size());
+    }
+    return result;
   }
 }

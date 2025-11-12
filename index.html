@@ -439,6 +439,7 @@
                         <button id="team-back-btn" class="contest-tab view-type-tab" data-team-tab="back">← 返回我的团队</button>
                         <button class="contest-tab view-type-tab team-tab active" data-team-tab="dashboard">团队概览</button>
                         <button class="contest-tab view-type-tab team-tab" data-team-tab="leaderboard">看板</button>
+                        <button class="contest-tab view-type-tab team-tab" data-team-tab="activity">活动 <span style="margin-left:6px;filter:drop-shadow(0 0 2px rgba(255,77,79,0.8));">🔥</span></button>
                     </div>
 
                     <!-- Team Dashboard -->
@@ -481,6 +482,19 @@
                                     <button id="teamLeaderboardNext" class="pagination-btn">下一页</button>
                                 </div>
                             </div>
+                        </div>
+                    </div>
+
+                    <!-- Team Activity -->
+                    <div id="team-activity" class="team-view" style="display:none;">
+                        <div class="achv-overview-card" style="margin-top:8px;">
+                            <div class="achv-overview-title">团队活动</div>
+                            <div class="contest-tabs sub-tabs" id="team-activity-subtabs" style="margin-bottom:8px;">
+                                <button class="contest-tab activity-tab active" data-activity="intro">活动说明</button>
+                                <button class="contest-tab activity-tab" data-activity="mine">我的团队</button>
+                                <button class="contest-tab activity-tab" data-activity="rank">卷王团队一览</button>
+                            </div>
+                            <div id="team-activity-content" style="padding:12px 10px;">加载中...</div>
                         </div>
                     </div>
 

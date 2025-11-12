@@ -9,6 +9,82 @@ export class ApiService {
         this.apiBase = apiBase;
     }
 
+    // 团队题单排行榜（一次返回累计/7日/今日）
+    async teamTopicLeaderboard(teamId, topicId, page = 1, limit = 20) {
+        const p = Math.max(1, Number(page) || 1);
+        const tid = Number(topicId) || 383;
+        const url = `${this.apiBase}/problem/tracker/team/leaderboard/topic?teamId=${encodeURIComponent(teamId)}&topicId=${encodeURIComponent(tid)}&page=${encodeURIComponent(p)}&limit=${encodeURIComponent(limit)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            const d = data.data || {};
+            const list = Array.isArray(d.list) ? d.list : (Array.isArray(d) ? d : []);
+            const total = (typeof d.total === 'number') ? d.total : list.length;
+            // 可选的总题数（后端新增字段，兼容不同命名）
+            const problemTotal = (typeof d.problemTotal === 'number')
+                ? d.problemTotal
+                : ((typeof d.totalProblemCount === 'number') ? d.totalProblemCount : 0);
+            return { list, total, problemTotal };
+        }
+        return { list: [], total: 0, problemTotal: 0 };
+    }
+
+    // ===== 团队活动 =====
+    async teamActivityClockTotal(teamId, beginTs = 0, endTs = 0) {
+        const url = `${this.apiBase}/problem/tracker/team/activity/clock-total?teamId=${encodeURIComponent(teamId)}&beginTs=${encodeURIComponent(beginTs)}&endTs=${encodeURIComponent(endTs)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        return {};
+    }
+
+    async teamActivityClockDaysUsers(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/activity/clock-days-users?teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        return {};
+    }
+
+    async teamActivityTopicFinishedUsers(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/activity/topic-finished-users?teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        return {};
+    }
+
+    async teamActivitySkillFinishedUsers(teamId) {
+        const url = `${this.apiBase}/problem/tracker/team/activity/skill-finished-users?teamId=${encodeURIComponent(teamId)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        return {};
+    }
+
+    async teamActivityTeamsLeaderboard(page = 1, limit = 20, beginTs = 0, endTs = 0) {
+        const p = Math.max(1, Number(page) || 1);
+        const url = `${this.apiBase}/problem/tracker/team/activity/teams/leaderboard?page=${encodeURIComponent(p)}&limit=${encodeURIComponent(limit)}&beginTs=${encodeURIComponent(beginTs)}&endTs=${encodeURIComponent(endTs)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            const d = data.data || {};
+            const list = Array.isArray(d.list) ? d.list : (Array.isArray(d) ? d : []);
+            const total = (typeof d.total === 'number') ? d.total : list.length;
+            const problemTotal = (typeof d.problemTotal === 'number')
+                ? d.problemTotal
+                : ((typeof d.totalProblemCount === 'number') ? d.totalProblemCount : 0);
+            return { list, total, problemTotal };
+        }
+        return { list: [], total: 0, problemTotal: 0 };
+    }
+
     /**
      * 获取用户排名数据
      * @param {string} userId - 用户ID
@@ -197,6 +273,49 @@ export class ApiService {
             return { list, total };
         }
         return { list: [], total: 0 };
+    }
+
+    // 团队打卡排行榜（scope: total|7days，分页）
+    async teamClockLeaderboard(teamId, scope = 'total', page = 1, limit = 20) {
+        const p = Math.max(1, Number(page) || 1);
+        const sc = (scope == null ? 'total' : String(scope)).toLowerCase();
+        const url = `${this.apiBase}/problem/tracker/team/leaderboard/clock?teamId=${encodeURIComponent(teamId)}&scope=${encodeURIComponent(sc)}&page=${encodeURIComponent(p)}&limit=${encodeURIComponent(limit)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            const d = data.data || {};
+            const list = Array.isArray(d.list) ? d.list : (Array.isArray(d) ? d : []);
+            const total = (typeof d.total === 'number') ? d.total : list.length;
+            return { list, total };
+        }
+        return { list: [], total: 0 };
+    }
+
+    // 团队技能树排行榜（scope: total|today, stage: all|INTERLUDE_DAWN|CHAPTER1|CHAPTER2...）
+    async teamSkillLeaderboard(teamId, scope = 'total', stage = 'all', page = 1, limit = 20) {
+        const s = (scope == null ? 'total' : String(scope)).toLowerCase();
+        const st = (stage == null ? 'all' : String(stage));
+        const p = Math.max(1, Number(page) || 1);
+        const url = `${this.apiBase}/problem/tracker/team/leaderboard/skill?teamId=${encodeURIComponent(teamId)}&scope=${encodeURIComponent(s)}&stage=${encodeURIComponent(st)}&page=${encodeURIComponent(p)}&limit=${encodeURIComponent(limit)}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            const d = data.data || {};
+            const list = Array.isArray(d.list) ? d.list : (Array.isArray(d) ? d : []);
+            const total = (typeof d.total === 'number') ? d.total : list.length;
+            // 兼容 problemTotal 返回在 data.problemTotal
+            const problemTotal = (typeof d.problemTotal === 'number')
+                ? d.problemTotal
+                : ((typeof d.totalProblemCount === 'number') ? d.totalProblemCount : 0);
+            try {
+                // eslint-disable-next-line no-console
+                console.debug('[ApiService] teamSkillLeaderboard', { stage: st, keys: Object.keys(d || {}), problemTotal, total, len: list.length });
+            } catch (_) {}
+            return { list, total, problemTotal };
+        }
+        return { list: [], total: 0, problemTotal: 0 };
     }
 
     async teamApply(teamId, message = '') {

@@ -174,6 +174,142 @@ public class TrackerTeamController {
     return InstructionUtils.jsonOkData(data);
   }
 
+  // 团队打卡排行榜（今日 / 7日 / 累计）
+  @Get("leaderboard/clock")
+  @LoginRequired
+  public JSONObject leaderboardClock(@Param("teamId") long teamId,
+                                     @Param("scope") @DefValue("total") String scope,
+                                     @Param("page") @DefValue("1") int page,
+                                     @Param("limit") @DefValue("20") int limit) {
+    com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamClockLeaderboard(
+        teamId, scope, Math.max(1, page), Math.min(100, Math.max(1, limit)));
+    return InstructionUtils.jsonOkData(data);
+  }
+
+  // 团队技能树排行榜（今日 / 累计，按章节或全部）
+  @Get("leaderboard/skill")
+  @LoginRequired
+  public JSONObject leaderboardSkill(@Param("teamId") long teamId,
+                                     @Param("scope") @DefValue("total") String scope,
+                                     @Param("stage") @DefValue("all") String stage,
+                                     @Param("page") @DefValue("1") int page,
+                                     @Param("limit") @DefValue("20") int limit) {
+    com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamSkillTreeLeaderboard(
+        teamId, scope, stage, Math.max(1, page), Math.min(100, Math.max(1, limit)));
+    return InstructionUtils.jsonOkData(data);
+  }
+
+  // 团队题单排行榜：一次返回累计/7日/今日（默认新手130）
+  @Get("leaderboard/topic")
+  @LoginRequired
+  public JSONObject leaderboardTopic(@Param("teamId") long teamId,
+                                     @Param("topicId") @DefValue("383") int topicId, // 默认 NEWBIE130_TOPIC_ID
+                                     @Param("page") @DefValue("1") int page,
+                                     @Param("limit") @DefValue("20") int limit) {
+    com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamTopicLeaderboard(
+        teamId, topicId, Math.max(1, page), Math.min(100, Math.max(1, limit)));
+    return InstructionUtils.jsonOkData(data);
+  }
+
+  // ============== 团队活动接口 ==============
+  // 1) 活动期间打卡总人次（默认 11-01 ~ 02-28）
+  @Get("activity/clock-total")
+  @LoginRequired
+  public JSONObject activityClockTotal(@Param("teamId") long teamId,
+                                       @Param("beginTs") @DefValue("0") long beginTs,
+                                       @Param("endTs") @DefValue("0") long endTs) {
+    java.util.Calendar cal = java.util.Calendar.getInstance();
+    java.util.Date begin, end;
+    if (beginTs <= 0 || endTs <= 0) {
+      cal.set(java.util.Calendar.YEAR, 2024);
+      cal.set(java.util.Calendar.MONTH, java.util.Calendar.NOVEMBER);
+      cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
+      cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+      cal.set(java.util.Calendar.MINUTE, 0);
+      cal.set(java.util.Calendar.SECOND, 0);
+      cal.set(java.util.Calendar.MILLISECOND, 0);
+      begin = cal.getTime();
+      cal.set(java.util.Calendar.YEAR, 2025);
+      cal.set(java.util.Calendar.MONTH, java.util.Calendar.FEBRUARY);
+      cal.set(java.util.Calendar.DAY_OF_MONTH, 28);
+      cal.set(java.util.Calendar.HOUR_OF_DAY, 23);
+      cal.set(java.util.Calendar.MINUTE, 59);
+      cal.set(java.util.Calendar.SECOND, 59);
+      cal.set(java.util.Calendar.MILLISECOND, 999);
+      end = cal.getTime();
+    } else {
+      begin = new java.util.Date(beginTs);
+      end = new java.util.Date(endTs);
+    }
+    com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamActivityClockTotal(teamId, begin, end);
+    return InstructionUtils.jsonOkData(data);
+  }
+
+  // 2) 累计打卡达到 30/60/100 天的用户清单
+  @Get("activity/clock-days-users")
+  @LoginRequired
+  public JSONObject activityClockDaysUsers(@Param("teamId") long teamId) {
+    com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamClockDaysReachedUsers(teamId);
+    return InstructionUtils.jsonOkData(data);
+  }
+
+  // 3) 题单（新手130/算法入门/算法进阶/算法登峰）刷完用户清单
+  @Get("activity/topic-finished-users")
+  @LoginRequired
+  public JSONObject activityTopicFinishedUsers(@Param("teamId") long teamId) {
+    com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamTopicFinishedUsers(teamId);
+    return InstructionUtils.jsonOkData(data);
+  }
+
+  // 4) 技能树（第一章/间章/第二章）刷完用户清单
+  @Get("activity/skill-finished-users")
+  @LoginRequired
+  public JSONObject activitySkillFinishedUsers(@Param("teamId") long teamId) {
+    com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamSkillFinishedUsers(teamId);
+    return InstructionUtils.jsonOkData(data);
+  }
+
+  // 5) 活动积分：加分
+  // 已移除（不再需要团队内个人积分榜）
+
+  // 5) 活动积分：排行榜
+  // 已移除（不再需要团队内个人积分榜）
+
+  // 团队活动：团队排行榜（从 Redis 取团队ID后汇总各项指标）
+  @Get("activity/teams/leaderboard")
+  @LoginRequired
+  public JSONObject activityTeamsLeaderboard(@Param("page") @DefValue("1") int page,
+                                             @Param("limit") @DefValue("20") int limit,
+                                             @Param("beginTs") @DefValue("0") long beginTs,
+                                             @Param("endTs") @DefValue("0") long endTs) {
+    java.util.Date begin, end;
+    if (beginTs <= 0 || endTs <= 0) {
+      java.util.Calendar cal = java.util.Calendar.getInstance();
+      cal.set(java.util.Calendar.YEAR, 2024);
+      cal.set(java.util.Calendar.MONTH, java.util.Calendar.NOVEMBER);
+      cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
+      cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+      cal.set(java.util.Calendar.MINUTE, 0);
+      cal.set(java.util.Calendar.SECOND, 0);
+      cal.set(java.util.Calendar.MILLISECOND, 0);
+      begin = cal.getTime();
+      cal.set(java.util.Calendar.YEAR, 2025);
+      cal.set(java.util.Calendar.MONTH, java.util.Calendar.FEBRUARY);
+      cal.set(java.util.Calendar.DAY_OF_MONTH, 28);
+      cal.set(java.util.Calendar.HOUR_OF_DAY, 23);
+      cal.set(java.util.Calendar.MINUTE, 59);
+      cal.set(java.util.Calendar.SECOND, 59);
+      cal.set(java.util.Calendar.MILLISECOND, 999);
+      end = cal.getTime();
+    } else {
+      begin = new java.util.Date(beginTs);
+      end = new java.util.Date(endTs);
+    }
+    com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamActivityTeamsLeaderboard(
+        Math.max(1, page), Math.min(100, Math.max(1, limit)), begin, end);
+    return InstructionUtils.jsonOkData(data);
+  }
+
   // 成员退出团队（队长不可直接退出）
   @Post("quit")
   @LoginRequired

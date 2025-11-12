@@ -15,7 +15,6 @@ export const nodeIdToTagId = {
     'arithmetic-add': 1006,
     'arithmetic-sub': 1007,
     'arithmetic-div-mod': 1009, // Merged from mul(1008) and div(1009)
-    'bit-shift': 1010,
     'arithmetic-mod': 1011, // 注意：这个在SQL中没有，需要确认ID
     'branch-control': 1012,
     'single-loop': 1013,
@@ -31,6 +30,7 @@ export const nodeIdToTagId = {
     'construction': 1023,
     'greedy-sort': 1024,
     // --- Stage 2 mappings (预分配tag_id，导表后可与后端一致) ---
+    'bit-shift': 1010,
     'stack': 1101,
     'queue': 1102,
     'deque': 1103,

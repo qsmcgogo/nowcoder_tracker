@@ -137,7 +137,7 @@ export class TeamView {
             if (subTabs) subTabs.style.display = 'none';
             if (listView) listView.style.display = 'block';
             // 隐藏子视图
-            ['team-dashboard','team-leaderboard'].forEach(id => {
+            ['team-dashboard','team-leaderboard','team-activity'].forEach(id => {
                 const el = document.getElementById(id); if (el) el.style.display = 'none';
             });
             this.fetchAndRenderTeamList();
@@ -153,8 +153,21 @@ export class TeamView {
 
         const map = {
             dashboard: this.elements.teamDashboard,
-            leaderboard: this.elements.teamLeaderboard
+            leaderboard: this.elements.teamLeaderboard,
+            activity: this.elements.teamActivity
         };
+        // 默认重心在“团队概览”页签（而不是“返回我的团队”）
+        if (!this.activeTeamTab || !['dashboard','leaderboard','activity'].includes(this.activeTeamTab)) {
+            this.activeTeamTab = 'dashboard';
+        }
+        // 修正子页签高亮：确保“团队概览”默认高亮，且移除“返回我的团队”的高亮
+        try {
+            const allBtns = document.querySelectorAll('#team-subtabs .contest-tab');
+            allBtns.forEach(b => b.classList.remove('active'));
+            const activeBtn = document.querySelector(`#team-subtabs .contest-tab[data-team-tab="${this.activeTeamTab}"]`);
+            if (activeBtn) activeBtn.classList.add('active');
+        } catch (_) {}
+
         Object.values(map).forEach(el => { if (el) el.style.display = 'none'; });
         if (map[this.activeTeamTab]) map[this.activeTeamTab].style.display = 'block';
 
@@ -164,6 +177,9 @@ export class TeamView {
                 break;
             case 'leaderboard':
                 this.renderLeaderboard();
+                break;
+            case 'activity':
+                this.renderActivity();
                 break;
         }
         this.bindDOMActions();
@@ -265,6 +281,206 @@ export class TeamView {
                     if (result) result.textContent = e.message || '搜索失败';
                 }
             });
+        }
+    }
+
+    async renderActivity() {
+        const box = document.getElementById('team-activity-content');
+        if (!box) return;
+        // 初始化默认子标签
+        if (!this.activitySubTab) this.activitySubTab = 'intro';
+        // 绑定子标签点击
+        const subTabs = document.querySelectorAll('#team-activity-subtabs .activity-tab');
+        subTabs.forEach(btn => {
+            if (btn._bound) return; btn._bound = true;
+            btn.addEventListener('click', () => {
+                subTabs.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                this.activitySubTab = btn.getAttribute('data-activity') || 'intro';
+                this.renderActivityPanel();
+            });
+        });
+        // 首次渲染面板
+        this.renderActivityPanel();
+    }
+
+    async renderActivityPanel() {
+        const box = document.getElementById('team-activity-content');
+        if (!box) return;
+        const tab = this.activitySubTab || 'intro';
+        // 活动说明（静态文案，可后续替换为后台配置）
+        const infoHtml = `
+            <div>
+                组织 <strong>校内</strong> 同学刷题，可领取牛客娘周边奖励。
+            </div>
+            <div><br /></div>
+            <div>
+                活动时间：2025年11月1日-2026年2月28日。
+            </div>
+            <div><br /></div>
+            <div>
+                <strong>负责人奖励：</strong>活动期内，团队“每日一题“累计打卡 ≥ 500 人次，每人次负责人可获得 2 牛币奖励。
+            </div>
+            <div><br /></div>
+            <div>
+                <strong>刷题学生奖励：</strong> 
+                <div>
+                    <p>【每日一题】</p>
+                    <p>每日一题累计打卡 ≥ 30 天的同学，可获得牛客娘贴纸一张。</p>
+                    <p>每日一题累计打卡 ≥ 60 天的同学，可获得牛客娘吧唧一个。</p>
+                    <p>每日一题累计打卡 ≥ 100 天的同学，可获得牛客娘马克杯一个。</p>
+                    <p>*以上奖励可叠加。</p>
+                </div>
+                <div>
+                    <p>【题库题单】</p>
+                    <p>完成新手入门 130、算法入门、算法进阶、算法登峰的同学，每组题单分别可获得牛客娘吧唧一个。</p>
+                </div>
+                <div>
+                    <p>【技能树】</p>
+                    <p>完成技能树第一章、第二章全部题目的同学，每章可获得牛客娘鼠标垫一个。</p>
+                    <div>完成技能树间章全部题目的同学，可获得牛客娘贴纸一张。</div>
+                </div>
+            </div>
+            <div><br /></div>
+            <div>
+                <a href="https://ac.nowcoder.com/discuss/1581941" target="_blank">点击报名</a>
+            </div>
+        `;
+        if (tab === 'intro') {
+            box.innerHTML = infoHtml;
+            return;
+        }
+        if (tab === 'mine') {
+            // 并行拉取活动相关数据
+            try {
+                const [summary, clockTotal, daysUsers, topicUsers, skillUsers] = await Promise.all([
+                    this.api.teamStatsSummary(this.currentTeamId),
+                    this.api.teamActivityClockTotal(this.currentTeamId),
+                    this.api.teamActivityClockDaysUsers(this.currentTeamId),
+                    this.api.teamActivityTopicFinishedUsers(this.currentTeamId),
+                    this.api.teamActivitySkillFinishedUsers(this.currentTeamId)
+                ]);
+                const name = summary?.name || this.teamInfo?.name || '我的团队';
+                const member = Number(summary?.memberCount || this.teamInfo?.memberCount || 0);
+                const totalTimes = Number(clockTotal?.totalTimes || 0);
+                const ge30 = Number(daysUsers?.ge30Count || 0);
+                const ge60 = Number(daysUsers?.ge60Count || 0);
+                const ge100 = Number(daysUsers?.ge100Count || 0);
+                const tp = topicUsers || {};
+                const s = skillUsers || {};
+                const newbie130 = tp.newbie130?.count || 0;
+                const intro = tp.intro?.count || 0;
+                const advanced = tp.advanced?.count || 0;
+                const peak = tp.peak?.count || 0;
+                const ch1 = s.chapter1?.count || 0;
+                const inter = s.interlude?.count || 0;
+                const ch2 = s.chapter2?.count || 0;
+                const tpTotal = tp.newbie130?.problemTotal || 130;
+                const introTotal = tp.intro?.problemTotal || 0;
+                const advancedTotal = tp.advanced?.problemTotal || 0;
+                const peakTotal = tp.peak?.problemTotal || 0;
+                const ch1Total = s.chapter1?.problemTotal || 0;
+                const interTotal = s.interlude?.problemTotal || 0;
+                const ch2Total = s.chapter2?.problemTotal || 0;
+                box.innerHTML = `
+                    <div style="font-weight:700;margin-bottom:6px;">我的团队</div>
+                    <div style="display:flex;flex-wrap:wrap;gap:10px;">
+                        <div class="metric-card" style="min-width:200px;flex:1;border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
+                            <div style="color:#777;font-size:12px;">团队</div>
+                            <div style="font-size:18px;font-weight:700;margin-top:4px;">${name}</div>
+                            <div style="color:#999;font-size:12px;margin-top:2px;">成员数：${member}</div>
+                        </div>
+                        <div class="metric-card" style="min-width:200px;flex:1;border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
+                            <div style="color:#777;font-size:12px;">活动期间打卡总人次</div>
+                            <div style="font-size:20px;font-weight:700;margin-top:4px;">${totalTimes}</div>
+                        </div>
+                        <div class="metric-card" style="min-width:220px;flex:1;border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
+                            <div style="color:#777;font-size:12px;">累计打卡天数达标人数</div>
+                            <div style="margin-top:6px;color:#333;">≥30 天：<b>${ge30}</b> 人</div>
+                            <div style="margin-top:2px;color:#333;">≥60 天：<b>${ge60}</b> 人</div>
+                            <div style="margin-top:2px;color:#333;">≥100 天：<b>${ge100}</b> 人</div>
+                        </div>
+                        <div class="metric-card" style="min-width:240px;flex:1;border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
+                            <div style="color:#777;font-size:12px;">题单制霸人数</div>
+                            <div style="margin-top:6px;color:#333;">新手130（共${tpTotal}题）：<b>${newbie130}</b> 人</div>
+                            <div style="margin-top:2px;color:#333;">算法入门（共${introTotal}题）：<b>${intro}</b> 人</div>
+                            <div style="margin-top:2px;color:#333;">算法进阶（共${advancedTotal}题）：<b>${advanced}</b> 人</div>
+                            <div style="margin-top:2px;color:#333;">算法登峰（共${peakTotal}题）：<b>${peak}</b> 人</div>
+                        </div>
+                        <div class="metric-card" style="min-width:260px;flex:1;border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
+                            <div style="color:#777;font-size:12px;">技能树完成名单</div>
+                            <div style="margin-top:6px;color:#333;">第一章（共${ch1Total}题）：<b>${ch1}</b> 人</div>
+                            <div style="margin-top:2px;color:#333;">间章（共${interTotal}题）：<b>${inter}</b> 人</div>
+                            <div style="margin-top:2px;color:#333;">第二章（共${ch2Total}题）：<b>${ch2}</b> 人</div>
+                        </div>
+                    </div>
+                `;
+            } catch (e) {
+                box.innerHTML = `<div style="color:#888;">加载活动数据失败：${e.message || '请稍后重试'}</div>`;
+            }
+            return;
+        }
+        if (tab === 'rank') {
+            try {
+                const { list = [], total = 0 } = await this.api.teamActivityTeamsLeaderboard(1, 20);
+                box.innerHTML = `
+                    <div style="font-weight:700;margin-bottom:6px;">卷王团队一览</div>
+                    <div style="color:#888;margin-bottom:6px;">这里展示的团队并非全部是参与活动的团队，具体参与活动请以学校为单位，按“活动说明”报名。</div>
+                    <table class="rankings-table">
+                        <thead>
+                            <tr>
+                                <th>团队</th>
+                                <th>成员数</th>
+                                <th>活动打卡总人次</th>
+                                <th>≥30</th>
+                                <th>≥60</th>
+                                <th>≥100</th>
+                                <th>130制霸</th>
+                                <th>入门制霸</th>
+                                <th>进阶制霸</th>
+                                <th>登峰制霸</th>
+                                <th>第一章</th>
+                                <th>间章</th>
+                                <th>第二章</th>
+                            </tr>
+                        </thead>
+                        <tbody id="team-activity-rank-tbody">${Array.isArray(list) && list.length ? list.map(r => {
+                            const team = r.teamName || r.teamId || '-';
+                            const members = r.memberCount != null ? r.memberCount : '-';
+                            const clock = r.clockTotalTimes != null ? r.clockTotalTimes : '-';
+                            const newbie = (r.topicFinished && typeof r.topicFinished.newbie130?.count === 'number') ? r.topicFinished.newbie130.count : '-';
+                            const intro = (r.topicFinished && typeof r.topicFinished.intro?.count === 'number') ? r.topicFinished.intro.count : '-';
+                            const advanced = (r.topicFinished && typeof r.topicFinished.advanced?.count === 'number') ? r.topicFinished.advanced.count : '-';
+                            const peak = (r.topicFinished && typeof r.topicFinished.peak?.count === 'number') ? r.topicFinished.peak.count : '-';
+                            const ge30 = r.ge30Count != null ? r.ge30Count : '-';
+                            const ge60 = r.ge60Count != null ? r.ge60Count : '-';
+                            const ge100 = r.ge100Count != null ? r.ge100Count : '-';
+                            const ch1 = (r.skillFinished && typeof r.skillFinished.chapter1?.count === 'number') ? r.skillFinished.chapter1.count : '-';
+                            const inter = (r.skillFinished && typeof r.skillFinished.interlude?.count === 'number') ? r.skillFinished.interlude.count : '-';
+                            const ch2 = (r.skillFinished && typeof r.skillFinished.chapter2?.count === 'number') ? r.skillFinished.chapter2.count : '-';
+                            return `<tr>
+                                <td>${team}</td>
+                                <td>${members}</td>
+                                <td>${clock}</td>
+                                <td>${ge30}</td>
+                                <td>${ge60}</td>
+                                <td>${ge100}</td>
+                                <td>${newbie}</td>
+                                <td>${intro}</td>
+                                <td>${advanced}</td>
+                                <td>${peak}</td>
+                                <td>${ch1}</td>
+                                <td>${inter}</td>
+                                <td>${ch2}</td>
+                            </tr>`;
+                        }).join('') : `<tr><td colspan="13">暂无数据</td></tr>`}</tbody>
+                    </table>
+                    <div style="margin-top:6px;color:#999;">共 ${total} 支团队</div>
+                `;
+            } catch (e) {
+                box.innerHTML = `<div style="color:#888;">加载榜单失败：${e.message || '请稍后重试'}</div>`;
+            }
+            return;
         }
     }
 
@@ -1254,19 +1470,124 @@ export class TeamView {
     async renderLeaderboard() {
         const tb = document.getElementById('team-rankings-tbody');
         if (!tb) return;
-        // 绑定子页签
-        const tabs = document.querySelectorAll('#team-leaderboard .team-rank-tab');
+        // 顶层三类：过题 / 打卡 / 技能树
+        const panel = document.getElementById('team-leaderboard');
+        if (panel) {
+            const card = panel.querySelector('.achv-overview-card');
+            const titleEl = card ? card.querySelector('.achv-overview-title') : null;
+            let catBar = panel.querySelector('#team-rank-categories');
+            if (!this.teamLeaderboardCategory) this.teamLeaderboardCategory = 'solve';
+            if (!catBar && card) {
+                catBar = document.createElement('div');
+                catBar.id = 'team-rank-categories';
+                catBar.setAttribute('style', 'display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0 6px;');
+                // 三个大类（胶囊+渐变+微阴影）
+                catBar.innerHTML = `
+                    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+                        <button class="team-rank-category" data-cat="solve" style="padding:8px 14px;border-radius:999px;border:1px solid #d6e4ff;background:linear-gradient(135deg,#e6f7ff,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;">过题</button>
+                        <button class="team-rank-category" data-cat="clock" style="padding:8px 14px;border-radius:999px;border:1px solid #b7eb8f;background:linear-gradient(135deg,#f6ffed,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;">打卡</button>
+                        <button class="team-rank-category" data-cat="skill" style="padding:8px 14px;border-radius:999px;border:1px solid #ffd591;background:linear-gradient(135deg,#fff7e6,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;">技能树</button>
+                        <button class="team-rank-category" data-cat="topic" style="padding:8px 14px;border-radius:999px;border:1px solid #ffe58f;background:linear-gradient(135deg,#fffbe6,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;">题单</button>
+                    </div>
+                `;
+                // 插在标题下方
+                if (titleEl && titleEl.nextSibling) {
+                    titleEl.parentNode.insertBefore(catBar, titleEl.nextSibling);
+                } else {
+                    card.insertBefore(catBar, card.firstChild);
+                }
+            }
+            // 更新分类激活态
+            panel.querySelectorAll('#team-rank-categories .team-rank-category').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.getAttribute('data-cat') === this.teamLeaderboardCategory) {
+                    btn.classList.add('active');
+                    btn.style.outline = '0';
+                    btn.style.filter = 'drop-shadow(0 2px 4px rgba(0,0,0,.06))';
+                } else {
+                    btn.style.filter = '';
+                }
+                if (!btn._catBound) {
+                    btn._catBound = true;
+                    btn.addEventListener('click', () => {
+                        const cat = btn.getAttribute('data-cat') || 'solve';
+                        this.teamLeaderboardCategory = cat;
+                        // 切类时设置默认子指标
+                        if (cat === 'solve' && !/^solve_/.test(this.teamLeaderboardMetric || '')) this.teamLeaderboardMetric = 'solve_total';
+                        if (cat === 'clock' && !/^clock_/.test(this.teamLeaderboardMetric || '')) this.teamLeaderboardMetric = 'clock_total';
+                        if (cat === 'skill' && !/^skill_/.test(this.teamLeaderboardMetric || '')) this.teamLeaderboardMetric = 'skill_total_all';
+                        if (cat === 'topic' && !/^topic_/.test(this.teamLeaderboardMetric || '')) this.teamLeaderboardMetric = 'topic_383';
+                        // 重绘子页签并加载
+                        this.renderLeaderboard();
+                    });
+                }
+            });
+            // 子页签容器
+            const subTabsBox = panel.querySelector('.achv-overview-card .sub-tabs');
+            if (subTabsBox) {
+                subTabsBox.style.display = 'block';
+                subTabsBox.style.padding = '8px 10px';
+                subTabsBox.style.borderRadius = '8px';
+                subTabsBox.style.background = 'linear-gradient(135deg,#f8fbff,#fffaf6)';
+                subTabsBox.style.border = '1px solid #f0f0f0';
+                // 根据分类渲染子标签
+                let subHTML = '';
+                if (this.teamLeaderboardCategory === 'solve') {
+                    subHTML = `
+                        <button class="contest-tab team-rank-tab" data-metric="solve_total">累计过题</button>
+                        <button class="contest-tab team-rank-tab" data-metric="solve_7days">7日刷题</button>
+                        <button class="contest-tab team-rank-tab" data-metric="solve_today">今日刷题</button>
+                    `;
+                } else if (this.teamLeaderboardCategory === 'clock') {
+                    subHTML = `
+                        <button class="contest-tab team-rank-tab" data-metric="clock_total">累计打卡</button>
+                        <button class="contest-tab team-rank-tab" data-metric="clock_7days">7日打卡</button>
+                    `;
+                } else if (this.teamLeaderboardCategory === 'skill') {
+                    // 技能树（顺序：所有章节、晨曦微光、拂晓、懵懂新芽）
+                    subHTML = `
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_all">所有章节</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter1">晨曦微光</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_interlude">拂晓</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter2">懵懂新芽</button>
+                    `;
+                } else {
+                    // 题单（新手130、算法入门、算法进阶、算法登峰）
+                    subHTML = `
+                        <button class="contest-tab team-rank-tab" data-metric="topic_383">新手130</button>
+                        <button class="contest-tab team-rank-tab" data-metric="topic_385">算法入门</button>
+                        <button class="contest-tab team-rank-tab" data-metric="topic_386">算法进阶</button>
+                        <button class="contest-tab team-rank-tab" data-metric="topic_388">算法登峰</button>
+                    `;
+                }
+                subTabsBox.innerHTML = subHTML;
+            }
+        }
+        // 绑定子页签（每次 render 重绘后需重绑）
+        const tabs = document.querySelectorAll('#team-leaderboard .sub-tabs .team-rank-tab');
         tabs.forEach(btn => {
             if (btn._bound) return; btn._bound = true;
             btn.addEventListener('click', () => {
-                tabs.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
                 const metric = btn.getAttribute('data-metric') || 'solve_total';
                 this.teamLeaderboardMetric = metric;
                 this.teamLeaderboardPage = 1; // 切换指标重置页码
+                // 立即高亮当前项
+                tabs.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
                 this.loadLeaderboard(metric);
             });
         });
+        // 高亮当前子页签
+        const defaultMetric = (this.teamLeaderboardCategory === 'clock') ? 'clock_total'
+            : (this.teamLeaderboardCategory === 'skill') ? 'skill_total_all'
+            : (this.teamLeaderboardCategory === 'topic') ? 'topic_383'
+            : 'solve_total';
+        if (!this.teamLeaderboardMetric) this.teamLeaderboardMetric = defaultMetric;
+        const current = Array.from(tabs).find(b => (b.getAttribute('data-metric') || '') === (this.teamLeaderboardMetric || defaultMetric));
+        tabs.forEach(b => b.classList.remove('active'));
+        if (current) current.classList.add('active');
+        // 切换类别后，默认加载当前（如题单默认“新手130”）
+        this.loadLeaderboard(this.teamLeaderboardMetric);
 
         // 绑定分页按钮
         const prevBtn = document.getElementById('teamLeaderboardPrev');
@@ -1354,9 +1675,119 @@ export class TeamView {
     async loadLeaderboard(metric) {
         const tb = document.getElementById('team-rankings-tbody');
         if (!tb) return;
-        tb.innerHTML = `<tr><td colspan="3">加载中...</td></tr>`;
-        // metric 支持：solve_total | solve_7days | solve_today
+        tb.innerHTML = `<tr><td colspan="5">加载中...</td></tr>`;
+        // metric 支持：solve_total | solve_7days | solve_today | clock_total | clock_7days | skill_total_{all|interlude|chapter1|chapter2} | topic_{id}
         try {
+            const isClock = String(metric || '').startsWith('clock_');
+            const isSkill = String(metric || '').startsWith('skill_');
+            const isTopic = String(metric || '').startsWith('topic_');
+            // 更新表头显示
+            const thead = document.querySelector('#team-leaderboard table thead');
+            if (thead) {
+                if (isTopic) {
+                    thead.innerHTML = `<tr><th class="rank-header">排名</th><th class="user-header">成员</th><th class="ac-header">累计</th><th>7日</th><th>今日</th></tr>`;
+                } else {
+                    thead.innerHTML = `<tr><th class="rank-header">排名</th><th class="user-header">成员</th><th class="ac-header">${isClock ? '打卡数' : '过题数'}</th></tr>`;
+                }
+            }
+            let rows = [];
+            if (isClock) {
+                const clockScope = (metric === 'clock_7days') ? '7days' : 'total';
+                const res = await this.api.teamClockLeaderboard(this.currentTeamId, clockScope, this.teamLeaderboardPage, this.teamLeaderboardLimit);
+                rows = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
+                this.teamLeaderboardTotal = (res && typeof res.total === 'number') ? res.total : 0;
+                if (rows.length > 0) {
+                    tb.innerHTML = rows.map(r => {
+                        const rank = r.rank || '-';
+                        const name = r.name || `用户${r.userId}`;
+                        const avatar = r.headUrl || '';
+                        const count = r.count != null ? r.count : '-';
+                        const cont = r.continueDays != null ? r.continueDays : 0;
+                        const check = r && r.checkedToday ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#52c41a;color:#fff;font-size:11px;line-height:14px;margin-left:6px;">✓</span>` : '';
+                        const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
+                            <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
+                            <span>${name}</span>${check}
+                        </div>`;
+                        const contBadge = `<span style="display:inline-block;padding:2px 6px;border-radius:10px;border:1px solid #d9f7be;background:#f6ffed;color:#237804;font-size:12px;">连打 ${cont} 天</span>`;
+                        return `<tr><td>${rank}</td><td>${nameCell}</td><td>${count} ${cont > 0 ? contBadge : ''}</td></tr>`;
+                    }).join('');
+                } else {
+                    tb.innerHTML = `<tr><td colspan="3">暂无数据</td></tr>`;
+                }
+            } else if (isSkill) {
+                // 解析章节
+                let stage = 'all';
+                if (metric === 'skill_total_interlude') stage = 'interlude';
+                else if (metric === 'skill_total_chapter1') stage = 'CHAPTER1';
+                else if (metric === 'skill_total_chapter2') stage = 'CHAPTER2';
+                const res = await this.api.teamSkillLeaderboard(this.currentTeamId, 'total', stage, this.teamLeaderboardPage, this.teamLeaderboardLimit);
+                rows = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
+                this.teamLeaderboardTotal = (res && typeof res.total === 'number') ? res.total : 0;
+                // 取 ApiService 透传的 problemTotal
+                let problemTotal = Number((res && res.problemTotal) || 0);
+                try {
+                    const rawPT = problemTotal || undefined;
+                    const sample = (Array.isArray(rows) ? rows.slice(0, 3) : []).map(r => ({ uid: r.userId, ac: r.acceptCount }));
+                    // 调试日志：技能树榜单 problemTotal 与示例行
+                    // eslint-disable-next-line no-console
+                    console.debug('[TeamView] skill leaderboard', { stage, problemTotalRaw: rawPT, problemTotal, resKeys: Object.keys(res || {}), sample });
+                } catch (_) {}
+                // 若ApiService未传，兜底从“活动-技能树完成名单”接口读取章节总题数
+                if (!problemTotal || Number.isNaN(problemTotal)) {
+                    try {
+                        const skillMeta = await this.api.teamActivitySkillFinishedUsers(this.currentTeamId);
+                        const mapKey = (stage === 'interlude' ? 'interlude' : (stage === 'CHAPTER1' ? 'chapter1' : (stage === 'CHAPTER2' ? 'chapter2' : '')));
+                        if (mapKey && skillMeta && skillMeta[mapKey] && typeof skillMeta[mapKey].problemTotal === 'number') {
+                            problemTotal = Number(skillMeta[mapKey].problemTotal);
+                            // eslint-disable-next-line no-console
+                            console.debug('[TeamView] skill leaderboard fallback problemTotal', { stage, mapKey, problemTotal });
+                        }
+                    } catch (_) {}
+                }
+                if (rows.length > 0) {
+                    tb.innerHTML = rows.map(r => {
+                        const rank = r.rank || '-';
+                        const name = r.name || `用户${r.userId}`;
+                        const avatar = r.headUrl || '';
+                        const acRaw = (r.acceptCount != null ? r.acceptCount : '-');
+                        const ac = (problemTotal > 0 && acRaw !== '-' ? `${Number(acRaw)}/${problemTotal}` : acRaw);
+                        const check = r && r.checkedToday ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#52c41a;color:#fff;font-size:11px;line-height:14px;margin-left:6px;">✓</span>` : '';
+                        const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
+                            <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
+                            <span>${name}</span>${check}
+                        </div>`;
+                        return `<tr><td>${rank}</td><td>${nameCell}</td><td>${ac}</td></tr>`;
+                    }).join('');
+                } else {
+                    tb.innerHTML = `<tr><td colspan="3">暂无数据</td></tr>`;
+                }
+            } else if (isTopic) {
+                // 题单映射
+                const topicId = Number((metric.split('_')[1]) || 383) || 383;
+                const res = await this.api.teamTopicLeaderboard(this.currentTeamId, topicId, this.teamLeaderboardPage, this.teamLeaderboardLimit);
+                rows = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
+                this.teamLeaderboardTotal = (res && typeof res.total === 'number') ? res.total : 0;
+                const problemTotal = (typeof res.problemTotal === 'number') ? res.problemTotal
+                    : ((typeof res.totalProblemCount === 'number') ? res.totalProblemCount : 0);
+                if (rows.length > 0) {
+                    tb.innerHTML = rows.map(r => {
+                        const rank = r.rank || '-';
+                        const name = r.name || `用户${r.userId}`;
+                        const avatar = r.headUrl || '';
+                        const total = r.totalAccept != null ? r.totalAccept : '-';
+                        const seven = r.sevenDaysAccept != null ? r.sevenDaysAccept : (r.sevenDays != null ? r.sevenDays : '-');
+                        const today = r.todayAccept != null ? r.todayAccept : '-';
+                        const totalCell = (problemTotal && typeof total === 'number') ? `${total}/${problemTotal}` : total;
+                        const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
+                            <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
+                            <span>${name}</span>
+                        </div>`;
+                        return `<tr><td>${rank}</td><td>${nameCell}</td><td>${totalCell}</td><td>${seven}</td><td>${today}</td></tr>`;
+                    }).join('');
+                } else {
+                    tb.innerHTML = `<tr><td colspan="5">暂无数据</td></tr>`;
+                }
+            } else {
             const type = (() => {
                 switch (metric) {
                     case 'solve_today': return 'today';
@@ -1368,23 +1799,24 @@ export class TeamView {
                 }
             })();
             const result = await this.api.teamLeaderboard(this.currentTeamId, this.teamLeaderboardLimit, type, this.teamLeaderboardPage);
-            const rows = (result && Array.isArray(result.list)) ? result.list : (Array.isArray(result) ? result : []);
+                rows = (result && Array.isArray(result.list)) ? result.list : (Array.isArray(result) ? result : []);
             this.teamLeaderboardTotal = (result && typeof result.total === 'number') ? result.total : 0; // 0 表示未知总数（旧接口）
-
             if (Array.isArray(rows) && rows.length > 0) {
                 tb.innerHTML = rows.map(r => {
                     const rank = r.rank || '-';
                     const name = r.name || `用户${r.userId}`;
                     const ac = r.acceptCount != null ? r.acceptCount : '-';
                     const avatar = r.headUrl || '';
+                        const check = r && r.checkedToday ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#52c41a;color:#fff;font-size:11px;line-height:14px;margin-left:6px;">✓</span>` : '';
                     const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
                         <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                        <span>${name}</span>
+                            <span>${name}</span>${check}
                     </div>`;
                     return `<tr><td>${rank}</td><td>${nameCell}</td><td>${ac}</td></tr>`;
                 }).join('');
             } else {
                 tb.innerHTML = `<tr><td colspan="3">暂无数据</td></tr>`;
+                }
             }
 
             // 刷新分页信息
@@ -1587,7 +2019,7 @@ export class TeamView {
                         <td style="padding:8px 6px;">
                             <div style="display:flex;align-items:center;gap:8px;">
                                 <img src="${avatar}" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                                <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="color:#333;text-decoration:none;">${name}</a>
+                                <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="color:#333;text-decoration:none;">${name}</a>${(m && m.checkedToday) ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#52c41a;color:#fff;font-size:12px;line-height:16px;margin-left:6px;">✓</span>` : ``}
                                 ${crown}
                                 ${actionBtnHtml}
                             </div>

@@ -51,6 +51,7 @@ import com.wenyibi.futuremail.util.DateUtil;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import com.wenyibi.futuremail.cache.JedisAdapter;
+import com.wenyibi.futuremail.util.RedisKeyUtil;
 
 @Component
 public class TrackerTeamBiz {
@@ -75,6 +76,10 @@ public class TrackerTeamBiz {
   private ACMCodingSubmissionService acmCodingSubmissionService;
   @Autowired
   private SpamFilterJudgeService spamFilterJudgeService;
+  @Autowired
+  private TrackerBadgeBiz trackerBadgeBiz;
+  @Autowired
+  private com.wenyibi.futuremail.service.question.TrackerClockRecordSerice trackerClockRecordSerice;
   // https://stackoverflow.com/questions/6198986/how-can-i-replace-non-printable-unicode-characters-in-java
   // 单引号、双引号、反斜杠（转义）和非可见unicode字符
   private static final String NAME_EMPTY_REGEX = "['\"\\\\\\p{Cc}\\p{Cf}\\p{Co}\\p{Cn}]";
@@ -302,6 +307,11 @@ public class TrackerTeamBiz {
     Map<Long, User> userMap = userService.getUserMapsByIds(uids);
     Map<Long, Pair<Integer, Integer>> metrics = questionTrackerBiz.getTrackerMetricsCached(uids);
 
+    // 批量查询今天是否打卡（仅本页）
+    List<Long> pageUids = pageMembers.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    List<Long> checkedIds = trackerClockRecordSerice.listTodayCheckedUserIds(pageUids);
+    java.util.Set<Long> checkedSet = new java.util.HashSet<>(checkedIds);
+
     JSONArray arr = new JSONArray();
     for (ACMTeamMember m : pageMembers) {
       User u = userMap.get(m.getUid());
@@ -318,6 +328,7 @@ public class TrackerTeamBiz {
       int totalAll = p == null ? 0 : p.getRight();
       one.put("acceptCount", totalAc);
       one.put("submissionCount", totalAll);
+      one.put("checkedToday", checkedSet.contains(m.getUid()));
       arr.add(one);
     }
     return arr;
@@ -730,7 +741,21 @@ public class TrackerTeamBiz {
 
   // ============== 看板与榜单 ==============
   public JSONObject getTeamStatsSummary(long teamId) {
-    return teamSummaryCache.getUnchecked(teamId);
+    // 缓存内容
+    JSONObject summary = teamSummaryCache.getUnchecked(teamId);
+    if (summary == null) {
+      summary = new JSONObject();
+    }
+    // 追加“团队今日打卡人数”（不缓存）
+    try {
+      List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+      List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+      int todayClock = trackerClockRecordSerice.countTodayClockByUserIds(uids);
+      summary.put("todayClockCount", todayClock);
+    } catch (Exception ignore) {
+      // 忽略单字段异常
+    }
+    return summary;
   }
 
   /** 实际统计计算，供缓存loader使用 */
@@ -1004,6 +1029,423 @@ public class TrackerTeamBiz {
     res.put("list", list);
     return res;
   }
+
+  /**
+   * 团队打卡排行榜（分页）
+   * scope: total | today | 7days
+   */
+  public JSONObject getTeamClockLeaderboard(long teamId, String scope, int page, int limit) {
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    Map<Long, User> userMap = userService.getUserMapsByIds(uids);
+
+    List<JSONObject> rows = new ArrayList<>();
+    String s = scope == null ? "total" : scope.toLowerCase();
+    if ("7days".equals(s)) {
+      // 近7日打卡天数
+      java.util.Map<Long, Integer> map = trackerClockRecordSerice.countSevenDaysClockByUserIds(uids);
+      for (Long uid : uids) {
+        int cnt = map.getOrDefault(uid, 0);
+        Double cont  = JedisAdapter.zScore(RedisKeyUtil.getTrackerClockContinusboard(), String.valueOf(uid));
+        JSONObject r = new JSONObject();
+        r.put("userId", uid);
+        r.put("count", cnt);
+        r.put("continueDays", cont == null ? 0 : cont.intValue());
+        User u = userMap.get(uid);
+        if (u != null) {
+          r.put("name", u.getDisplayname());
+          r.put("headUrl", u.getTinnyHeaderUrl());
+        }
+        rows.add(r);
+      }
+      rows.sort((a, b) -> Integer.compare(b.getIntValue("count"), a.getIntValue("count")));
+    } else if ("today".equals(s)) {
+      // 今日：count=是否打卡(0/1)
+      List<Long> checkedIds = trackerClockRecordSerice.listTodayCheckedUserIds(uids);
+      java.util.Set<Long> checkedSet = new java.util.HashSet<>(checkedIds);
+      for (Long uid : uids) {
+        int cnt = checkedSet.contains(uid) ? 1 : 0;
+        Double cont  = JedisAdapter.zScore(RedisKeyUtil.getTrackerClockContinusboard(), String.valueOf(uid));
+        JSONObject r = new JSONObject();
+        r.put("userId", uid);
+        r.put("count", cnt);
+        r.put("continueDays", cont == null ? 0 : cont.intValue());
+        User u = userMap.get(uid);
+        if (u != null) {
+          r.put("name", u.getDisplayname());
+          r.put("headUrl", u.getTinnyHeaderUrl());
+        }
+        rows.add(r);
+      }
+      rows.sort((a, b) -> Integer.compare(b.getIntValue("count"), a.getIntValue("count")));
+    } else {
+      // 累计：一次性从 DB 统计累计打卡天数，减少 Redis 循环调用
+      java.util.Map<Long, Integer> totalMap = trackerClockRecordSerice.countAllClockDaysByUserIds(uids);
+      for (Long uid : uids) {
+        int totalDays = totalMap.getOrDefault(uid, 0);
+        Double cont  = JedisAdapter.zScore(RedisKeyUtil.getTrackerClockContinusboard(), String.valueOf(uid));
+        JSONObject r = new JSONObject();
+        r.put("userId", uid);
+        r.put("count", totalDays);
+        r.put("continueDays", cont == null ? 0 : cont.intValue());
+        User u = userMap.get(uid);
+        if (u != null) {
+          r.put("name", u.getDisplayname());
+          r.put("headUrl", u.getTinnyHeaderUrl());
+        }
+        rows.add(r);
+      }
+      rows.sort((a, b) -> Integer.compare(b.getIntValue("count"), a.getIntValue("count")));
+    }
+
+    int total = rows.size();
+    int safeLimit = Math.max(1, Math.min(100, limit));
+    int safePage = Math.max(1, page);
+    int start = (safePage - 1) * safeLimit;
+    JSONArray list = new JSONArray();
+    if (start < total) {
+      int end = Math.min(total, start + safeLimit);
+      // 仅对当前页成员批量判断今日是否打卡（checkedToday）
+      List<Long> pageUids = new ArrayList<>();
+      for (int i = start; i < end; i++) {
+        pageUids.add(rows.get(i).getLong("userId"));
+      }
+      List<Long> checkedIds = trackerClockRecordSerice.listTodayCheckedUserIds(pageUids);
+      java.util.Set<Long> checkedSet = new java.util.HashSet<>(checkedIds);
+      for (int i = start; i < end; i++) {
+        JSONObject r = rows.get(i);
+        r.put("rank", i + 1);
+        r.put("checkedToday", checkedSet.contains(r.getLong("userId")));
+        list.add(r);
+      }
+    }
+    JSONObject res = new JSONObject();
+    res.put("total", total);
+    res.put("list", list);
+    return res;
+  }
+
+  /** 兼容旧调用：默认 total */
+  public JSONObject getTeamClockLeaderboard(long teamId, int page, int limit) {
+    return getTeamClockLeaderboard(teamId, "total", page, limit);
+  }
+
+  /**
+   * 团队技能树排行榜（分页）
+   * scope: total | today
+   * stage: 枚举 key（INTERLUDE_DAWN|CHAPTER1|CHAPTER2）或 "all"
+   */
+  public JSONObject getTeamSkillTreeLeaderboard(long teamId, String scope, String stageKey, int page, int limit) {
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    Map<Long, User> userMap = userService.getUserMapsByIds(uids);
+
+    List<Long> problemIds;
+    if (org.apache.commons.lang3.StringUtils.isBlank(stageKey) || "all".equalsIgnoreCase(stageKey)) {
+      problemIds = new ArrayList<>(questionTrackerBiz.getAllProblemIds());
+    } else {
+      com.wenyibi.futuremail.model.tracker.TrackerStageEnum stage =
+          com.wenyibi.futuremail.model.tracker.TrackerStageEnum.fromKey(stageKey);
+      problemIds = new ArrayList<>(questionTrackerBiz.getSkillTreeProblemIdsByChapter(stage));
+    }
+
+    Map<Long, Integer> acceptCountMap;
+    String s = scope == null ? "total" : scope.toLowerCase();
+    if ("today".equals(s)) {
+      Date now = new Date();
+      Date todayBegin = com.wenyibi.futuremail.util.NcDateUtils.getDayBeginDate(now);
+      acceptCountMap = questionTrackerBiz.getAcceptCountInProblemSetByUserIdsBetweenDates(uids, problemIds, todayBegin, now);
+    } else {
+      acceptCountMap = questionTrackerBiz.getAcceptCountInProblemSetByUserIds(uids, problemIds);
+    }
+
+    List<JSONObject> rows = new ArrayList<>();
+    for (Long uid : uids) {
+      int ac = acceptCountMap.getOrDefault(uid, 0);
+      JSONObject row = new JSONObject();
+      row.put("userId", uid);
+      row.put("acceptCount", ac);
+      User u = userMap.get(uid);
+      if (u != null) {
+        row.put("name", u.getDisplayname());
+        row.put("headUrl", u.getTinnyHeaderUrl());
+      }
+      rows.add(row);
+    }
+    rows.sort((a, b) -> Integer.compare(b.getIntValue("acceptCount"), a.getIntValue("acceptCount")));
+
+    int total = rows.size();
+    int safeLimit = Math.max(1, Math.min(100, limit));
+    int safePage = Math.max(1, page);
+    int start = (safePage - 1) * safeLimit;
+    JSONArray list = new JSONArray();
+    if (start < total) {
+      int end = Math.min(total, start + safeLimit);
+      for (int i = start; i < end; i++) {
+        JSONObject r = rows.get(i);
+        r.put("rank", i + 1);
+        list.add(r);
+      }
+    }
+    JSONObject res = new JSONObject();
+    res.put("total", total);
+    // 返回当前题单的题目总数
+    res.put("problemTotal", problemIds == null ? 0 : problemIds.size());
+    res.put("list", list);
+    return res;
+  }
+
+  /**
+   * 团队题单排行榜（默认用于“新手130”）
+   * 一次性返回该页用户的：累计(totalAccept)、7日(sevenDaysAccept)、今日(todayAccept)
+   * 排序依据：累计 totalAccept
+   * topicId: 默认使用 TrackerBadgeBiz.NEWBIE130_TOPIC_ID
+   */
+  public JSONObject getTeamTopicLeaderboard(long teamId, int topicId, int page, int limit) {
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    Map<Long, User> userMap = userService.getUserMapsByIds(uids);
+
+    // 通过成就模块缓存获取题单的 problemIds
+    List<Long> problemIds = trackerBadgeBiz.getProblemIdsByTopic(topicId);
+
+    // 1) 全量计算累计，用于排序分页
+    Map<Long, Integer> totalMap = questionTrackerBiz.getAcceptCountInProblemSetByUserIds(uids, problemIds);
+
+    List<JSONObject> rows = new ArrayList<>();
+    for (Long uid : uids) {
+      int ac = totalMap.getOrDefault(uid, 0);
+      JSONObject row = new JSONObject();
+      row.put("userId", uid);
+      row.put("totalAccept", ac);
+      User u = userMap.get(uid);
+      if (u != null) {
+        row.put("name", u.getDisplayname());
+        row.put("headUrl", u.getTinnyHeaderUrl());
+      }
+      rows.add(row);
+    }
+    rows.sort((a, b) -> Integer.compare(b.getIntValue("totalAccept"), a.getIntValue("totalAccept")));
+
+    int total = rows.size();
+    int safeLimit = Math.max(1, Math.min(100, limit));
+    int safePage = Math.max(1, page);
+    int start = (safePage - 1) * safeLimit;
+    JSONArray list = new JSONArray();
+    if (start < total) {
+      int end = Math.min(total, start + safeLimit);
+      // 2) 仅对当前页用户计算 今日/7日
+      List<Long> pageUids = new ArrayList<>();
+      for (int i = start; i < end; i++) {
+        pageUids.add(rows.get(i).getLong("userId"));
+      }
+      Date now = new Date();
+      Date todayBegin = com.wenyibi.futuremail.util.NcDateUtils.getDayBeginDate(now);
+      Date sevenDaysBegin = com.wenyibi.futuremail.util.DateUtil.getDateAfter(todayBegin, -6);
+      Map<Long, Integer> todayMap = questionTrackerBiz.getAcceptCountInProblemSetByUserIdsBetweenDates(pageUids, problemIds, todayBegin, now);
+      Map<Long, Integer> sevenDaysMap = questionTrackerBiz.getAcceptCountInProblemSetByUserIdsBetweenDates(pageUids, problemIds, sevenDaysBegin, now);
+      for (int i = start; i < end; i++) {
+        JSONObject r = rows.get(i);
+        r.put("rank", i + 1);
+        long uid = r.getLongValue("userId");
+        r.put("todayAccept", todayMap.getOrDefault(uid, 0));
+        r.put("sevenDaysAccept", sevenDaysMap.getOrDefault(uid, 0));
+        list.add(r);
+      }
+    }
+    JSONObject res = new JSONObject();
+    res.put("total", total);
+    // 返回该题单的题目总数（仅本方法有 problemIds）
+    res.put("problemTotal", problemIds == null ? 0 : problemIds.size());
+    res.put("list", list);
+    return res;
+  }
+
+  // ================== 团队活动：统计与榜单 ==================
+
+  /**
+   * 团队活动期间打卡总人次（不去重）
+   */
+  public JSONObject getTeamActivityClockTotal(long teamId, Date beginDate, Date endDate) {
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    int totalTimes = trackerClockRecordSerice.countClockTimesByUserIdsBetweenDates(beginDate, endDate, uids);
+    JSONObject res = new JSONObject();
+    res.put("teamId", teamId);
+    res.put("begin", beginDate);
+    res.put("end", endDate);
+    res.put("totalTimes", totalTimes);
+    return res;
+  }
+
+  /**
+   * 累计打卡天数达到阈值的用户列表（30/60/100）
+   */
+  public JSONObject getTeamClockDaysReachedUsers(long teamId) {
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    Map<Long, Integer> daysMap = trackerClockRecordSerice.countAllClockDaysByUserIds(uids);
+    java.util.List<Long> ge30 = new java.util.ArrayList<>();
+    java.util.List<Long> ge60 = new java.util.ArrayList<>();
+    java.util.List<Long> ge100 = new java.util.ArrayList<>();
+    for (Map.Entry<Long, Integer> e : daysMap.entrySet()) {
+      int d = e.getValue() == null ? 0 : e.getValue();
+      if (d >= 30) ge30.add(e.getKey());
+      if (d >= 60) ge60.add(e.getKey());
+      if (d >= 100) ge100.add(e.getKey());
+    }
+    JSONObject res = new JSONObject();
+    res.put("ge30UserIds", ge30);
+    res.put("ge30Count", ge30.size());
+    res.put("ge60UserIds", ge60);
+    res.put("ge60Count", ge60.size());
+    res.put("ge100UserIds", ge100);
+    res.put("ge100Count", ge100.size());
+    return res;
+  }
+
+  /**
+   * 题单刷完的同学名单（四类题单）
+   */
+  public JSONObject getTeamTopicFinishedUsers(long teamId) {
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    int[] topics = new int[] {
+        TrackerBadgeBiz.NEWBIE130_TOPIC_ID,
+        TrackerBadgeBiz.ALGORITHM_INTRO_TOPIC_ID,
+        TrackerBadgeBiz.ALGORITHM_ADVANCED_TOPIC_ID,
+        TrackerBadgeBiz.ALGORITHM_PEAK_TOPIC_ID
+    };
+    String[] keys = new String[] { "newbie130", "intro", "advanced", "peak" };
+    JSONObject res = new JSONObject();
+    for (int i = 0; i < topics.length; i++) {
+      List<Long> problemIds = trackerBadgeBiz.getProblemIdsByTopic(topics[i]);
+      int total = problemIds == null ? 0 : problemIds.size();
+      java.util.List<Long> finished = new java.util.ArrayList<>();
+      if (total > 0) {
+        Map<Long, Integer> acceptMap = questionTrackerBiz.getAcceptCountInProblemSetByUserIds(uids, problemIds);
+        for (Long uid : uids) {
+          if (acceptMap.getOrDefault(uid, 0) >= total) {
+            finished.add(uid);
+          }
+        }
+      }
+      JSONObject one = new JSONObject();
+      one.put("userIds", finished);
+      one.put("count", finished.size());
+      one.put("problemTotal", total);
+      res.put(keys[i], one);
+    }
+    return res;
+  }
+
+  /**
+   * 技能树（第一章/间章/第二章）刷完名单
+   */
+  public JSONObject getTeamSkillFinishedUsers(long teamId) {
+    List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
+    List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
+    com.wenyibi.futuremail.model.tracker.TrackerStageEnum[] stages = new com.wenyibi.futuremail.model.tracker.TrackerStageEnum[] {
+        com.wenyibi.futuremail.model.tracker.TrackerStageEnum.CHAPTER1,
+        com.wenyibi.futuremail.model.tracker.TrackerStageEnum.INTERLUDE_DAWN,
+        com.wenyibi.futuremail.model.tracker.TrackerStageEnum.CHAPTER2
+    };
+    String[] keys = new String[] { "chapter1", "interlude", "chapter2" };
+    JSONObject res = new JSONObject();
+    for (int i = 0; i < stages.length; i++) {
+      List<Long> problemIds = new ArrayList<>(questionTrackerBiz.getSkillTreeProblemIdsByChapter(stages[i]));
+      int total = problemIds == null ? 0 : problemIds.size();
+      java.util.List<Long> finished = new java.util.ArrayList<>();
+      if (total > 0) {
+        Map<Long, Integer> acceptMap = questionTrackerBiz.getAcceptCountInProblemSetByUserIds(uids, problemIds);
+        for (Long uid : uids) {
+          if (acceptMap.getOrDefault(uid, 0) >= total) {
+            finished.add(uid);
+          }
+        }
+      }
+      JSONObject one = new JSONObject();
+      one.put("userIds", finished);
+      one.put("count", finished.size());
+      one.put("problemTotal", total);
+      res.put(keys[i], one);
+    }
+    return res;
+  }
+
+
+  /**
+   * 团队活动：团队排行榜（分页）
+   * 从 Redis 读取当前页 teamId 列表，然后为每个团队汇总活动参数返回
+   */
+  public JSONObject getTeamActivityTeamsLeaderboard(int page, int limit, Date beginDate, Date endDate) {
+    int safeLimit = Math.max(1, Math.min(100, limit));
+    int safePage = Math.max(1, page);
+    int start = (safePage - 1) * safeLimit;
+    // 从 Redis 取全部或分页团队id（这里尝试按 rank 分页）
+    java.util.List<String> teamIdStrSet = JedisAdapter.zRevRange(
+        RedisKeyUtil.getTeamActivityTeamsBoard(), start, start + safeLimit - 1);
+    java.util.List<Long> teamIds = new java.util.ArrayList<>();
+    if (teamIdStrSet != null) {
+      for (String s : teamIdStrSet) {
+        try { teamIds.add(Long.parseLong(s)); } catch (Exception ignore) {}
+      }
+    }
+    // 如果 Redis 为空，返回空
+    if (teamIds.isEmpty()) {
+      JSONObject res = new JSONObject();
+      res.put("total", 0);
+      res.put("list", new JSONArray());
+      return res;
+    }
+    // 统计总数（用于分页 total）
+    java.util.List<String> allTeams = JedisAdapter.zRevRange(
+        RedisKeyUtil.getTeamActivityTeamsBoard(), 0, -1);
+    int total = allTeams == null ? teamIds.size() : allTeams.size();
+
+    JSONArray list = new JSONArray();
+    for (Long teamId : teamIds) {
+      JSONObject row = new JSONObject();
+      row.put("teamId", teamId);
+      // 团队名称
+      ACMTeamInfo team = acmTeamInfoService.getById(teamId);
+      if (team != null) {
+        row.put("teamName", team.getName());
+        row.put("ownerUserId", team.getUid());
+        row.put("memberCount", acmTeamMemberService.getCountByGroupId(teamId));
+      }
+      // 团队榜积分（teams ZSET）
+      Double score = JedisAdapter.zScore(
+          RedisKeyUtil.getTeamActivityTeamsBoard(), String.valueOf(teamId));
+      row.put("score", score == null ? 0D : score.doubleValue());
+      // 活动期间打卡总人次
+      JSONObject clockTotal = getTeamActivityClockTotal(teamId, beginDate, endDate);
+      row.put("clockTotalTimes", clockTotal.getIntValue("totalTimes"));
+      // 累计打卡阈值
+      JSONObject days = getTeamClockDaysReachedUsers(teamId);
+      row.put("ge30Count", days.getIntValue("ge30Count"));
+      row.put("ge60Count", days.getIntValue("ge60Count"));
+      row.put("ge100Count", days.getIntValue("ge100Count"));
+      // 题单刷完
+      JSONObject topic = getTeamTopicFinishedUsers(teamId);
+      row.put("topicFinished", topic);
+      // 技能树刷完
+      JSONObject skill = getTeamSkillFinishedUsers(teamId);
+      row.put("skillFinished", skill);
+      list.add(row);
+    }
+    // 按 score 排序
+    list.sort((a, b) -> Double.compare(
+        ((JSONObject)b).getDoubleValue("score"), ((JSONObject)a).getDoubleValue("score")));
+    // 标 rank
+    for (int i = 0; i < list.size(); i++) {
+      ((JSONObject)list.get(i)).put("rank", start + i + 1);
+    }
+    JSONObject res = new JSONObject();
+    res.put("total", total);
+    res.put("list", list);
+    return res;
+  }
   private String checkName(long userId, String oldName, long oldTeamId) throws WenyibiException {
     oldName = StringUtils.trim(oldName);
     final int maxLength = 30;
@@ -1105,7 +1547,7 @@ public class TrackerTeamBiz {
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
     // 每日一次：使用日期作为分片
     String day = com.wenyibi.futuremail.util.NcDateUtils.getTodayDateString();
-    String lockKey = String.format("tracker:metrics:rebuild:%s:%s", teamId, day);
+    String lockKey = RedisKeyUtil.getTrackerMetricsRebuildLockKey(teamId, day);
     // 24小时窗口；如需更精确可计算当日剩余秒数
     boolean ok = JedisAdapter.setNxEx(lockKey, "1", 24 * 60 * 60);
     if (!ok) {
@@ -1121,6 +1563,11 @@ public class TrackerTeamBiz {
       });
     } catch (Exception e) {
       logger.error("submit rebuild task error", e);
+    }
+    // 清空该团队的看板缓存，下一次访问触发重算
+    try {
+      teamSummaryCache.invalidate(teamId);
+    } catch (Exception ignore) {
     }
     return uids.size();
   }
