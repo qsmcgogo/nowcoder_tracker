@@ -19,6 +19,8 @@ import { SkillTreeView } from './views/SkillTreeView.js';
 import { ProfileView } from './views/ProfileView.js';
 import { AchievementsView } from './views/AchievementsView.js';
 import { TeamView } from './views/TeamView.js';
+import { BattleView } from './views/BattleView.js';
+import { ActivityView } from './views/ActivityView.js';
 import { AchievementNotifier } from './services/AchievementNotifier.js';
 
 export class NowcoderTracker {
@@ -92,7 +94,11 @@ export class NowcoderTracker {
             teamDashboard: document.getElementById('team-dashboard'),
             teamLeaderboard: document.getElementById('team-leaderboard'),
             teamActivity: document.getElementById('team-activity'),
-            faq: document.getElementById('faq')
+            faq: document.getElementById('faq'),
+            // battle container
+            battleContainer: document.getElementById('battle-container'),
+            // activity container
+            activityContainer: document.getElementById('activity-view')
         };
     }
     
@@ -106,6 +112,8 @@ export class NowcoderTracker {
             skillTree: new SkillTreeView(this.elements, this.state, this.apiService),
             achievements: new AchievementsView(this.elements, this.state, this.apiService),
             team: new TeamView(this.elements, this.state, this.apiService),
+            battle: new BattleView(this.elements, this.state, this.apiService),
+            activity: new ActivityView(this.elements, this.state, this.apiService),
             profile: new ProfileView(this.elements, this.state, this.apiService)
         };
     }
@@ -115,6 +123,11 @@ export class NowcoderTracker {
         this.elements.mainTabs.forEach(tab => {
             tab.addEventListener('click', (e) => {
                 e.preventDefault();
+                // 活动页签特殊处理
+                if (tab.id === 'activity-tab-btn') {
+                    this.switchMainTab('activity');
+                    return;
+                }
                 const tabName = tab.dataset.tab;
                 this.switchMainTab(tabName);
             });
@@ -466,7 +479,12 @@ export class NowcoderTracker {
         
         // Update UI (button active)
         this.elements.mainTabs.forEach(tab => {
-            tab.classList.toggle('active', tab.dataset.tab === normalized);
+            // 活动页签特殊处理
+            if (tab.id === 'activity-tab-btn') {
+                tab.classList.toggle('active', normalized === 'activity');
+            } else {
+                tab.classList.toggle('active', tab.dataset.tab === normalized);
+            }
         });
  
          // 切换主内容区域（与index.html的结构对应：.tab-content + section id）
@@ -544,6 +562,12 @@ export class NowcoderTracker {
                 setTimeout(() => {
                     try { this.achvNotifier.diffAndNotify([1,2,3,4,6]); } catch (_) {}
                 }, 500);
+                break;
+            case 'battle':
+                this.views.battle.render();
+                break;
+            case 'activity':
+                this.views.activity.render();
                 break;
             case 'team':
                 this.views.team.render();
@@ -654,7 +678,7 @@ export class NowcoderTracker {
 
     normalizeTabName(name) {
         const key = String(name || '').toLowerCase();
-        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','team','profile','faq','changelog']);
+        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','battle','activity','team','profile','faq','changelog']);
         if (key.startsWith('team/')) return 'team';
         if (key.startsWith('invitet') || key.startsWith('inviteTeam'.toLowerCase())) return 'team';
         if (allowed.has(key)) return key;

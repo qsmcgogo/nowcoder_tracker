@@ -12,11 +12,13 @@
         <header>
             <h1>牛客tracker</h1>
             <nav class="main-tabs">
+                <button class="tab-btn activity-tab-btn" id="activity-tab-btn" title="查看活动详情">🔥 活动</button>
                 <button class="tab-btn" data-tab="problems">题库</button>
                 <button class="tab-btn" data-tab="rankings">排行榜</button>
                 <button class="tab-btn active" data-tab="daily">打卡</button>
                 <button class="tab-btn" data-tab="skill-tree">技能树</button>
                 <button class="tab-btn" data-tab="achievements">成就</button>
+                <button class="tab-btn" data-tab="battle">对战</button>
                 <button class="tab-btn" data-tab="team">团队</button>
                 <button class="tab-btn" data-tab="profile">我的</button>
                 <button class="tab-btn" data-tab="faq">常见问题</button>
@@ -267,6 +269,29 @@
                         <section class="achievements-content">
                             <!-- Content will be rendered by AchievementsView.js -->
                         </section>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Battle Tab -->
+            <section id="battle" class="tab-content">
+                <div id="battle-container" class="battle-container">
+                    <!-- Content will be rendered by BattleView.js -->
+                </div>
+            </section>
+
+            <!-- Activity Tab -->
+            <section id="activity" class="tab-content">
+                <div class="content-wrapper">
+                    <div id="activity-view" class="team-view" style="display:block;">
+                        <div class="achv-overview-card" style="margin-top:8px;">
+                            <div class="achv-overview-title">团队活动</div>
+                            <div class="contest-tabs sub-tabs" id="activity-subtabs" style="margin-bottom:8px;">
+                                <button class="contest-tab activity-tab active" data-activity="intro">活动说明</button>
+                                <button class="contest-tab activity-tab" data-activity="rank">卷王团队一览</button>
+                            </div>
+                            <div id="activity-content" style="padding:12px 10px;">加载中...</div>
+                        </div>
                     </div>
                 </div>
             </section>

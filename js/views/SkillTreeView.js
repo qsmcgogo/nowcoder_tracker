@@ -118,7 +118,7 @@ export const skillTreeData = {
             'arithmetic-add': { id: 'arithmetic-add', name: '加减法', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'arithmetic-sub': { id: 'arithmetic-sub', name: '乘法', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'arithmetic-div-mod': { id: 'arithmetic-div-mod', name: '除法与取余', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
-            'bit-shift': { id: 'bit-shift', name: '位移', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
+            'bit-shift': { id: 'bit-shift', name: '位移', dependencies: [] },
             'arithmetic-mod': { id: 'arithmetic-mod', name: '混合运算', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'branch-control': { id: 'branch-control', name: '分支控制', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
             'single-loop': { id: 'single-loop', name: '单层循环', dependencies: ['integer', 'float', 'char', 'mixed-input'] },
@@ -576,6 +576,10 @@ export class SkillTreeView {
             if (stage.id === 'stage-1') {
                 setTimeout(() => this.drawColumnDependencyLines(stage), 0);
             }
+            // 第二章：动态调整菱形SVG位置以匹配虚框位置
+            if (stage.id === 'stage-2') {
+                setTimeout(() => this.updateStage2DiamondPosition(), 0);
+            }
 
         } catch (error) {
             console.error(`Error rendering detail view for stage ${stageId}:`, error);
@@ -817,6 +821,81 @@ export class SkillTreeView {
         try { if (this._unbindViewportListeners) this._unbindViewportListeners(); } catch (_) {}
     }
 
+    // 动态更新第二章菱形SVG的位置，使其与四个虚框位置绑定
+    updateStage2DiamondPosition() {
+        const diamondContainer = this.container.querySelector('.stage2-diamond');
+        const svgDecor = diamondContainer?.querySelector('.stage2-diamond-decor');
+        if (!diamondContainer || !svgDecor) return;
+
+        // 获取四个虚框的位置
+        const topCol = diamondContainer.querySelector('.stage2-pos-top');
+        const leftCol = diamondContainer.querySelector('.stage2-pos-left');
+        const rightCol = diamondContainer.querySelector('.stage2-pos-right');
+        const bottomCol = diamondContainer.querySelector('.stage2-pos-bottom');
+
+        if (!topCol || !leftCol || !rightCol || !bottomCol) return;
+
+        // 获取四个虚框的中心点位置（相对于diamondContainer）
+        const getCenter = (el) => {
+            const rect = el.getBoundingClientRect();
+            const containerRect = diamondContainer.getBoundingClientRect();
+            return {
+                x: rect.left + rect.width / 2 - containerRect.left,
+                y: rect.top + rect.height / 2 - containerRect.top
+            };
+        };
+
+        const topCenter = getCenter(topCol);
+        const leftCenter = getCenter(leftCol);
+        const rightCenter = getCenter(rightCol);
+        const bottomCenter = getCenter(bottomCol);
+
+        // 计算菱形的边界框（包含四个中心点的最小矩形）
+        const minX = Math.min(topCenter.x, leftCenter.x, rightCenter.x, bottomCenter.x);
+        const maxX = Math.max(topCenter.x, leftCenter.x, rightCenter.x, bottomCenter.x);
+        const minY = Math.min(topCenter.y, leftCenter.y, rightCenter.y, bottomCenter.y);
+        const maxY = Math.max(topCenter.y, leftCenter.y, rightCenter.y, bottomCenter.y);
+
+        // 添加一些边距（padding）
+        const padding = 20;
+        const left = minX - padding;
+        const top = minY - padding;
+        const width = maxX - minX + padding * 2;
+        const height = maxY - minY + padding * 2;
+
+        // 更新SVG的位置和大小
+        svgDecor.style.position = 'absolute';
+        svgDecor.style.left = `${left}px`;
+        svgDecor.style.top = `${top}px`;
+        svgDecor.style.width = `${width}px`;
+        svgDecor.style.height = `${height}px`;
+        svgDecor.style.right = 'auto';
+        svgDecor.style.bottom = 'auto';
+
+        // 绑定窗口resize事件，重新计算位置
+        // 先清理旧的监听器（如果存在）
+        if (this._stage2DiamondResizeHandler) {
+            window.removeEventListener('resize', this._stage2DiamondResizeHandler, { passive: true });
+            window.removeEventListener('scroll', this._stage2DiamondResizeHandler, { passive: true });
+        }
+        
+        this._stage2DiamondResizeHandler = () => {
+            // 使用防抖，避免频繁计算
+            if (this._stage2DiamondResizeTimer) {
+                clearTimeout(this._stage2DiamondResizeTimer);
+            }
+            this._stage2DiamondResizeTimer = setTimeout(() => {
+                // 检查是否还在第二章视图
+                const diamondContainer = this.container.querySelector('.stage2-diamond');
+                if (diamondContainer) {
+                    this.updateStage2DiamondPosition();
+                }
+            }, 100);
+        };
+        window.addEventListener('resize', this._stage2DiamondResizeHandler, { passive: true });
+        // 也监听滚动事件，因为滚动可能影响位置
+        window.addEventListener('scroll', this._stage2DiamondResizeHandler, { passive: true });
+    }
 
     // 绑定概览页事件
     bindSummaryEvents() {
@@ -1187,7 +1266,7 @@ export class SkillTreeView {
             }
         }
 
-        // 绑定刷新按钮：仅刷新此 tag 的进度
+        // 绑定刷新按钮：刷新此 tag 的进度，并更新当前页面所有知识点进度
         const refreshBtn = document.getElementById('skill-node-refresh-btn');
         if (refreshBtn) {
             try { refreshBtn.setAttribute('type', 'button'); } catch (_) {}
@@ -1204,10 +1283,12 @@ export class SkillTreeView {
                     // 更新内存中的进度
                     if (!this.currentStageProgress.nodeProgress) this.currentStageProgress.nodeProgress = {};
                     this.currentStageProgress.nodeProgress[tagId] = res.progress || 0;
+                    // 更新当前页面所有知识点的进度显示
+                    await this.updateCurrentPageNodeProgress();
                     // 仅重新渲染当前面板内容，避免跳回到概览
                     this.showPanelContent(staticNodeData, tagInfo, false);
-            // 如果当前是间章视图，顺手把对应按钮的进度和底色更新一下
-            this.updateInterludeChip(tagId, this.activeNodeId);
+                    // 如果当前是间章视图，顺手把对应按钮的进度和底色更新一下
+                    this.updateInterludeChip(tagId, this.activeNodeId);
                     // 如需刷新概览，外部返回后会统一刷新
                 } finally {
                     refreshBtn.disabled = false;
@@ -1273,6 +1354,83 @@ export class SkillTreeView {
         } catch (_) {}
     }
 
+    // 更新当前页面所有知识点的进度显示
+    async updateCurrentPageNodeProgress() {
+        try {
+            const tree = this.skillTrees['newbie-130'];
+            let stageNodeIds = [];
+            let stageTagIds = [];
+
+            // 检查是否是间章视图
+            const interludeChips = this.container.querySelectorAll('.interlude-chip');
+            if (interludeChips.length > 0) {
+                // 间章视图：更新所有间章知识点
+                stageNodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
+                stageTagIds = stageNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
+            } else if (this.currentView === 'detail' && this.selectedStageId) {
+                // 普通章节详情视图
+                const stage = tree.stages.find(s => s.id === this.selectedStageId);
+                if (!stage || !stage.columns) return;
+
+                stageNodeIds = stage.columns.flatMap(c => c.nodeIds);
+                stageTagIds = stageNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
+            } else {
+                // 不在详情视图，不需要更新
+                return;
+            }
+
+            if (stageTagIds.length === 0) return;
+
+            // 调用API获取最新进度
+            const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, stageTagIds);
+            
+            // 更新内存中的进度
+            if (!this.currentStageProgress.nodeProgress) {
+                this.currentStageProgress.nodeProgress = {};
+            }
+            Object.assign(this.currentStageProgress.nodeProgress, progressData.nodeProgress || {});
+
+            // 更新页面上所有知识点节点的进度显示
+            stageNodeIds.forEach(nodeId => {
+                const tagId = nodeIdToTagId[nodeId];
+                if (!tagId) return;
+
+                // 尝试通过 ID 查找（普通章节）或 data-id 查找（间章）
+                let nodeEl = document.getElementById(`skill-node-${nodeId}`);
+                if (!nodeEl) {
+                    nodeEl = this.container.querySelector(`.interlude-chip[data-id="${nodeId}"]`);
+                }
+                if (!nodeEl) return;
+
+                // 获取最新进度
+                const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
+                const progress = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
+
+                // 更新进度文本
+                const progressTextEl = nodeEl.querySelector('.skill-node__progress-text');
+                if (progressTextEl) {
+                    progressTextEl.textContent = `${progress}%`;
+                }
+
+                // 更新背景样式
+                if (progress > 0 && progress < 100) {
+                    nodeEl.style.background = `linear-gradient(to right, var(--primary-color-light) ${progress}%, #fff ${progress}%)`;
+                } else {
+                    nodeEl.style.background = progress >= 100 ? 'var(--primary-color-light)' : '#fff';
+                }
+
+                // 更新完成态样式
+                if (progress >= 100) {
+                    nodeEl.classList.add('skill-node--completed');
+                } else {
+                    nodeEl.classList.remove('skill-node--completed');
+                }
+            });
+        } catch (error) {
+            console.error('Failed to update current page node progress:', error);
+        }
+    }
+
     getDifficultyInfo(score) {
         if (score <= 1) return { text: '入门', class: 'difficulty-basic' };
         if (score <= 2) return { text: '简单', class: 'difficulty-easy' };
@@ -1290,6 +1448,12 @@ export class SkillTreeView {
     hideNodePanel() {
         this.panel.classList.remove('visible');
         this.activeNodeId = null;
+        
+        // 关闭面板时，重新绘制当前页面所有知识点的进度
+        // 异步调用，不阻塞面板关闭动画
+        this.updateCurrentPageNodeProgress().catch(err => {
+            console.error('Failed to update node progress on panel close:', err);
+        });
     }
 
     /**
@@ -1308,6 +1472,16 @@ export class SkillTreeView {
     hide() {
         this.clearLines();
         this.teardownSummarySvg && this.teardownSummarySvg();
+        // 清理第二章菱形位置更新的监听器
+        if (this._stage2DiamondResizeHandler) {
+            window.removeEventListener('resize', this._stage2DiamondResizeHandler, { passive: true });
+            window.removeEventListener('scroll', this._stage2DiamondResizeHandler, { passive: true });
+            this._stage2DiamondResizeHandler = null;
+        }
+        if (this._stage2DiamondResizeTimer) {
+            clearTimeout(this._stage2DiamondResizeTimer);
+            this._stage2DiamondResizeTimer = null;
+        }
     }
 
     // 获取与当前知识点同一章节的tag选项（找不到则回退为全量）

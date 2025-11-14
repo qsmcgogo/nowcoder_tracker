@@ -1,4 +1,5 @@
 import { eventBus, EVENTS } from '../events/EventBus.js';
+import * as helpers from '../utils/helpers.js';
 
 export class TeamView {
     constructor(elements, state, api) {
@@ -19,6 +20,10 @@ export class TeamView {
         // 成员分页状态（团队概览）
         this.teamMembersPage = 1;
         this.teamMembersLimit = 10;
+        // 卷王团队一览分页状态
+        this.activityRankPage = 1;
+        this.activityRankLimit = 20;
+        this.activityRankTotal = 0;
         // 用户信息本地缓存（userId -> {name, headUrl}）
         this.userInfoCache = new Map();
         // 队长管理成员开关（仅队长可见），默认关闭
@@ -127,7 +132,10 @@ export class TeamView {
             if (listView) listView.style.display = 'block';
             ['team-dashboard','team-leaderboard'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
             const tbody = document.getElementById('team-list-tbody');
-            if (tbody) tbody.innerHTML = `<tr><td colspan="4">请登录来获取团队信息</td></tr>`;
+            if (tbody) {
+                const loginUrl = helpers.buildUrlWithChannelPut('https://ac.nowcoder.com/login?callBack=/');
+                tbody.innerHTML = `<tr><td colspan="4">请<a href="${loginUrl}" target="_blank" rel="noopener noreferrer" style="color:#1890ff;text-decoration:none;">登录</a>来获取团队信息</td></tr>`;
+            }
             const joinBtn = document.getElementById('team-join-open-btn');
             const createBtn = document.getElementById('team-create-btn');
             [joinBtn, createBtn].forEach(b => { if (b) { b.setAttribute('disabled','disabled'); b.style.pointerEvents='none'; b.style.opacity='0.6'; b.title='请先登录'; } });
@@ -422,10 +430,12 @@ export class TeamView {
         }
         if (tab === 'rank') {
             try {
-                const { list = [], total = 0 } = await this.api.teamActivityTeamsLeaderboard(1, 20);
+                const { list = [], total = 0 } = await this.api.teamActivityTeamsLeaderboard(this.activityRankPage, this.activityRankLimit);
+                this.activityRankTotal = total;
+                const totalPages = Math.max(1, Math.ceil(total / this.activityRankLimit));
                 box.innerHTML = `
                     <div style="font-weight:700;margin-bottom:6px;">卷王团队一览</div>
-                    <div style="color:#888;margin-bottom:6px;">这里展示的团队并非全部是参与活动的团队，具体参与活动请以学校为单位，按“活动说明”报名。</div>
+                    <div style="color:#888;margin-bottom:6px;">这里展示的团队并非全部是参与活动的团队，具体参与活动请以学校为单位，按"活动说明"报名。</div>
                     <table class="rankings-table">
                         <thead>
                             <tr>
@@ -475,8 +485,30 @@ export class TeamView {
                             </tr>`;
                         }).join('') : `<tr><td colspan="13">暂无数据</td></tr>`}</tbody>
                     </table>
-                    <div style="margin-top:6px;color:#999;">共 ${total} 支团队</div>
+                    <div id="team-activity-rank-pagination" class="pagination" style="margin-top:8px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span>每页</span>
+                            <select id="activityRankPageSize" class="pagination-select" style="padding:4px 6px;">
+                                <option value="10" ${this.activityRankLimit === 10 ? 'selected' : ''}>10</option>
+                                <option value="20" ${this.activityRankLimit === 20 ? 'selected' : ''}>20</option>
+                                <option value="50" ${this.activityRankLimit === 50 ? 'selected' : ''}>50</option>
+                                <option value="100" ${this.activityRankLimit === 100 ? 'selected' : ''}>100</option>
+                            </select>
+                            <span>条</span>
+                            <div id="activityRankPaginationInfo" class="pagination-info">共 ${total} 支团队，第 ${this.activityRankPage} / ${totalPages} 页</div>
+                        </div>
+                        <div class="pagination-controls" style="display:flex;align-items:center;gap:8px;">
+                            <button id="activityRankPrev" class="pagination-btn" ${this.activityRankPage <= 1 ? 'disabled' : ''}>上一页</button>
+                            <span style="margin:0 4px;">第</span>
+                            <input type="number" id="activityRankPageInput" min="1" max="${totalPages}" value="${this.activityRankPage}" style="width:60px;padding:4px 6px;text-align:center;border:1px solid #ddd;border-radius:4px;" />
+                            <span style="margin:0 4px;">/ ${totalPages} 页</span>
+                            <button id="activityRankJump" class="pagination-btn" style="margin-left:4px;">跳转</button>
+                            <button id="activityRankNext" class="pagination-btn" ${this.activityRankPage >= totalPages ? 'disabled' : ''}>下一页</button>
+                        </div>
+                    </div>
                 `;
+                // 绑定分页事件
+                this.bindActivityRankPagination();
             } catch (e) {
                 box.innerHTML = `<div style="color:#888;">加载榜单失败：${e.message || '请稍后重试'}</div>`;
             }
@@ -616,6 +648,85 @@ export class TeamView {
                         try { dash.focus({ preventScroll: true }); } catch (_) {}
                     }
                 }, 0);
+            });
+        }
+    }
+
+    bindActivityRankPagination() {
+        const prevBtn = document.getElementById('activityRankPrev');
+        const nextBtn = document.getElementById('activityRankNext');
+        const sizeSel = document.getElementById('activityRankPageSize');
+        const pageInput = document.getElementById('activityRankPageInput');
+        const jumpBtn = document.getElementById('activityRankJump');
+        
+        if (prevBtn && !prevBtn._bound) {
+            prevBtn._bound = true;
+            prevBtn.addEventListener('click', () => {
+                if (this.activityRankPage > 1) {
+                    this.activityRankPage -= 1;
+                    this.renderActivityPanel();
+                }
+            });
+        }
+        
+        if (nextBtn && !nextBtn._bound) {
+            nextBtn._bound = true;
+            nextBtn.addEventListener('click', () => {
+                const totalPages = Math.max(1, Math.ceil(this.activityRankTotal / this.activityRankLimit));
+                if (this.activityRankPage < totalPages) {
+                    this.activityRankPage += 1;
+                    this.renderActivityPanel();
+                }
+            });
+        }
+        
+        if (sizeSel && !sizeSel._bound) {
+            sizeSel._bound = true;
+            sizeSel.value = String(this.activityRankLimit);
+            sizeSel.addEventListener('change', () => {
+                const v = Number(sizeSel.value) || 20;
+                this.activityRankLimit = Math.max(1, v);
+                this.activityRankPage = 1; // 改变每页条数重置到第一页
+                this.renderActivityPanel();
+            });
+        }
+        
+        // 页码输入框和跳转按钮
+        const handleJump = () => {
+            if (!pageInput) return;
+            const totalPages = Math.max(1, Math.ceil(this.activityRankTotal / this.activityRankLimit));
+            let targetPage = Number(pageInput.value) || 1;
+            // 限制在有效范围内
+            targetPage = Math.max(1, Math.min(targetPage, totalPages));
+            if (targetPage !== this.activityRankPage) {
+                this.activityRankPage = targetPage;
+                this.renderActivityPanel();
+            } else {
+                // 即使页码相同，也更新输入框的值（防止输入了无效值）
+                pageInput.value = targetPage;
+            }
+        };
+        
+        if (jumpBtn && !jumpBtn._bound) {
+            jumpBtn._bound = true;
+            jumpBtn.addEventListener('click', handleJump);
+        }
+        
+        if (pageInput && !pageInput._bound) {
+            pageInput._bound = true;
+            // 按 Enter 键跳转
+            pageInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    handleJump();
+                }
+            });
+            // 当页码改变时，同步更新输入框的值
+            pageInput.addEventListener('blur', () => {
+                const totalPages = Math.max(1, Math.ceil(this.activityRankTotal / this.activityRankLimit));
+                let val = Number(pageInput.value) || 1;
+                val = Math.max(1, Math.min(val, totalPages));
+                pageInput.value = val;
             });
         }
     }

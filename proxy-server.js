@@ -7,7 +7,7 @@ const app = express();
 const port = 3000;
 
 // 环境切换: 'www', 'pre', 或 'd'
-const CURRENT_ENV = 'pre'; 
+const CURRENT_ENV = 'www'; 
 
 const HOST_MAP = {
     'www': 'https://www.nowcoder.com',

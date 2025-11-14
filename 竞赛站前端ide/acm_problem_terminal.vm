@@ -1,0 +1,115 @@
+#* @vtlvariable name="question" type="com.wenyibi.futuremail.model.question.Question" *#
+<!DOCTYPE html>
+<!-- html version 1999 -->
+    #parse("/WEB-INF/views/core/meta.vm")
+    #parse("/WEB-INF/views/core/css.vm")
+    #parse("/WEB-INF/views/core/js.vm")
+    #parse("/WEB-INF/views/inc/question_template.vm")
+    #parse("/WEB-INF/views/acm/core/acm_problem_core.vm")
+<html>
+<head>
+    #meta("$!{question.title}")
+    <meta name="nowcoder-uuid" content="734e063a-5c89-4cba-a60e-85df26a85fb5"/>
+    #css()
+    <link rel="stylesheet" href="$!{deployCSSRoot}/v2lib/fontcustom/code/code.css">
+    <link rel="stylesheet" href="$!{deployCSSRoot}/v2/coding.css">
+    <link rel="stylesheet" href="$!{deployJSRoot}/page/terminal/code/main.entry.css">
+</head>
+
+<body class="full-screen-body">
+<div class="nk-container nk-acm-container">
+    <div class="header-bar">
+        <div class="header-left">
+            <div class="question-title">
+                <i class="icon-list"></i>$!{question.title}
+            </div>
+        </div>
+        <div class="header-right">
+            <ul class="code-list-box">
+                <li>
+                    <a title="题解" href="/acm/problem/blogs/$!{question.problemId}" class="code-list-dis" target="_blank">
+                        <i class="icon-nc-edit"></i>
+                        题解
+                    </a>
+                </li>
+                <li>
+                    <a title="讨论" href="/discuss/tag/$!{tagOwner.tagId}?type=101" class="code-list-dis" target="_blank">
+                        <i class="icon-comment"></i>
+                        讨论
+                    </a>
+                </li>
+                <li>
+                    <a title="查看他人的提交" href="/acm/problem/$!{question.problemId}/submit-list" class="code-list-rank" target="_blank">
+                        <i class="icon-trophy"></i>
+                        查看他人的提交
+                    </a>
+                </li>
+                #if($host)
+                    <li><a title="查看我的提交记录" href='/acm/contest/profile/$!{host.id}/practice-coding?search=$!{question.problemId}' class="code-list-sub" target="_blank"><i class="icon-file-alt"></i> 我的提交</a></li>
+                #end
+            </ul>
+            #if ($host)
+                <a href="javascript:void(0);" class="head-pic">
+                    <img src="$!{host.tinnyHeaderUrl}">
+                </a>
+            #end
+        </div>
+    </div>
+    <div class="content-board">
+        <div class="js-left question-module">
+            #showProblemContent($question $codingProblem $showId)
+            <div class="topic-popup js-topic-menu" style="display:none;">
+                <div class="terminal-topic-wrap">
+                    <div class="terminal-topic-title">
+                        <i class="icon-list"></i>$!{question.title}
+                    </div>
+                    <div class="topic-popup-bd">
+                        <a href="$!returnUrl?page=$!{rp}" class="back-to-all"><i class="icon-angle-left"></i>返回全部题目</a>
+                        <div class="topic-title-list">
+                            <h2>$!{topicTitle}</h2>
+                            <div class="js-list" style="overflow-y:auto;">
+                                <div class="js-list-tips">列表加载中...</div>
+                                <div class="js-ul-list"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="jsVerticalSeparator" class="module-separator vertical"></div>
+        ## 代码编辑框
+        <div class="js-right answer-module" id="jsCodeEditor"></div>
+    </div>
+
+
+</div>
+
+    #question_template($question $problemSubmitInfo)
+
+    #js()
+<script type="text/javascript">
+    window.pageInfo = {
+    isPdfContent: $codingProblem.isPDF(),
+    ##        contestId: '$!{contestId}',
+        creatorId: '$!{question.creatorId}',
+        questionId: '$!{question.id}',
+        problemId: '$!{question.problemId}',
+    ##        isFinished: $!{isFinished},
+        uuid: '$!question.uuid',
+    ##        nextTqId: '$!nextTqId',
+    ##        nextTqUuid: '$!nextTqUuid',
+    ##        tPage: '$!tPage',
+    ##        tpId: '$!tpId',
+        tagId: '4', //定制
+        subTagId: '$!{subTagId}', //定制
+        doneQuestionId: '$!{doneQuestionId}', //定制
+        selfType: '$!{selfType.type}', //定制自测
+
+    ## 0表示支持 python2.7 和 cs
+        codeJudgeType: '$!{question.judgeType}',
+        supportLang: '$!{question.supportLang}'
+    };
+</script>
+<script type="text/javascript" crossorigin="anonymous" src="$!{deployJSRoot}/page/terminal/code/main.entry.js"></script>
+</body>
+</html>

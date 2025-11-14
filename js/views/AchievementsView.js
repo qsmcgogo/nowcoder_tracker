@@ -1,4 +1,6 @@
 import { eventBus, EVENTS } from '../events/EventBus.js';
+import * as helpers from '../utils/helpers.js';
+import { nodeIdToTagId, skillTreeData } from './SkillTreeView.js';
 
 export class AchievementsView {
     constructor(elements, state, api) {
@@ -79,7 +81,8 @@ export class AchievementsView {
         // 未登录统一提示
         if (!this.state || !this.state.isLoggedIn || !this.state.isLoggedIn()) {
             if (this.content) {
-                this.content.innerHTML = '<div class="achv-overview-card">请用户登录查看成就</div>';
+                const loginUrl = helpers.buildUrlWithChannelPut('https://ac.nowcoder.com/login?callBack=/');
+                this.content.innerHTML = `<div class="achv-overview-card">请用户<a href="${loginUrl}" target="_blank" rel="noopener noreferrer" style="color:#1890ff;text-decoration:none;">登录</a>查看成就</div>`;
             }
             return;
         }
@@ -109,11 +112,12 @@ export class AchievementsView {
         const cat = (useDynamic || useRaw) ? dynamicCat : this.catalog[this.activeCategory];
         if (!cat) return;
 
-        // 是否使用“系列合并”视图：受 mergeSeries 开关控制
-        // checkin：累计/连续系列可合并；solve：累计过题可合并
+        // 是否使用"系列合并"视图：受 mergeSeries 开关控制
+        // checkin：累计/连续系列可合并；solve：累计过题可合并；skill：技能树章节系列可合并
         const preferSeriesForCheckin = this.mergeSeries && this.activeCategory === 'checkin' && useDynamic;
         const preferSeriesForSolve = this.mergeSeries && this.activeCategory === 'solve' && useDynamic;
-        const preferSeries = preferSeriesForCheckin || preferSeriesForSolve;
+        const preferSeriesForSkill = this.mergeSeries && this.activeCategory === 'skill' && useDynamic;
+        const preferSeries = preferSeriesForCheckin || preferSeriesForSolve || preferSeriesForSkill;
 
         // 直出模式（不合并）
         if (useRaw && !preferSeries) {
@@ -157,7 +161,7 @@ export class AchievementsView {
                 if (b.detail) info.appendChild(requirementRow);
 
                 // 未合并模式下：对累计/连续/累计过题(401~415)显示进度条；
-                // 四个“题单制霸”（451~454）不显示进度条
+                // 四个"题单制霸"（451~454）不显示进度条；技能树成就显示进度条
                 if (!isUnlocked) {
                     const t = Number(b.type);
                     const id = Number(b.id);
@@ -176,6 +180,19 @@ export class AchievementsView {
                                 current = Number((dynamicCat.progress && dynamicCat.progress.solveCount) || 0);
                                 shouldShow = true;
                             }
+                        }
+                    } else if (this.activeCategory === 'skill' && t === 6) {
+                        // 技能树成就：根据名称判断章节
+                        const name = (b.name || '').toString();
+                        if (name.includes('微光渐起') || name.includes('晨曦微光')) {
+                            current = Number((dynamicCat.progress && dynamicCat.progress.chapter1) || 0);
+                            shouldShow = true;
+                        } else if (name.includes('曙色') || name.includes('拂晓')) {
+                            current = Number((dynamicCat.progress && dynamicCat.progress.interlude) || 0);
+                            shouldShow = true;
+                        } else if (name.includes('破土而出') || name.includes('懵懂新芽')) {
+                            current = Number((dynamicCat.progress && dynamicCat.progress.chapter2) || 0);
+                            shouldShow = true;
                         }
                     }
                     if (shouldShow && threshold > 0 && current >= 0) {
@@ -317,12 +334,16 @@ export class AchievementsView {
                 achieved = milestones.filter(m => m.status === 1);
                 next = milestones.find(m => m.status !== 1) || null;
 
-                // 在打卡合并视图下（累计/连续），展示真实进度；solve 的累计过题系列也展示进度
+                // 在打卡合并视图下（累计/连续），展示真实进度；solve 的累计过题系列也展示进度；skill 的章节系列展示进度
                 if (this.activeCategory === 'checkin') {
                     if (series.key === 'checkin_total') current = Number(dynamicCat.progress?.countDay || 0);
                     if (series.key === 'checkin_streak') current = Number(dynamicCat.progress?.continueDay || 0);
                 } else if (this.activeCategory === 'solve') {
                     if (series.key === 'solve_total') current = Number(dynamicCat.progress?.solveCount || 0);
+                } else if (this.activeCategory === 'skill') {
+                    if (series.key === 'skill_chapter1') current = Number(dynamicCat.progress?.chapter1 || 0);
+                    if (series.key === 'skill_interlude') current = Number(dynamicCat.progress?.interlude || 0);
+                    if (series.key === 'skill_chapter2') current = Number(dynamicCat.progress?.chapter2 || 0);
                 }
                 nextProgressRatio = next ? Math.max(0, Math.min(1, (current || 0) / (next.threshold || 1))) : 1;
             } else {
@@ -399,7 +420,11 @@ export class AchievementsView {
             const progressValue = document.createElement('div');
             progressValue.className = 'achv-progress-value';
             if (next) {
-                const canShowProgress = (useDynamic && (this.activeCategory === 'checkin' || (this.activeCategory === 'solve' && series.key === 'solve_total')));
+                const canShowProgress = (useDynamic && (
+                    this.activeCategory === 'checkin' || 
+                    (this.activeCategory === 'solve' && series.key === 'solve_total') ||
+                    (this.activeCategory === 'skill' && (series.key === 'skill_chapter1' || series.key === 'skill_interlude' || series.key === 'skill_chapter2'))
+                ));
                 if (!canShowProgress) {
                     progress.style.display = 'none';
                     progressValue.style.display = 'none';
@@ -499,7 +524,8 @@ export class AchievementsView {
         // 未登录直接提示
         if (!this.state || !this.state.isLoggedIn || !this.state.isLoggedIn()) {
             if (this.content) {
-                this.content.innerHTML = '<div class="achv-overview-card">请用户登录查看成就</div>';
+                const loginUrl = helpers.buildUrlWithChannelPut('https://ac.nowcoder.com/login?callBack=/');
+                this.content.innerHTML = `<div class="achv-overview-card">请用户<a href="${loginUrl}" target="_blank" rel="noopener noreferrer" style="color:#1890ff;text-decoration:none;">登录</a>查看成就</div>`;
             }
             return;
         }
@@ -744,9 +770,65 @@ export class AchievementsView {
                 series.push({ key: 'contest_weekly', name: '周赛全AK系列', icon: icons.contest_weekly, milestones });
             }
 
-            // skill types
+            // skill types - 按章节分组合并
             if (byType.has(6)) {
-                const milestones = byType.get(6)
+                const allSkillBadges = byType.get(6);
+                
+                // 定义章节分组规则：根据成就名称识别章节
+                const chapterGroups = {
+                    chapter1: {
+                        key: 'skill_chapter1',
+                        name: '晨曦微光',
+                        icon: icons.skill_progress,
+                        keywords: ['微光渐起', '晨曦微光']
+                    },
+                    interlude: {
+                        key: 'skill_interlude',
+                        name: '拂晓',
+                        icon: icons.skill_progress,
+                        keywords: ['曙色', '拂晓']
+                    },
+                    chapter2: {
+                        key: 'skill_chapter2',
+                        name: '懵懂新芽',
+                        icon: icons.skill_progress,
+                        keywords: ['破土而出', '懵懂新芽']
+                    }
+                };
+
+                // 将成就按章节分组
+                Object.values(chapterGroups).forEach(group => {
+                    const groupMilestones = allSkillBadges
+                        .filter(b => group.keywords.some(kw => (b.name || '').includes(kw)))
+                        .sort((a, b) => (a.acquirement || 0) - (b.acquirement || 0))
+                        .map(m => ({
+                            name: m.name,
+                            desc: m.detail,
+                            threshold: Number(m.acquirement) || 0,
+                            points: Number(m.score) || 0,
+                            status: Number(m.status) || 0,
+                            finishedTime: m.finishedTime || null,
+                            colorUrl: m.colorUrl || '',
+                            grayUrl: m.grayUrl || ''
+                        }));
+                    
+                    if (groupMilestones.length > 0) {
+                        series.push({
+                            key: group.key,
+                            name: group.name,
+                            icon: group.icon,
+                            milestones: groupMilestones
+                        });
+                    }
+                });
+
+                // 处理其他未分组的技能树成就（如果有）
+                const groupedNames = new Set();
+                Object.values(chapterGroups).forEach(group => {
+                    group.keywords.forEach(kw => groupedNames.add(kw));
+                });
+                const otherMilestones = allSkillBadges
+                    .filter(b => !groupedNames.has(b.name))
                     .sort((a, b) => (a.acquirement || 0) - (b.acquirement || 0))
                     .map(m => ({
                         name: m.name,
@@ -758,7 +840,15 @@ export class AchievementsView {
                         colorUrl: m.colorUrl || '',
                         grayUrl: m.grayUrl || ''
                     }));
-                series.push({ key: 'skill_progress', name: '技能树进度', icon: icons.skill_progress, milestones });
+                
+                if (otherMilestones.length > 0) {
+                    series.push({
+                        key: 'skill_progress',
+                        name: '技能树进度',
+                        icon: icons.skill_progress,
+                        milestones: otherMilestones
+                    });
+                }
             }
 
             return series;
@@ -779,7 +869,28 @@ export class AchievementsView {
                 const uid = this.state && this.state.loggedInUserId;
                 if (uid) solveProgressPromise = this.api.fetchRankings('problem', 1, uid, 1).catch(() => null);
             }
-            const [badgeData, todayData, solveRankData] = await Promise.all([badgePromise, todayPromise, solveProgressPromise]);
+            let skillProgressPromise = Promise.resolve(null);
+            if (categoryKey === 'skill') {
+                const uid = this.state && this.state.loggedInUserId;
+                if (uid) {
+                    // 获取所有章节的节点ID和Tag ID
+                    const tree = skillTreeData['newbie-130'];
+                    const stage1NodeIds = tree.stages.find(s => s.id === 'stage-1')?.columns?.flatMap(c => c.nodeIds) || [];
+                    const stage2NodeIds = tree.stages.find(s => s.id === 'stage-2')?.columns?.flatMap(c => c.nodeIds) || [];
+                    const interludeNodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
+                    
+                    const allTagIds = [
+                        ...stage1NodeIds.map(id => nodeIdToTagId[id]),
+                        ...stage2NodeIds.map(id => nodeIdToTagId[id]),
+                        ...interludeNodeIds.map(id => nodeIdToTagId[id])
+                    ].filter(Boolean);
+                    
+                    if (allTagIds.length > 0) {
+                        skillProgressPromise = this.api.fetchSkillTreeProgress(uid, allTagIds).catch(() => null);
+                    }
+                }
+            }
+            const [badgeData, todayData, solveRankData, skillProgressData] = await Promise.all([badgePromise, todayPromise, solveProgressPromise, skillProgressPromise]);
 
             let list = Array.isArray(badgeData)
                 ? badgeData
@@ -802,6 +913,37 @@ export class AchievementsView {
                 const u = (solveRankData && solveRankData.ranks && solveRankData.ranks[0]) || {};
                 const solveCount = Number(u.count) || 0;
                 dynamic.progress = { solveCount };
+            } else if (categoryKey === 'skill' && skillProgressData) {
+                // 计算各章节的通关率（平均进度）
+                const nodeProgress = skillProgressData.nodeProgress || {};
+                const tree = skillTreeData['newbie-130'];
+                
+                const pctOf = (tagId) => {
+                    const raw = nodeProgress[tagId] || 0;
+                    return raw <= 1 ? raw * 100 : raw;
+                };
+                
+                const calcStageAvg = (stage) => {
+                    if (!stage || !stage.columns || stage.columns.length === 0) return 0;
+                    const ids = stage.columns.flatMap(c => c.nodeIds || []);
+                    if (ids.length === 0) return 0;
+                    const vals = ids.map(n => pctOf(nodeIdToTagId[n]));
+                    return Math.round(vals.reduce((a, b) => a + b, 0) / vals.length);
+                };
+                
+                const stage1Obj = tree.stages.find(s => s.id === 'stage-1');
+                const stage2Obj = tree.stages.find(s => s.id === 'stage-2');
+                const stage1Avg = calcStageAvg(stage1Obj);
+                const stage2Avg = calcStageAvg(stage2Obj);
+                
+                const interludeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
+                const interludeAvg = Math.round(interludeIds.map(id => pctOf(nodeIdToTagId[id])).reduce((a, b) => a + b, 0) / interludeIds.length);
+                
+                dynamic.progress = {
+                    chapter1: stage1Avg,
+                    interlude: interludeAvg,
+                    chapter2: stage2Avg
+                };
             }
 
             this.dynamicCatalog[categoryKey] = dynamic;
