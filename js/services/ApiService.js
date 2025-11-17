@@ -1271,5 +1271,61 @@ export class ApiService {
             return { totalPoints: 0, recent: [] };
         }
     }
+
+    // ===== 对战平台 =====
+    /**
+     * 发起匹配
+     * @param {number} rankScore - 段位分
+     * @param {string} mode - 匹配模式，默认 '1v1'
+     * @returns {Promise<{matched: boolean, roomId?: string, opponentId?: number}>}
+     */
+    async battleMatch(rankScore, mode = '1v1') {
+        const url = `${this.apiBase}/problem/tracker/battle/match?rankScore=${encodeURIComponent(rankScore)}&mode=${encodeURIComponent(mode)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { matched: false };
+        }
+        return { matched: false };
+    }
+
+    /**
+     * 轮询匹配结果
+     * @returns {Promise<{matched: boolean, roomId?: string}>}
+     */
+    async battlePoll() {
+        const url = `${this.apiBase}/problem/tracker/battle/poll`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { matched: false };
+        }
+        return { matched: false };
+    }
+
+    /**
+     * 取消匹配
+     * @param {string} mode - 匹配模式，默认 '1v1'
+     */
+    async battleCancel(mode = '1v1') {
+        const url = `${this.apiBase}/problem/tracker/battle/cancel?mode=${encodeURIComponent(mode)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return data && (data.code === 0 || data.code === 200);
+    }
 }
 

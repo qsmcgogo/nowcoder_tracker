@@ -3363,7 +3363,7 @@
         "category": "字符串匹配算法",
         "problems": [
           {
-            "title": "动物园",
+            "title": "不重合前后缀子串计数",
             "url": "https://www.nowcoder.com/practice/162094f5321e450baec41f87f8a7e22b?tpId=388&tqId=11295111&channelPut=w251acm",
             "difficulty": 1000,
             "ac_count": 0,

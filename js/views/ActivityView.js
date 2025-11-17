@@ -103,6 +103,7 @@ export class ActivityView {
                 box.innerHTML = `
                     <div style="font-weight:700;margin-bottom:6px;">卷王团队一览</div>
                     <div style="color:#888;margin-bottom:6px;">这里展示的团队并非全部是参与活动的团队，具体参与活动请以学校为单位，按"活动说明"报名。</div>
+                    <div style="color:#888;margin-bottom:6px;">这里的团队排序按近期活跃度排序，其中题单制霸、技能树制霸的权重更大。</div>
                     <table class="rankings-table">
                         <thead>
                             <tr>

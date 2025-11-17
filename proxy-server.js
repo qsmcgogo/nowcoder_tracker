@@ -7,7 +7,7 @@ const app = express();
 const port = 3000;
 
 // 环境切换: 'www', 'pre', 或 'd'
-const CURRENT_ENV = 'www'; 
+const CURRENT_ENV = 'd'; 
 
 const HOST_MAP = {
     'www': 'https://www.nowcoder.com',
@@ -154,6 +154,11 @@ app.use('/problem/tracker/team/activity/clock-days-users', manualProxyHandler('/
 app.use('/problem/tracker/team/activity/topic-finished-users', manualProxyHandler('/problem/tracker/team/activity/topic-finished-users'));
 app.use('/problem/tracker/team/activity/skill-finished-users', manualProxyHandler('/problem/tracker/team/activity/skill-finished-users'));
 app.use('/problem/tracker/team/activity/teams/leaderboard', manualProxyHandler('/problem/tracker/team/activity/teams/leaderboard'));
+
+// Battle routes
+app.use('/problem/tracker/battle/match', manualProxyHandler('/problem/tracker/battle/match'));
+app.use('/problem/tracker/battle/poll', manualProxyHandler('/problem/tracker/battle/poll'));
+app.use('/problem/tracker/battle/cancel', manualProxyHandler('/problem/tracker/battle/cancel'));
 
 
 // New endpoint to proxy avatars and bypass CORS for canvas

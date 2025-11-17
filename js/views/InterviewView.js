@@ -333,7 +333,9 @@ export class InterviewView {
     }
     
     renderProblemHTML(problem, letter = null) {
-        const problemUrl = helpers.buildUrlWithChannelPut(problem.url || problem.questionUrl, this.state.channelPut);
+        // 若入口URL带 channelPut，则笔面试加后缀"a"，否则回落到历史默认（helpers 内部默认）
+        const cp = this.state.channelPut ? (this.state.channelPut + 'a') : undefined;
+        const problemUrl = helpers.buildUrlWithChannelPut(problem.url || problem.questionUrl, cp);
         let difficultyCircleHtml = '';
         
         if (problem.difficultyScore) {
@@ -399,7 +401,9 @@ export class InterviewView {
         }
         
         const rowsHtml = problems.map(problem => {
-            const problemUrl = helpers.buildUrlWithChannelPut(problem.url, this.state.channelPut);
+            // 若入口URL带 channelPut，则笔面试加后缀"1"，否则回落到历史默认（helpers 内部默认）
+            const cp = this.state.channelPut ? (this.state.channelPut + '1') : undefined;
+            const problemUrl = helpers.buildUrlWithChannelPut(problem.url, cp);
             const difficultyInfo = problem.difficultyScore ? 
                 helpers.getDifficultyInfo(problem.difficultyScore) : null;
             const difficultyText = difficultyInfo ? 

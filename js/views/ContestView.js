@@ -196,7 +196,9 @@ export class ContestView {
         }
         
         const rowsHtml = this.state.contests.map(contest => {
-            const contestUrl = helpers.buildUrlWithChannelPut(contest.url, this.state.channelPut);
+            // 若入口URL带 channelPut，则竞赛加后缀"a"，否则回落到历史默认（helpers 内部默认）
+            const cp = this.state.channelPut ? (this.state.channelPut + 'a') : undefined;
+            const contestUrl = helpers.buildUrlWithChannelPut(contest.url, cp);
             let problemsHtml = '';
             
             for (let i = 0; i < maxProblems; i++) {
@@ -233,7 +235,9 @@ export class ContestView {
         // Check if current tab is XCPC (type 22)
         const isXCPC = String(this.state.activeContestTab) === '22';
         
-        let finalUrl = helpers.buildUrlWithChannelPut(problem.url || problem.questionUrl, this.state.channelPut);
+        // 若入口URL带 channelPut，则竞赛加后缀"1"，否则回落到历史默认（helpers 内部默认）
+        const cp = this.state.channelPut ? (this.state.channelPut + '1') : undefined;
+        let finalUrl = helpers.buildUrlWithChannelPut(problem.url || problem.questionUrl, cp);
         let titleHtml;
         
         if (isXCPC) {

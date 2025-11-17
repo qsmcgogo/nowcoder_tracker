@@ -1089,9 +1089,9 @@ export class DailyView {
     }
     
     buildUrlWithChannelPut(baseUrl, channelPut) {
-        // 若入口URL带 channelPut，则每日一题加后缀“2”，否则回落到 tracker2
+        // 若入口URL带 channelPut，则每日一题加后缀"b"，否则回落到 tracker2
         const rootCp = (typeof channelPut === 'string' ? channelPut : this.state?.channelPut) || '';
-        const effectiveChannelPut = rootCp ? (rootCp + '2') : 'tracker2';
+        const effectiveChannelPut = rootCp ? (rootCp + 'b') : 'tracker2';
         return helpers.buildUrlWithChannelPut(baseUrl, effectiveChannelPut);
     }
     

@@ -1177,9 +1177,9 @@ export class SkillTreeView {
             const problemClass = `${isSolved ? 'completed' : ''} ${isLocked ? 'locked' : ''}`.trim();
             const baseUrl = `https://www.nowcoder.com/practice/${problem.uuid}`;
             // 技能树题目默认使用 tracker3 渠道标识
-            // 若入口URL带 channelPut，则技能树题目加后缀“3”，否则回落到缺省 tracker3
+            // 若入口URL带 channelPut，则技能树题目加后缀"c"，否则回落到缺省 tracker3
             const chan = (this.state?.channelPut || '');
-            const cp = chan ? (chan + '3') : 'tracker3';
+            const cp = chan ? (chan + 'c') : 'tracker3';
             const problemUrl = helpers.buildUrlWithChannelPut(baseUrl, cp);
 
             // Changed: Display score and pass total
@@ -1528,11 +1528,14 @@ export class SkillTreeView {
                                     <th style="width:140px;">questionId</th>
                                     <th style="width:100px;">分数</th>
                                     <th>依赖（可多选）</th>
-                                    <th style="width:120px;">调整</th>
+                                    <th style="width:160px;">调整</th>
                                 </tr>
                             </thead>
                             <tbody id="skill-batch-tbody"></tbody>
                         </table>
+                        <div style="margin-top:12px;text-align:left;">
+                            <button type="button" id="skill-batch-add-btn" class="admin-btn" style="background:#1890ff;color:#fff;border:1px solid #1890ff;">添加题目</button>
+                        </div>
                     </div>
                     <div class="modal-actions" style="display:flex;gap:8px;justify-content:flex-end;">
                         <button id="skill-batch-cancel" class="admin-btn modal-secondary" style="background:#f5f5f5;color:#333;border:1px solid #e5e5e5;">取消</button>
@@ -1566,6 +1569,7 @@ export class SkillTreeView {
                         <td>
                             <button type="button" class="admin-btn skill-batch-up" style="padding:2px 8px;">↑</button>
                             <button type="button" class="admin-btn skill-batch-down" style="padding:2px 8px;margin-left:6px;">↓</button>
+                            <button type="button" class="admin-btn skill-batch-delete" style="padding:2px 8px;margin-left:6px;background:#ff4d4f;color:#fff;border:1px solid #ff4d4f;">×</button>
                         </td>
                     </tr>
                 `;
@@ -1575,7 +1579,7 @@ export class SkillTreeView {
         const state = problems.map(p => ({ questionId: String(p.questionId || ''), score: Number(p.score)||0, dependencies: Array.isArray(p.dependencies) ? p.dependencies.map(String) : [] }));
         renderRows(state);
 
-        // 绑定上下移动与依赖对话框
+        // 绑定上下移动、删除与依赖对话框
         const bindReorder = () => {
             tbody.querySelectorAll('.skill-batch-up').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -1593,6 +1597,16 @@ export class SkillTreeView {
                     renderRows(state); bindReorder();
                 });
             });
+            // 删除按钮
+            tbody.querySelectorAll('.skill-batch-delete').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const tr = btn.closest('tr'); const idx = Number(tr.getAttribute('data-idx'));
+                    if (confirm('确定要删除这道题目吗？')) {
+                        state.splice(idx, 1);
+                        renderRows(state); bindReorder();
+                    }
+                });
+            });
             // 依赖弹窗
             tbody.querySelectorAll('.skill-batch-choose-deps').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -1602,6 +1616,15 @@ export class SkillTreeView {
             });
         };
         bindReorder();
+
+        // 添加题目按钮
+        const addBtn = modal.querySelector('#skill-batch-add-btn');
+        if (addBtn) {
+            addBtn.addEventListener('click', () => {
+                state.push({ questionId: '', score: 0, dependencies: [] });
+                renderRows(state); bindReorder();
+            });
+        }
 
         const openDepsDialog = (rowIdx) => {
             // 先移除已存在的

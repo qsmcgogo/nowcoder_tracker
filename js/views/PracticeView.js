@@ -260,8 +260,8 @@ export class PracticeView {
         }
         
         const rowsHtml = problems.map(problem => {
-            // 若入口URL带 channelPut，则题库加后缀“1”，否则回落到历史默认（helpers 内部默认）
-            const cp = this.state.channelPut ? (this.state.channelPut + '1') : undefined;
+            // 若入口URL带 channelPut，则题库加后缀"a"，否则回落到历史默认（helpers 内部默认）
+            const cp = this.state.channelPut ? (this.state.channelPut + 'a') : undefined;
             const problemUrl = helpers.buildUrlWithChannelPut(problem.url, cp);
             const difficultyInfo = problem.difficultyScore ? 
                 helpers.getDifficultyInfo(problem.difficultyScore) : null;
@@ -351,7 +351,7 @@ export class PracticeView {
     }
     
     renderProblemHTML(problem) {
-        const cp2 = this.state.channelPut ? (this.state.channelPut + '1') : undefined;
+        const cp2 = this.state.channelPut ? (this.state.channelPut + 'a') : undefined;
         const problemUrl = helpers.buildUrlWithChannelPut(problem.url || problem.questionUrl, cp2);
         let difficultyCircleHtml = '';
         
