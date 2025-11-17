@@ -24,6 +24,10 @@ export class TeamView {
         this.activityRankPage = 1;
         this.activityRankLimit = 20;
         this.activityRankTotal = 0;
+        // 审批列表分页状态
+        this.approvePage = 1;
+        this.approveLimit = 10;
+        this.approveTotal = 0;
         // 用户信息本地缓存（userId -> {name, headUrl}）
         this.userInfoCache = new Map();
         // 队长管理成员开关（仅队长可见），默认关闭
@@ -2182,34 +2186,155 @@ export class TeamView {
 
     async renderApproveList() {
         const tbody = document.getElementById('team-approve-tbody');
-        if (!tbody) return;
+        const modalBody = tbody?.closest('.modal-body');
+        if (!tbody || !modalBody) return;
+        
         tbody.innerHTML = `<tr><td colspan="4">加载中...</td></tr>`;
+        
+        // 移除旧的分页容器
+        const oldPagination = modalBody.querySelector('#team-approve-pagination');
+        if (oldPagination) oldPagination.remove();
+        
         try {
-            const applyList = await this.api.teamApplyList(this.currentTeamId, 100);
-            if (Array.isArray(applyList) && applyList.length) {
-                tbody.innerHTML = applyList.map(a => {
+            const { list = [], total = 0 } = await this.api.teamApplyList(this.currentTeamId, this.approvePage, this.approveLimit);
+            this.approveTotal = total;
+            const totalPages = Math.max(1, Math.ceil(total / this.approveLimit));
+            
+            console.debug('审批列表数据:', { list, total, page: this.approvePage, limit: this.approveLimit });
+            
+            if (Array.isArray(list) && list.length) {
+                tbody.innerHTML = list.map(a => {
                     const id = a.id || a.applyId || '';
                     const user = a.applyUserName || a.applyUid || '';
                     const avatar = a.applyUserHeadUrl || a.headUrl || '';
                     const solved = (a.acceptCount != null ? a.acceptCount : (a.solveTotal != null ? a.solveTotal : (a.ac != null ? a.ac : 0)));
                     const timeRaw = a.createTime || '';
                     const time = timeRaw ? (new Date(Number(timeRaw))).toISOString().slice(0,10) : '';
-                    const userCell = `<div style=\"display:flex;align-items:center;gap:8px;\">\n                            <img src=\"${avatar}\" alt=\"avatar\" style=\"width:24px;height:24px;border-radius:50%;object-fit:cover;\" onerror=\"this.style.display='none'\" />\n                            <span>${user}</span>\n                        </div>`;
-                    return `<tr>\n                        <td style=\"padding:8px 6px;min-width:240px;\">${userCell}</td><td>${solved}</td><td>${time}</td>\n                        <td>\n                            <button class=\"admin-btn modal-apply-approve\" data-apply-id=\"${id}\">通过</button>\n                            <button class=\"admin-btn modal-apply-reject\" data-apply-id=\"${id}\" style=\"background:#ffecec;color:#e00;\">拒绝</button>\n                        </td>\n                    </tr>`;
+                    const userCell = `<div style="display:flex;align-items:center;gap:8px;">
+                            <img src="${avatar}" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
+                            <span>${user}</span>
+                        </div>`;
+                    return `<tr>
+                        <td style="padding:8px 6px;min-width:240px;">${userCell}</td><td>${solved}</td><td>${time}</td>
+                        <td>
+                            <button class="admin-btn modal-apply-approve" data-apply-id="${id}">通过</button>
+                            <button class="admin-btn modal-apply-reject" data-apply-id="${id}" style="background:#ffecec;color:#e00;">拒绝</button>
+                        </td>
+                    </tr>`;
                 }).join('');
+                
+                // 绑定操作按钮
                 document.querySelectorAll('.modal-apply-approve').forEach(btn => {
-                    if (btn._bound) return; btn._bound = true;
-                    btn.addEventListener('click', async () => { const id = btn.getAttribute('data-apply-id'); try { await this.api.teamApplyApprove(id); await this.renderApproveList(); } catch (e) { alert(e.message || '操作失败'); } });
+                    if (btn._bound) return; 
+                    btn._bound = true;
+                    btn.addEventListener('click', async () => { 
+                        const id = btn.getAttribute('data-apply-id'); 
+                        try { 
+                            await this.api.teamApplyApprove(id); 
+                            await this.renderApproveList(); 
+                        } catch (e) { 
+                            alert(e.message || '操作失败'); 
+                        } 
+                    });
                 });
                 document.querySelectorAll('.modal-apply-reject').forEach(btn => {
-                    if (btn._bound) return; btn._bound = true;
-                    btn.addEventListener('click', async () => { const id = btn.getAttribute('data-apply-id'); try { await this.api.teamApplyReject(id); await this.renderApproveList(); } catch (e) { alert(e.message || '操作失败'); } });
+                    if (btn._bound) return; 
+                    btn._bound = true;
+                    btn.addEventListener('click', async () => { 
+                        const id = btn.getAttribute('data-apply-id'); 
+                        try { 
+                            await this.api.teamApplyReject(id); 
+                            await this.renderApproveList(); 
+                        } catch (e) { 
+                            alert(e.message || '操作失败'); 
+                        } 
+                    });
                 });
+                
+                // 添加分页UI
+                const paginationHtml = `
+                    <div id="team-approve-pagination" class="pagination" style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <span>每页</span>
+                            <select id="approvePageSize" class="pagination-select" style="padding:4px 6px;">
+                                <option value="10" ${this.approveLimit === 10 ? 'selected' : ''}>10</option>
+                                <option value="20" ${this.approveLimit === 20 ? 'selected' : ''}>20</option>
+                                <option value="50" ${this.approveLimit === 50 ? 'selected' : ''}>50</option>
+                            </select>
+                            <span>条</span>
+                            <div id="approvePaginationInfo" class="pagination-info">共 ${total} 条申请，第 ${this.approvePage} / ${totalPages} 页</div>
+                        </div>
+                        <div class="pagination-controls" style="display:flex;align-items:center;gap:8px;">
+                            <button id="approvePrev" class="pagination-btn" ${this.approvePage <= 1 ? 'disabled' : ''}>上一页</button>
+                            <span style="margin:0 4px;">第</span>
+                            <input type="number" id="approvePageInput" min="1" max="${totalPages}" value="${this.approvePage}" style="width:60px;padding:4px 6px;text-align:center;border:1px solid #ddd;border-radius:4px;" />
+                            <span style="margin:0 4px;">/ ${totalPages} 页</span>
+                            <button id="approveJump" class="pagination-btn" style="margin-left:4px;">跳转</button>
+                            <button id="approveNext" class="pagination-btn" ${this.approvePage >= totalPages ? 'disabled' : ''}>下一页</button>
+                        </div>
+                    </div>
+                `;
+                modalBody.insertAdjacentHTML('beforeend', paginationHtml);
+                
+                // 绑定分页事件
+                this.bindApprovePagination();
             } else {
-                tbody.innerHTML = `<tr><td colspan=\"4\">暂无待审批</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="4">暂无待审批</td></tr>`;
             }
         } catch (e) {
-            tbody.innerHTML = `<tr><td colspan=\"4\">加载失败：${e.message || '请稍后重试'}</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="4">加载失败：${e.message || '请稍后重试'}</td></tr>`;
+        }
+    }
+    
+    bindApprovePagination() {
+        const pageSizeSelect = document.getElementById('approvePageSize');
+        const prevBtn = document.getElementById('approvePrev');
+        const nextBtn = document.getElementById('approveNext');
+        const jumpBtn = document.getElementById('approveJump');
+        const pageInput = document.getElementById('approvePageInput');
+        
+        if (pageSizeSelect && !pageSizeSelect._bound) {
+            pageSizeSelect._bound = true;
+            pageSizeSelect.addEventListener('change', async () => {
+                this.approveLimit = Number(pageSizeSelect.value) || 10;
+                this.approvePage = 1;
+                await this.renderApproveList();
+            });
+        }
+        
+        if (prevBtn && !prevBtn._bound) {
+            prevBtn._bound = true;
+            prevBtn.addEventListener('click', async () => {
+                if (this.approvePage > 1) {
+                    this.approvePage--;
+                    await this.renderApproveList();
+                }
+            });
+        }
+        
+        if (nextBtn && !nextBtn._bound) {
+            nextBtn._bound = true;
+            nextBtn.addEventListener('click', async () => {
+                const totalPages = Math.max(1, Math.ceil(this.approveTotal / this.approveLimit));
+                if (this.approvePage < totalPages) {
+                    this.approvePage++;
+                    await this.renderApproveList();
+                }
+            });
+        }
+        
+        if (jumpBtn && pageInput && !jumpBtn._bound) {
+            jumpBtn._bound = true;
+            jumpBtn.addEventListener('click', async () => {
+                const targetPage = Number(pageInput.value);
+                const totalPages = Math.max(1, Math.ceil(this.approveTotal / this.approveLimit));
+                if (targetPage >= 1 && targetPage <= totalPages) {
+                    this.approvePage = targetPage;
+                    await this.renderApproveList();
+                } else {
+                    alert(`请输入 1 到 ${totalPages} 之间的页码`);
+                }
+            });
         }
     }
 }

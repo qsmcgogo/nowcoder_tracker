@@ -26,11 +26,19 @@ import com.wenyibi.futuremail.service.acm.team.ACMTeamApplyService;
 import com.wenyibi.futuremail.service.CodingSubmissionService;
 import com.wenyibi.futuremail.service.acm.contest.ACMCodingSubmissionService;
 import com.wenyibi.futuremail.util.DFASensitiveUtil;
+import com.wenyibi.futuremail.util.PagingUtils;
+import com.wenyibi.futuremail.model.common.Page;
 
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Date;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.HashMap;
+import java.util.Set;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import net.paoding.rose.web.Invocation;
@@ -52,6 +60,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import com.wenyibi.futuremail.cache.JedisAdapter;
 import com.wenyibi.futuremail.util.RedisKeyUtil;
+import com.wenyibi.futuremail.model.tracker.TrackerStageEnum;
 
 @Component
 public class TrackerTeamBiz {
@@ -128,7 +137,7 @@ public class TrackerTeamBiz {
       return new JSONArray();
     }
     // 展示所有团队类型（ACM + TRACKER）
-    java.util.List<Integer> allTypes = java.util.Arrays.asList(
+    List<Integer> allTypes = Arrays.asList(
         ACMTeamTypeInfoEnum.ACM.getCode(),
         ACMTeamTypeInfoEnum.TRACKER.getCode()
     );
@@ -227,6 +236,8 @@ public class TrackerTeamBiz {
     if (description != null) {
       affected += acmTeamInfoService.updateDescription(teamId, description);
     }
+    // 团队信息更新后异步刷新活动积分
+    refreshTeamActivityScoreAsync(teamId);
     return affected;
   }
 
@@ -243,6 +254,8 @@ public class TrackerTeamBiz {
     acmTeamInfoService.updatePersonCount(teamId, count);
     // 异步刷新该用户的 Redis 指标（总过题 / 总提交）
     refreshUserTrackerMetricsAsync(userId);
+    // 成员变更后异步刷新活动积分
+    refreshTeamActivityScoreAsync(teamId);
     return id;
   }
 
@@ -255,6 +268,8 @@ public class TrackerTeamBiz {
     // 同步更新团队人数
     int count = acmTeamMemberService.getCountByGroupId(teamId);
     acmTeamInfoService.updatePersonCount(teamId, count);
+    // 成员变更后异步刷新活动积分
+    refreshTeamActivityScoreAsync(teamId);
     return ret;
   }
 
@@ -310,7 +325,7 @@ public class TrackerTeamBiz {
     // 批量查询今天是否打卡（仅本页）
     List<Long> pageUids = pageMembers.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
     List<Long> checkedIds = trackerClockRecordSerice.listTodayCheckedUserIds(pageUids);
-    java.util.Set<Long> checkedSet = new java.util.HashSet<>(checkedIds);
+    Set<Long> checkedSet = new HashSet<>(checkedIds);
 
     JSONArray arr = new JSONArray();
     for (ACMTeamMember m : pageMembers) {
@@ -368,6 +383,8 @@ public class TrackerTeamBiz {
 
     // 更新团队拥有者
     int ret = acmTeamInfoService.updateUid(teamId, newOwnerUserId);
+    // 成员角色变更后异步刷新活动积分
+    refreshTeamActivityScoreAsync(teamId);
 
     return ret;
   }
@@ -390,6 +407,8 @@ public class TrackerTeamBiz {
     int ret = acmTeamMemberService.delete(member.getId());
     int count = acmTeamMemberService.getCountByGroupId(teamId);
     acmTeamInfoService.updatePersonCount(teamId, count);
+    // 成员变更后异步刷新活动积分
+    refreshTeamActivityScoreAsync(teamId);
     return ret;
   }
 
@@ -399,6 +418,16 @@ public class TrackerTeamBiz {
   public int disbandTeam(long teamId, long operatorUserId) throws WenyibiException {
     if (!isTeamAdmin(teamId, operatorUserId)) {
       throw new WenyibiException("不是队长，无权操作");
+    }
+    // 解散前将团队名加前缀“已解散”，避免后续重名冲突
+    ACMTeamInfo teamInfo = acmTeamInfoService.getById(teamId);
+    if (teamInfo != null) {
+      String oldName = teamInfo.getName() == null ? "" : teamInfo.getName();
+      String newName = oldName.startsWith("已解散") ? oldName : ("已解散" + oldName);
+      try {
+        acmTeamInfoService.updateName(teamId, newName);
+      } catch (Exception ignore) {
+      }
     }
     List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
     for (ACMTeamMember m : members) {
@@ -474,6 +503,8 @@ public class TrackerTeamBiz {
     acmTeamInfoService.updatePersonCount(teamId, countAfter);
     // 异步刷新该用户的 Redis 指标
     refreshUserTrackerMetricsAsync(apply.getApplyUid());
+    // 成员变更后异步刷新活动积分
+    refreshTeamActivityScoreAsync(teamId);
     return 1;
   }
 
@@ -498,7 +529,7 @@ public class TrackerTeamBiz {
       throw new WenyibiException("不是队长，无权操作");
     }
     int lim = Math.max(1, Math.min(500, limit));
-    java.util.List<ACMTeamApply> list = acmTeamApplyService
+    List<ACMTeamApply> list = acmTeamApplyService
         .getByGroupIdAndType(teamId, ACMTeamApplyTypeEnum.APPLY.getType(), ACMTeamApplyStatusEnum.INIT.getType(), lim);
     int processed = 0;
     for (ACMTeamApply a : list) {
@@ -509,6 +540,8 @@ public class TrackerTeamBiz {
         // 单条失败不影响整体
       }
     }
+    // 成员批量变更后异步刷新活动积分
+    refreshTeamActivityScoreAsync(teamId);
     return processed;
   }
 
@@ -520,7 +553,7 @@ public class TrackerTeamBiz {
       throw new WenyibiException("不是队长，无权操作");
     }
     int lim = Math.max(1, Math.min(500, limit));
-    java.util.List<ACMTeamApply> list = acmTeamApplyService
+    List<ACMTeamApply> list = acmTeamApplyService
         .getByGroupIdAndType(teamId, ACMTeamApplyTypeEnum.APPLY.getType(), ACMTeamApplyStatusEnum.INIT.getType(), lim);
     int processed = 0;
     for (ACMTeamApply a : list) {
@@ -572,6 +605,8 @@ public class TrackerTeamBiz {
     acmTeamInfoService.updatePersonCount(teamId, countAfter);
     // 异步刷新该用户的 Redis 指标
     refreshUserTrackerMetricsAsync(userId);
+    // 成员变更后异步刷新活动积分
+    refreshTeamActivityScoreAsync(teamId);
     return 1;
   }
 
@@ -607,6 +642,39 @@ public class TrackerTeamBiz {
   }
 
   // ============== 申请/邀请 列表查询（用于管理页） ==============
+  /**
+   * 获取团队待审批申请列表（支持分页）
+   * @param teamId 团队ID
+   * @param page 页码，从1开始
+   * @param limit 每页大小
+   * @return 返回包含分页信息和数据列表的JSONObject
+   */
+  public JSONObject listTeamPendingApply(long teamId, int page, int limit) throws WenyibiException {
+    // 先获取所有待审批的申请（限制最大1000条，避免一次性查询过多）
+    int maxLimit = 1000;
+    List<ACMTeamApply> allList = acmTeamApplyService
+        .getByGroupIdAndType(teamId, ACMTeamApplyTypeEnum.APPLY.getType(), ACMTeamApplyStatusEnum.INIT.getType(), maxLimit);
+    
+    // 使用分页工具进行分页
+    Page<ACMTeamApply> pageWithData = PagingUtils.getPageWithData(page, limit, allList);
+    
+    // 装饰当前页的数据
+    JSONArray dataList = decorateApplyList(pageWithData.getData());
+    
+    // 构建返回结果
+    JSONObject result = new JSONObject();
+    result.put("dataList", dataList);
+    JSONObject pageInfo = PagingUtils.getPageInfo(limit, pageWithData);
+    result.put("pageInfo", pageInfo);
+    
+    return result;
+  }
+  
+  /**
+   * 获取团队待审批申请列表（兼容旧版本，不支持分页）
+   * @deprecated 请使用 listTeamPendingApply(long teamId, int page, int limit)
+   */
+  @Deprecated
   public JSONArray listTeamPendingApply(long teamId, int limit) throws WenyibiException {
     List<ACMTeamApply> list = acmTeamApplyService
         .getByGroupIdAndType(teamId, ACMTeamApplyTypeEnum.APPLY.getType(), ACMTeamApplyStatusEnum.INIT.getType(), Math.max(1, Math.min(500, limit)));
@@ -629,12 +697,14 @@ public class TrackerTeamBiz {
     Map<Long, User> userMap = userService.getUserMapsByIds(uids);
     // 批量拉取团队信息
     List<Long> teamIds = list.stream().map(ACMTeamApply::getTeamId).collect(Collectors.toList());
-    java.util.List<Integer> allTypes = java.util.Arrays.asList(
+    List<Integer> allTypes = Arrays.asList(
         ACMTeamTypeInfoEnum.ACM.getCode(), ACMTeamTypeInfoEnum.TRACKER.getCode());
     Map<Long, ACMTeamInfo> teamMap = acmTeamInfoService.getMapByIds(teamIds, allTypes);
     // 批量拉取队长信息
-    java.util.Set<Long> ownerIds = teamMap.values().stream().map(ACMTeamInfo::getUid).collect(java.util.stream.Collectors.toSet());
-    Map<Long, User> ownerMap = ownerIds.isEmpty() ? java.util.Collections.emptyMap() : userService.getUserMapsByIds(new java.util.ArrayList<>(ownerIds));
+    Set<Long> ownerIds = teamMap.values().stream().map(ACMTeamInfo::getUid).collect(Collectors.toSet());
+    Map<Long, User> ownerMap = ownerIds.isEmpty() ? Collections.emptyMap() : userService.getUserMapsByIds(new ArrayList<>(ownerIds));
+    // 批量获取用户过题数（用于审批列表显示）
+    Map<Long, Pair<Integer, Integer>> metrics = questionTrackerBiz.getTrackerMetricsCached(uids);
     for (ACMTeamApply a : list) {
       JSONObject o = new JSONObject();
       o.put("id", a.getId());
@@ -661,6 +731,10 @@ public class TrackerTeamBiz {
         o.put("applyUserName", u.getDisplayname());
         o.put("applyUserHeadUrl", u.getTinnyHeaderUrl());
       }
+      // 添加过题数字段
+      Pair<Integer, Integer> p = metrics.get(a.getApplyUid());
+      int totalAc = p == null ? 0 : p.getLeft();
+      o.put("acceptCount", totalAc);
       arr.add(o);
     }
     return arr;
@@ -675,12 +749,12 @@ public class TrackerTeamBiz {
       return arr;
     }
     List<Long> teamIds = list.stream().map(ACMTeamApply::getTeamId).collect(Collectors.toList());
-    java.util.List<Integer> allTypes = java.util.Arrays.asList(
+    List<Integer> allTypes = Arrays.asList(
         ACMTeamTypeInfoEnum.ACM.getCode(), ACMTeamTypeInfoEnum.TRACKER.getCode());
     Map<Long, ACMTeamInfo> teamMap = acmTeamInfoService.getMapByIds(teamIds, allTypes);
     // 批量拉取队长信息
-    java.util.Set<Long> ownerIds = teamMap.values().stream().map(ACMTeamInfo::getUid).collect(java.util.stream.Collectors.toSet());
-    Map<Long, User> ownerMap = ownerIds.isEmpty() ? java.util.Collections.emptyMap() : userService.getUserMapsByIds(new java.util.ArrayList<>(ownerIds));
+    Set<Long> ownerIds = teamMap.values().stream().map(ACMTeamInfo::getUid).collect(Collectors.toSet());
+    Map<Long, User> ownerMap = ownerIds.isEmpty() ? Collections.emptyMap() : userService.getUserMapsByIds(new ArrayList<>(ownerIds));
     for (ACMTeamApply a : list) {
       JSONObject o = new JSONObject();
       o.put("id", a.getId());
@@ -754,6 +828,12 @@ public class TrackerTeamBiz {
       summary.put("todayClockCount", todayClock);
     } catch (Exception ignore) {
       // 忽略单字段异常
+    }
+    // 覆盖“团队人数”为实时值（不使用缓存）
+    try {
+      int realtimeMemberCount = acmTeamMemberService.getCountByGroupId(teamId);
+      summary.put("memberCount", realtimeMemberCount);
+    } catch (Exception ignore) {
     }
     return summary;
   }
@@ -841,7 +921,7 @@ public class TrackerTeamBiz {
     // 昨日卷王：按昨日AC最多，若并列，用昨日提交次数最多打破（提交数以WWW站统计为准）
     long topUid = 0L;
     int topAc = -1;
-    java.util.List<Long> tieUids = new java.util.ArrayList<>();
+    List<Long> tieUids = new ArrayList<>();
     for (Long uid : uids) {
       int ac = yesterdayMap.getOrDefault(uid, 0);
       if (ac > topAc) {
@@ -991,7 +1071,7 @@ public class TrackerTeamBiz {
     } else {
       // total：优先命中 QuestionTrackerBiz 的 per-user 缓存
       Map<Long, Pair<Integer, Integer>> metrics = questionTrackerBiz.getTrackerMetricsCached(uids);
-      acceptCountMap = new java.util.HashMap<>();
+      acceptCountMap = new HashMap<>();
       for (Long id : uids) {
         Pair<Integer, Integer> p = metrics.get(id);
         if (p != null) acceptCountMap.put(id, p.getLeft());
@@ -1043,56 +1123,35 @@ public class TrackerTeamBiz {
     String s = scope == null ? "total" : scope.toLowerCase();
     if ("7days".equals(s)) {
       // 近7日打卡天数
-      java.util.Map<Long, Integer> map = trackerClockRecordSerice.countSevenDaysClockByUserIds(uids);
+      Map<Long, Integer> map = trackerClockRecordSerice.countSevenDaysClockByUserIds(uids);
       for (Long uid : uids) {
         int cnt = map.getOrDefault(uid, 0);
-        Double cont  = JedisAdapter.zScore(RedisKeyUtil.getTrackerClockContinusboard(), String.valueOf(uid));
         JSONObject r = new JSONObject();
         r.put("userId", uid);
         r.put("count", cnt);
-        r.put("continueDays", cont == null ? 0 : cont.intValue());
-        User u = userMap.get(uid);
-        if (u != null) {
-          r.put("name", u.getDisplayname());
-          r.put("headUrl", u.getTinnyHeaderUrl());
-        }
         rows.add(r);
       }
       rows.sort((a, b) -> Integer.compare(b.getIntValue("count"), a.getIntValue("count")));
     } else if ("today".equals(s)) {
       // 今日：count=是否打卡(0/1)
       List<Long> checkedIds = trackerClockRecordSerice.listTodayCheckedUserIds(uids);
-      java.util.Set<Long> checkedSet = new java.util.HashSet<>(checkedIds);
+      Set<Long> checkedSet = new HashSet<>(checkedIds);
       for (Long uid : uids) {
         int cnt = checkedSet.contains(uid) ? 1 : 0;
-        Double cont  = JedisAdapter.zScore(RedisKeyUtil.getTrackerClockContinusboard(), String.valueOf(uid));
         JSONObject r = new JSONObject();
         r.put("userId", uid);
         r.put("count", cnt);
-        r.put("continueDays", cont == null ? 0 : cont.intValue());
-        User u = userMap.get(uid);
-        if (u != null) {
-          r.put("name", u.getDisplayname());
-          r.put("headUrl", u.getTinnyHeaderUrl());
-        }
         rows.add(r);
       }
       rows.sort((a, b) -> Integer.compare(b.getIntValue("count"), a.getIntValue("count")));
     } else {
       // 累计：一次性从 DB 统计累计打卡天数，减少 Redis 循环调用
-      java.util.Map<Long, Integer> totalMap = trackerClockRecordSerice.countAllClockDaysByUserIds(uids);
+      Map<Long, Integer> totalMap = trackerClockRecordSerice.countAllClockDaysByUserIds(uids);
       for (Long uid : uids) {
         int totalDays = totalMap.getOrDefault(uid, 0);
-        Double cont  = JedisAdapter.zScore(RedisKeyUtil.getTrackerClockContinusboard(), String.valueOf(uid));
         JSONObject r = new JSONObject();
         r.put("userId", uid);
         r.put("count", totalDays);
-        r.put("continueDays", cont == null ? 0 : cont.intValue());
-        User u = userMap.get(uid);
-        if (u != null) {
-          r.put("name", u.getDisplayname());
-          r.put("headUrl", u.getTinnyHeaderUrl());
-        }
         rows.add(r);
       }
       rows.sort((a, b) -> Integer.compare(b.getIntValue("count"), a.getIntValue("count")));
@@ -1105,17 +1164,31 @@ public class TrackerTeamBiz {
     JSONArray list = new JSONArray();
     if (start < total) {
       int end = Math.min(total, start + safeLimit);
-      // 仅对当前页成员批量判断今日是否打卡（checkedToday）
+      // 仅对当前页成员拼装最终 JSON，并补充 continueDays 与 checkedToday
       List<Long> pageUids = new ArrayList<>();
       for (int i = start; i < end; i++) {
         pageUids.add(rows.get(i).getLong("userId"));
       }
+      // 批量获取今日是否打卡（仅本页）
       List<Long> checkedIds = trackerClockRecordSerice.listTodayCheckedUserIds(pageUids);
-      java.util.Set<Long> checkedSet = new java.util.HashSet<>(checkedIds);
+      Set<Long> checkedSet = new HashSet<>(checkedIds);
       for (int i = start; i < end; i++) {
-        JSONObject r = rows.get(i);
+        JSONObject base = rows.get(i);
+        long uid = base.getLongValue("userId");
+        int cnt = base.getIntValue("count");
+        // 每页再取连续打卡天数（Redis）
+        Double cont = JedisAdapter.zScore(RedisKeyUtil.getTrackerClockContinusboard(), String.valueOf(uid));
+        JSONObject r = new JSONObject();
+        r.put("userId", uid);
+        r.put("count", cnt);
+        r.put("continueDays", cont == null ? 0 : cont.intValue());
+        User u = userMap.get(uid);
+        if (u != null) {
+          r.put("name", u.getDisplayname());
+          r.put("headUrl", u.getTinnyHeaderUrl());
+        }
         r.put("rank", i + 1);
-        r.put("checkedToday", checkedSet.contains(r.getLong("userId")));
+        r.put("checkedToday", checkedSet.contains(uid));
         list.add(r);
       }
     }
@@ -1142,10 +1215,20 @@ public class TrackerTeamBiz {
 
     List<Long> problemIds;
     if (org.apache.commons.lang3.StringUtils.isBlank(stageKey) || "all".equalsIgnoreCase(stageKey)) {
-      problemIds = new ArrayList<>(questionTrackerBiz.getAllProblemIds());
+      // all 表示“技能树全部题目”（而非 tracker 全部题目）
+      TrackerStageEnum[] stages = new TrackerStageEnum[] {
+          TrackerStageEnum.CHAPTER1,
+          TrackerStageEnum.INTERLUDE_DAWN,
+          TrackerStageEnum.CHAPTER2
+      };
+      Set<Long> pidSet = new LinkedHashSet<>();
+      for (TrackerStageEnum st : stages) {
+        pidSet.addAll(questionTrackerBiz.getSkillTreeProblemIdsByChapter(st));
+      }
+      problemIds = new ArrayList<>(pidSet);
     } else {
-      com.wenyibi.futuremail.model.tracker.TrackerStageEnum stage =
-          com.wenyibi.futuremail.model.tracker.TrackerStageEnum.fromKey(stageKey);
+      TrackerStageEnum stage =
+          TrackerStageEnum.fromKey(stageKey);
       problemIds = new ArrayList<>(questionTrackerBiz.getSkillTreeProblemIdsByChapter(stage));
     }
 
@@ -1159,17 +1242,13 @@ public class TrackerTeamBiz {
       acceptCountMap = questionTrackerBiz.getAcceptCountInProblemSetByUserIds(uids, problemIds);
     }
 
+    // 仅保留排序所需的最小信息，避免未分页时大量拼接 JSON
     List<JSONObject> rows = new ArrayList<>();
     for (Long uid : uids) {
       int ac = acceptCountMap.getOrDefault(uid, 0);
       JSONObject row = new JSONObject();
       row.put("userId", uid);
       row.put("acceptCount", ac);
-      User u = userMap.get(uid);
-      if (u != null) {
-        row.put("name", u.getDisplayname());
-        row.put("headUrl", u.getTinnyHeaderUrl());
-      }
       rows.add(row);
     }
     rows.sort((a, b) -> Integer.compare(b.getIntValue("acceptCount"), a.getIntValue("acceptCount")));
@@ -1182,7 +1261,17 @@ public class TrackerTeamBiz {
     if (start < total) {
       int end = Math.min(total, start + safeLimit);
       for (int i = start; i < end; i++) {
-        JSONObject r = rows.get(i);
+        JSONObject base = rows.get(i);
+        long uid = base.getLongValue("userId");
+        int ac = base.getIntValue("acceptCount");
+        JSONObject r = new JSONObject();
+        r.put("userId", uid);
+        r.put("acceptCount", ac);
+        User u = userMap.get(uid);
+        if (u != null) {
+          r.put("name", u.getDisplayname());
+          r.put("headUrl", u.getTinnyHeaderUrl());
+        }
         r.put("rank", i + 1);
         list.add(r);
       }
@@ -1269,7 +1358,8 @@ public class TrackerTeamBiz {
   public JSONObject getTeamActivityClockTotal(long teamId, Date beginDate, Date endDate) {
     List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
-    int totalTimes = trackerClockRecordSerice.countClockTimesByUserIdsBetweenDates(beginDate, endDate, uids);
+    // 采用“人次（人-天）”口径，避免同一用户同日多次打卡被重复计数
+    int totalTimes = trackerClockRecordSerice.countClockPersonDaysByUserIdsBetweenDates(beginDate, endDate, uids);
     JSONObject res = new JSONObject();
     res.put("teamId", teamId);
     res.put("begin", beginDate);
@@ -1285,9 +1375,9 @@ public class TrackerTeamBiz {
     List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
     Map<Long, Integer> daysMap = trackerClockRecordSerice.countAllClockDaysByUserIds(uids);
-    java.util.List<Long> ge30 = new java.util.ArrayList<>();
-    java.util.List<Long> ge60 = new java.util.ArrayList<>();
-    java.util.List<Long> ge100 = new java.util.ArrayList<>();
+    List<Long> ge30 = new ArrayList<>();
+    List<Long> ge60 = new ArrayList<>();
+    List<Long> ge100 = new ArrayList<>();
     for (Map.Entry<Long, Integer> e : daysMap.entrySet()) {
       int d = e.getValue() == null ? 0 : e.getValue();
       if (d >= 30) ge30.add(e.getKey());
@@ -1321,7 +1411,7 @@ public class TrackerTeamBiz {
     for (int i = 0; i < topics.length; i++) {
       List<Long> problemIds = trackerBadgeBiz.getProblemIdsByTopic(topics[i]);
       int total = problemIds == null ? 0 : problemIds.size();
-      java.util.List<Long> finished = new java.util.ArrayList<>();
+      List<Long> finished = new ArrayList<>();
       if (total > 0) {
         Map<Long, Integer> acceptMap = questionTrackerBiz.getAcceptCountInProblemSetByUserIds(uids, problemIds);
         for (Long uid : uids) {
@@ -1345,17 +1435,17 @@ public class TrackerTeamBiz {
   public JSONObject getTeamSkillFinishedUsers(long teamId) {
     List<ACMTeamMember> members = acmTeamMemberService.getByTeamId(teamId);
     List<Long> uids = members.stream().map(ACMTeamMember::getUid).collect(Collectors.toList());
-    com.wenyibi.futuremail.model.tracker.TrackerStageEnum[] stages = new com.wenyibi.futuremail.model.tracker.TrackerStageEnum[] {
-        com.wenyibi.futuremail.model.tracker.TrackerStageEnum.CHAPTER1,
-        com.wenyibi.futuremail.model.tracker.TrackerStageEnum.INTERLUDE_DAWN,
-        com.wenyibi.futuremail.model.tracker.TrackerStageEnum.CHAPTER2
+    TrackerStageEnum[] stages = new TrackerStageEnum[] {
+        TrackerStageEnum.CHAPTER1,
+        TrackerStageEnum.INTERLUDE_DAWN,
+        TrackerStageEnum.CHAPTER2
     };
     String[] keys = new String[] { "chapter1", "interlude", "chapter2" };
     JSONObject res = new JSONObject();
     for (int i = 0; i < stages.length; i++) {
       List<Long> problemIds = new ArrayList<>(questionTrackerBiz.getSkillTreeProblemIdsByChapter(stages[i]));
       int total = problemIds == null ? 0 : problemIds.size();
-      java.util.List<Long> finished = new java.util.ArrayList<>();
+      List<Long> finished = new ArrayList<>();
       if (total > 0) {
         Map<Long, Integer> acceptMap = questionTrackerBiz.getAcceptCountInProblemSetByUserIds(uids, problemIds);
         for (Long uid : uids) {
@@ -1383,9 +1473,9 @@ public class TrackerTeamBiz {
     int safePage = Math.max(1, page);
     int start = (safePage - 1) * safeLimit;
     // 从 Redis 取全部或分页团队id（这里尝试按 rank 分页）
-    java.util.List<String> teamIdStrSet = JedisAdapter.zRevRange(
+    List<String> teamIdStrSet = JedisAdapter.zRevRange(
         RedisKeyUtil.getTeamActivityTeamsBoard(), start, start + safeLimit - 1);
-    java.util.List<Long> teamIds = new java.util.ArrayList<>();
+    List<Long> teamIds = new ArrayList<>();
     if (teamIdStrSet != null) {
       for (String s : teamIdStrSet) {
         try { teamIds.add(Long.parseLong(s)); } catch (Exception ignore) {}
@@ -1399,39 +1489,46 @@ public class TrackerTeamBiz {
       return res;
     }
     // 统计总数（用于分页 total）
-    java.util.List<String> allTeams = JedisAdapter.zRevRange(
+    List<String> allTeams = JedisAdapter.zRevRange(
         RedisKeyUtil.getTeamActivityTeamsBoard(), 0, -1);
     int total = allTeams == null ? teamIds.size() : allTeams.size();
 
     JSONArray list = new JSONArray();
     for (Long teamId : teamIds) {
-      JSONObject row = new JSONObject();
-      row.put("teamId", teamId);
-      // 团队名称
-      ACMTeamInfo team = acmTeamInfoService.getById(teamId);
-      if (team != null) {
-        row.put("teamName", team.getName());
-        row.put("ownerUserId", team.getUid());
-        row.put("memberCount", acmTeamMemberService.getCountByGroupId(teamId));
+      // 先读缓存（12h TTL）；key 按 teamId 粒度
+      String cacheKey = RedisKeyUtil.getTeamActivityTeamDetail(teamId);
+      JSONObject row = JedisAdapter.getObject(cacheKey, JSONObject.class);
+      if (row == null) {
+        row = new JSONObject();
+        row.put("teamId", teamId);
+        // 团队名称
+        ACMTeamInfo team = acmTeamInfoService.getById(teamId);
+        if (team != null) {
+          row.put("teamName", team.getName());
+          row.put("ownerUserId", team.getUid());
+          row.put("memberCount", acmTeamMemberService.getCountByGroupId(teamId));
+        }
+        // 活动期间打卡总人次
+        JSONObject clockTotal = getTeamActivityClockTotal(teamId, beginDate, endDate);
+        row.put("clockTotalTimes", clockTotal.getIntValue("totalTimes"));
+        // 累计打卡阈值
+        JSONObject days = getTeamClockDaysReachedUsers(teamId);
+        row.put("ge30Count", days.getIntValue("ge30Count"));
+        row.put("ge60Count", days.getIntValue("ge60Count"));
+        row.put("ge100Count", days.getIntValue("ge100Count"));
+        // 题单刷完
+        JSONObject topic = getTeamTopicFinishedUsers(teamId);
+        row.put("topicFinished", topic);
+        // 技能树刷完
+        JSONObject skill = getTeamSkillFinishedUsers(teamId);
+        row.put("skillFinished", skill);
+        // 回填缓存（12 小时）
+        JedisAdapter.setObjectEx(cacheKey, row, 12 * 60 * 60);
       }
-      // 团队榜积分（teams ZSET）
+      // 分数实时读取，避免排序与缓存分数不一致
       Double score = JedisAdapter.zScore(
           RedisKeyUtil.getTeamActivityTeamsBoard(), String.valueOf(teamId));
       row.put("score", score == null ? 0D : score.doubleValue());
-      // 活动期间打卡总人次
-      JSONObject clockTotal = getTeamActivityClockTotal(teamId, beginDate, endDate);
-      row.put("clockTotalTimes", clockTotal.getIntValue("totalTimes"));
-      // 累计打卡阈值
-      JSONObject days = getTeamClockDaysReachedUsers(teamId);
-      row.put("ge30Count", days.getIntValue("ge30Count"));
-      row.put("ge60Count", days.getIntValue("ge60Count"));
-      row.put("ge100Count", days.getIntValue("ge100Count"));
-      // 题单刷完
-      JSONObject topic = getTeamTopicFinishedUsers(teamId);
-      row.put("topicFinished", topic);
-      // 技能树刷完
-      JSONObject skill = getTeamSkillFinishedUsers(teamId);
-      row.put("skillFinished", skill);
       list.add(row);
     }
     // 按 score 排序
@@ -1445,6 +1542,55 @@ public class TrackerTeamBiz {
     res.put("total", total);
     res.put("list", list);
     return res;
+  }
+
+  // ============== 团队活动：积分计算与异步刷新 ==============
+  private Date[] getDefaultActivityWindow() {
+    Date begin = NcDateUtils.parseDate("2025-11-01", "yyyy-MM-dd");
+    Date end = NcDateUtils.parseDate("2026-03-01", "yyyy-MM-dd");
+    return new Date[] { begin, end };
+  }
+
+  /** 计算团队活动积分：活动期间打卡总人次 + (技能树/题单制霸人次总和 * 100) */
+  public double computeTeamActivityScore(long teamId, Date beginDate, Date endDate) {
+    // 1) 活动期间打卡总人次
+    JSONObject clock = getTeamActivityClockTotal(teamId, beginDate, endDate);
+    int totalClockTimes = clock.getIntValue("totalTimes");
+    // 2) 题单制霸累计人次（四个题单）
+    JSONObject topic = getTeamTopicFinishedUsers(teamId);
+    int topicFinished =
+        topic.getJSONObject("newbie130").getIntValue("count")
+            + topic.getJSONObject("intro").getIntValue("count")
+            + topic.getJSONObject("advanced").getIntValue("count")
+            + topic.getJSONObject("peak").getIntValue("count");
+    // 3) 技能树制霸累计人次（三个章节）
+    JSONObject skill = getTeamSkillFinishedUsers(teamId);
+    int skillFinished =
+        skill.getJSONObject("chapter1").getIntValue("count")
+            + skill.getJSONObject("interlude").getIntValue("count")
+            + skill.getJSONObject("chapter2").getIntValue("count");
+    // 4) 总积分
+    return totalClockTimes + 100.0 * (topicFinished + skillFinished);
+  }
+
+  /** 刷新团队在活动榜的积分（覆盖式写入） */
+  public void refreshTeamActivityScore(long teamId, Date beginDate, Date endDate) {
+    try {
+      double score = computeTeamActivityScore(teamId, beginDate, endDate);
+      JedisAdapter.zAdd(RedisKeyUtil.getTeamActivityTeamsBoard(), score, String.valueOf(teamId));
+    } catch (Exception e) {
+      logger.error("refreshTeamActivityScore error, teamId=" + teamId, e);
+    }
+  }
+
+  /** 使用默认活动窗口进行异步刷新 */
+  private void refreshTeamActivityScoreAsync(long teamId) {
+    try {
+      Date[] win = getDefaultActivityWindow();
+      CompletableFuture.runAsync(() -> refreshTeamActivityScore(teamId, win[0], win[1]));
+    } catch (Exception e) {
+      logger.error("refreshTeamActivityScoreAsync error, teamId=" + teamId, e);
+    }
   }
   private String checkName(long userId, String oldName, long oldTeamId) throws WenyibiException {
     oldName = StringUtils.trim(oldName);
@@ -1567,6 +1713,11 @@ public class TrackerTeamBiz {
     // 清空该团队的看板缓存，下一次访问触发重算
     try {
       teamSummaryCache.invalidate(teamId);
+    } catch (Exception ignore) {
+    }
+    // 触发一次活动积分异步刷新，确保团队出现在活动榜
+    try {
+      refreshTeamActivityScoreAsync(teamId);
     } catch (Exception ignore) {
     }
     return uids.size();

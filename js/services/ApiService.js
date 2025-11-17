@@ -474,13 +474,21 @@ export class ApiService {
         throw new Error((data && data.msg) || '解散团队失败');
     }
 
-    async teamApplyList(teamId, limit = 100) {
-        const url = `${this.apiBase}/problem/tracker/team/apply/list?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(limit)}`;
+    async teamApplyList(teamId, page = 1, limit = 10) {
+        const url = `${this.apiBase}/problem/tracker/team/apply/list?teamId=${encodeURIComponent(teamId)}&page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`;
         const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
-        if (data && (data.code === 0 || data.code === 200)) return data.data || [];
-        return [];
+        if (data && (data.code === 0 || data.code === 200)) {
+            const result = data.data || {};
+            // 后端返回格式：{ dataList: [], pageInfo: { total, page, limit, ... } }
+            const list = Array.isArray(result.dataList) ? result.dataList : [];
+            const pageInfo = result.pageInfo || {};
+            const total = typeof pageInfo.total === 'number' ? pageInfo.total : list.length;
+            console.debug('teamApplyList API 返回:', { result, list, total, pageInfo });
+            return { list, total };
+        }
+        return { list: [], total: 0 };
     }
 
     async teamInviteList(teamId, limit = 100) {

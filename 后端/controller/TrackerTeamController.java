@@ -7,12 +7,16 @@ import com.wenyibi.futuremail.biz.tracker.TrackerTeamBiz;
 import com.wenyibi.futuremail.component.HostHolder;
 import com.wenyibi.futuremail.model.WenyibiException;
 import com.wenyibi.futuremail.util.InstructionUtils;
+import com.wenyibi.futuremail.util.PagingUtils;
 import net.paoding.rose.web.annotation.DefValue;
 import net.paoding.rose.web.annotation.Param;
 import net.paoding.rose.web.annotation.Path;
 import net.paoding.rose.web.annotation.rest.Get;
 import net.paoding.rose.web.annotation.rest.Post;
 import org.springframework.beans.factory.annotation.Autowired;
+import java.util.Date;
+import com.wenyibi.futuremail.util.NcDateUtils;
+
 
 @Path("team")
 public class TrackerTeamController {
@@ -21,6 +25,12 @@ public class TrackerTeamController {
   private TrackerTeamBiz trackerTeamBiz;
   @Autowired
   private HostHolder hostHolder;
+
+  // 固定活动期：使用 NcDateUtils 解析，避免手写 Calendar
+  private static final Date ACTIVITY_BEGIN =
+      NcDateUtils.parseDate("2025-11-01", "yyyy-MM-dd");
+  private static final Date ACTIVITY_END =
+      NcDateUtils.parseDate("2026-03-01", "yyyy-MM-dd");
 
   // 1) 我的团队ID列表
   @Get("my")
@@ -218,28 +228,13 @@ public class TrackerTeamController {
   public JSONObject activityClockTotal(@Param("teamId") long teamId,
                                        @Param("beginTs") @DefValue("0") long beginTs,
                                        @Param("endTs") @DefValue("0") long endTs) {
-    java.util.Calendar cal = java.util.Calendar.getInstance();
-    java.util.Date begin, end;
+    Date begin, end;
     if (beginTs <= 0 || endTs <= 0) {
-      cal.set(java.util.Calendar.YEAR, 2024);
-      cal.set(java.util.Calendar.MONTH, java.util.Calendar.NOVEMBER);
-      cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
-      cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
-      cal.set(java.util.Calendar.MINUTE, 0);
-      cal.set(java.util.Calendar.SECOND, 0);
-      cal.set(java.util.Calendar.MILLISECOND, 0);
-      begin = cal.getTime();
-      cal.set(java.util.Calendar.YEAR, 2025);
-      cal.set(java.util.Calendar.MONTH, java.util.Calendar.FEBRUARY);
-      cal.set(java.util.Calendar.DAY_OF_MONTH, 28);
-      cal.set(java.util.Calendar.HOUR_OF_DAY, 23);
-      cal.set(java.util.Calendar.MINUTE, 59);
-      cal.set(java.util.Calendar.SECOND, 59);
-      cal.set(java.util.Calendar.MILLISECOND, 999);
-      end = cal.getTime();
+      begin = ACTIVITY_BEGIN;
+      end = ACTIVITY_END;
     } else {
-      begin = new java.util.Date(beginTs);
-      end = new java.util.Date(endTs);
+      begin = new Date(beginTs);
+      end = new Date(endTs);
     }
     com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamActivityClockTotal(teamId, begin, end);
     return InstructionUtils.jsonOkData(data);
@@ -282,28 +277,13 @@ public class TrackerTeamController {
                                              @Param("limit") @DefValue("20") int limit,
                                              @Param("beginTs") @DefValue("0") long beginTs,
                                              @Param("endTs") @DefValue("0") long endTs) {
-    java.util.Date begin, end;
+    Date begin, end;
     if (beginTs <= 0 || endTs <= 0) {
-      java.util.Calendar cal = java.util.Calendar.getInstance();
-      cal.set(java.util.Calendar.YEAR, 2024);
-      cal.set(java.util.Calendar.MONTH, java.util.Calendar.NOVEMBER);
-      cal.set(java.util.Calendar.DAY_OF_MONTH, 1);
-      cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
-      cal.set(java.util.Calendar.MINUTE, 0);
-      cal.set(java.util.Calendar.SECOND, 0);
-      cal.set(java.util.Calendar.MILLISECOND, 0);
-      begin = cal.getTime();
-      cal.set(java.util.Calendar.YEAR, 2025);
-      cal.set(java.util.Calendar.MONTH, java.util.Calendar.FEBRUARY);
-      cal.set(java.util.Calendar.DAY_OF_MONTH, 28);
-      cal.set(java.util.Calendar.HOUR_OF_DAY, 23);
-      cal.set(java.util.Calendar.MINUTE, 59);
-      cal.set(java.util.Calendar.SECOND, 59);
-      cal.set(java.util.Calendar.MILLISECOND, 999);
-      end = cal.getTime();
+      begin = ACTIVITY_BEGIN;
+      end = ACTIVITY_END;
     } else {
-      begin = new java.util.Date(beginTs);
-      end = new java.util.Date(endTs);
+      begin = new Date(beginTs);
+      end = new Date(endTs);
     }
     com.alibaba.fastjson.JSONObject data = trackerTeamBiz.getTeamActivityTeamsLeaderboard(
         Math.max(1, page), Math.min(100, Math.max(1, limit)), begin, end);
@@ -420,12 +400,16 @@ public class TrackerTeamController {
   // 申请列表（队长查看待审批）
   @Get("apply/list")
   @LoginRequired
-  public JSONObject listApply(@Param("teamId") long teamId, @Param("limit") @DefValue("100") int limit) throws WenyibiException {
+  public JSONObject listApply(@Param("teamId") long teamId, 
+                               @Param("page") @DefValue("1") int page, 
+                               @Param("limit") @DefValue("10") int limit) throws WenyibiException {
     long uid = hostHolder.getUser().getId();
     if (!trackerTeamBiz.isTeamAdmin(teamId, uid)) {
       return InstructionUtils.jsonError("不是队长，无权查看");
     }
-    JSONArray data = trackerTeamBiz.listTeamPendingApply(teamId, limit);
+    // 检查分页参数
+    PagingUtils.checkPageSize(limit);
+    JSONObject data = trackerTeamBiz.listTeamPendingApply(teamId, page, limit);
     return InstructionUtils.jsonOkData(data);
   }
 
