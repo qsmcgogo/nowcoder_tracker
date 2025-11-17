@@ -26,7 +26,7 @@ export class TeamView {
         this.activityRankTotal = 0;
         // 审批列表分页状态
         this.approvePage = 1;
-        this.approveLimit = 10;
+        this.approveLimit = 5;
         this.approveTotal = 0;
         // 用户信息本地缓存（userId -> {name, headUrl}）
         this.userInfoCache = new Map();
@@ -1174,13 +1174,16 @@ export class TeamView {
                 }
             } catch (_) {}
             // 队长：显示该团队待审批计数提醒
+           // console.log('123121');
             try {
+                //console.log(this.role);
                 if (this.role === 'owner') {
-                    const applyList = await this.api.teamApplyList(this.currentTeamId, 100);
+                    const applyList = await this.api.teamApplyList(this.currentTeamId, 1,10);
                     const alertBox = document.getElementById('team-dashboard-alerts');
                     if (alertBox) {
-                        if (Array.isArray(applyList) && applyList.length > 0) {
-                            alertBox.innerHTML = `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:16px;background:#f6ffed;border:1px solid #b7eb8f;color:#135200;">有 ${applyList.length} 条入队申请待审批 <button id=\"team-approve-open-btn2\" class=\"admin-btn\" style=\"margin-left:6px;\">去审批</button></div>`;
+                        const totalCount = applyList?.totalCount || 0;
+                        if (totalCount > 0) {
+                            alertBox.innerHTML = `<div style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:16px;background:#f6ffed;border:1px solid #b7eb8f;color:#135200;">有 ${totalCount} 条入队申请待审批 <button id=\"team-approve-open-btn2\" class=\"admin-btn\" style=\"margin-left:6px;\">去审批</button></div>`;
                             const btn2 = document.getElementById('team-approve-open-btn2');
                             if (btn2 && !btn2._bound) { btn2._bound = true; btn2.addEventListener('click', () => { const b = document.getElementById('team-approve-open-btn'); if (b) b.click(); }); }
                         } else {
@@ -2196,12 +2199,12 @@ export class TeamView {
         if (oldPagination) oldPagination.remove();
         
         try {
-            const { list = [], total = 0 } = await this.api.teamApplyList(this.currentTeamId, this.approvePage, this.approveLimit);
-            this.approveTotal = total;
-            const totalPages = Math.max(1, Math.ceil(total / this.approveLimit));
+            const { list = [], totalCount = 0 } = await this.api.teamApplyList(this.currentTeamId, this.approvePage, this.approveLimit);
+            this.approveTotal = totalCount;
+            const totalPages = Math.max(1, Math.ceil(totalCount / this.approveLimit));
             
-            console.debug('审批列表数据:', { list, total, page: this.approvePage, limit: this.approveLimit });
-            
+            console.debug('审批列表数据:', { list, totalCount, page: this.approvePage, limit: this.approveLimit });
+            console.log('totalCount=',totalCount);
             if (Array.isArray(list) && list.length) {
                 tbody.innerHTML = list.map(a => {
                     const id = a.id || a.applyId || '';
@@ -2255,14 +2258,7 @@ export class TeamView {
                 const paginationHtml = `
                     <div id="team-approve-pagination" class="pagination" style="margin-top:12px;display:flex;align-items:center;justify-content:space-between;gap:12px;">
                         <div style="display:flex;align-items:center;gap:8px;">
-                            <span>每页</span>
-                            <select id="approvePageSize" class="pagination-select" style="padding:4px 6px;">
-                                <option value="10" ${this.approveLimit === 10 ? 'selected' : ''}>10</option>
-                                <option value="20" ${this.approveLimit === 20 ? 'selected' : ''}>20</option>
-                                <option value="50" ${this.approveLimit === 50 ? 'selected' : ''}>50</option>
-                            </select>
-                            <span>条</span>
-                            <div id="approvePaginationInfo" class="pagination-info">共 ${total} 条申请，第 ${this.approvePage} / ${totalPages} 页</div>
+                            <div id="approvePaginationInfo" class="pagination-info">共 ${totalCount} 条申请，第 ${this.approvePage} / ${totalPages} 页</div>
                         </div>
                         <div class="pagination-controls" style="display:flex;align-items:center;gap:8px;">
                             <button id="approvePrev" class="pagination-btn" ${this.approvePage <= 1 ? 'disabled' : ''}>上一页</button>
@@ -2287,20 +2283,10 @@ export class TeamView {
     }
     
     bindApprovePagination() {
-        const pageSizeSelect = document.getElementById('approvePageSize');
         const prevBtn = document.getElementById('approvePrev');
         const nextBtn = document.getElementById('approveNext');
         const jumpBtn = document.getElementById('approveJump');
         const pageInput = document.getElementById('approvePageInput');
-        
-        if (pageSizeSelect && !pageSizeSelect._bound) {
-            pageSizeSelect._bound = true;
-            pageSizeSelect.addEventListener('change', async () => {
-                this.approveLimit = Number(pageSizeSelect.value) || 10;
-                this.approvePage = 1;
-                await this.renderApproveList();
-            });
-        }
         
         if (prevBtn && !prevBtn._bound) {
             prevBtn._bound = true;
