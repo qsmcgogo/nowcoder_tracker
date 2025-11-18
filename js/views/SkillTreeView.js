@@ -50,6 +50,35 @@ export const nodeIdToTagId = {
     'graph-def': 1117,
     'build-graph-search': 1118,
     'unweighted-shortest': 1119,
+    // --- Interlude 2.5 (间章：含苞) ---
+    'geometry': 1200,
+    'game-theory': 1201,
+    'simulation-advanced': 1202,
+    'construction-advanced': 1203,
+    'greedy-priority-queue': 1204,
+    // --- Stage 3 mappings ---
+    // 搜索入门
+    'dfs-advanced': 1300,
+    'bfs-advanced': 1301,
+    'two-pointers-advanced': 1302,
+    'binary-search-advanced': 1303,
+    // 图论入门
+    'graph-def-advanced': 1304,
+    'build-graph-search-advanced': 1305,
+    'unweighted-shortest-advanced': 1306,
+    // 动态规划进阶
+    'backpack-intro': 1307,
+    'interval-dp': 1308,
+    'tree-dp': 1309,
+    'state-compression-dp': 1310,
+    'dp-advanced-practice': 1311,
+    // 枚举进阶
+    'state-compression-enum': 1312,
+    'subset-enum': 1313,
+    'enum-advanced-practice': 1314,
+    // 并查集
+    'union-find-intro': 1315,
+    'minimum-spanning-tree': 1316,
 };
 
 // --- 新增：导出技能树的静态结构数据 ---
@@ -98,8 +127,13 @@ export const skillTreeData = {
                 id: 'stage-3',
                 name: '第三章：初显峥嵘',
                 columns: [
-                    { id: 's3-col-search', name: '搜索入门', nodeIds: ['dfs', 'bfs', 'two-pointers', 'binary-search'] },
-                    { id: 's3-col-graph', name: '图论入门', nodeIds: ['graph-def', 'build-graph-search', 'unweighted-shortest'] }
+                    // 左边列：从上到下
+                    { id: 's3-col-enum-advanced', name: '枚举进阶', nodeIds: ['state-compression-enum', 'subset-enum', 'enum-advanced-practice'] },
+                    { id: 's3-col-dp-advanced', name: '动态规划进阶', nodeIds: ['backpack-intro', 'interval-dp', 'tree-dp', 'state-compression-dp', 'dp-advanced-practice'] },
+                    // 右边列：从上到下
+                    { id: 's3-col-search', name: '搜索入门', nodeIds: ['dfs-advanced', 'bfs-advanced', 'two-pointers-advanced', 'binary-search-advanced'] },
+                    { id: 's3-col-graph', name: '图论入门', nodeIds: ['graph-def-advanced', 'build-graph-search-advanced', 'unweighted-shortest-advanced'] },
+                    { id: 's3-col-union-find', name: '并查集', nodeIds: ['union-find-intro', 'minimum-spanning-tree'] }
                 ]
             },
             {
@@ -160,7 +194,36 @@ export const skillTreeData = {
             // 图论入门
             'graph-def': { id: 'graph-def', name: '树和图的定义', dependencies: [] },
             'build-graph-search': { id: 'build-graph-search', name: '建图和图上搜索', dependencies: [] },
-            'unweighted-shortest': { id: 'unweighted-shortest', name: '不带权图的最短路', dependencies: [] }
+            'unweighted-shortest': { id: 'unweighted-shortest', name: '不带权图的最短路', dependencies: [] },
+            // --- Interlude 2.5 nodes (间章：含苞) ---
+            'geometry': { id: 'geometry', name: '几何', dependencies: [] },
+            'game-theory': { id: 'game-theory', name: '博弈', dependencies: [] },
+            'simulation-advanced': { id: 'simulation-advanced', name: '模拟进阶', dependencies: [] },
+            'construction-advanced': { id: 'construction-advanced', name: '构造进阶', dependencies: [] },
+            'greedy-priority-queue': { id: 'greedy-priority-queue', name: '贪心和优先队列', dependencies: [] },
+            // --- Stage 3 节（知识点） ---
+            // 搜索入门
+            'dfs-advanced': { id: 'dfs-advanced', name: 'dfs', dependencies: [] },
+            'bfs-advanced': { id: 'bfs-advanced', name: 'bfs', dependencies: [] },
+            'two-pointers-advanced': { id: 'two-pointers-advanced', name: '双指针', dependencies: [] },
+            'binary-search-advanced': { id: 'binary-search-advanced', name: '二分搜索', dependencies: [] },
+            // 图论入门
+            'graph-def-advanced': { id: 'graph-def-advanced', name: '树和图的定义', dependencies: [] },
+            'build-graph-search-advanced': { id: 'build-graph-search-advanced', name: '建图和图上搜索', dependencies: [] },
+            'unweighted-shortest-advanced': { id: 'unweighted-shortest-advanced', name: '不带权图的最短路', dependencies: [] },
+            // 动态规划进阶
+            'backpack-intro': { id: 'backpack-intro', name: '背包入门', dependencies: [] },
+            'interval-dp': { id: 'interval-dp', name: '区间dp', dependencies: [] },
+            'tree-dp': { id: 'tree-dp', name: '树形dp', dependencies: ['graph-def-advanced', 'build-graph-search-advanced'] },
+            'state-compression-dp': { id: 'state-compression-dp', name: '状压dp', dependencies: ['state-compression-enum'] },
+            'dp-advanced-practice': { id: 'dp-advanced-practice', name: 'dp进阶综练', dependencies: [] },
+            // 枚举进阶
+            'state-compression-enum': { id: 'state-compression-enum', name: '状压枚举', dependencies: [] },
+            'subset-enum': { id: 'subset-enum', name: '子集枚举', dependencies: [] },
+            'enum-advanced-practice': { id: 'enum-advanced-practice', name: '枚举进阶综练', dependencies: [] },
+            // 并查集
+            'union-find-intro': { id: 'union-find-intro', name: '并查集入门', dependencies: [] },
+            'minimum-spanning-tree': { id: 'minimum-spanning-tree', name: '最小生成树', dependencies: [] }
         }
     }
 };
@@ -307,6 +370,8 @@ export class SkillTreeView {
             const stage3Avg = calcStageAvg(stage3Obj);
             const interludeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
             const interludeAvg = Math.round(interludeIds.map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / interludeIds.length);
+            const interlude25Ids = ['geometry', 'game-theory', 'simulation-advanced', 'construction-advanced', 'greedy-priority-queue'];
+            const interlude25Avg = Math.round(interlude25Ids.map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / interlude25Ids.length);
 
             let previousStageProgress = 100; // 第一关的前置视为已解锁，用于统一逻辑
             const stagesToRender = tree.stages.slice(0, 3);
@@ -330,9 +395,11 @@ export class SkillTreeView {
                         lockReason = `第一章平均进度达到70% <br>或<br>tracker累计通过50题：${solvedCount} / 50 <span class=\"dep-cross\">×</span>`;
                     }
                 } else if (stage.id === 'stage-3') {
-                    isLocked = isAdmin ? false : (stage2Avg < 70);
+                    const meetProgress = stage2Avg >= 70;
+                    const meetSolved = solvedCount >= 80;
+                    isLocked = isAdmin ? false : !(meetProgress || meetSolved);
                     if (isLocked) {
-                        lockReason = `第二章平均进度达到70% <span class=\"dep-cross\">×</span>`;
+                        lockReason = `第二章平均进度达到70% <br>或<br>tracker累计通过80题：${solvedCount} / 80 <span class=\"dep-cross\">×</span>`;
                     }
                 } else {
                     // 其他章节仍按上一章节100%解锁的旧规则
@@ -382,6 +449,32 @@ export class SkillTreeView {
                     `;
                 }
 
+                if (stage.id === 'stage-2') {
+                    // 间章2.5（间章：含苞）解锁逻辑：第二章平均进度 ≥ 70% 或 tracker累计通过80题
+                    const mini25MeetProgress = stage2Avg >= 70;
+                    const mini25MeetSolved = solvedCount >= 80;
+                    const mini25IsLocked = isAdmin ? false : (!isLoggedIn || !(mini25MeetProgress || mini25MeetSolved));
+                    const mini25LockReason = !isLoggedIn
+                        ? '请先登录开启技能树之旅'
+                        : `第二章平均进度达到70% <br>或<br>tracker累计通过80题：${solvedCount} / 80 <span class=\"dep-cross\">×</span>`;
+                   
+                    return `
+                        <div class="skill-tree-card-group side-mini-left stage-2">
+                            <div class="skill-tree-mini-card ${mini25IsLocked ? 'locked' : ''}" data-mini-of="stage-2" title="间章：含苞">
+                                <div class="skill-tree-mini-card__header">
+                                    <span class="skill-tree-mini-card__title">间章：含苞</span>
+                                    <span class="skill-tree-mini-card__progress-text">通关率: ${interlude25Avg}%</span>
+                                </div>
+                                <div class="skill-tree-mini-card__progress-bar">
+                                    <div class="skill-tree-mini-card__progress-bar-inner" style="width: ${interlude25Avg}%;"></div>
+                                </div>
+                                ${mini25IsLocked ? `<div class=\"skill-tree-card__tooltip\">${mini25LockReason}</div>` : ''}
+                            </div>
+                            ${cardHtml}
+                        </div>
+                    `;
+                }
+
                 return cardHtml;
             }).join('');
 
@@ -412,11 +505,7 @@ export class SkillTreeView {
         const stage = tree.stages.find(s => s.id === stageId);
         if (!stage) return;
 
-        // 第三章暂未开放：直接显示"敬请期待"，不渲染虚框和知识点
-        if (stage.id === 'stage-3') {
-            this.renderComingSoonDetail(stage.name);
-            return;
-        }
+        // 第三章已开放，正常渲染
 
         // 处理TBC的阶段
         if (!stage.columns || stage.columns.length === 0) {
@@ -451,6 +540,7 @@ export class SkillTreeView {
             let leftColumnHtml = '';
             let rightColumnHtml = '';
             const isStage2 = stage.id === 'stage-2';
+            const isStage3 = stage.id === 'stage-3';
             const posOrder = ['top','left','right','bottom'];
             let stage2AllHtml = '';
 
@@ -470,7 +560,10 @@ export class SkillTreeView {
                     let columnElementsHtml = '';
 
                     // 统计本列中是否存在未解锁的节点
-                    let hasLockedNode = column.nodeIds.some(id => nodeStates[id] && nodeStates[id].state === 'locked');
+                    // 注意：只统计因为列级别依赖而被锁定的节点，不包括因为节点级别依赖而被锁定的节点
+                    // 节点级别依赖（如状压dp依赖状压枚举）只锁定单个节点，不应该锁定整列
+                    let hasLockedNode = false; // 默认不因为节点锁定而锁定整列
+                    // 如果需要保留某些列因为节点锁定而锁定整列的逻辑，可以在这里添加特殊判断
 
                     // 新规则：线性基本类型(col-5) 依赖 程序控制(col-4) 全部知识点 >=60%
                     // 若未满足，则整列保持锁定，并提示具体未达标项
@@ -488,9 +581,41 @@ export class SkillTreeView {
                             col5PrereqUnmet = col5UnmetNames.length > 0;
                         }
                     }
+                    
+                    // 第三章：图论入门依赖搜索入门，并查集依赖图论入门
+                    let colPrereqUnmet = false;
+                    let colUnmetNames = [];
+                    let prereqColumnName = '';
+                    if (column.id === 's3-col-graph') {
+                        // 图论入门依赖搜索入门
+                        const searchColumn = stage.columns.find(c => c.id === 's3-col-search');
+                        if (searchColumn) {
+                            prereqColumnName = '搜索入门';
+                            colUnmetNames = searchColumn.nodeIds.filter(nodeId => {
+                                const tagId = nodeIdToTagId[nodeId];
+                                const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
+                                const pct = raw <= 1 ? raw * 100 : raw;
+                                return pct < 60;
+                            }).map(nodeId => this.skillTrees['newbie-130'].nodes[nodeId]?.name || nodeId);
+                            colPrereqUnmet = colUnmetNames.length > 0;
+                        }
+                    } else if (column.id === 's3-col-union-find') {
+                        // 并查集依赖图论入门
+                        const graphColumn = stage.columns.find(c => c.id === 's3-col-graph');
+                        if (graphColumn) {
+                            prereqColumnName = '图论入门';
+                            colUnmetNames = graphColumn.nodeIds.filter(nodeId => {
+                                const tagId = nodeIdToTagId[nodeId];
+                                const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
+                                const pct = raw <= 1 ? raw * 100 : raw;
+                                return pct < 60;
+                            }).map(nodeId => this.skillTrees['newbie-130'].nodes[nodeId]?.name || nodeId);
+                            colPrereqUnmet = colUnmetNames.length > 0;
+                        }
+                    }
 
                     // 管理员不受列锁定与前置限制影响
-                    if (!this.state.isAdmin && (hasLockedNode || col5PrereqUnmet)) {
+                    if (!this.state.isAdmin && (hasLockedNode || col5PrereqUnmet || colPrereqUnmet)) {
                         columnLockClass = 'skill-tree-column--locked';
 
                         const lockIcon = `<img src="https://api.iconify.design/mdi/lock-outline.svg?color=%23adb5bd" class="skill-tree-column__lock-icon" alt="Locked">`;
@@ -516,6 +641,11 @@ export class SkillTreeView {
                             const unmetList = (col5UnmetNames || []).map(n => `<div class="unmet">${n} 进度达到60% <span class=\"tooltip-cross\">✗</span></div>`).join('');
                             const header = `<div>解锁条件：程序控制 所有知识点达到60%</div>`;
                             tooltipContent = header + (unmetList ? `<div style="margin-top:6px">${unmetList}</div>` : '');
+                        } else if (column.id === 's3-col-graph' || column.id === 's3-col-union-find') {
+                            // 第三章：图论入门依赖搜索入门，并查集依赖图论入门
+                            const unmetList = (colUnmetNames || []).map(n => `<div class="unmet">${n} 进度达到60% <span class=\"tooltip-cross\">✗</span></div>`).join('');
+                            const header = `<div>解锁条件：${prereqColumnName} 所有知识点达到60%</div>`;
+                            tooltipContent = header + (unmetList ? `<div style="margin-top:6px">${unmetList}</div>` : '');
                         } else if (unmetDeps.size > 0) {
                             tooltipContent = Array.from(unmetDeps.entries()).map(([depTagId, depName]) => {
                                 return `<div class="unmet">${depName} 进度达到60% <span class=\"tooltip-cross\">✗</span></div>`;
@@ -539,7 +669,15 @@ export class SkillTreeView {
                     `;
                     if (isStage2) {
                         stage2AllHtml += columnHtml;
+                    } else if (isStage3) {
+                        // 第三章布局：左边是枚举进阶和动态规划进阶，右边是搜索入门、图论入门、并查集
+                        if (column.id === 's3-col-enum-advanced' || column.id === 's3-col-dp-advanced') {
+                            leftColumnHtml += columnHtml;
+                        } else {
+                            rightColumnHtml += columnHtml;
+                        }
                     } else {
+                        // 第一章布局
                         if (column.id === 'col-1' || column.id === 'col-2') {
                             leftColumnHtml += columnHtml;
                         } else {
@@ -559,7 +697,7 @@ export class SkillTreeView {
                         </svg>
                         ${stage2AllHtml}
                    </div>`
-                : `<div class=\"skill-tree-dag-container\"><div class=\"dag-main-column\">${leftColumnHtml}</div><div class=\"dag-main-column\">${rightColumnHtml}</div></div>`;
+                : `<div class=\"skill-tree-dag-container ${isStage3 ? 'skill-tree-dag-container--stage3' : ''}\"><div class=\"dag-main-column\">${leftColumnHtml}</div><div class=\"dag-main-column\">${rightColumnHtml}</div></div>`;
 
             const html = `
                 <div class="skill-tree-detail ${isStage2 ? 'skill-tree-detail--stage2' : ''}">
@@ -579,6 +717,10 @@ export class SkillTreeView {
             // 第二章：动态调整菱形SVG位置以匹配虚框位置
             if (stage.id === 'stage-2') {
                 setTimeout(() => this.updateStage2DiamondPosition(), 0);
+            }
+            // 第三章：绘制列间依赖箭头（图论入门依赖搜索入门，并查集依赖图论入门）
+            if (stage.id === 'stage-3') {
+                setTimeout(() => this.drawColumnDependencyLines(stage), 0);
             }
 
         } catch (error) {
@@ -679,6 +821,83 @@ export class SkillTreeView {
         });
     }
 
+    // 渲染"间章：含苞" —— 5个知识点的轻量布局
+    async renderInterlude25Detail() {
+        const tree = this.skillTrees['newbie-130'];
+        const nodeIds = ['geometry', 'game-theory', 'simulation-advanced', 'construction-advanced', 'greedy-priority-queue'];
+        // 预取进度
+        try {
+            const tagIds = nodeIds.map(id => nodeIdToTagId[id]).filter(Boolean);
+            if (tagIds.length) {
+                const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, tagIds);
+                this.currentStageProgress = progressData || { nodeProgress: {} };
+            }
+        } catch (_) { /* ignore progress fetch error */ }
+
+        const chips = nodeIds.map((id, idx) => {
+            const n = tree.nodes[id];
+            const tagId = nodeIdToTagId[id];
+            let pct = 0;
+            if (this.currentStageProgress && this.currentStageProgress.nodeProgress) {
+                const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
+                pct = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
+            }
+            const isCompleted = pct >= 100;
+            const stateClass = isCompleted ? 'skill-node--completed' : '';
+            const posClass = `interlude-chip--pos${idx + 1}`;
+            let backgroundStyle = '';
+            if (pct > 0 && pct < 100) {
+                backgroundStyle = `style="background: linear-gradient(to right, var(--primary-color-light) ${pct}%, #fff ${pct}%);"`;
+            }
+            return `
+                <div class="interlude-chip skill-node ${stateClass} ${posClass}" data-id="${id}" ${backgroundStyle}>
+                    <div class="skill-node__title">${n.name}</div>
+                    <div class="skill-node__progress-text">${pct}%</div>
+                </div>
+            `;
+        }).join('');
+
+        const html = `
+            <div class="interlude-detail">
+                <div class="interlude-ribbon">间章：含苞</div>
+                <div class="interlude-circle">
+                    <svg class="interlude-magic" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.5"></circle>
+                        <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(124,47,75,0.15)" stroke-width="1"></circle>
+                        <!-- 五角形轮廓（外） -->
+                        <path d="M50,10 L88,38 L74,82 L26,82 L12,38 Z" fill="none" stroke="rgba(124,47,75,0.18)" stroke-width="1.1"></path>
+                        <!-- 五角形轮廓（内，整体微上移） -->
+                        <path d="M50,20 L79,41 L68,74 L32,74 L21,41 Z" fill="none" stroke="rgba(124,47,75,0.12)" stroke-width="1"></path>
+                        <!-- 五角星（外顶点连线） -->
+                        <path d="M50,10 L74,82 L12,38 L88,38 L26,82 Z" fill="none" stroke="rgba(124,47,75,0.30)" stroke-width="1.4"></path>
+                    </svg>
+                    ${chips}
+                </div>
+            </div>
+        `;
+        this.container.innerHTML = html;
+
+        // 绑定点击 -> 展示面板（沿用节点面板逻辑）
+        this.container.querySelectorAll('.interlude-chip').forEach(el => {
+            el.addEventListener('click', (e) => {
+                const nodeId = e.currentTarget.getAttribute('data-id');
+                this.showNodePanel(nodeId);
+            });
+        });
+
+        // 返回按钮（复用详情页的绑定逻辑）
+        // 在标题栏左上角加一个返回按钮
+        const backBtn = document.createElement('button');
+        backBtn.className = 'back-button';
+        backBtn.textContent = '\u2190 返回所有阶段';
+        backBtn.style.marginBottom = '12px';
+        this.container.prepend(backBtn);
+        backBtn.addEventListener('click', () => {
+            this.currentView = 'summary';
+            this.render();
+        });
+    }
+
     // 旧版管理员增删改面板已移除
     
     // 计算所有知识点和题目的状态 (修改)
@@ -736,8 +955,32 @@ export class SkillTreeView {
             backgroundStyle = `style="background: linear-gradient(to right, var(--primary-color-light) ${progress}%, #fff ${progress}%);"`;
         }
 
+        // 如果节点被锁定且有未满足的依赖，显示锁定图标和提示
+        let lockIcon = '';
+        let lockTooltip = '';
+        if (stateInfo.state === 'locked' && stateInfo.unmetDependencies && stateInfo.unmetDependencies.length > 0) {
+            // 获取当前节点的进度数据，用于检查每个依赖的进度
+            const { nodeProgress } = this.currentStageProgress || {};
+            
+            // 分别检查每个依赖，显示未满足的依赖列表
+            const unmetList = stateInfo.unmetDependencies.map(depId => {
+                const depNode = nodes[depId];
+                const depTagId = nodeIdToTagId[depId];
+                const depName = depNode ? depNode.name : depId;
+                // 检查该依赖的进度
+                const raw = nodeProgress ? (nodeProgress[depTagId] || 0) : 0;
+                const pct = raw <= 1 ? raw * 100 : raw;
+                return `<div class="unmet">${depName} 进度达到60% <span class="tooltip-cross">✗</span></div>`;
+            }).join('');
+            
+            lockIcon = `<img src="https://api.iconify.design/mdi/lock-outline.svg?color=%23adb5bd" class="skill-node__lock-icon" alt="Locked">`;
+            lockTooltip = `<div class="skill-node__lock-tooltip">${unmetList}</div>`;
+        }
+
         return `
             <div class="skill-node ${stateClass}" data-id="${nodeId}" id="skill-node-${nodeId}" ${backgroundStyle}>
+                ${lockIcon}
+                ${lockTooltip}
                 <div class="skill-node__title">${node.name}</div>
                 <div class="skill-node__progress-text">${progress}%</div>
             </div>
@@ -750,12 +993,23 @@ export class SkillTreeView {
         if (!stage.columns) return;
 
         // 手动定义列之间的依赖关系，根据手绘图
-        const dependencies = [
-            { start: 'col-1', end: 'col-2', options: { startSocket: 'bottom', endSocket: 'top' } },
-            { start: 'col-2', end: 'col-3', options: { startSocket: 'right', endSocket: 'left', startSocketGravity: 80, endSocketGravity: 80 } },
-            { start: 'col-2', end: 'col-4', options: { startSocket: 'right', endSocket: 'left', startSocketGravity: 0, endSocketGravity: 0 } },
-            { start: 'col-4', end: 'col-5', options: { startSocket: 'bottom', endSocket: 'top', startSocketGravity: 0, endSocketGravity: 0 } }
-        ];
+        let dependencies = [];
+        
+        if (stage.id === 'stage-1') {
+            // 第一章的依赖关系
+            dependencies = [
+                { start: 'col-1', end: 'col-2', options: { startSocket: 'bottom', endSocket: 'top' } },
+                { start: 'col-2', end: 'col-3', options: { startSocket: 'right', endSocket: 'left', startSocketGravity: 80, endSocketGravity: 80 } },
+                { start: 'col-2', end: 'col-4', options: { startSocket: 'right', endSocket: 'left', startSocketGravity: 0, endSocketGravity: 0 } },
+                { start: 'col-4', end: 'col-5', options: { startSocket: 'bottom', endSocket: 'top', startSocketGravity: 0, endSocketGravity: 0 } }
+            ];
+        } else if (stage.id === 'stage-3') {
+            // 第三章的依赖关系：图论入门依赖搜索入门，并查集依赖图论入门
+            dependencies = [
+                { start: 's3-col-search', end: 's3-col-graph', options: { startSocket: 'bottom', endSocket: 'top' } },
+                { start: 's3-col-graph', end: 's3-col-union-find', options: { startSocket: 'bottom', endSocket: 'top' } }
+            ];
+        }
 
         dependencies.forEach(dep => {
             const startCol = document.getElementById(`skill-tree-column-${dep.start}`);
@@ -915,12 +1169,21 @@ export class SkillTreeView {
         });
 
         // 间章：拂晓（迷你卡）点击进入：自定义迷你详情
-        const mini = this.container.querySelector('.skill-tree-mini-card');
-        if (mini && !mini.classList.contains('locked')) {
-            mini.addEventListener('click', () => {
+        const mini1 = this.container.querySelector('.skill-tree-mini-card[data-mini-of="stage-1"]');
+        if (mini1 && !mini1.classList.contains('locked')) {
+            mini1.addEventListener('click', () => {
                 this.clearLines();
                 this.teardownSummarySvg && this.teardownSummarySvg();
                 this.renderInterludeDetail();
+            });
+        }
+        // 间章2.5：含苞（迷你卡）点击进入：自定义迷你详情
+        const mini25 = this.container.querySelector('.skill-tree-mini-card[data-mini-of="stage-2"]');
+        if (mini25 && !mini25.classList.contains('locked')) {
+            mini25.addEventListener('click', () => {
+                this.clearLines();
+                this.teardownSummarySvg && this.teardownSummarySvg();
+                this.renderInterlude25Detail();
             });
         }
     }
@@ -1151,6 +1414,38 @@ export class SkillTreeView {
 
         if (problems.length === 0) {
             this.panelProblems.innerHTML = '<p class="no-problems-msg">暂无相关题目。</p>';
+            // 即使没有题目，管理员也应该能看到批量管理按钮
+            if (this.state.isAdmin) {
+                const tagId = nodeIdToTagId[this.activeNodeId];
+                const manageHtml = `
+                    <div class="admin-batch-panel" style="margin-top:12px;padding-top:8px;border-top:1px dashed #ddd;">
+                        <button id="skill-manage-problems-btn" type="button" class="admin-btn">管理题目（批量）</button>
+                    </div>
+                `;
+                this.panelProblems.insertAdjacentHTML('beforeend', manageHtml);
+                const manageBtn = this.panelProblems.querySelector('#skill-manage-problems-btn');
+                if (manageBtn && !manageBtn._bound) {
+                    manageBtn._bound = true;
+                    manageBtn.addEventListener('click', () => {
+                        this.openBatchManageModal({
+                            tagId,
+                            problems: [],
+                            stageNodeOptions: this.getStageNodeOptionsForActiveNode()
+                        }, async (saved) => {
+                            if (!saved) return;
+                            try {
+                                await this.apiService.batchReplaceSkillTree(tagId, saved);
+                                alert('已保存');
+                                const fresh = await this.apiService.fetchTagInfo(tagId);
+                                this.showPanelContent(staticNodeData, fresh, false);
+                            } catch (e) {
+                                console.error('批量保存失败', e);
+                                alert(e.message || '保存失败');
+                            }
+                        });
+                    });
+                }
+            }
             return;
         }
 
@@ -1364,8 +1659,18 @@ export class SkillTreeView {
             // 检查是否是间章视图
             const interludeChips = this.container.querySelectorAll('.interlude-chip');
             if (interludeChips.length > 0) {
-                // 间章视图：更新所有间章知识点
-                stageNodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
+                // 间章视图：根据间章标题判断是哪个间章
+                const ribbon = this.container.querySelector('.interlude-ribbon');
+                if (ribbon && ribbon.textContent.includes('拂晓')) {
+                    // 间章1.5：拂晓
+                    stageNodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
+                } else if (ribbon && ribbon.textContent.includes('含苞')) {
+                    // 间章2.5：含苞
+                    stageNodeIds = ['geometry', 'game-theory', 'simulation-advanced', 'construction-advanced', 'greedy-priority-queue'];
+                } else {
+                    // 默认使用间章1.5
+                    stageNodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
+                }
                 stageTagIds = stageNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
             } else if (this.currentView === 'detail' && this.selectedStageId) {
                 // 普通章节详情视图

@@ -2441,6 +2441,13 @@ body .problems-table tbody tr td.status-none {
     gap: 15px;
 }
 
+/* 第三章：每个虚框内的知识点一行两个 */
+.skill-tree-dag-container--stage3 .skill-tree-column__nodes {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
 /* --- Specific Column Layouts --- */
 
 /* Input column: 2x2 grid */
@@ -2530,9 +2537,53 @@ body .problems-table tbody tr td.status-none {
 .skill-node--locked {
     background-color: #f8f9fa;
     color: #adb5bd;
+    position: relative;
 }
 .skill-node--locked .skill-node__title {
      color: #adb5bd;
+}
+
+/* 知识点节点的锁定图标 */
+.skill-node__lock-icon {
+    position: absolute;
+    top: 6px;
+    right: 6px;
+    width: 16px;
+    height: 16px;
+    opacity: 0.8;
+    z-index: 3;
+    cursor: help;
+}
+
+.skill-node__lock-tooltip {
+    display: none;
+    position: absolute;
+    bottom: calc(100% + 8px);
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #333;
+    color: #fff;
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    white-space: nowrap;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.skill-node__lock-tooltip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 5px solid transparent;
+    border-top-color: #333;
+}
+
+.skill-node__lock-icon:hover + .skill-node__lock-tooltip,
+.skill-node--locked:hover .skill-node__lock-tooltip {
+    display: block;
 }
 
 .skill-node__progress-text {
@@ -3147,7 +3198,7 @@ body.dark-theme .profile-avatar {
     gap: 10px;
 }
 
-/* 侧边悬浮的“间章”布局，位于第一章卡片右侧，用 LeaderLine 风格的红色虚线连接 */
+/* 侧边悬浮的"间章"布局，位于第一章卡片右侧，用 LeaderLine 风格的红色虚线连接 */
 .skill-tree-card-group.side-mini {
     position: relative;
 }
@@ -3162,6 +3213,27 @@ body.dark-theme .profile-avatar {
     position: absolute;
     top: 28px;
     left: 100%;
+    width: 24px;
+    height: 0;
+    border-top: 2px dashed #ff4d4f; /* 红色虚线 */
+}
+
+/* 侧边悬浮的"间章"布局，位于第二章卡片左侧，用 LeaderLine 风格的红色虚线连接 */
+.skill-tree-card-group.side-mini-left {
+    position: relative;
+}
+.skill-tree-card-group.side-mini-left .skill-tree-mini-card {
+    position: absolute;
+    top: 50%; /* 垂直居中 */
+    transform: translateY(-50%); /* 向上偏移自身高度的一半 */
+    right: calc(100% + 24px);
+    border-color: #ff4d4f; /* 红色描边 */
+}
+.skill-tree-card-group.side-mini-left::before {
+    content: '';
+    position: absolute;
+    top: 50%; /* 垂直居中 */
+    right: 100%;
     width: 24px;
     height: 0;
     border-top: 2px dashed #ff4d4f; /* 红色虚线 */
@@ -3192,6 +3264,10 @@ body.dark-theme .profile-avatar {
     transform: translateY(-2px);
     box-shadow: 0 6px 16px rgba(0,0,0,0.08);
     border-color: var(--primary-color);
+}
+/* 第二章间章去掉hover移动效果，保持垂直居中 */
+.skill-tree-card-group.side-mini-left .skill-tree-mini-card:not(.locked):hover {
+    transform: translateY(-50%); /* 保持垂直居中，去掉向上移动效果 */
 }
 
 .skill-tree-mini-card__title { font-weight: 600; }
@@ -3247,6 +3323,8 @@ body.dark-theme .profile-avatar {
 
 /* 让第一章的间章相对定位于第一章卡片 */
 .skill-tree-card-group.stage-1 { grid-column: 1 / 2; grid-row: 1; }
+/* 让第二章的间章相对定位于第二章卡片 */
+.skill-tree-card-group.stage-2 { grid-column: 3 / 4; grid-row: 3; margin-top: 40px; }
 
 /* Summary View Card */
 .skill-tree-card {
