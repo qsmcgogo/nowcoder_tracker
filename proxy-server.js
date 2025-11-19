@@ -97,6 +97,8 @@ app.use('/problem/tracker/clock/daylink', manualProxyHandler('/problem/tracker/c
 app.use('/problem/tracker/addcheckin', manualProxyHandler('/problem/tracker/addcheckin'));
 app.use('/problem/tracker/badge/userInfo', manualProxyHandler('/problem/tracker/badge/userInfo'));
 app.use('/problem/tracker/badge/list', manualProxyHandler('/problem/tracker/badge/list'));
+// Admin endpoint for updating all topic badges
+app.use('/problem/tracker/badge/update-all-topic-badges', manualProxyHandler('/problem/tracker/badge/update-all-topic-badges'));
 
 // Endpoints for Skill Tree
 app.use('/problem/tracker/skill-tree/tagInfo', manualProxyHandler('/problem/tracker/skill-tree/tagInfo'));

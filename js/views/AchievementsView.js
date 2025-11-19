@@ -487,6 +487,10 @@ export class AchievementsView {
             const header = this.buildListHeader();
             this.content.appendChild(header);
             this.content.appendChild(container);
+            // 管理员功能区域
+            if (this.state && this.state.isAdmin) {
+                this.content.appendChild(this.buildAdminSection());
+            }
         }
     }
 
@@ -518,6 +522,68 @@ export class AchievementsView {
         });
         bar.appendChild(btn);
         return bar;
+    }
+
+    // 管理员功能区域
+    buildAdminSection() {
+        const section = document.createElement('div');
+        section.className = 'achv-admin-section';
+        section.style.cssText = 'margin-top: 24px; padding: 16px; border-top: 2px dashed #ddd; background: #f9f9f9; border-radius: 8px;';
+        
+        const title = document.createElement('div');
+        title.style.cssText = 'font-weight: 600; color: #333; margin-bottom: 12px; font-size: 14px;';
+        title.textContent = '管理员功能';
+        section.appendChild(title);
+
+        const form = document.createElement('div');
+        form.style.cssText = 'display: flex; align-items: center; gap: 8px; flex-wrap: wrap;';
+        
+        const label = document.createElement('label');
+        label.style.cssText = 'font-size: 13px; color: #666;';
+        label.textContent = '更新用户题单成就：';
+        form.appendChild(label);
+
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.placeholder = '输入用户ID';
+        input.id = 'achv-admin-user-id';
+        input.style.cssText = 'padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; width: 150px; font-size: 13px;';
+        form.appendChild(input);
+
+        const btn = document.createElement('button');
+        btn.className = 'admin-btn';
+        btn.textContent = '更新';
+        btn.style.cssText = 'padding: 6px 16px; background: #1890ff; color: #fff; border: 1px solid #1890ff; border-radius: 4px; cursor: pointer; font-size: 13px;';
+        btn.addEventListener('click', async () => {
+            const userId = input.value.trim();
+            if (!userId) {
+                alert('请输入用户ID');
+                return;
+            }
+            const userIdNum = Number(userId);
+            if (!userIdNum || userIdNum <= 0) {
+                alert('用户ID必须为正整数');
+                return;
+            }
+            btn.disabled = true;
+            btn.textContent = '更新中...';
+            try {
+                const result = await this.api.adminUpdateAllTopicBadges(userIdNum);
+                const updatedCount = result.updatedCount || 0;
+                alert(`更新成功！共更新 ${updatedCount} 个题单成就。`);
+                input.value = '';
+            } catch (e) {
+                console.error('更新题单成就失败:', e);
+                alert('更新失败：' + (e.message || '未知错误'));
+            } finally {
+                btn.disabled = false;
+                btn.textContent = '更新';
+            }
+        });
+        form.appendChild(btn);
+
+        section.appendChild(form);
+        return section;
     }
 
     async renderOverview() {
@@ -609,6 +675,10 @@ export class AchievementsView {
                 card.appendChild(pointsBadge);
                 rowsContainer.appendChild(card);
             });
+        }
+        // 管理员功能区域
+        if (this.state && this.state.isAdmin) {
+            root.appendChild(this.buildAdminSection());
         }
     }
 

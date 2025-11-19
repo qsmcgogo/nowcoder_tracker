@@ -1427,8 +1427,11 @@ export class SkillTreeView {
                 if (manageBtn && !manageBtn._bound) {
                     manageBtn._bound = true;
                     manageBtn.addEventListener('click', () => {
+                        const nodeData = skillTreeData['newbie-130'].nodes[this.activeNodeId];
+                        const tagName = nodeData ? nodeData.name : '';
                         this.openBatchManageModal({
                             tagId,
+                            tagName,
                             problems: [],
                             stageNodeOptions: this.getStageNodeOptionsForActiveNode()
                         }, async (saved) => {
@@ -1537,8 +1540,11 @@ export class SkillTreeView {
             if (manageBtn && !manageBtn._bound) {
                 manageBtn._bound = true;
                 manageBtn.addEventListener('click', () => {
+                    const nodeData = skillTreeData['newbie-130'].nodes[this.activeNodeId];
+                    const tagName = nodeData ? nodeData.name : '';
                     this.openBatchManageModal({
                         tagId,
+                        tagName,
                         problems: (tagInfo.problems || []).map(p => ({
                             questionId: String(p.qid || p.questionId || ''),
                             score: Number(p.score || 0),
@@ -1812,7 +1818,7 @@ export class SkillTreeView {
 
     // 打开批量管理对话框
     openBatchManageModal(context, onSave) {
-        const { tagId, problems = [], stageNodeOptions = [] } = context || {};
+        const { tagId, tagName = '', problems = [], stageNodeOptions = [] } = context || {};
         let modal = document.getElementById('skill-batch-modal');
         if (!modal) {
             modal = document.createElement('div');
@@ -1822,7 +1828,7 @@ export class SkillTreeView {
             modal.innerHTML = `
                 <div class="modal-content" style="max-width:920px;">
                     <div class="modal-header">
-                        <h3>管理题目（Tag ${tagId}）</h3>
+                        <h3>管理题目（Tag ${tagId}${tagName ? ` - ${tagName}` : ''}）</h3>
                         <button id="skill-batch-close" class="modal-close" aria-label="关闭">&times;</button>
                     </div>
                     <div class="modal-body" style="max-height:60vh;overflow:auto;">
@@ -1850,7 +1856,29 @@ export class SkillTreeView {
             `;
             document.body.appendChild(modal);
         }
+        // 更新标题（如果 modal 已存在）
+        const titleElement = modal.querySelector('.modal-header h3');
+        if (titleElement) {
+            titleElement.textContent = `管理题目（Tag ${tagId}${tagName ? ` - ${tagName}` : ''}）`;
+        }
         const tbody = modal.querySelector('#skill-batch-tbody');
+        // 从 DOM 中读取当前编辑的值并更新到 state
+        const syncStateFromDOM = () => {
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.forEach((tr, idx) => {
+                if (idx < state.length) {
+                    const qidInput = tr.querySelector('.skill-batch-qid');
+                    const scoreInput = tr.querySelector('.skill-batch-score');
+                    if (qidInput) {
+                        state[idx].questionId = qidInput.value.trim();
+                    }
+                    if (scoreInput) {
+                        const score = Number(scoreInput.value);
+                        state[idx].score = (Number.isFinite(score) && score >= 0) ? score : 0;
+                    }
+                }
+            });
+        };
         const renderRows = (list) => {
             tbody.innerHTML = list.map((it, idx) => {
                 const depIds = Array.isArray(it.dependencies) ? it.dependencies.map(String) : [];
@@ -1888,6 +1916,7 @@ export class SkillTreeView {
         const bindReorder = () => {
             tbody.querySelectorAll('.skill-batch-up').forEach(btn => {
                 btn.addEventListener('click', () => {
+                    syncStateFromDOM();
                     const tr = btn.closest('tr'); const idx = Number(tr.getAttribute('data-idx'));
                     if (idx <= 0) return;
                     const tmp = state[idx-1]; state[idx-1] = state[idx]; state[idx] = tmp;
@@ -1896,6 +1925,7 @@ export class SkillTreeView {
             });
             tbody.querySelectorAll('.skill-batch-down').forEach(btn => {
                 btn.addEventListener('click', () => {
+                    syncStateFromDOM();
                     const tr = btn.closest('tr'); const idx = Number(tr.getAttribute('data-idx'));
                     if (idx >= state.length - 1) return;
                     const tmp = state[idx+1]; state[idx+1] = state[idx]; state[idx] = tmp;
@@ -1905,6 +1935,7 @@ export class SkillTreeView {
             // 删除按钮
             tbody.querySelectorAll('.skill-batch-delete').forEach(btn => {
                 btn.addEventListener('click', () => {
+                    syncStateFromDOM();
                     const tr = btn.closest('tr'); const idx = Number(tr.getAttribute('data-idx'));
                     if (confirm('确定要删除这道题目吗？')) {
                         state.splice(idx, 1);
@@ -1915,6 +1946,7 @@ export class SkillTreeView {
             // 依赖弹窗
             tbody.querySelectorAll('.skill-batch-choose-deps').forEach(btn => {
                 btn.addEventListener('click', () => {
+                    syncStateFromDOM();
                     const tr = btn.closest('tr'); const idx = Number(tr.getAttribute('data-idx'));
                     openDepsDialog(idx);
                 });
@@ -1926,6 +1958,7 @@ export class SkillTreeView {
         const addBtn = modal.querySelector('#skill-batch-add-btn');
         if (addBtn) {
             addBtn.addEventListener('click', () => {
+                syncStateFromDOM();
                 state.push({ questionId: '', score: 0, dependencies: [] });
                 renderRows(state); bindReorder();
             });
@@ -1981,6 +2014,7 @@ export class SkillTreeView {
                 });
             });
             d.querySelector('#deps-save').onclick = () => {
+                syncStateFromDOM();
                 const vals = Array.from(listDiv.querySelectorAll('.deps-opt:checked')).map(i => i.value);
                 state[rowIdx].dependencies = vals;
                 renderRows(state); bindReorder();

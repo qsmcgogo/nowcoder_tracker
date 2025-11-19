@@ -1281,6 +1281,20 @@ export class ApiService {
         }
     }
 
+    // 管理员：更新用户的所有题单类型成就
+    async adminUpdateAllTopicBadges(userId) {
+        if (!userId) throw new Error('userId required');
+        const url = `${this.apiBase}/problem/tracker/badge/update-all-topic-badges`;
+        const body = `userId=${encodeURIComponent(userId)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { updatedCount: 0 };
+        }
+        throw new Error((data && data.msg) || 'update all topic badges failed');
+    }
+
     // ===== 对战平台 =====
     /**
      * 发起匹配
@@ -1327,6 +1341,192 @@ export class ApiService {
      */
     async battleCancel(mode = '1v1') {
         const url = `${this.apiBase}/problem/tracker/battle/cancel?mode=${encodeURIComponent(mode)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return data && (data.code === 0 || data.code === 200);
+    }
+
+    /**
+     * 获取用户对战信息
+     * @param {number} type - 比赛类型（1=单机，2=1v1对战），默认为2
+     * @returns {Promise<{levelScore: number, winCount: number, totalCount: number, type: number}>}
+     */
+    async battleInfo(type = 2) {
+        const url = `${this.apiBase}/problem/tracker/battle/info?type=${encodeURIComponent(type)}`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { levelScore: 1000, winCount: 0, totalCount: 0, type: type };
+        }
+        // 如果接口失败，返回默认值
+        return { levelScore: 1000, winCount: 0, totalCount: 0, type: type };
+    }
+
+    /**
+     * 分页获取用户对战记录列表
+     * @param {number|string} userId - 用户ID
+     * @param {number} page - 页码
+     * @param {number} limit - 每页数量
+     * @returns {Promise<{list: Array, total: number}>}
+     */
+    async battleRecordList(userId, page = 1, limit = 10) {
+        const url = `${this.apiBase}/problem/tracker/battle/battleRecordList?userId=${encodeURIComponent(userId)}&page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`;
+        try {
+            const res = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && (data.code === 0 || data.code === 200)) {
+                return data.data || { list: [], total: 0 };
+            }
+        } catch (error) {
+            console.log('获取对战记录列表失败，使用模拟数据:', error);
+        }
+        // 模拟数据（后端未实现时）
+        const mockRecords = [
+            {
+                id: 1,
+                type: '1v1',
+                battleTime: new Date(Date.now() - 86400000 * 2).toISOString(),
+                problemId: 1001,
+                problemName: '两数之和'
+            },
+            {
+                id: 2,
+                type: '1v1',
+                battleTime: new Date(Date.now() - 86400000 * 5).toISOString(),
+                problemId: 1002,
+                problemName: '三数之和'
+            },
+            {
+                id: 3,
+                type: 'single',
+                battleTime: new Date(Date.now() - 86400000 * 7).toISOString(),
+                problemId: 1003,
+                problemName: '最长回文子串'
+            }
+        ];
+        const start = (page - 1) * limit;
+        const end = start + limit;
+        return {
+            list: mockRecords.slice(start, end),
+            total: mockRecords.length
+        };
+    }
+
+    /**
+     * 获取单场对战记录详情
+     * @param {number|string} battleRecordId - 对战记录ID
+     * @returns {Promise<object>}
+     */
+    async battleRecord(battleRecordId) {
+        const url = `${this.apiBase}/problem/tracker/battle/battleRecord?battleRecordId=${encodeURIComponent(battleRecordId)}`;
+        try {
+            const res = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && (data.code === 0 || data.code === 200)) {
+                return data.data || null;
+            }
+        } catch (error) {
+            console.log('获取对战记录详情失败，使用模拟数据:', error);
+        }
+        // 模拟数据（后端未实现时）
+        const mockRecord = {
+            id: battleRecordId,
+            type: '1v1',
+            battleTime: new Date(Date.now() - 86400000 * 2).toISOString(),
+            problemId: 1001,
+            problemName: '两数之和',
+            user: {
+                userId: '919247',
+                name: '当前用户',
+                levelScore: 1200,
+                scoreChange: 15,
+                headUrl: 'https://static.nowcoder.com/fe/file/images/nowpick/web/www-favicon.ico'
+            },
+            opponentJson: JSON.stringify({
+                userId: '999999',
+                name: '对手用户',
+                levelScore: 1180,
+                scoreChange: -15,
+                headUrl: 'https://static.nowcoder.com/fe/file/images/nowpick/web/www-favicon.ico'
+            }),
+            details: {
+                user: {
+                    time: 120,
+                    completed: true
+                },
+                opponent: {
+                    time: 180,
+                    completed: true
+                }
+            }
+        };
+        return mockRecord;
+    }
+
+    /**
+     * 结算一场对战
+     * @param {object} battleRecord - 对战记录数据
+     * @returns {Promise<boolean>}
+     */
+    async completeBattle(battleRecord) {
+        const url = `${this.apiBase}/problem/tracker/battle/completeBattle`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(battleRecord),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return data && (data.code === 0 || data.code === 200);
+    }
+
+    /**
+     * 查询当前比赛状态
+     * @param {string} roomId - 房间ID
+     * @returns {Promise<object>}
+     */
+    async checkStatus(roomId) {
+        const url = `${this.apiBase}/problem/tracker/battle/checkStatus?roomid=${encodeURIComponent(roomId)}`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || null;
+        }
+        return null;
+    }
+
+    /**
+     * 更新当前比赛状态
+     * @param {string} roomId - 房间ID
+     * @returns {Promise<boolean>}
+     */
+    async updateStatus(roomId) {
+        const url = `${this.apiBase}/problem/tracker/battle/updateStatus?roomid=${encodeURIComponent(roomId)}`;
         const res = await fetch(url, {
             method: 'POST',
             cache: 'no-store',

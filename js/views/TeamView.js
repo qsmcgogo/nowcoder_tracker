@@ -1663,12 +1663,14 @@ export class TeamView {
                         <button class="contest-tab team-rank-tab" data-metric="clock_7days">7日打卡</button>
                     `;
                 } else if (this.teamLeaderboardCategory === 'skill') {
-                    // 技能树（顺序：所有章节、晨曦微光、拂晓、懵懂新芽）
+                    // 技能树（顺序：所有章节、晨曦微光、拂晓、懵懂新芽、含苞、初显峥嵘）
                     subHTML = `
                         <button class="contest-tab team-rank-tab" data-metric="skill_total_all">所有章节</button>
                         <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter1">晨曦微光</button>
                         <button class="contest-tab team-rank-tab" data-metric="skill_total_interlude">拂晓</button>
                         <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter2">懵懂新芽</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_interlude25">含苞</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter3">初显峥嵘</button>
                     `;
                 } else {
                     // 题单（新手130、算法入门、算法进阶、算法登峰）
@@ -1795,7 +1797,7 @@ export class TeamView {
         const tb = document.getElementById('team-rankings-tbody');
         if (!tb) return;
         tb.innerHTML = `<tr><td colspan="5">加载中...</td></tr>`;
-        // metric 支持：solve_total | solve_7days | solve_today | clock_total | clock_7days | skill_total_{all|interlude|chapter1|chapter2} | topic_{id}
+        // metric 支持：solve_total | solve_7days | solve_today | clock_total | clock_7days | skill_total_{all|interlude|chapter1|chapter2|interlude25|chapter3} | topic_{id}
         try {
             const isClock = String(metric || '').startsWith('clock_');
             const isSkill = String(metric || '').startsWith('skill_');
@@ -1839,6 +1841,8 @@ export class TeamView {
                 if (metric === 'skill_total_interlude') stage = 'interlude';
                 else if (metric === 'skill_total_chapter1') stage = 'CHAPTER1';
                 else if (metric === 'skill_total_chapter2') stage = 'CHAPTER2';
+                else if (metric === 'skill_total_interlude25') stage = 'INTERLUDE_2_5';
+                else if (metric === 'skill_total_chapter3') stage = 'CHAPTER3';
                 const res = await this.api.teamSkillLeaderboard(this.currentTeamId, 'total', stage, this.teamLeaderboardPage, this.teamLeaderboardLimit);
                 rows = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
                 this.teamLeaderboardTotal = (res && typeof res.total === 'number') ? res.total : 0;
@@ -1851,11 +1855,15 @@ export class TeamView {
                     // eslint-disable-next-line no-console
                     console.debug('[TeamView] skill leaderboard', { stage, problemTotalRaw: rawPT, problemTotal, resKeys: Object.keys(res || {}), sample });
                 } catch (_) {}
-                // 若ApiService未传，兜底从“活动-技能树完成名单”接口读取章节总题数
+                // 若ApiService未传，兜底从"活动-技能树完成名单"接口读取章节总题数
                 if (!problemTotal || Number.isNaN(problemTotal)) {
                     try {
                         const skillMeta = await this.api.teamActivitySkillFinishedUsers(this.currentTeamId);
-                        const mapKey = (stage === 'interlude' ? 'interlude' : (stage === 'CHAPTER1' ? 'chapter1' : (stage === 'CHAPTER2' ? 'chapter2' : '')));
+                        const mapKey = (stage === 'interlude' ? 'interlude' : 
+                                       (stage === 'CHAPTER1' ? 'chapter1' : 
+                                       (stage === 'CHAPTER2' ? 'chapter2' : 
+                                       (stage === 'INTERLUDE_2_5' ? 'interlude25' : 
+                                       (stage === 'CHAPTER3' ? 'chapter3' : '')))));
                         if (mapKey && skillMeta && skillMeta[mapKey] && typeof skillMeta[mapKey].problemTotal === 'number') {
                             problemTotal = Number(skillMeta[mapKey].problemTotal);
                             // eslint-disable-next-line no-console
