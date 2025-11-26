@@ -125,6 +125,8 @@ app.use('/problem/tracker/team/member/check', manualProxyHandler('/problem/track
 app.use('/problem/tracker/team/member/check/uid', manualProxyHandler('/problem/tracker/team/member/check/uid'));
 app.use('/problem/tracker/team/member/add', manualProxyHandler('/problem/tracker/team/member/add'));
 app.use('/problem/tracker/team/member/delete', manualProxyHandler('/problem/tracker/team/member/delete'));
+app.use('/problem/tracker/team/member/nickname', manualProxyHandler('/problem/tracker/team/member/nickname'));
+app.use('/problem/tracker/team/member/my/nickname', manualProxyHandler('/problem/tracker/team/member/my/nickname'));
 app.use('/problem/tracker/team/transfer', manualProxyHandler('/problem/tracker/team/transfer'));
 app.use('/problem/tracker/team/invite/create', manualProxyHandler('/problem/tracker/team/invite/create'));
 app.use('/problem/tracker/team/invite', manualProxyHandler('/problem/tracker/team/invite'));
@@ -159,9 +161,33 @@ app.use('/problem/tracker/team/activity/teams/leaderboard', manualProxyHandler('
 
 // Battle routes
 app.use('/problem/tracker/battle/match', manualProxyHandler('/problem/tracker/battle/match'));
+app.use('/problem/tracker/battle/match-ai', manualProxyHandler('/problem/tracker/battle/match-ai'));
 app.use('/problem/tracker/battle/poll', manualProxyHandler('/problem/tracker/battle/poll'));
 app.use('/problem/tracker/battle/cancel', manualProxyHandler('/problem/tracker/battle/cancel'));
+app.use('/problem/tracker/battle/info', manualProxyHandler('/problem/tracker/battle/info'));
+app.use('/problem/tracker/battle/records', manualProxyHandler('/problem/tracker/battle/records'));
+app.use('/problem/tracker/battle/leaderboard', manualProxyHandler('/problem/tracker/battle/leaderboard'));
+app.use('/problem/tracker/battle/template', manualProxyHandler('/problem/tracker/battle/template'));
+app.use('/problem/tracker/battle/create-room', manualProxyHandler('/problem/tracker/battle/create-room'));
+app.use('/problem/tracker/battle/join-room', manualProxyHandler('/problem/tracker/battle/join-room'));
+app.use('/problem/tracker/battle/disband-room', manualProxyHandler('/problem/tracker/battle/disband-room'));
+// Admin endpoint for batch processing room status
+app.use('/problem/tracker/battle/batch-process-room-status', manualProxyHandler('/problem/tracker/battle/batch-process-room-status'));
 
+
+// Endpoint to get current environment config
+app.get('/api/env-config', (req, res) => {
+    const battleDomainMap = {
+        'd': 'dac.nowcoder.com',
+        'pre': 'preac.nowcoder.com',
+        'www': 'ac.nowcoder.com'
+    };
+    const battleDomain = battleDomainMap[CURRENT_ENV] || battleDomainMap['d'];
+    res.json({
+        env: CURRENT_ENV,
+        battleDomain: battleDomain
+    });
+});
 
 // New endpoint to proxy avatars and bypass CORS for canvas
 app.get('/avatar-proxy', (req, res) => {

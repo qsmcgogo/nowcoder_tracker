@@ -198,6 +198,51 @@ export class ApiService {
         throw new Error((data && data.msg) || '转移队长失败');
     }
 
+    /**
+     * 队长修改成员昵称
+     * @param {number|string} teamId - 团队ID
+     * @param {number|string} userId - 成员用户ID
+     * @param {string} nickName - 昵称
+     * @returns {Promise<boolean>}
+     */
+    async teamUpdateMemberNickname(teamId, userId, nickName) {
+        const url = `${this.apiBase}/problem/tracker/team/member/nickname`;
+        const body = `teamId=${encodeURIComponent(teamId)}&userId=${encodeURIComponent(userId)}&nickName=${encodeURIComponent(nickName || '')}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body,
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '修改昵称失败');
+    }
+
+    /**
+     * 用户修改自己的昵称
+     * @param {number|string} teamId - 团队ID
+     * @param {string} nickName - 昵称
+     * @returns {Promise<boolean>}
+     */
+    async teamUpdateMyNickname(teamId, nickName) {
+        const url = `${this.apiBase}/problem/tracker/team/member/my/nickname`;
+        const body = `teamId=${encodeURIComponent(teamId)}&nickName=${encodeURIComponent(nickName || '')}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body,
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) return true;
+        throw new Error((data && data.msg) || '修改昵称失败');
+    }
+
     async teamInviteCreate(teamId) {
         const url = `${this.apiBase}/problem/tracker/team/invite/create`;
         const body = `teamId=${encodeURIComponent(teamId)}`;
@@ -1302,8 +1347,8 @@ export class ApiService {
      * @param {string} mode - 匹配模式，默认 '1v1'
      * @returns {Promise<{matched: boolean, roomId?: string, opponentId?: number}>}
      */
-    async battleMatch(rankScore, mode = '1v1') {
-        const url = `${this.apiBase}/problem/tracker/battle/match?rankScore=${encodeURIComponent(rankScore)}&mode=${encodeURIComponent(mode)}`;
+    async battleMatch(mode = '1v1') {
+        const url = `${this.apiBase}/problem/tracker/battle/match?mode=${encodeURIComponent(mode)}`;
         const res = await fetch(url, {
             method: 'POST',
             cache: 'no-store',
@@ -1336,6 +1381,26 @@ export class ApiService {
     }
 
     /**
+     * 人机对战：直接创建房间，不需要匹配
+     * rankScore 由后端自动获取，避免用户传递错误的rankScore
+     * @returns {Promise<{matched: boolean, roomId: string, problemId?: number, startTime?: number, aiAcTime?: number}>}
+     */
+    async battleMatchAI() {
+        const url = `${this.apiBase}/problem/tracker/battle/match-ai`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { matched: false };
+        }
+        return { matched: false };
+    }
+
+    /**
      * 取消匹配
      * @param {string} mode - 匹配模式，默认 '1v1'
      */
@@ -1353,11 +1418,10 @@ export class ApiService {
 
     /**
      * 获取用户对战信息
-     * @param {number} type - 比赛类型（1=单机，2=1v1对战），默认为2
-     * @returns {Promise<{levelScore: number, winCount: number, totalCount: number, type: number}>}
+     * @returns {Promise<{battle1v1: {levelScore, winCount, totalCount, type}, battleAI: {levelScore, winCount, totalCount, type}}>}
      */
-    async battleInfo(type = 2) {
-        const url = `${this.apiBase}/problem/tracker/battle/info?type=${encodeURIComponent(type)}`;
+    async battleInfo() {
+        const url = `${this.apiBase}/problem/tracker/battle/info`;
         const res = await fetch(url, {
             cache: 'no-store',
             credentials: 'include'
@@ -1365,10 +1429,78 @@ export class ApiService {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data && (data.code === 0 || data.code === 200)) {
-            return data.data || { levelScore: 1000, winCount: 0, totalCount: 0, type: type };
+            return data.data || {
+                battle1v1: { levelScore: 1000, winCount: 0, totalCount: 0, type: 2 },
+                battleAI: { levelScore: 1000, winCount: 0, totalCount: 0, type: 1 }
+            };
         }
         // 如果接口失败，返回默认值
-        return { levelScore: 1000, winCount: 0, totalCount: 0, type: type };
+        return {
+            battle1v1: { levelScore: 1000, winCount: 0, totalCount: 0, type: 2 },
+            battleAI: { levelScore: 1000, winCount: 0, totalCount: 0, type: 1 }
+        };
+    }
+
+    /**
+     * 创建自定义房间
+     * @param {string} roomCode - 房间码（前端生成）
+     * @returns {Promise<{success: boolean, roomId?: string, roomCode?: string, alreadyInRoom?: boolean, message?: string}>}
+     */
+    async battleCreateRoom(roomCode) {
+        const url = `${this.apiBase}/problem/tracker/battle/create-room?roomCode=${encodeURIComponent(roomCode)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { success: false };
+        }
+        // 如果返回错误，解析错误信息
+        return { success: false, message: data.message || '创建房间失败' };
+    }
+
+    /**
+     * 加入自定义房间
+     * @param {string} roomCode - 房间码
+     * @returns {Promise<{success: boolean, roomId?: string, problemId?: number, startTime?: number, opponentId?: number, alreadyInRoom?: boolean, message?: string}>}
+     */
+    async battleJoinRoom(roomCode) {
+        const url = `${this.apiBase}/problem/tracker/battle/join-room?roomCode=${encodeURIComponent(roomCode)}`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { success: false };
+        }
+        // 如果返回错误，解析错误信息
+        return { success: false, message: data.message || '加入房间失败' };
+    }
+
+    /**
+     * 解散自定义房间
+     * @param {string} roomCode - 房间码
+     * @returns {Promise<{success: boolean, message?: string}>}
+     */
+    async battleDisbandRoom(roomCode) {
+        const url = `${this.apiBase}/problem/tracker/battle/disband-room?roomCode=${encodeURIComponent(roomCode)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { success: false };
+        }
+        // 如果返回错误，解析错误信息
+        return { success: false, message: data.message || '解散房间失败' };
     }
 
     /**
@@ -1378,8 +1510,15 @@ export class ApiService {
      * @param {number} limit - 每页数量
      * @returns {Promise<{list: Array, total: number}>}
      */
-    async battleRecordList(userId, page = 1, limit = 10) {
-        const url = `${this.apiBase}/problem/tracker/battle/battleRecordList?userId=${encodeURIComponent(userId)}&page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`;
+    /**
+     * 获取对战记录列表
+     * @param {number} type - 对战类型：1=人机对战，2=1v1对战
+     * @param {number} page - 页码（从1开始）
+     * @param {number} limit - 每页数量
+     * @returns {Promise<object>} 返回包含list、total、page、limit的对象
+     */
+    async battleRecordList(type = 2, page = 1, limit = 20) {
+        const url = `${this.apiBase}/problem/tracker/battle/records?type=${encodeURIComponent(type)}&page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`;
         try {
             const res = await fetch(url, {
                 cache: 'no-store',
@@ -1388,41 +1527,93 @@ export class ApiService {
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const data = await res.json();
             if (data && (data.code === 0 || data.code === 200)) {
-                return data.data || { list: [], total: 0 };
+                return data.data || { list: [], total: 0, page: page, limit: limit };
             }
+            throw new Error('API返回错误');
         } catch (error) {
-            console.log('获取对战记录列表失败，使用模拟数据:', error);
+            console.error('获取对战记录列表失败:', error);
+            return { list: [], total: 0, page: page, limit: limit };
         }
-        // 模拟数据（后端未实现时）
-        const mockRecords = [
-            {
-                id: 1,
-                type: '1v1',
-                battleTime: new Date(Date.now() - 86400000 * 2).toISOString(),
-                problemId: 1001,
-                problemName: '两数之和'
-            },
-            {
-                id: 2,
-                type: '1v1',
-                battleTime: new Date(Date.now() - 86400000 * 5).toISOString(),
-                problemId: 1002,
-                problemName: '三数之和'
-            },
-            {
-                id: 3,
-                type: 'single',
-                battleTime: new Date(Date.now() - 86400000 * 7).toISOString(),
-                problemId: 1003,
-                problemName: '最长回文子串'
+    }
+
+    /**
+     * 获取对战排行榜
+     * @param {number} type - 对战类型：1=人机对战，2=1v1对战
+     * @param {number} page - 页码（从1开始）
+     * @param {number} limit - 每页数量
+     * @returns {Promise<object>} 返回包含list、total、page、limit的对象
+     */
+    async battleLeaderboard(type = 2, page = 1, limit = 20) {
+        const url = `${this.apiBase}/problem/tracker/battle/leaderboard?type=${encodeURIComponent(type)}&page=${encodeURIComponent(page)}&limit=${encodeURIComponent(limit)}`;
+        try {
+            const res = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && (data.code === 0 || data.code === 200)) {
+                return data.data || { list: [], total: 0, page: page, limit: limit };
             }
-        ];
-        const start = (page - 1) * limit;
-        const end = start + limit;
-        return {
-            list: mockRecords.slice(start, end),
-            total: mockRecords.length
-        };
+            throw new Error('API返回错误');
+        } catch (error) {
+            console.error('获取对战排行榜失败:', error);
+            return { list: [], total: 0, page: page, limit: limit };
+        }
+    }
+
+    /**
+     * 获取用户模板代码
+     * @param {number} type - 对战类型：1=人机对战，2=1v1对战
+     * @returns {Promise<object>} 返回包含templateCode、level、exp、maxLength的对象
+     */
+    async battleTemplate(type = 2) {
+        const url = `${this.apiBase}/problem/tracker/battle/template?type=${encodeURIComponent(type)}`;
+        try {
+            const res = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && (data.code === 0 || data.code === 200)) {
+                return data.data || { templateCode: {}, level: 1, exp: 0, maxLength: 10000 };
+            }
+            throw new Error('API返回错误');
+        } catch (error) {
+            console.error('获取模板代码失败:', error);
+            return { templateCode: {}, level: 1, exp: 0, maxLength: 10000 };
+        }
+    }
+
+    /**
+     * 更新用户模板代码
+     * @param {number} type - 对战类型：1=人机对战，2=1v1对战
+     * @param {string} templateCode - 模板代码（JSON格式字符串）
+     * @returns {Promise<object>} 返回更新结果
+     */
+    async battleUpdateTemplate(type, templateCode) {
+        const url = `${this.apiBase}/problem/tracker/battle/template`;
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                cache: 'no-store',
+                credentials: 'include',
+                body: `type=${encodeURIComponent(type)}&templateCode=${encodeURIComponent(templateCode)}`
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && (data.code === 0 || data.code === 200)) {
+                return data.data || { success: true };
+            }
+            throw new Error(data.message || 'API返回错误');
+        } catch (error) {
+            console.error('更新模板代码失败:', error);
+            throw error;
+        }
     }
 
     /**
@@ -1535,6 +1726,30 @@ export class ApiService {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         return data && (data.code === 0 || data.code === 200);
+    }
+
+    /**
+     * 管理员：批量处理对战房间状态
+     * @returns {Promise<object>} 返回处理结果
+     */
+    async adminBatchProcessRoomStatus() {
+        const url = `${this.apiBase}/problem/tracker/battle/batch-process-room-status`;
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && (data.code === 0 || data.code === 200)) {
+                return data.data || {};
+            }
+            throw new Error(data.message || 'API返回错误');
+        } catch (error) {
+            console.error('批量处理房间状态失败:', error);
+            throw error;
+        }
     }
 }
 

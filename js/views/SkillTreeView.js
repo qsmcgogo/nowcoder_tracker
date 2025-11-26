@@ -79,6 +79,10 @@ export const nodeIdToTagId = {
     // 并查集
     'union-find-intro': 1315,
     'minimum-spanning-tree': 1316,
+    // --- Boss章节：梦 ---
+    'thinking-challenge': 1400,  // 思维挑战
+    'knowledge-challenge': 1401, // 知识点挑战
+    'code-challenge': 1402,      // 代码挑战
 };
 
 // --- 新增：导出技能树的静态结构数据 ---
@@ -223,7 +227,11 @@ export const skillTreeData = {
             'enum-advanced-practice': { id: 'enum-advanced-practice', name: '枚举进阶综练', dependencies: [] },
             // 并查集
             'union-find-intro': { id: 'union-find-intro', name: '并查集入门', dependencies: [] },
-            'minimum-spanning-tree': { id: 'minimum-spanning-tree', name: '最小生成树', dependencies: [] }
+            'minimum-spanning-tree': { id: 'minimum-spanning-tree', name: '最小生成树', dependencies: [] },
+            // --- Boss章节：梦 ---
+            'thinking-challenge': { id: 'thinking-challenge', name: '思维挑战', dependencies: [] },
+            'knowledge-challenge': { id: 'knowledge-challenge', name: '知识点挑战', dependencies: [] },
+            'code-challenge': { id: 'code-challenge', name: '代码挑战', dependencies: [] }
         }
     }
 };
@@ -411,8 +419,87 @@ export class SkillTreeView {
                 previousStageProgress = progress;
 
                 const stageClass = stage.id === 'stage-1' ? 'stage-1' : (stage.id === 'stage-2' ? 'stage-2' : (stage.id === 'stage-3' ? 'stage-3' : ''));
+                
+                // 根据章节添加背景图案
+                let backgroundPattern = '';
+                if (stage.id === 'stage-1') {
+                    // 第一章：晨曦微光 - 太阳发光
+                    backgroundPattern = `
+                        <div class="stage-bg-pattern stage-bg-sun">
+                            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
+                                <defs>
+                                    <radialGradient id="sunGradient">
+                                        <stop offset="0%" stop-color="#ffd700" stop-opacity="0.5" />
+                                        <stop offset="70%" stop-color="#ffa500" stop-opacity="0.3" />
+                                        <stop offset="100%" stop-color="#ff8c00" stop-opacity="0.1" />
+                                    </radialGradient>
+                                </defs>
+                                <circle cx="100" cy="100" r="35" fill="url(#sunGradient)" />
+                                <circle cx="100" cy="100" r="25" fill="#ffd700" opacity="0.3" />
+                                <g stroke="#ffd700" stroke-width="2.5" fill="none" opacity="0.4">
+                                    <line x1="100" y1="100" x2="100" y2="25" />
+                                    <line x1="100" y1="100" x2="100" y2="175" />
+                                    <line x1="100" y1="100" x2="25" y2="100" />
+                                    <line x1="100" y1="100" x2="175" y2="100" />
+                                    <line x1="100" y1="100" x2="40" y2="40" />
+                                    <line x1="100" y1="100" x2="160" y2="160" />
+                                    <line x1="100" y1="100" x2="160" y2="40" />
+                                    <line x1="100" y1="100" x2="40" y2="160" />
+                                </g>
+                            </svg>
+                        </div>
+                    `;
+                } else if (stage.id === 'stage-2') {
+                    // 第二章：懵懂新芽 - 发芽
+                    backgroundPattern = `
+                        <div class="stage-bg-pattern stage-bg-sprout">
+                            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
+                                <defs>
+                                    <linearGradient id="sproutGradient" x1="0%" y1="100%" x2="0%" y2="0%">
+                                        <stop offset="0%" stop-color="#52c41a" stop-opacity="0.3" />
+                                        <stop offset="100%" stop-color="#73d13d" stop-opacity="0.4" />
+                                    </linearGradient>
+                                </defs>
+                                <!-- 土壤 -->
+                                <rect x="0" y="170" width="200" height="30" fill="#8b6914" opacity="0.15" />
+                                <!-- 茎 -->
+                                <path d="M 100 170 Q 98 150 100 130 Q 102 110 100 90" stroke="#52c41a" stroke-width="6" stroke-linecap="round" fill="none" opacity="0.35" />
+                                <!-- 叶子 -->
+                                <ellipse cx="85" cy="100" rx="15" ry="25" fill="url(#sproutGradient)" />
+                                <ellipse cx="115" cy="100" rx="15" ry="25" fill="url(#sproutGradient)" />
+                                <!-- 新芽 -->
+                                <path d="M 100 90 L 100 70" stroke="#52c41a" stroke-width="5" stroke-linecap="round" opacity="0.4" />
+                                <circle cx="100" cy="65" r="6" fill="#73d13d" opacity="0.5" />
+                            </svg>
+                        </div>
+                    `;
+                } else if (stage.id === 'stage-3') {
+                    // 第三章：初显峥嵘 - 山脉
+                    backgroundPattern = `
+                        <div class="stage-bg-pattern stage-bg-mountain">
+                            <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
+                                <defs>
+                                    <linearGradient id="mountainGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#1890ff" stop-opacity="0.35" />
+                                        <stop offset="50%" stop-color="#096dd9" stop-opacity="0.25" />
+                                        <stop offset="100%" stop-color="#0050b3" stop-opacity="0.15" />
+                                    </linearGradient>
+                                </defs>
+                                <!-- 远山 -->
+                                <path d="M 0 160 L 40 120 L 80 140 L 120 100 L 160 130 L 200 110 L 200 200 L 0 200 Z" fill="url(#mountainGradient)" />
+                                <!-- 近山 -->
+                                <path d="M 0 180 L 60 130 L 120 150 L 180 100 L 200 120 L 200 200 L 0 200 Z" fill="#1890ff" opacity="0.2" />
+                                <!-- 山峰细节 -->
+                                <path d="M 40 120 L 50 110 L 60 120" stroke="#096dd9" stroke-width="2" fill="none" opacity="0.25" />
+                                <path d="M 120 100 L 130 90 L 140 100" stroke="#096dd9" stroke-width="2" fill="none" opacity="0.25" />
+                            </svg>
+                        </div>
+                    `;
+                }
+                
                 const cardHtml = `
                     <div class="skill-tree-card ${stageClass} ${isLocked ? 'locked' : ''}" data-stage-id="${stage.id}" ${isLocked ? 'aria-disabled="true"' : ''}>
+                        ${backgroundPattern}
                         <div class="skill-tree-card__header">
                             <h3 class="skill-tree-card__title">${stage.name}</h3>
                             <span class="skill-tree-card__progress-text">通关率: ${progress}%</span>
@@ -483,9 +570,106 @@ export class SkillTreeView {
                 ? ''
                 : `<div class="skill-tree-login-banner">请先登录开启技能树之旅：<a class="login-link" href="${loginUrl}" target="_blank" rel="noopener noreferrer">前往登录</a></div>`;
 
+            // Boss章节：梦 - 解锁限制：第三章>=70%或通过100题
+            const bossMeetProgress = stage3Avg >= 70;
+            const bossMeetSolved = solvedCount >= 100;
+            const bossIsLocked = isAdmin ? false : !(bossMeetProgress || bossMeetSolved);
+            const bossLockReason = bossIsLocked 
+                ? `第三章平均进度达到70% <br>或<br>tracker累计通过100题：${solvedCount} / 100 <span class=\"dep-cross\">×</span>`
+                : '';
+            
+            const bossChapterHtml = `
+                <div class="skill-tree-boss-container ${bossIsLocked ? 'locked' : ''}" style="grid-column: 3 / 4; grid-row: 5; display: flex; justify-content: flex-end; align-items: center; margin-top: 40px; padding: 20px; position: relative;">
+                    ${bossIsLocked ? `<div class="skill-tree-card__tooltip">${bossLockReason}</div>` : ''}
+                    <button class="skill-tree-boss-btn" id="skill-tree-boss-dream" ${bossIsLocked ? 'disabled' : ''} style="
+                        position: relative;
+                        padding: 28px 56px;
+                        font-size: 32px;
+                        font-weight: 800;
+                        color: #fff;
+                        background: ${bossIsLocked 
+                            ? 'linear-gradient(135deg, #9ca3af 0%, #6b7280 30%, #4b5563 60%, #374151 100%)'
+                            : 'linear-gradient(135deg, #ffb3d9 0%, #ffc0e5 30%, #ffd1f0 60%, #ffe0f5 100%)'};
+                        background-size: 200% 200%;
+                        border: 3px solid rgba(255, 255, 255, 0.4);
+                        border-radius: 20px;
+                        cursor: ${bossIsLocked ? 'not-allowed' : 'pointer'};
+                        opacity: ${bossIsLocked ? '0.8' : '1'};
+                        box-shadow: ${bossIsLocked 
+                            ? '0 10px 30px rgba(107, 114, 128, 0.2), 0 0 50px rgba(75, 85, 99, 0.15), 0 0 80px rgba(55, 65, 81, 0.1), inset 0 2px 6px rgba(255, 255, 255, 0.2)'
+                            : '0 10px 30px rgba(255, 179, 217, 0.3), 0 0 50px rgba(255, 192, 229, 0.25), 0 0 80px rgba(255, 209, 240, 0.2), inset 0 2px 6px rgba(255, 255, 255, 0.4)'};
+                        transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                        overflow: hidden;
+                        text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2), 0 0 20px rgba(255, 255, 255, 0.4);
+                        letter-spacing: 4px;
+                        animation: ${bossIsLocked ? 'none' : 'gradientShift 4s ease infinite'};
+                    ">
+                        <span style="position: relative; z-index: 2; display: flex; align-items: center; gap: 16px;">
+                            <span style="font-size: 36px; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)); animation: ${bossIsLocked ? 'none' : 'sparkle 2s ease-in-out infinite'}; opacity: ${bossIsLocked ? '0.5' : '1'};">✨</span>
+                            <span style="color: ${bossIsLocked ? '#6b7280' : '#764ba2'}; font-weight: 900; text-shadow: 0 2px 8px rgba(118, 75, 162, 0.4);">梦</span>
+                            <span style="font-size: 36px; filter: drop-shadow(0 0 10px rgba(255, 255, 255, 0.8)); animation: ${bossIsLocked ? 'none' : 'sparkle 2s ease-in-out infinite 0.5s'}; opacity: ${bossIsLocked ? '0.5' : '1'};">✨</span>
+                        </span>
+                        ${bossIsLocked ? '' : `<div class="boss-btn-shine" style="
+                            position: absolute;
+                            top: 0;
+                            left: -100%;
+                            width: 100%;
+                            height: 100%;
+                            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.5), transparent);
+                            animation: shine 3s infinite;
+                            z-index: 1;
+                        "></div>`}
+                        <style>
+                            @keyframes gradientShift {
+                                0%, 100% { background-position: 0% 50%; }
+                                50% { background-position: 100% 50%; }
+                            }
+                            @keyframes shine {
+                                0% { left: -100%; }
+                                50%, 100% { left: 100%; }
+                            }
+                            @keyframes sparkle {
+                                0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+                                50% { transform: scale(1.2) rotate(180deg); opacity: 0.8; }
+                            }
+                            .skill-tree-boss-btn:hover:not(:disabled) {
+                                transform: translateY(-6px) scale(1.08);
+                                box-shadow: 0 15px 40px rgba(255, 179, 217, 0.4), 
+                                            0 0 80px rgba(255, 192, 229, 0.35),
+                                            0 0 120px rgba(255, 209, 240, 0.3),
+                                            inset 0 2px 8px rgba(255, 255, 255, 0.5);
+                                border-color: rgba(255, 255, 255, 0.6);
+                            }
+                            .skill-tree-boss-btn:disabled:hover {
+                                transform: none;
+                            }
+                            .skill-tree-boss-btn:active:not(:disabled) {
+                                transform: translateY(-3px) scale(1.04);
+                            }
+                            .skill-tree-boss-btn:not(:disabled)::before {
+                                content: '';
+                                position: absolute;
+                                top: -50%;
+                                left: -50%;
+                                width: 200%;
+                                height: 200%;
+                                background: radial-gradient(circle, rgba(255, 255, 255, 0.15) 0%, transparent 70%);
+                                animation: pulse 2.5s ease-in-out infinite;
+                                z-index: 0;
+                            }
+                            @keyframes pulse {
+                                0%, 100% { opacity: 0.6; transform: scale(1); }
+                                50% { opacity: 1; transform: scale(1.15); }
+                            }
+                        </style>
+                    </button>
+                </div>
+            `;
+
             this.container.innerHTML = `${banner}<div class="skill-tree-summary">${stagesHtml}
                 <!-- 占位空格：第四行，撑开视觉间距 -->
                 <div class="skill-tree-spacer" style="grid-column: 1 / 4; grid-row: 4; height: 10px;"></div>
+                ${bossChapterHtml}
             </div>`;
             this.bindSummaryEvents();
             // 概览页连线（使用SVG覆盖层，避免重复与错位）
@@ -819,6 +1003,675 @@ export class SkillTreeView {
             this.currentView = 'summary';
             this.render();
         });
+    }
+
+    // 渲染Boss章节"梦"的详情页
+    async renderBossDreamDetail() {
+        const tree = this.skillTrees['newbie-130'];
+        const nodeIds = ['thinking-challenge', 'knowledge-challenge', 'code-challenge'];
+        
+        // 预取进度
+        try {
+            const tagIds = nodeIds.map(id => nodeIdToTagId[id]).filter(Boolean);
+            if (tagIds.length && this.state.isLoggedIn()) {
+                const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, tagIds);
+                this.currentStageProgress = progressData || { nodeProgress: {} };
+            } else {
+                this.currentStageProgress = { nodeProgress: {} };
+            }
+        } catch (_) { 
+            this.currentStageProgress = { nodeProgress: {} };
+        }
+
+        // 检查所有知识点是否都完成
+        const allCompleted = nodeIds.every((id) => {
+            const tagId = nodeIdToTagId[id];
+            if (!tagId || !this.currentStageProgress || !this.currentStageProgress.nodeProgress) {
+                return false;
+            }
+            const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
+            const pct = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
+            return pct >= 100;
+        });
+
+        // 根据完成状态选择风格：暗黑风 vs 童话风
+        const isFairyTaleStyle = allCompleted;
+
+        // 渲染三个知识点卡片
+        const challengeCards = nodeIds.map((id, idx) => {
+            const n = tree.nodes[id];
+            const tagId = nodeIdToTagId[id];
+            let pct = 0;
+            if (this.currentStageProgress && this.currentStageProgress.nodeProgress) {
+                const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
+                pct = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
+            }
+            const isCompleted = pct >= 100;
+            
+            // 根据风格和索引设置不同的主题色
+            const darkColors = [
+                { primary: '#9d4edd', secondary: '#c77dff', glow: 'rgba(157, 78, 221, 0.4)' }, // 紫色 - 思维挑战
+                { primary: '#e63946', secondary: '#ff6b7a', glow: 'rgba(230, 57, 70, 0.4)' }, // 红色 - 知识点挑战
+                { primary: '#06d6a0', secondary: '#4ecdc4', glow: 'rgba(6, 214, 160, 0.4)' }  // 青色 - 代码挑战
+            ];
+            const fairyTaleColors = [
+                { primary: '#ff6b9d', secondary: '#ffb3d9', glow: 'rgba(255, 107, 157, 0.5)', bg: 'linear-gradient(135deg, #fff0f5 0%, #ffe4e1 50%, #fff5ee 100%)' }, // 粉红 - 思维挑战
+                { primary: '#ffd700', secondary: '#ffed4e', glow: 'rgba(255, 215, 0, 0.5)', bg: 'linear-gradient(135deg, #fffacd 0%, #fff8dc 50%, #ffffe0 100%)' }, // 金色 - 知识点挑战
+                { primary: '#87ceeb', secondary: '#b0e0e6', glow: 'rgba(135, 206, 235, 0.5)', bg: 'linear-gradient(135deg, #e0f6ff 0%, #f0f8ff 50%, #e6f3ff 100%)' }  // 天蓝 - 代码挑战
+            ];
+            const colorTheme = isFairyTaleStyle ? fairyTaleColors[idx] : darkColors[idx];
+            
+            // 根据风格选择背景和文字颜色
+            const cardBg = isFairyTaleStyle 
+                ? colorTheme.bg 
+                : 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)';
+            const textColor = isFairyTaleStyle ? '#333' : '#fff';
+            const subTextColor = isFairyTaleStyle ? '#666' : '#888';
+            const progressBg = isFairyTaleStyle 
+                ? 'rgba(255, 255, 255, 0.6)' 
+                : 'rgba(0, 0, 0, 0.4)';
+            const progressBorder = isFairyTaleStyle 
+                ? 'rgba(0, 0, 0, 0.1)' 
+                : 'rgba(255, 255, 255, 0.1)';
+            const shadowColor = isFairyTaleStyle 
+                ? 'rgba(255, 107, 157, 0.3)' 
+                : 'rgba(0, 0, 0, 0.5)';
+            
+            return `
+                <div class="boss-challenge-card ${isFairyTaleStyle ? 'fairy-tale' : 'dark'}" data-node-id="${id}" style="
+                    background: ${cardBg};
+                    border: 3px solid ${colorTheme.primary};
+                    border-radius: 24px;
+                    padding: 32px;
+                    position: relative;
+                    overflow: hidden;
+                    cursor: pointer;
+                    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                    box-shadow: ${isFairyTaleStyle 
+                        ? `0 8px 32px ${shadowColor}, 0 0 60px ${colorTheme.glow}, inset 0 2px 8px rgba(255, 255, 255, 0.8)` 
+                        : `0 8px 24px rgba(0, 0, 0, 0.5), 0 0 40px ${colorTheme.glow}, inset 0 1px 2px rgba(255, 255, 255, 0.1)`};
+                ">
+                    ${isFairyTaleStyle ? `
+                        <!-- 童话风格装饰：星星和彩虹 -->
+                        <div style="
+                            position: absolute;
+                            top: 10px;
+                            right: 15px;
+                            font-size: 24px;
+                            opacity: 0.6;
+                            animation: twinkle 2s ease-in-out infinite;
+                            z-index: 0;
+                        ">⭐</div>
+                        <div style="
+                            position: absolute;
+                            bottom: 10px;
+                            left: 15px;
+                            font-size: 20px;
+                            opacity: 0.5;
+                            animation: twinkle 2s ease-in-out infinite 1s;
+                            z-index: 0;
+                        ">✨</div>
+                        <div style="
+                            position: absolute;
+                            top: 50%;
+                            left: -20px;
+                            width: 60px;
+                            height: 4px;
+                            background: linear-gradient(90deg, ${colorTheme.primary}, ${colorTheme.secondary}, ${colorTheme.primary});
+                            border-radius: 2px;
+                            opacity: 0.3;
+                            transform: rotate(45deg);
+                            animation: rainbowShift 3s ease-in-out infinite;
+                            z-index: 0;
+                        "></div>
+                    ` : `
+                        <!-- 暗黑风格背景光效 -->
+                        <div style="
+                            position: absolute;
+                            top: -50%;
+                            left: -50%;
+                            width: 200%;
+                            height: 200%;
+                            background: radial-gradient(circle, ${colorTheme.glow} 0%, transparent 70%);
+                            animation: challengeGlow 3s ease-in-out infinite;
+                            z-index: 0;
+                        "></div>
+                        
+                        <!-- 装饰性边框光效 -->
+                        <div style="
+                            position: absolute;
+                            top: 0;
+                            left: 0;
+                            right: 0;
+                            bottom: 0;
+                            border-radius: 20px;
+                            padding: 2px;
+                            background: linear-gradient(135deg, ${colorTheme.primary}, ${colorTheme.secondary}, ${colorTheme.primary});
+                            -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+                            -webkit-mask-composite: xor;
+                            mask-composite: exclude;
+                            opacity: 0.6;
+                            z-index: 1;
+                        "></div>
+                    `}
+                    
+                    <!-- 内容 -->
+                    <div style="position: relative; z-index: 2;">
+                        <!-- 图标和标题 -->
+                        <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+                            <div style="
+                                width: 64px;
+                                height: 64px;
+                                background: ${isFairyTaleStyle 
+                                    ? `linear-gradient(135deg, ${colorTheme.primary}, ${colorTheme.secondary})` 
+                                    : `linear-gradient(135deg, ${colorTheme.primary}, ${colorTheme.secondary})`};
+                                border-radius: ${isFairyTaleStyle ? '50%' : '12px'};
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-size: 32px;
+                                box-shadow: ${isFairyTaleStyle 
+                                    ? `0 6px 20px ${colorTheme.glow}, inset 0 2px 4px rgba(255, 255, 255, 0.8)` 
+                                    : `0 4px 12px ${colorTheme.glow}`};
+                                animation: iconPulse 2s ease-in-out infinite;
+                                ${isFairyTaleStyle ? 'border: 3px solid rgba(255, 255, 255, 0.8);' : ''}
+                            ">
+                                ${idx === 0 ? '🧠' : idx === 1 ? '📚' : '💻'}
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="
+                                    font-size: 26px;
+                                    font-weight: 800;
+                                    color: ${textColor};
+                                    margin-bottom: 4px;
+                                    text-shadow: ${isFairyTaleStyle 
+                                        ? `0 2px 8px ${colorTheme.glow}, 0 0 20px rgba(255, 255, 255, 0.5)` 
+                                        : `0 0 20px ${colorTheme.glow}`};
+                                ">${n.name}</div>
+                                <div style="
+                                    font-size: 14px;
+                                    color: ${subTextColor};
+                                    text-transform: uppercase;
+                                    letter-spacing: 2px;
+                                    font-weight: ${isFairyTaleStyle ? '600' : '400'};
+                                ">Challenge ${idx + 1}</div>
+                            </div>
+                        </div>
+                        
+                        <!-- 进度条 -->
+                        <div style="
+                            background: ${progressBg};
+                            border-radius: 12px;
+                            height: 14px;
+                            overflow: hidden;
+                            margin-bottom: 16px;
+                            position: relative;
+                            border: 2px solid ${progressBorder};
+                            ${isFairyTaleStyle ? 'box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.1);' : ''}
+                        ">
+                            <div style="
+                                width: ${pct}%;
+                                height: 100%;
+                                background: linear-gradient(90deg, ${colorTheme.primary}, ${colorTheme.secondary});
+                                border-radius: 12px;
+                                transition: width 0.5s ease;
+                                box-shadow: ${isFairyTaleStyle 
+                                    ? `0 2px 8px ${colorTheme.glow}, inset 0 1px 2px rgba(255, 255, 255, 0.8)` 
+                                    : `0 0 20px ${colorTheme.glow}`};
+                                position: relative;
+                                overflow: hidden;
+                            ">
+                                <div style="
+                                    position: absolute;
+                                    top: 0;
+                                    left: -100%;
+                                    width: 100%;
+                                    height: 100%;
+                                    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, ${isFairyTaleStyle ? '0.6' : '0.3'}), transparent);
+                                    animation: progressShine 2s infinite;
+                                "></div>
+                            </div>
+                        </div>
+                        
+                        <!-- 进度文字 -->
+                        <div style="
+                            display: flex;
+                            justify-content: space-between;
+                            align-items: center;
+                            color: ${subTextColor};
+                            font-size: 15px;
+                            font-weight: ${isFairyTaleStyle ? '600' : '400'};
+                        ">
+                            <span>进度</span>
+                            <span style="
+                                color: ${colorTheme.primary};
+                                font-weight: 800;
+                                font-size: 20px;
+                                text-shadow: ${isFairyTaleStyle 
+                                    ? `0 2px 4px ${colorTheme.glow}` 
+                                    : `0 0 10px ${colorTheme.glow}`};
+                            ">${pct}%</span>
+                        </div>
+                        
+                        ${isCompleted ? `
+                            <div style="
+                                margin-top: 18px;
+                                padding: 10px 18px;
+                                background: ${isFairyTaleStyle 
+                                    ? `linear-gradient(135deg, ${colorTheme.primary}, ${colorTheme.secondary})` 
+                                    : `linear-gradient(135deg, ${colorTheme.primary}, ${colorTheme.secondary})`};
+                                border-radius: 12px;
+                                color: #fff;
+                                font-weight: 700;
+                                text-align: center;
+                                font-size: 15px;
+                                box-shadow: ${isFairyTaleStyle 
+                                    ? `0 6px 20px ${colorTheme.glow}, inset 0 2px 4px rgba(255, 255, 255, 0.5)` 
+                                    : `0 4px 12px ${colorTheme.glow}`};
+                                border: ${isFairyTaleStyle ? '2px solid rgba(255, 255, 255, 0.8);' : 'none'};
+                            ">✨ 已完成 ✨</div>
+                        ` : ''}
+                    </div>
+                    
+                    <style>
+                        @keyframes challengeGlow {
+                            0%, 100% { opacity: 0.3; transform: scale(1) rotate(0deg); }
+                            50% { opacity: 0.6; transform: scale(1.1) rotate(180deg); }
+                        }
+                        @keyframes iconPulse {
+                            0%, 100% { transform: scale(1); }
+                            50% { transform: scale(1.1); }
+                        }
+                        @keyframes progressShine {
+                            0% { left: -100%; }
+                            100% { left: 100%; }
+                        }
+                        @keyframes twinkle {
+                            0%, 100% { opacity: 0.4; transform: scale(1) rotate(0deg); }
+                            50% { opacity: 0.8; transform: scale(1.2) rotate(180deg); }
+                        }
+                        @keyframes rainbowShift {
+                            0%, 100% { opacity: 0.2; transform: rotate(45deg) translateX(0); }
+                            50% { opacity: 0.4; transform: rotate(45deg) translateX(20px); }
+                        }
+                        .boss-challenge-card:hover {
+                            transform: translateY(-${isFairyTaleStyle ? '10' : '8'}px) scale(1.03);
+                            box-shadow: ${isFairyTaleStyle 
+                                ? `0 15px 40px ${shadowColor}, 0 0 80px ${colorTheme.glow}, inset 0 2px 10px rgba(255, 255, 255, 0.9)` 
+                                : `0 12px 32px rgba(0, 0, 0, 0.6), 0 0 60px ${colorTheme.glow}, inset 0 1px 2px rgba(255, 255, 255, 0.15)`};
+                            border-color: ${colorTheme.secondary};
+                        }
+                    </style>
+                </div>
+            `;
+        }).join('');
+
+        // 根据完成状态选择整体背景样式
+        const pageBg = isFairyTaleStyle 
+            ? 'linear-gradient(to bottom, #fff0f5 0%, #ffe4e1 30%, #fff5ee 60%, #f0f8ff 100%)'
+            : 'linear-gradient(to bottom, #0a0a0f, #1a1a2e)';
+        const backButtonStyle = isFairyTaleStyle
+            ? 'margin-bottom: 24px; background: linear-gradient(135deg, #ffb3d9, #ffc0e5); color: #333; border-color: rgba(255, 255, 255, 0.8); font-weight: 600; box-shadow: 0 4px 12px rgba(255, 179, 217, 0.4);'
+            : 'margin-bottom: 24px; background: rgba(255, 255, 255, 0.1); color: #fff; border-color: rgba(255, 255, 255, 0.2);';
+        const titleTextShadow = isFairyTaleStyle
+            ? 'drop-shadow(0 4px 12px rgba(255, 179, 217, 0.6)) drop-shadow(0 0 30px rgba(255, 192, 229, 0.5))'
+            : 'drop-shadow(0 4px 12px rgba(255, 179, 217, 0.4))';
+        const subtitleColor = isFairyTaleStyle ? '#ff6b9d' : '#ff9ec7';
+        const sloganBg = isFairyTaleStyle
+            ? 'linear-gradient(135deg, rgba(255, 240, 245, 0.95) 0%, rgba(255, 228, 225, 0.95) 50%, rgba(255, 245, 238, 0.95) 100%)'
+            : 'linear-gradient(135deg, rgba(26, 26, 46, 0.8) 0%, rgba(22, 33, 62, 0.8) 100%)';
+        const sloganBorder = isFairyTaleStyle
+            ? '3px solid rgba(255, 107, 157, 0.5)'
+            : '2px solid rgba(255, 179, 217, 0.3)';
+        const sloganShadow = isFairyTaleStyle
+            ? '0 10px 40px rgba(255, 179, 217, 0.3), 0 0 80px rgba(255, 192, 229, 0.2), inset 0 2px 8px rgba(255, 255, 255, 0.8)'
+            : '0 10px 30px rgba(0, 0, 0, 0.5), 0 0 60px rgba(255, 192, 229, 0.15), inset 0 2px 4px rgba(255, 255, 255, 0.1)';
+        const sloganTextColor = isFairyTaleStyle ? '#555' : '#ddd';
+        const sectionTitleColor = isFairyTaleStyle ? '#333' : '#fff';
+        const sectionTitleShadow = isFairyTaleStyle
+            ? '0 2px 8px rgba(255, 179, 217, 0.4), 0 0 20px rgba(255, 192, 229, 0.3)'
+            : '0 0 20px rgba(255, 179, 217, 0.5)';
+
+        const html = `
+            <div class="boss-dream-detail ${isFairyTaleStyle ? 'fairy-tale-mode' : 'dark-mode'}" style="background: ${pageBg}; min-height: 100vh; padding: 40px 20px; position: relative; overflow: hidden;">
+                ${isFairyTaleStyle ? `
+                    <!-- 童话风格背景装饰：云朵和彩虹 -->
+                    <div style="
+                        position: absolute;
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        pointer-events: none;
+                        z-index: 0;
+                        overflow: hidden;
+                    ">
+                        <div style="
+                            position: absolute;
+                            top: 10%;
+                            left: 5%;
+                            width: 120px;
+                            height: 60px;
+                            background: rgba(255, 255, 255, 0.6);
+                            border-radius: 60px;
+                            opacity: 0.4;
+                            animation: cloudFloat 8s ease-in-out infinite;
+                        "></div>
+                        <div style="
+                            position: absolute;
+                            top: 10%;
+                            left: 5%;
+                            width: 100px;
+                            height: 50px;
+                            background: rgba(255, 255, 255, 0.6);
+                            border-radius: 50px;
+                            margin-left: 20px;
+                            margin-top: 20px;
+                            opacity: 0.4;
+                            animation: cloudFloat 8s ease-in-out infinite;
+                        "></div>
+                        <div style="
+                            position: absolute;
+                            top: 20%;
+                            right: 10%;
+                            width: 100px;
+                            height: 50px;
+                            background: rgba(255, 255, 255, 0.5);
+                            border-radius: 50px;
+                            opacity: 0.3;
+                            animation: cloudFloat 10s ease-in-out infinite 2s;
+                        "></div>
+                        <div style="
+                            position: absolute;
+                            top: 20%;
+                            right: 10%;
+                            width: 80px;
+                            height: 40px;
+                            background: rgba(255, 255, 255, 0.5);
+                            border-radius: 40px;
+                            margin-right: 15px;
+                            margin-top: 15px;
+                            opacity: 0.3;
+                            animation: cloudFloat 10s ease-in-out infinite 2s;
+                        "></div>
+                        <div style="
+                            position: absolute;
+                            bottom: 15%;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            width: 200px;
+                            height: 8px;
+                            background: linear-gradient(90deg, #ff6b9d, #ffd700, #87ceeb, #ff6b9d);
+                            border-radius: 4px;
+                            opacity: 0.3;
+                            animation: rainbowGlow 4s ease-in-out infinite;
+                        "></div>
+                    </div>
+                ` : ''}
+                
+                <!-- 返回按钮 -->
+                <button id="skill-tree-back-btn" class="back-button" style="${backButtonStyle}">&larr; 返回所有阶段</button>
+                
+                <!-- 标题区域 -->
+                <div class="boss-dream-header" style="text-align: center; margin-bottom: 50px; position: relative; z-index: 1;">
+                        <div style="
+                            font-size: 56px;
+                            font-weight: 800;
+                            margin-bottom: 20px;
+                            background: linear-gradient(135deg, #ffb3d9 0%, #ffc0e5 50%, #ffd1f0 100%);
+                            -webkit-background-clip: text;
+                            -webkit-text-fill-color: transparent;
+                            background-clip: text;
+                            letter-spacing: 4px;
+                            filter: ${titleTextShadow};
+                        ">✨ 梦 ✨</div>
+                        <div style="
+                            font-size: 20px;
+                            font-weight: 600;
+                            color: ${subtitleColor};
+                            margin-bottom: 8px;
+                            letter-spacing: 2px;
+                        ">Boss章节</div>
+                        <div style="
+                            width: 120px;
+                            height: 3px;
+                            background: linear-gradient(90deg, transparent, #ffb3d9, transparent);
+                            margin: 0 auto;
+                            border-radius: 2px;
+                        "></div>
+                </div>
+                
+                <!-- 标语区域 -->
+                <div class="boss-dream-slogan" style="
+                    background: ${sloganBg};
+                    border: ${sloganBorder};
+                    border-radius: 24px;
+                    padding: 40px 48px;
+                    margin: 0 auto 50px;
+                    max-width: 900px;
+                    box-shadow: ${sloganShadow};
+                    position: relative;
+                    overflow: hidden;
+                    z-index: 1;
+                ">
+                    <!-- 背景光晕动画 -->
+                    <div style="
+                        position: absolute;
+                        top: -50%;
+                        left: -50%;
+                        width: 200%;
+                        height: 200%;
+                        background: radial-gradient(circle, ${isFairyTaleStyle ? 'rgba(255, 192, 229, 0.3)' : 'rgba(255, 255, 255, 0.05)'} 0%, transparent 70%);
+                        animation: dreamPulse 4s ease-in-out infinite;
+                        z-index: 0;
+                    "></div>
+                    
+                    ${isFairyTaleStyle ? `
+                        <!-- 童话风格装饰：星星 -->
+                        <div style="
+                            position: absolute;
+                            top: 20px;
+                            right: 30px;
+                            font-size: 28px;
+                            opacity: 0.5;
+                            animation: twinkle 2s ease-in-out infinite;
+                            z-index: 0;
+                        ">⭐</div>
+                        <div style="
+                            position: absolute;
+                            bottom: 20px;
+                            left: 30px;
+                            font-size: 24px;
+                            opacity: 0.4;
+                            animation: twinkle 2s ease-in-out infinite 1s;
+                            z-index: 0;
+                        ">✨</div>
+                    ` : ''}
+                    
+                    <div style="position: relative; z-index: 1;">
+                        <div style="
+                            font-size: 19px;
+                            line-height: 2;
+                            color: ${sloganTextColor};
+                            text-align: center;
+                            font-weight: 500;
+                        ">
+                            <p style="margin-bottom: 20px;">
+                                完成此章节，对于非竞赛选手来说，<strong style="color: ${isFairyTaleStyle ? '#ff6b9d' : '#ff9ec7'}; font-size: 20px;">算法、代码、思维的掌握已经达标</strong>。
+                            </p>
+                            <p style="margin: 0;">
+                                如果希望未来在<strong style="color: ${isFairyTaleStyle ? '#ff8cc0' : '#ff8cc0'}; font-size: 20px;">ICPC/CCPC</strong>等竞赛中获取成绩，则需要进行下一步的学习。
+                            </p>
+                        </div>
+                    </div>
+                    <style>
+                        @keyframes dreamPulse {
+                            0%, 100% { opacity: ${isFairyTaleStyle ? '0.5' : '0.3'}; transform: scale(1); }
+                            50% { opacity: ${isFairyTaleStyle ? '0.8' : '0.6'}; transform: scale(1.15); }
+                        }
+                        ${isFairyTaleStyle ? `
+                            @keyframes cloudFloat {
+                                0%, 100% { transform: translateX(0) translateY(0); }
+                                50% { transform: translateX(20px) translateY(-10px); }
+                            }
+                            @keyframes rainbowGlow {
+                                0%, 100% { opacity: 0.2; }
+                                50% { opacity: 0.5; }
+                            }
+                        ` : ''}
+                    </style>
+                </div>
+                
+                <!-- 知识点挑战区域 -->
+                <div class="boss-dream-content" style="
+                    padding: 40px 20px;
+                    margin: 0 auto;
+                    max-width: 1200px;
+                    position: relative;
+                    z-index: 1;
+                ">
+                    <div style="
+                        font-size: 28px;
+                        font-weight: 700;
+                        color: ${sectionTitleColor};
+                        text-align: center;
+                        margin-bottom: 40px;
+                        text-shadow: ${sectionTitleShadow};
+                    ">三大挑战</div>
+                    
+                    <div style="
+                        display: grid;
+                        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+                        gap: 32px;
+                        margin-bottom: ${isFairyTaleStyle ? '60px' : '40px'};
+                    ">
+                        ${challengeCards}
+                    </div>
+                    
+                    ${isFairyTaleStyle ? `
+                        <!-- "新的挑战"按钮 -->
+                        <div style="
+                            text-align: center;
+                            margin-top: 60px;
+                            padding: 40px 20px;
+                        ">
+                            <button id="boss-new-challenge-btn" style="
+                                position: relative;
+                                padding: 24px 64px;
+                                font-size: 28px;
+                                font-weight: 800;
+                                color: #fff;
+                                background: linear-gradient(135deg, #ff6b9d 0%, #ffd700 50%, #87ceeb 100%);
+                                background-size: 200% 200%;
+                                border: 4px solid rgba(255, 255, 255, 0.9);
+                                border-radius: 30px;
+                                cursor: pointer;
+                                box-shadow: 0 12px 40px rgba(255, 107, 157, 0.5),
+                                            0 0 80px rgba(255, 215, 0, 0.4),
+                                            0 0 120px rgba(135, 206, 235, 0.3),
+                                            inset 0 2px 8px rgba(255, 255, 255, 0.8);
+                                transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+                                overflow: hidden;
+                                text-shadow: 0 2px 12px rgba(0, 0, 0, 0.3), 0 0 30px rgba(255, 255, 255, 0.5);
+                                letter-spacing: 3px;
+                                animation: gradientShift 3s ease infinite, buttonFloat 3s ease-in-out infinite;
+                            ">
+                                <span style="position: relative; z-index: 2; display: flex; align-items: center; justify-content: center; gap: 12px;">
+                                    <span style="font-size: 32px; animation: sparkle 2s ease-in-out infinite;">🌟</span>
+                                    <span>新的挑战</span>
+                                    <span style="font-size: 32px; animation: sparkle 2s ease-in-out infinite 0.5s;">🚀</span>
+                                </span>
+                                <div style="
+                                    position: absolute;
+                                    top: 0;
+                                    left: -100%;
+                                    width: 100%;
+                                    height: 100%;
+                                    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.6), transparent);
+                                    animation: shine 3s infinite;
+                                    z-index: 1;
+                                "></div>
+                                <style>
+                                    @keyframes gradientShift {
+                                        0%, 100% { background-position: 0% 50%; }
+                                        50% { background-position: 100% 50%; }
+                                    }
+                                    @keyframes shine {
+                                        0% { left: -100%; }
+                                        50%, 100% { left: 100%; }
+                                    }
+                                    @keyframes sparkle {
+                                        0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+                                        50% { transform: scale(1.3) rotate(180deg); opacity: 0.9; }
+                                    }
+                                    @keyframes buttonFloat {
+                                        0%, 100% { transform: translateY(0px); }
+                                        50% { transform: translateY(-8px); }
+                                    }
+                                    #boss-new-challenge-btn:hover {
+                                        transform: translateY(-10px) scale(1.08);
+                                        box-shadow: 0 18px 50px rgba(255, 107, 157, 0.6),
+                                                    0 0 100px rgba(255, 215, 0, 0.5),
+                                                    0 0 150px rgba(135, 206, 235, 0.4),
+                                                    inset 0 2px 10px rgba(255, 255, 255, 0.9);
+                                        border-color: rgba(255, 255, 255, 1);
+                                    }
+                                    #boss-new-challenge-btn:active {
+                                        transform: translateY(-5px) scale(1.04);
+                                    }
+                                    #boss-new-challenge-btn::before {
+                                        content: '';
+                                        position: absolute;
+                                        top: -50%;
+                                        left: -50%;
+                                        width: 200%;
+                                        height: 200%;
+                                        background: radial-gradient(circle, rgba(255, 255, 255, 0.3) 0%, transparent 70%);
+                                        animation: pulse 2.5s ease-in-out infinite;
+                                        z-index: 0;
+                                    }
+                                    @keyframes pulse {
+                                        0%, 100% { opacity: 0.7; transform: scale(1); }
+                                        50% { opacity: 1; transform: scale(1.2); }
+                                    }
+                                </style>
+                            </button>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+        `;
+        
+        this.container.innerHTML = html;
+        
+        // 绑定返回按钮
+        const backBtn = document.getElementById('skill-tree-back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                this.currentView = 'summary';
+                this.render();
+            });
+        }
+        
+        // 绑定知识点卡片点击事件
+        this.container.querySelectorAll('.boss-challenge-card').forEach(card => {
+            card.addEventListener('click', (e) => {
+                const nodeId = card.getAttribute('data-node-id');
+                if (nodeId) {
+                    this.showNodePanel(nodeId);
+                }
+            });
+        });
+
+        // 绑定"新的挑战"按钮（如果存在）
+        const newChallengeBtn = document.getElementById('boss-new-challenge-btn');
+        if (newChallengeBtn) {
+            newChallengeBtn.addEventListener('click', () => {
+                // TODO: 实现新的挑战功能
+                alert('新的挑战功能即将上线！敬请期待！');
+                // 可以在这里添加跳转到新挑战页面的逻辑
+            });
+        }
     }
 
     // 渲染"间章：含苞" —— 5个知识点的轻量布局
@@ -1186,6 +2039,20 @@ export class SkillTreeView {
                 this.renderInterlude25Detail();
             });
         }
+        
+        // Boss章节：梦
+        const bossBtn = document.getElementById('skill-tree-boss-dream');
+        if (bossBtn) {
+            bossBtn.addEventListener('click', () => {
+                // 检查是否锁定
+                if (bossBtn.disabled) {
+                    return;
+                }
+                this.clearLines();
+                this.teardownSummarySvg && this.teardownSummarySvg();
+                this.renderBossDreamDetail();
+            });
+        }
     }
 
     // 使用 SVG 覆盖层绘制概览页连线（第一章->第二章，第二章->第三章）
@@ -1308,7 +2175,20 @@ export class SkillTreeView {
         this.showPanelContent(staticNodeData, null, true);
 
         try {
-            const tagInfo = await this.apiService.fetchTagInfo(nodeIdToTagId[nodeId]);
+            // 当用户点击知识点进入详情页时，调用更新接口
+            const tagId = nodeIdToTagId[nodeId];
+            if (tagId && this.state.isLoggedIn()) {
+                try {
+                    await this.apiService.syncSingleTag(this.state.loggedInUserId, tagId);
+                    // 更新当前页面所有知识点的进度显示
+                    await this.updateCurrentPageNodeProgress();
+                } catch (syncError) {
+                    console.error('更新技能树进度失败:', syncError);
+                    // 即使更新失败，也继续加载详情页
+                }
+            }
+
+            const tagInfo = await this.apiService.fetchTagInfo(tagId);
             const problemsWithStatus = await this.mergeProblemStatus(tagInfo);
             // Re-render with actual data
             this.showPanelContent(staticNodeData, problemsWithStatus, false);
@@ -1380,8 +2260,8 @@ export class SkillTreeView {
             return;
         }
 
-        // 标题左侧追加刷新按钮
-        this.panelTitle.innerHTML = `<button id="skill-node-refresh-btn" class="skill-node-refresh-btn" title="刷新本知识点进度">⟳</button> ${tagInfo.tagName || staticNodeData.name}`;
+        // 标题（已移除刷新按钮，改为在打开详情页时自动更新）
+        this.panelTitle.textContent = tagInfo.tagName || staticNodeData.name;
         this.panelDesc.textContent = tagInfo.tagDesc || '暂无描述。';
 
         const problems = tagInfo.problems || [];
@@ -1567,35 +2447,7 @@ export class SkillTreeView {
             }
         }
 
-        // 绑定刷新按钮：刷新此 tag 的进度，并更新当前页面所有知识点进度
-        const refreshBtn = document.getElementById('skill-node-refresh-btn');
-        if (refreshBtn) {
-            try { refreshBtn.setAttribute('type', 'button'); } catch (_) {}
-            refreshBtn.addEventListener('click', async (e) => {
-                // 防止影响滚动或触发父级锚点
-                if (e && e.preventDefault) e.preventDefault();
-                if (e && e.stopPropagation) e.stopPropagation();
-                try {
-                    refreshBtn.disabled = true;
-                    const tagId = nodeIdToTagId[this.activeNodeId];
-                    // 先触发后端同步，再读取一次最新进度
-                    await this.apiService.syncSingleTag(this.state.loggedInUserId, tagId);
-                    const res = await this.apiService.fetchSingleTagProgress(this.state.loggedInUserId, tagId);
-                    // 更新内存中的进度
-                    if (!this.currentStageProgress.nodeProgress) this.currentStageProgress.nodeProgress = {};
-                    this.currentStageProgress.nodeProgress[tagId] = res.progress || 0;
-                    // 更新当前页面所有知识点的进度显示
-                    await this.updateCurrentPageNodeProgress();
-                    // 仅重新渲染当前面板内容，避免跳回到概览
-                    this.showPanelContent(staticNodeData, tagInfo, false);
-                    // 如果当前是间章视图，顺手把对应按钮的进度和底色更新一下
-                    this.updateInterludeChip(tagId, this.activeNodeId);
-                    // 如需刷新概览，外部返回后会统一刷新
-                } finally {
-                    refreshBtn.disabled = false;
-                }
-            });
-        }
+        // 刷新按钮已移除，改为在打开详情页时自动更新进度
 
         // Attach floating tooltip on body to avoid clipping
         const ensureGlobalTooltip = () => {
@@ -1661,6 +2513,14 @@ export class SkillTreeView {
             const tree = this.skillTrees['newbie-130'];
             let stageNodeIds = [];
             let stageTagIds = [];
+
+            // 检查是否是Boss章节详情页
+            const bossDreamDetail = this.container.querySelector('.boss-dream-detail');
+            if (bossDreamDetail) {
+                // Boss章节：需要重新渲染整个页面以更新进度和风格
+                await this.renderBossDreamDetail();
+                return;
+            }
 
             // 检查是否是间章视图
             const interludeChips = this.container.querySelectorAll('.interlude-chip');

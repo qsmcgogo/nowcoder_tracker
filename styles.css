@@ -3314,7 +3314,81 @@ body.dark-theme .profile-avatar {
 .skill-tree-mini-card.locked .skill-tree-card__tooltip .dep-cross { color: #e03131; font-weight: 700; }
 
 /* 保证阶段卡片在网格中等宽展开 */
-.skill-tree-card { width: 100%; min-height: 110px; }
+.skill-tree-card { 
+    width: 100%; 
+    min-height: 110px; 
+    position: relative;
+    overflow: hidden;
+}
+
+/* 章节背景图案容器 */
+.stage-bg-pattern {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 0;
+}
+
+/* 确保卡片内容在背景图案之上 */
+.skill-tree-card__header,
+.skill-tree-card__progress-bar,
+.skill-tree-card__tooltip {
+    position: relative;
+    z-index: 1;
+}
+
+/* 第一章：晨曦微光 - 太阳发光 */
+.stage-bg-sun {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at center, rgba(255, 215, 0, 0.1) 0%, transparent 70%);
+}
+
+.stage-bg-sun svg {
+    animation: sunRotate 20s linear infinite;
+}
+
+@keyframes sunRotate {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 第二章：懵懂新芽 - 发芽 */
+.stage-bg-sprout {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    padding-bottom: 10px;
+    background: linear-gradient(to top, rgba(82, 196, 26, 0.08) 0%, transparent 50%);
+}
+
+.stage-bg-sprout svg {
+    animation: sproutGrow 3s ease-in-out infinite;
+    transform-origin: bottom center;
+}
+
+@keyframes sproutGrow {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+}
+
+/* 第三章：初显峥嵘 - 山脉 */
+.stage-bg-mountain {
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+    background: linear-gradient(to top, rgba(24, 144, 255, 0.1) 0%, transparent 60%);
+}
+
+.stage-bg-mountain svg {
+    width: 120%;
+    height: auto;
+    margin-left: -10%;
+}
 
 /* 自定义位置：第二章在第一章右下、第三章在第二章左下 */
 .skill-tree-card.stage-1 { grid-column: 1 / 2; grid-row: 1; }
@@ -3505,7 +3579,8 @@ body.dark-theme .profile-avatar {
     z-index: 1500;
 }
 .skill-tree-card__tooltip .dep-cross { color: #e03131; font-weight: 700; }
-.skill-tree-card.locked:hover .skill-tree-card__tooltip { display: block; }
+.skill-tree-card.locked:hover .skill-tree-card__tooltip,
+.skill-tree-boss-container.locked:hover .skill-tree-card__tooltip { display: block; }
 
 /* 关闭旧的 ::after 黑色提示残留 */
 .skill-tree-card.locked::after { content: none !important; display: none !important; }

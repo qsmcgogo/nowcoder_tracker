@@ -67,6 +67,36 @@ export const APP_CONFIG = {
         daily: 2,           // 每日基础奖励
         weekly_bonus: 20,   // 每7天奖励
         bonus_interval: 7   // 奖励间隔天数
-    }
+    },
+    
+    // 对战域名配置（动态获取）
+    BATTLE_DOMAIN: null // 将在初始化时从服务器获取
 };
+
+// 初始化对战域名配置
+let battleDomainInitialized = false;
+export async function initBattleDomain() {
+    if (battleDomainInitialized) return APP_CONFIG.BATTLE_DOMAIN;
+    try {
+        const response = await fetch('/api/env-config');
+        if (response.ok) {
+            const data = await response.json();
+            APP_CONFIG.BATTLE_DOMAIN = data.battleDomain || 'dac.nowcoder.com';
+            battleDomainInitialized = true;
+            return APP_CONFIG.BATTLE_DOMAIN;
+        }
+    } catch (error) {
+        console.warn('Failed to fetch battle domain config, using default:', error);
+    }
+    // 默认值
+    APP_CONFIG.BATTLE_DOMAIN = 'dac.nowcoder.com';
+    battleDomainInitialized = true;
+    return APP_CONFIG.BATTLE_DOMAIN;
+}
+
+// 获取对战URL的辅助函数
+export function getBattleUrl(roomId, battleType) {
+    const domain = APP_CONFIG.BATTLE_DOMAIN || 'dac.nowcoder.com';
+    return `https://${domain}/acm/battle/fight/${roomId}?battleType=${battleType}`;
+}
 

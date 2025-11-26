@@ -394,6 +394,14 @@ export class TeamView {
                 const ch1Total = s.chapter1?.problemTotal || 0;
                 const interTotal = s.interlude?.problemTotal || 0;
                 const ch2Total = s.chapter2?.problemTotal || 0;
+                
+                // 保存数据供展开时使用
+                this.activityUsersData = {
+                    daysUsers,
+                    topicUsers,
+                    skillUsers
+                };
+                
                 box.innerHTML = `
                     <div style="font-weight:700;margin-bottom:6px;">我的团队</div>
                     <div style="display:flex;flex-wrap:wrap;gap:10px;">
@@ -408,25 +416,68 @@ export class TeamView {
                         </div>
                         <div class="metric-card" style="min-width:220px;flex:1;border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
                             <div style="color:#777;font-size:12px;">累计打卡天数达标人数</div>
-                            <div style="margin-top:6px;color:#333;">≥30 天：<b>${ge30}</b> 人</div>
-                            <div style="margin-top:2px;color:#333;">≥60 天：<b>${ge60}</b> 人</div>
-                            <div style="margin-top:2px;color:#333;">≥100 天：<b>${ge100}</b> 人</div>
+                            <div style="margin-top:6px;color:#333;">
+                                ≥30 天：<b>${ge30}</b> 人
+                                ${ge30 > 0 ? `<button class="activity-toggle-btn" data-type="clock" data-level="30" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                            </div>
+                            <div id="activity-users-clock-30" style="margin-top:4px;display:none;"></div>
+                            <div style="margin-top:2px;color:#333;">
+                                ≥60 天：<b>${ge60}</b> 人
+                                ${ge60 > 0 ? `<button class="activity-toggle-btn" data-type="clock" data-level="60" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                            </div>
+                            <div id="activity-users-clock-60" style="margin-top:4px;display:none;"></div>
+                            <div style="margin-top:2px;color:#333;">
+                                ≥100 天：<b>${ge100}</b> 人
+                                ${ge100 > 0 ? `<button class="activity-toggle-btn" data-type="clock" data-level="100" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                            </div>
+                            <div id="activity-users-clock-100" style="margin-top:4px;display:none;"></div>
                         </div>
                         <div class="metric-card" style="min-width:240px;flex:1;border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
                             <div style="color:#777;font-size:12px;">题单制霸人数</div>
-                            <div style="margin-top:6px;color:#333;">新手130（共${tpTotal}题）：<b>${newbie130}</b> 人</div>
-                            <div style="margin-top:2px;color:#333;">算法入门（共${introTotal}题）：<b>${intro}</b> 人</div>
-                            <div style="margin-top:2px;color:#333;">算法进阶（共${advancedTotal}题）：<b>${advanced}</b> 人</div>
-                            <div style="margin-top:2px;color:#333;">算法登峰（共${peakTotal}题）：<b>${peak}</b> 人</div>
+                            <div style="margin-top:6px;color:#333;">
+                                新手130（共${tpTotal}题）：<b>${newbie130}</b> 人
+                                ${newbie130 > 0 ? `<button class="activity-toggle-btn" data-type="topic" data-topic="newbie130" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                            </div>
+                            <div id="activity-users-topic-newbie130" style="margin-top:4px;display:none;"></div>
+                            <div style="margin-top:2px;color:#333;">
+                                算法入门（共${introTotal}题）：<b>${intro}</b> 人
+                                ${intro > 0 ? `<button class="activity-toggle-btn" data-type="topic" data-topic="intro" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                            </div>
+                            <div id="activity-users-topic-intro" style="margin-top:4px;display:none;"></div>
+                            <div style="margin-top:2px;color:#333;">
+                                算法进阶（共${advancedTotal}题）：<b>${advanced}</b> 人
+                                ${advanced > 0 ? `<button class="activity-toggle-btn" data-type="topic" data-topic="advanced" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                            </div>
+                            <div id="activity-users-topic-advanced" style="margin-top:4px;display:none;"></div>
+                            <div style="margin-top:2px;color:#333;">
+                                算法登峰（共${peakTotal}题）：<b>${peak}</b> 人
+                                ${peak > 0 ? `<button class="activity-toggle-btn" data-type="topic" data-topic="peak" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                            </div>
+                            <div id="activity-users-topic-peak" style="margin-top:4px;display:none;"></div>
                         </div>
                         <div class="metric-card" style="min-width:260px;flex:1;border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
                             <div style="color:#777;font-size:12px;">技能树完成名单</div>
-                            <div style="margin-top:6px;color:#333;">第一章（共${ch1Total}题）：<b>${ch1}</b> 人</div>
-                            <div style="margin-top:2px;color:#333;">间章（共${interTotal}题）：<b>${inter}</b> 人</div>
-                            <div style="margin-top:2px;color:#333;">第二章（共${ch2Total}题）：<b>${ch2}</b> 人</div>
+                            <div style="margin-top:6px;color:#333;">
+                                第一章（共${ch1Total}题）：<b>${ch1}</b> 人
+                                ${ch1 > 0 ? `<button class="activity-toggle-btn" data-type="skill" data-skill="chapter1" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                            </div>
+                            <div id="activity-users-skill-chapter1" style="margin-top:4px;display:none;"></div>
+                            <div style="margin-top:2px;color:#333;">
+                                间章（共${interTotal}题）：<b>${inter}</b> 人
+                                ${inter > 0 ? `<button class="activity-toggle-btn" data-type="skill" data-skill="interlude" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                            </div>
+                            <div id="activity-users-skill-interlude" style="margin-top:4px;display:none;"></div>
+                            <div style="margin-top:2px;color:#333;">
+                                第二章（共${ch2Total}题）：<b>${ch2}</b> 人
+                                ${ch2 > 0 ? `<button class="activity-toggle-btn" data-type="skill" data-skill="chapter2" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                            </div>
+                            <div id="activity-users-skill-chapter2" style="margin-top:4px;display:none;"></div>
                         </div>
                     </div>
                 `;
+                
+                // 绑定展开/收起按钮事件
+                this.bindActivityUserToggle();
             } catch (e) {
                 box.innerHTML = `<div style="color:#888;">加载活动数据失败：${e.message || '请稍后重试'}</div>`;
             }
@@ -519,6 +570,114 @@ export class TeamView {
             }
             return;
         }
+    }
+
+    /**
+     * 绑定活动用户列表展开/收起按钮事件
+     */
+    bindActivityUserToggle() {
+        const toggleBtns = document.querySelectorAll('.activity-toggle-btn');
+        toggleBtns.forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                const type = btn.getAttribute('data-type');
+                const level = btn.getAttribute('data-level');
+                const topic = btn.getAttribute('data-topic');
+                const skill = btn.getAttribute('data-skill');
+                
+                let userIds = [];
+                let containerId = '';
+                
+                if (type === 'clock' && level) {
+                    const data = this.activityUsersData?.daysUsers || {};
+                    if (level === '30') {
+                        userIds = Array.isArray(data.ge30UserIds) ? data.ge30UserIds : [];
+                        containerId = 'activity-users-clock-30';
+                    } else if (level === '60') {
+                        userIds = Array.isArray(data.ge60UserIds) ? data.ge60UserIds : [];
+                        containerId = 'activity-users-clock-60';
+                    } else if (level === '100') {
+                        userIds = Array.isArray(data.ge100UserIds) ? data.ge100UserIds : [];
+                        containerId = 'activity-users-clock-100';
+                    }
+                } else if (type === 'topic' && topic) {
+                    const data = this.activityUsersData?.topicUsers || {};
+                    const topicData = data[topic] || {};
+                    userIds = Array.isArray(topicData.userIds) ? topicData.userIds : [];
+                    containerId = `activity-users-topic-${topic}`;
+                } else if (type === 'skill' && skill) {
+                    const data = this.activityUsersData?.skillUsers || {};
+                    const skillData = data[skill] || {};
+                    userIds = Array.isArray(skillData.userIds) ? skillData.userIds : [];
+                    containerId = `activity-users-skill-${skill}`;
+                }
+                
+                if (userIds.length === 0) return;
+                
+                const container = document.getElementById(containerId);
+                if (!container) return;
+                
+                // 切换显示/隐藏
+                const isVisible = container.style.display !== 'none';
+                if (isVisible) {
+                    container.style.display = 'none';
+                    btn.textContent = '查看';
+                } else {
+                    container.style.display = 'block';
+                    btn.textContent = '收起';
+                    container.innerHTML = '<div style="color:#999;font-size:12px;">加载中...</div>';
+                    
+                    // 加载用户信息并渲染
+                    await this.renderActivityUserList(container, userIds);
+                }
+            });
+        });
+    }
+    
+    /**
+     * 渲染活动用户列表
+     */
+    async renderActivityUserList(container, userIds) {
+        if (!userIds || userIds.length === 0) {
+            container.innerHTML = '<div style="color:#999;font-size:12px;">暂无用户</div>';
+            return;
+        }
+        
+        // 初始化用户信息缓存
+        if (!this.userInfoCache) {
+            this.userInfoCache = new Map();
+        }
+        
+        // 批量获取用户信息
+        const userInfos = await Promise.all(
+            userIds.map(async (userId) => {
+                const info = await this.resolveUserInfoById(userId);
+                return { userId, ...info };
+            })
+        );
+        
+        // 渲染用户列表
+        const usersHtml = userInfos.map((user, index) => {
+            const name = user.name || `用户${user.userId}`;
+            const nickName = user.nickName || user.nickname || '';
+            const displayName = nickName || name;
+            const headUrl = user.headUrl || '';
+            return `
+                <div style="display:inline-flex;align-items:center;margin:4px 8px 4px 0;padding:4px 8px;background:#f5f5f5;border-radius:4px;">
+                    ${headUrl ? `<img src="${headUrl}" style="width:20px;height:20px;border-radius:50%;margin-right:6px;" onerror="this.style.display='none';" />` : ''}
+                    <a href="https://www.nowcoder.com/users/${user.userId}" target="_blank" style="color:#1890ff;text-decoration:none;font-size:12px;">${displayName}</a>${nickName ? `<span style="color:#999;font-size:11px;margin-left:4px;">(${name})</span>` : ''}
+                </div>
+            `;
+        }).join('');
+        
+        container.innerHTML = `
+            <div style="padding-top:8px;border-top:1px solid #eee;margin-top:8px;">
+                <div style="color:#666;font-size:12px;margin-bottom:6px;">完成用户列表（共${userInfos.length}人）：</div>
+                <div style="display:flex;flex-wrap:wrap;max-height:300px;overflow-y:auto;">
+                    ${usersHtml}
+                </div>
+            </div>
+        `;
     }
 
     bindDOMActions() {
@@ -1366,7 +1525,9 @@ export class TeamView {
                 tbody.innerHTML = `<tr><td colspan="5">暂无成员</td></tr>`;
             } else {
                 tbody.innerHTML = list.map(m => {
-                    const name = m.nickname || m.name || `用户${m.userId}`;
+                    const name = m.name || `用户${m.userId}`;
+                    const nickName = m.nickName || m.nickname || ''; // 昵称
+                    const displayName = nickName || name; // 优先显示昵称，没有则显示用户名
                     const role = (() => {
                         const rv = m.role;
                         if (typeof rv === 'number') {
@@ -1380,7 +1541,7 @@ export class TeamView {
                     const checkins = (m.checkinTotal != null ? m.checkinTotal : '-');
                     const uid = m.userId || m.id;
                     return `<tr>
-                        <td>${name}</td>
+                        <td>${displayName}${nickName ? `<span style="color:#999;font-size:12px;margin-left:4px;">(${name})</span>` : ''}</td>
                         <td>${role || 'member'}</td>
                         <td>${solves}</td>
                         <td>${checkins}</td>
@@ -1821,13 +1982,15 @@ export class TeamView {
                     tb.innerHTML = rows.map(r => {
                         const rank = r.rank || '-';
                         const name = r.name || `用户${r.userId}`;
+                        const nickName = r.nickName || r.nickname || '';
+                        const displayName = nickName || name;
                         const avatar = r.headUrl || '';
                         const count = r.count != null ? r.count : '-';
                         const cont = r.continueDays != null ? r.continueDays : 0;
                         const check = r && r.checkedToday ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#52c41a;color:#fff;font-size:11px;line-height:14px;margin-left:6px;">✓</span>` : '';
                         const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
                             <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                            <span>${name}</span>${check}
+                            <span>${displayName}</span>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}${check}
                         </div>`;
                         const contBadge = `<span style="display:inline-block;padding:2px 6px;border-radius:10px;border:1px solid #d9f7be;background:#f6ffed;color:#237804;font-size:12px;">连打 ${cont} 天</span>`;
                         return `<tr><td>${rank}</td><td>${nameCell}</td><td>${count} ${cont > 0 ? contBadge : ''}</td></tr>`;
@@ -1875,13 +2038,15 @@ export class TeamView {
                     tb.innerHTML = rows.map(r => {
                         const rank = r.rank || '-';
                         const name = r.name || `用户${r.userId}`;
+                        const nickName = r.nickName || r.nickname || '';
+                        const displayName = nickName || name;
                         const avatar = r.headUrl || '';
                         const acRaw = (r.acceptCount != null ? r.acceptCount : '-');
                         const ac = (problemTotal > 0 && acRaw !== '-' ? `${Number(acRaw)}/${problemTotal}` : acRaw);
                         const check = r && r.checkedToday ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#52c41a;color:#fff;font-size:11px;line-height:14px;margin-left:6px;">✓</span>` : '';
                         const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
                             <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                            <span>${name}</span>${check}
+                            <span>${displayName}</span>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}${check}
                         </div>`;
                         return `<tr><td>${rank}</td><td>${nameCell}</td><td>${ac}</td></tr>`;
                     }).join('');
@@ -1900,6 +2065,8 @@ export class TeamView {
                     tb.innerHTML = rows.map(r => {
                         const rank = r.rank || '-';
                         const name = r.name || `用户${r.userId}`;
+                        const nickName = r.nickName || r.nickname || '';
+                        const displayName = nickName || name;
                         const avatar = r.headUrl || '';
                         const total = r.totalAccept != null ? r.totalAccept : '-';
                         const seven = r.sevenDaysAccept != null ? r.sevenDaysAccept : (r.sevenDays != null ? r.sevenDays : '-');
@@ -1907,7 +2074,7 @@ export class TeamView {
                         const totalCell = (problemTotal && typeof total === 'number') ? `${total}/${problemTotal}` : total;
                         const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
                             <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                            <span>${name}</span>
+                            <span>${displayName}</span>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}
                         </div>`;
                         return `<tr><td>${rank}</td><td>${nameCell}</td><td>${totalCell}</td><td>${seven}</td><td>${today}</td></tr>`;
                     }).join('');
@@ -1932,12 +2099,14 @@ export class TeamView {
                 tb.innerHTML = rows.map(r => {
                     const rank = r.rank || '-';
                     const name = r.name || `用户${r.userId}`;
+                    const nickName = r.nickName || r.nickname || '';
+                    const displayName = nickName || name;
                     const ac = r.acceptCount != null ? r.acceptCount : '-';
                     const avatar = r.headUrl || '';
                         const check = r && r.checkedToday ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#52c41a;color:#fff;font-size:11px;line-height:14px;margin-left:6px;">✓</span>` : '';
                     const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
                         <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                            <span>${name}</span>${check}
+                            <span>${displayName}</span>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}${check}
                     </div>`;
                     return `<tr><td>${rank}</td><td>${nameCell}</td><td>${ac}</td></tr>`;
                 }).join('');
@@ -2084,7 +2253,11 @@ export class TeamView {
                 total = Number(res?.total || total || 0);
                 const hit = list.find(r => String(r.userId) === id);
                 if (hit) {
-                    const info = { name: hit.name || '', headUrl: hit.headUrl || '' };
+                    const info = { 
+                        name: hit.name || '', 
+                        headUrl: hit.headUrl || '',
+                        nickName: hit.nickName || hit.nickname || ''
+                    };
                     this.userInfoCache.set(id, info);
                     return info;
                 }
@@ -2134,20 +2307,35 @@ export class TeamView {
                 const isOwner = (typeof m.role === 'number' ? m.role === 2 : String(m.role||'').toLowerCase()==='owner');
                 const uid = m.userId || m.id;
                 const name = m.name || (`用户${uid}`);
+                const nickName = m.nickName || m.nickname || ''; // 昵称
+                const displayName = nickName || name; // 优先显示昵称，没有则显示用户名
+                const isCurrentUser = String(uid) === String(this.state.loggedInUserId);
                 const avatar = m.headUrl || '';
                 const profileUrl = `https://www.nowcoder.com/users/${uid}`;
                 const crown = isOwner ? `<span title="队长" style="margin-left:6px;">👑</span>` : '';
+                
+                // 队长在管理模式下可以修改所有成员昵称，任何人都可以修改自己的昵称
+                const canEditNickname = (this.role === 'owner' && this.manageMembersEnabled && !isOwner) || 
+                                       isCurrentUser;
+                const nicknameEditBtn = canEditNickname 
+                    ? `<button class="admin-btn team-btn-edit-nickname" data-user-id="${uid}" data-current-nickname="${nickName}" style="margin-left:6px;padding:2px 8px;font-size:12px;background:#1890ff;color:#fff;">修改昵称</button>`
+                    : '';
+                
                 const actionBtnHtml = (this.role === 'owner' && this.manageMembersEnabled && !isOwner)
                     ? `<button class="admin-btn team-btn-transfer" data-user-id="${uid}" style="margin-left:10px;">转让队长</button>
                        <button class="admin-btn team-btn-kick" data-user-id="${uid}" style="margin-left:6px;background:#ffecec;color:#e00;">踢出</button>`
                     : '';
+                
                 return `
                     <tr style="border-bottom:1px dashed #f0f0f0;">
                         <td style="padding:8px 6px;">
-                            <div style="display:flex;align-items:center;gap:8px;">
+                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
                                 <img src="${avatar}" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                                <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="color:#333;text-decoration:none;">${name}</a>${(m && m.checkedToday) ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#52c41a;color:#fff;font-size:12px;line-height:16px;margin-left:6px;">✓</span>` : ``}
+                                <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="color:#333;text-decoration:none;">${displayName}</a>
+                                ${nickName ? `<span style="color:#999;font-size:12px;">(${name})</span>` : ''}
+                                ${(m && m.checkedToday) ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#52c41a;color:#fff;font-size:12px;line-height:16px;margin-left:6px;">✓</span>` : ``}
                                 ${crown}
+                                ${nicknameEditBtn}
                                 ${actionBtnHtml}
                             </div>
                         </td>
@@ -2193,6 +2381,33 @@ export class TeamView {
                 });
             });
         }
+        
+        // 绑定修改昵称按钮（队长和用户自己）
+        document.querySelectorAll('.team-btn-edit-nickname').forEach(btn => {
+            if (btn._bound) return; btn._bound = true;
+            btn.addEventListener('click', async () => {
+                const uid = btn.getAttribute('data-user-id');
+                const currentNickname = btn.getAttribute('data-current-nickname') || '';
+                const isCurrentUser = String(uid) === String(this.state.loggedInUserId);
+                
+                const newNickname = prompt(isCurrentUser ? '请输入你的昵称（留空则清除昵称）：' : `请输入该成员的昵称（留空则清除昵称）：`, currentNickname);
+                if (newNickname === null) return; // 用户取消
+                
+                try {
+                    if (isCurrentUser) {
+                        // 用户修改自己的昵称
+                        await this.api.teamUpdateMyNickname(this.currentTeamId, newNickname);
+                    } else {
+                        // 队长修改成员昵称
+                        await this.api.teamUpdateMemberNickname(this.currentTeamId, uid, newNickname);
+                    }
+                    alert('修改成功');
+                    await this.loadMembersDashboard();
+                } catch (e) {
+                    alert(e.message || '修改失败');
+                }
+            });
+        });
     }
 
     async renderApproveList() {
