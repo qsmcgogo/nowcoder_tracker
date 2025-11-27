@@ -1044,6 +1044,31 @@ export class ApiService {
      * @param {Array<string|number>} tagIds - 知识点ID数组
      * @returns {Promise<object>} 进度数据
      */
+    /**
+     * 获取技能树总进度
+     * @returns {Promise<{totalProgress: number}>} 总进度（0.0-1.0之间的浮点数）
+     */
+    async fetchSkillTreeTotalProgress() {
+        try {
+            const url = `${this.apiBase}/problem/tracker/skill-tree/total-progress`;
+            const response = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            
+            if (data.code === 0 && data.data) {
+                return data.data;
+            } else {
+                throw new Error(data.msg || '未知错误');
+            }
+        } catch (error) {
+            console.error('Error fetching skill tree total progress:', error);
+            throw error;
+        }
+    }
+
     async fetchSkillTreeProgress(userId, tagIds) {
         // 保留兼容，但优先推荐使用 fetchSingleTagProgress
         if (!userId || !tagIds || tagIds.length === 0) {
@@ -1504,6 +1529,25 @@ export class ApiService {
     }
 
     /**
+     * 强制放弃当前对战
+     * @returns {Promise<boolean>} 是否成功
+     */
+    async battleForceAbandon() {
+        const url = `${this.apiBase}/problem/tracker/battle/force-abandon`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return true;
+        }
+        throw new Error((data && data.msg) || '放弃对战失败');
+    }
+
+    /**
      * 分页获取用户对战记录列表
      * @param {number|string} userId - 用户ID
      * @param {number} page - 页码
@@ -1750,6 +1794,42 @@ export class ApiService {
             console.error('批量处理房间状态失败:', error);
             throw error;
         }
+    }
+
+    /**
+     * 获取"我的"页面所需的所有信息（整合接口）
+     * @returns {Promise<object>} 包含用户信息、打卡信息、技能树进度、成就信息、对战信息
+     */
+    async fetchMyInfo() {
+        const url = `${this.apiBase}/problem/tracker/my-info`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || {};
+        }
+        throw new Error((data && data.msg) || '获取用户信息失败');
+    }
+
+    /**
+     * 获取技能树所有章节的进度信息（用于技能树主页渲染）
+     * @returns {Promise<Array>} 返回章节进度列表，每个章节包含：key、displayName、progress、tagCount
+     */
+    async fetchChapterProgress() {
+        const url = `${this.apiBase}/problem/tracker/skill-tree/chapter-progress`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data?.chapters || [];
+        }
+        throw new Error((data && data.msg) || '获取章节进度失败');
     }
 }
 

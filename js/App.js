@@ -3,7 +3,7 @@
  * 整合所有模块，管理应用生命周期
  */
 
-import { APP_CONFIG } from './config.js';
+import { APP_CONFIG, initBattleDomain } from './config.js';
 import { ApiService } from './services/ApiService.js';
 import { AppState } from './state/AppState.js';
 import { eventBus, EVENTS } from './events/EventBus.js';
@@ -393,6 +393,13 @@ export class NowcoderTracker {
     async init() {
         console.log('🚀 NowcoderTracker App Initialized');
         
+        // 优先初始化对战域名配置（在用户操作前完成）
+        try {
+            await initBattleDomain(true);
+        } catch (error) {
+            console.warn('Failed to initialize battle domain:', error);
+        }
+        
         // 优先使用哈希路由，其次回退到 ?tab=，最后默认 daily
         const fromHash = this.getRouteFromHash();
         // 提前记录是否为邀请路由以及原始hash，避免后续被重写
@@ -404,7 +411,7 @@ export class NowcoderTracker {
         const initialTab = this.normalizeTabName(rawRoute);
         const initialSubview = this.extractProblemsSubview(rawRoute);
 
-        // 在任何标签页下先探测登录状态（通过 todayinfo），避免刷新后显示“未登录”
+        // 在任何标签页下先探测登录状态（通过 todayinfo），避免刷新后显示"未登录"
         try {
             await this.detectAndSetLoggedInUser();
         } catch (_) { /* ignore login bootstrap errors */ }

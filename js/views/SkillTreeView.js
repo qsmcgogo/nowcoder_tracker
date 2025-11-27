@@ -325,7 +325,6 @@ export class SkillTreeView {
 
     // 渲染阶段概览页 - (修改)
     async renderStageSummaryView() {
-        // 概览页也需要获取所有知识点的进度来计算通关率
         const tree = this.skillTrees['newbie-130'];
         if (!tree || !tree.stages) {
             this.container.innerHTML = '<div>技能树数据加载错误</div>';
@@ -337,23 +336,34 @@ export class SkillTreeView {
 
         const isLoggedIn = this.state.isLoggedIn();
         const isAdmin = this.state.isAdmin === true;
-        const allNodeIds = Object.keys(tree.nodes);
-        const allTagIds = allNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
 
         try {
-            // 获取所有节点的进度
-            const progressData = await this.apiService.fetchSkillTreeProgress(isLoggedIn ? this.state.loggedInUserId : null, allTagIds);
-            // 额外：获取用户累计过题数，用于"跳过解锁"判定（>=50）
-            let solvedCount = 0;
+            // 使用新的章节进度接口获取所有章节的进度（后端已计算好）
+            let chapterProgressMap = {};
             if (isLoggedIn) {
                 try {
-                    const rank = await this.apiService.fetchRankings('problem', 1, this.state.loggedInUserId, 1);
-                    const u = rank?.ranks?.[0];
-                    solvedCount = Number(u?.count) || 0;
+                    const chapterProgressList = await this.apiService.fetchChapterProgress();
+                    // 将章节进度列表转换为 map，key 为章节 key（后端返回小写，如 "chapter1", "interlude_dawn"）
+                    chapterProgressMap = {};
+                    chapterProgressList.forEach(chapter => {
+                        if (chapter.key) {
+                            // 后端返回的 progress 是 0.0-1.0 的浮点数，需要转换为 0-100 的整数
+                            const progressPercent = Math.round((chapter.progress || 0) * 100);
+                            chapterProgressMap[chapter.key.toUpperCase()] = { progress: progressPercent };
+                        }
+                    });
                 } catch (e) {
-                    // 忽略失败，不影响主流程
+                    console.warn('Failed to fetch chapter progress, falling back to old method:', e);
+                    // 如果新接口失败，回退到旧方法
+                    chapterProgressMap = null;
                 }
             }
+
+            // 如果新接口失败或未登录，回退到旧方法：获取所有节点的进度
+            if (!chapterProgressMap || Object.keys(chapterProgressMap).length === 0) {
+                const allNodeIds = Object.keys(tree.nodes);
+                const allTagIds = allNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
+                const progressData = await this.apiService.fetchSkillTreeProgress(isLoggedIn ? this.state.loggedInUserId : null, allTagIds);
             this.currentStageProgress = progressData; // 存储进度, 格式为 { nodeProgress: { ... } }
 
             // 工具：将进度标准化为 0~100
@@ -373,13 +383,33 @@ export class SkillTreeView {
             const stage1Obj = tree.stages.find(s => s.id === 'stage-1');
             const stage2Obj = tree.stages.find(s => s.id === 'stage-2');
             const stage3Obj = tree.stages.find(s => s.id === 'stage-3');
-            const stage1Avg = calcStageAvg(stage1Obj);
-            const stage2Avg = calcStageAvg(stage2Obj);
-            const stage3Avg = calcStageAvg(stage3Obj);
-            const interludeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
-            const interludeAvg = Math.round(interludeIds.map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / interludeIds.length);
-            const interlude25Ids = ['geometry', 'game-theory', 'simulation-advanced', 'construction-advanced', 'greedy-priority-queue'];
-            const interlude25Avg = Math.round(interlude25Ids.map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / interlude25Ids.length);
+                chapterProgressMap = {
+                    'CHAPTER1': { progress: calcStageAvg(stage1Obj) },
+                    'INTERLUDE_DAWN': { progress: Math.round(['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'].map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / 5) },
+                    'CHAPTER2': { progress: calcStageAvg(stage2Obj) },
+                    'INTERLUDE_2_5': { progress: Math.round(['geometry', 'game-theory', 'simulation-advanced', 'construction-advanced', 'greedy-priority-queue'].map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / 5) },
+                    'CHAPTER3': { progress: calcStageAvg(stage3Obj) }
+                };
+            }
+
+            // 从章节进度 map 中获取各章节的进度
+            const stage1Avg = chapterProgressMap['CHAPTER1']?.progress || 0;
+            const stage2Avg = chapterProgressMap['CHAPTER2']?.progress || 0;
+            const stage3Avg = chapterProgressMap['CHAPTER3']?.progress || 0;
+            const interludeAvg = chapterProgressMap['INTERLUDE_DAWN']?.progress || 0;
+            const interlude25Avg = chapterProgressMap['INTERLUDE_2_5']?.progress || 0;
+
+            // 额外：获取用户累计过题数，用于"跳过解锁"判定（>=50）
+            let solvedCount = 0;
+            if (isLoggedIn) {
+                try {
+                    const rank = await this.apiService.fetchRankings('problem', 1, this.state.loggedInUserId, 1);
+                    const u = rank?.ranks?.[0];
+                    solvedCount = Number(u?.count) || 0;
+                } catch (e) {
+                    // 忽略失败，不影响主流程
+                }
+            }
 
             let previousStageProgress = 100; // 第一关的前置视为已解锁，用于统一逻辑
             const stagesToRender = tree.stages.slice(0, 3);

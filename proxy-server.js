@@ -2,12 +2,29 @@ const express = require('express');
 const https = require('https');
 const HttpsProxyAgent = require('https-proxy-agent');
 const { URL } = require('url');
+const fs = require('fs');
+const path = require('path');
 
 const app = express();
 const port = 3000;
 
 // 环境切换: 'www', 'pre', 或 'd'
-const CURRENT_ENV = 'd'; 
+const CURRENT_ENV = 'pre';
+
+// 自动生成 env-config.json 文件
+const battleDomainMap = {
+    'd': 'dac.nowcoder.com',
+    'pre': 'preac.nowcoder.com',
+    'www': 'ac.nowcoder.com'
+};
+const battleDomain = battleDomainMap[CURRENT_ENV] || battleDomainMap['d'];
+const envConfig = {
+    env: CURRENT_ENV,
+    battleDomain: battleDomain
+};
+const envConfigPath = path.join(__dirname, 'env-config.json');
+fs.writeFileSync(envConfigPath, JSON.stringify(envConfig, null, 2), 'utf8');
+console.log(`[Env Config] Generated env-config.json: env=${CURRENT_ENV}, battleDomain=${battleDomain}`); 
 
 const HOST_MAP = {
     'www': 'https://www.nowcoder.com',

@@ -107,7 +107,7 @@ export class AppState {
         this.loggedInUserData = userData;
         // 在设置用户信息时，检查是否为管理员（使用宽松比较）
         const uidStr = String(userId || '');
-        const adminSet = new Set(['919247', '999991351', '1030029998']);
+        const adminSet = new Set(['919247', '999991351', '1030029998', '966251048']);
         this.isAdmin = adminSet.has(uidStr);
         
         // ---- 调试信息 ----

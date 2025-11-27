@@ -1,4 +1,5 @@
 import { eventBus, EVENTS } from '../events/EventBus.js';
+import * as helpers from '../utils/helpers.js';
 
 // Import skill tree structure and mapping from SkillTreeView
 // This is a bit of a hack, in a larger app this might come from a shared module.
@@ -26,63 +27,126 @@ export class ProfileView {
         try {
             const userId = this.appState.loggedInUserId;
             
-            // --- Fetch all data in parallel ---
-            // 使用 todayinfo 以与“打卡”页保持完全一致的统计口径
-            const todayInfoPromise = this.apiService.fetchDailyTodayInfo();
-            const problemRankPromise = this.apiService.fetchRankings('problem', 1, userId, 1);
-            const badgeInfoPromise = this.apiService.fetchBadgeUserInfo();
+            // 使用整合接口获取所有信息
+            const myInfo = await this.apiService.fetchMyInfo();
             
-            // 覆盖一层：构造“所有需要统计的 tagId”集合（包含第一章、间章、第二章，确保二维数组 1019 也在内）
-            const allTagIds = this._collectAllTrackedTagIds();
-            const skillProgressPromise = this.apiService.fetchSkillTreeProgress(userId, allTagIds);
-
-            const [todayInfo, problemRankData, skillProgressData, badgeInfo] = await Promise.all([
-                todayInfoPromise,
-                problemRankPromise,
-                skillProgressPromise,
-                badgeInfoPromise
-            ]);
-            
-            // --- Process Data ---
-            const problemUser = problemRankData?.ranks?.[0];
-            if (!problemUser) {
-                throw new Error('无法获取用户的过题信息。');
+            // 如果整合接口失败，回退到原来的多个接口调用方式
+            if (!myInfo) {
+                throw new Error('无法获取用户信息');
             }
 
-            const skillTreeStats = this._calculateSkillTreeStats(skillProgressData.nodeProgress);
+            // 获取用户基本信息（需要从排行榜获取，因为 myInfo 接口没有返回用户基本信息）
+            let userInfo = null;
+            try {
+                const problemRankData = await this.apiService.fetchRankings('problem', 1, userId, 1);
+                userInfo = problemRankData?.ranks?.[0];
+            } catch (err) {
+                console.warn('Failed to fetch user info:', err);
+            }
 
-            // 与“打卡”页一致：来源 todayinfo
-            const ti = (todayInfo && todayInfo.data) ? todayInfo.data : {};
-            const tiTodayRank = Number(ti.todayClockRank) || 0;
-            const tiYCnt = Number(ti.yesterdayClockCount) || 0;
-            let fixedConsecutive = Number(ti.continueDay) || 0;
-            if (tiTodayRank === 0 && tiYCnt === 0) fixedConsecutive = 0;
-            const totalCountDay = Number(ti.countDay) || 0;
+            // 处理数据：后端返回的是扁平结构
+            const user = myInfo.user || {};
+            const checkin = myInfo.checkin || {};
+            const skillTree = myInfo.skillTree || {};
+            const badge = myInfo.badge || {};
+            
+            // 处理技能树数据
+            const skillTreeTotalProgress = skillTree.totalProgress || 0;
+            const chapterProgress = skillTree.chapterProgress || {};
+            
+            // 章节显示名称映射（按照技能树页面的顺序和名称）
+            const chapterDisplayNames = {
+                'chapter1': '第一章：晨曦微光',
+                'interlude_dawn': '间章：拂晓',
+                'chapter2': '第二章：懵懂新芽',
+                'interlude_2_5': '间章：含苞',
+                'chapter3': '第三章：初显峥嵘',
+                'boss_dream': '梦'
+            };
+            
+            // 章节顺序（按照技能树页面的顺序）
+            const chapterOrder = ['chapter1', 'interlude_dawn', 'chapter2', 'interlude_2_5', 'chapter3', 'boss_dream'];
 
+            // 提取成就点数：badge.userTotalScore 是一个对象，包含 totalScore 字段
+            let achievementPoints = 0;
+            if (badge && typeof badge === 'object') {
+                // badge.userTotalScore 是一个 JSONObject，结构为 {"totalScore": 123}
+                if (badge.userTotalScore && typeof badge.userTotalScore === 'object') {
+                    achievementPoints = badge.userTotalScore.totalScore || 0;
+                } else if (typeof badge.userTotalScore === 'number') {
+                    // 兼容直接是数字的情况
+                    achievementPoints = badge.userTotalScore;
+                } else {
+                    // 尝试其他可能的字段
+                    achievementPoints = badge.score || badge.totalScore || badge.points || 0;
+                }
+            } else if (typeof badge === 'number') {
+                achievementPoints = badge;
+            }
+
+            // 构建用户数据对象
             const userData = {
-                uid: problemUser.uid,
-                name: problemUser.name,
-                headUrl: problemUser.headUrl,
-                problemPassed: problemUser.count,
-                rank: problemUser.place === 0 ? '1w+' : problemUser.place,
+                uid: user.uid || userId,
+                name: user.name || '',
+                headUrl: user.headUrl || '',
+                problemPassed: user.count || 0,
+                rank: user.place === 0 ? '1w+' : (user.place || '1w+'),
                 checkin: {
-                    count: totalCountDay,
-                    continueDays: fixedConsecutive
+                    count: checkin.countDay || 0,
+                    continueDays: checkin.continueDay || 0
                 },
                 skillTree: { 
-                    completedChapters: skillTreeStats.completedChapters 
+                    totalProgress: Math.round(skillTreeTotalProgress * 100), // 转换为百分比
+                    chapterProgress: chapterProgress,
+                    chapterDisplayNames: chapterDisplayNames,
+                    chapterOrder: chapterOrder
                 },
-                completedKnowledgePoints: skillTreeStats.completedKnowledgePoints,
                 achievements: {
-                    totalPoints: (badgeInfo && typeof badgeInfo.totalPoints === 'number') ? badgeInfo.totalPoints : 0
-                }
+                    totalPoints: achievementPoints
+                },
+                battle1v1Score: myInfo.battle1v1Score || 1000
             };
             
             this.container.innerHTML = this.getUserProfileHtml(userData);
+            
+            // 绑定展开/收起事件
+            this.bindSkillTreeExpandEvents();
 
         } catch (error) {
             console.error("Failed to render profile view:", error);
             this.container.innerHTML = `<div class="error-message">无法加载您的个人信息，请稍后重试。(${error.message})</div>`;
+        }
+    }
+
+    /**
+     * 绑定技能树进度展开/收起事件
+     */
+    bindSkillTreeExpandEvents() {
+        const skillTreeItem = this.container.querySelector('.skill-tree-progress-item');
+        if (skillTreeItem) {
+            skillTreeItem.style.cursor = 'pointer';
+            
+            skillTreeItem.addEventListener('click', (e) => {
+                // 如果点击的是展开的内容区域，不触发折叠
+                if (e.target.closest('.chapter-progress-list')) {
+                    return;
+                }
+                
+                skillTreeItem.classList.toggle('expanded');
+                // chapter-progress-list 现在是 skill-tree-progress-item 的兄弟元素
+                const chapterList = skillTreeItem.parentElement.querySelector('.chapter-progress-list');
+                const expandIcon = skillTreeItem.querySelector('.expand-icon');
+                
+                if (chapterList && expandIcon) {
+                    if (skillTreeItem.classList.contains('expanded')) {
+                        chapterList.style.display = 'block';
+                        expandIcon.style.transform = 'rotate(180deg)';
+                    } else {
+                        chapterList.style.display = 'none';
+                        expandIcon.style.transform = 'rotate(0deg)';
+                    }
+                }
+            });
         }
     }
 
@@ -216,7 +280,7 @@ export class ProfileView {
                         <span class="stat-label">全站排名</span>
                     </div>
                     <div class="stat-item">
-                        <span class="stat-value">${user.achievements.totalPoints}</span>
+                        <span class="stat-value">${Number(user.achievements?.totalPoints) || 0}</span>
                         <span class="stat-label">成就点数</span>
                     </div>
                 </div>
@@ -231,15 +295,36 @@ export class ProfileView {
                         <span class="detail-label">连续打卡</span>
                         <span class="detail-value">${user.checkin.continueDays} 天</span>
                     </div>
-                    <div class="detail-item">
-                        <span class="detail-icon">🌳</span>
-                        <span class="detail-label">技能树</span>
-                        <span class="detail-value">已通关 ${user.skillTree.completedChapters} 章</span>
+                    <div>
+                        <div class="detail-item skill-tree-progress-item" style="cursor: pointer;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                                <div style="display: flex; align-items: center; flex: 1;">
+                                    <span class="detail-icon">📊</span>
+                                    <span class="detail-label">技能树总进度</span>
+                                    <span class="detail-value" style="margin-left: auto; margin-right: 8px;">${user.skillTree.totalProgress}%</span>
+                                </div>
+                                <span class="expand-icon" style="font-size: 12px; color: #999; transition: transform 0.2s;">▼</span>
+                            </div>
+                        </div>
+                        <div class="chapter-progress-list" style="display: none; margin-top: 8px; padding: 12px; background: #f8f9fa; border-radius: 6px; margin-left: 0;">
+                            ${(user.skillTree.chapterOrder || Object.keys(user.skillTree.chapterProgress || {})).map(key => {
+                                const progress = user.skillTree.chapterProgress[key];
+                                if (progress === undefined) return '';
+                                const displayName = user.skillTree.chapterDisplayNames[key] || key;
+                                const progressPercent = Math.round((progress || 0) * 100);
+                                return `
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 14px;">
+                                        <span style="color: #666;">${displayName}</span>
+                                        <span style="color: #1890ff; font-weight: 600;">${progressPercent}%</span>
+                                    </div>
+                                `;
+                            }).filter(html => html).join('')}
+                        </div>
                     </div>
                     <div class="detail-item">
-                        <span class="detail-icon">🧠</span>
-                        <span class="detail-label">知识点</span>
-                        <span class="detail-value">已通关 ${user.completedKnowledgePoints} 个</span>
+                        <span class="detail-icon">⚔️</span>
+                        <span class="detail-label">1v1对战分数</span>
+                        <span class="detail-value" style="color: ${helpers.getRatingColor(user.battle1v1Score)}; font-weight: 600;">${user.battle1v1Score}</span>
                     </div>
                 </div>
             </div>
