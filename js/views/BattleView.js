@@ -67,7 +67,7 @@ export class BattleView {
         // 检查登录状态
         if (!this.state.isLoggedIn()) {
             const loginUrl = helpers.buildUrlWithChannelPut('https://ac.nowcoder.com/login?callBack=/');
-            this.container.innerHTML = `
+        this.container.innerHTML = `
             <div class="battle-placeholder" style="padding: 40px; text-align: center;">
                 <div style="font-size: 24px; color: #666; margin-bottom: 20px;">
                     ⚔️ 对战平台
@@ -410,20 +410,20 @@ export class BattleView {
                                  onmouseover="this.style.background='rgba(255,255,255,0.4)'; this.style.transform='scale(1.1)'"
                                  onmouseout="this.style.background='rgba(255,255,255,0.2)'; this.style.transform='scale(1)'">
                                 ?
-                            </div>
+                        </div>
                             <div id="battle-level-help-tooltip" 
-                                 style="display: none; position: absolute; top: 60px; left: 24px; right: auto; max-width: 300px;
-                                        background: rgba(0,0,0,0.85); backdrop-filter: blur(10px); color: #fff; padding: 16px; border-radius: 12px; 
-                                        font-size: 13px; line-height: 1.6; z-index: 1000; box-shadow: 0 8px 24px rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1);">
-                                <div style="font-weight: 600; margin-bottom: 8px; color: #ffd700; display: flex; align-items: center; gap: 6px;">
+                                 style="display: none; position: fixed; max-width: 300px;
+                                        background: #1a1a1a; backdrop-filter: blur(10px); color: #ffffff; padding: 16px; border-radius: 12px; 
+                                        font-size: 13px; line-height: 1.6; z-index: 99999; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);">
+                                <div style="font-weight: 600; margin-bottom: 8px; color: #ffd700; display: flex; align-items: center; gap: 6px; opacity: 1;">
                                     <span>⭐</span> <span>升级规则</span>
-                                </div>
-                                <div style="margin-bottom: 4px;">• 如果 AC 并胜利，加 10 经验</div>
-                                <div style="margin-bottom: 4px;">• 如果 AC 但是失败，加 5 经验</div>
-                                <div style="margin-bottom: 8px;">• 任何情况下放弃均无经验</div>
-                                <div style="padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2); color: #ffd700; font-weight: 600;">
+                            </div>
+                                <div style="margin-bottom: 4px; color: #ffffff; opacity: 1;">• 如果 AC 并胜利，加 10 经验</div>
+                                <div style="margin-bottom: 4px; color: #ffffff; opacity: 1;">• 如果 AC 但是失败，加 5 经验</div>
+                                <div style="margin-bottom: 8px; color: #ffffff; opacity: 1;">• 任何情况下放弃均无经验</div>
+                                <div style="padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.2); color: #ffd700; font-weight: 600; opacity: 1;">
                                     升级后可以获得更大模板长度限额
-                                </div>
+                            </div>
                             </div>
                         </div>
                         <div style="font-size: 36px; font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,0.2); font-family: 'Arial Black', sans-serif;">Lv.${currentLevel}</div>
@@ -436,14 +436,14 @@ export class BattleView {
                         </div>
                         <div style="background: rgba(0,0,0,0.2); border-radius: 10px; height: 12px; overflow: hidden; margin-bottom: 8px; box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);">
                             <div style="background: linear-gradient(90deg, #fff 0%, rgba(255,255,255,0.8) 100%); height: 100%; width: ${Math.min(100, expRequired > 0 ? (currentLevelExp / expRequired) * 100 : 0)}%; transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1); border-radius: 10px; box-shadow: 0 0 10px rgba(255,255,255,0.5);"></div>
-                        </div>
+                            </div>
                         <div style="display: flex; justify-content: space-between; align-items: center;">
                             <div style="font-size: 13px; opacity: 0.8;">已完成 ${Math.round(expRequired > 0 ? (currentLevelExp / expRequired) * 100 : 0)}%</div>
                             <div style="font-size: 13px; font-weight: 600; background: rgba(255,255,255,0.2); padding: 4px 12px; border-radius: 20px; backdrop-filter: blur(4px);">还需 ${expToNext} 经验升级</div>
+                            </div>
+                            </div>
                         </div>
-                    </div>
-                </div>
-            </div>
+                            </div>
 
             <div style="display: flex; gap: 24px; align-items: flex-start;">
                 <!-- 左侧：启动对战 (60%) -->
@@ -458,8 +458,8 @@ export class BattleView {
                                 onmouseout="this.style.borderColor='#e5e7eb'; this.style.color='#666'; this.style.background='#fff'">
                             <span>⚙️</span> 设置初始代码
                         </button>
-                    </div>
-                    
+                </div>
+                
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
                         <!-- 1v1匹配 -->
                         <div class="battle-mode-card" 
@@ -467,7 +467,7 @@ export class BattleView {
                              style="background: #fff; border: 2px solid #e5e7eb; border-radius: 16px; padding: 24px; transition: all 0.3s; cursor: pointer; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; min-height: 200px;" 
                              onmouseover="this.style.borderColor='#667eea'; this.style.boxShadow='0 8px 24px rgba(102,126,234,0.15)'; this.style.transform='translateY(-4px)'"
                              onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'; this.style.transform='translateY(0)'">
-                            <div>
+                                <div>
                                 <div style="font-size: 48px; margin-bottom: 16px; filter: drop-shadow(0 4px 8px rgba(102,126,234,0.2));">⚔️</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #333; margin-bottom: 8px;">1v1 匹配</div>
                                 <div style="font-size: 14px; color: #666; line-height: 1.5;">系统自动匹配实力相近的对手，进行实时编程对战。</div>
@@ -487,7 +487,7 @@ export class BattleView {
                              style="background: #fff; border: 2px solid #e5e7eb; border-radius: 16px; padding: 24px; transition: all 0.3s; cursor: pointer; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; min-height: 200px;" 
                              onmouseover="this.style.borderColor='#52c41a'; this.style.boxShadow='0 8px 24px rgba(82,196,26,0.15)'; this.style.transform='translateY(-4px)'"
                              onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'; this.style.transform='translateY(0)'">
-                            <div>
+                                <div>
                                 <div style="font-size: 48px; margin-bottom: 16px; filter: drop-shadow(0 4px 8px rgba(82,196,26,0.2));">🤖</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #333; margin-bottom: 8px;">人机大战</div>
                                 <div style="font-size: 14px; color: #666; line-height: 1.5;">与AI进行对战练习，熟悉比赛流程和题目难度。</div>
@@ -505,11 +505,11 @@ export class BattleView {
                         <div class="battle-mode-card" style="background: #fff; border: 2px solid #e5e7eb; border-radius: 16px; padding: 24px; transition: all 0.3s; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; min-height: 200px;" 
                              onmouseover="this.style.borderColor='#faad14'; this.style.boxShadow='0 8px 24px rgba(250,173,20,0.15)'; this.style.transform='translateY(-4px)'"
                              onmouseout="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'; this.style.transform='translateY(0)'">
-                            <div>
+                                <div>
                                 <div style="font-size: 48px; margin-bottom: 16px; filter: drop-shadow(0 4px 8px rgba(250,173,20,0.2));">👥</div>
                                 <div style="font-size: 20px; font-weight: 700; color: #333; margin-bottom: 8px;">好友对战</div>
                                 <div style="font-size: 14px; color: #666; line-height: 1.5;">创建房间邀请好友，或输入房间码加入对战。</div>
-                            </div>
+                                </div>
                             <div style="display: flex; gap: 12px; margin-top: 20px;">
                                 <button id="battle-create-room-btn" class="battle-mode-btn" 
                                         style="flex: 1; background: linear-gradient(135deg, #faad14 0%, #ffc53d 100%); color: #fff; border: none; padding: 12px; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; transition: transform 0.2s;"
@@ -683,7 +683,11 @@ export class BattleView {
         const levelTooltip = document.getElementById('battle-level-help-tooltip');
         if (levelHelp && levelTooltip) {
             levelHelp.addEventListener('mouseenter', () => {
+                // 动态计算位置，使用fixed定位
+                const helpRect = levelHelp.getBoundingClientRect();
                 levelTooltip.style.display = 'block';
+                levelTooltip.style.top = (helpRect.bottom + 12) + 'px';
+                levelTooltip.style.left = helpRect.left + 'px';
             });
             levelHelp.addEventListener('mouseleave', () => {
                 levelTooltip.style.display = 'none';
@@ -849,7 +853,7 @@ export class BattleView {
                         const winRate = user.winRate !== undefined 
                             ? user.winRate.toFixed(1)
                             : (user.totalCount > 0 
-                                ? ((user.winCount / user.totalCount) * 100).toFixed(1) 
+                            ? ((user.winCount / user.totalCount) * 100).toFixed(1) 
                                 : '0.0');
                         const rankIcon = user.rank === 1 ? '🥇' : user.rank === 2 ? '🥈' : user.rank === 3 ? '🥉' : '';
                         const nickname = user.nickname || user.name || `用户${user.userId}`;
@@ -912,17 +916,33 @@ export class BattleView {
             <div style="color: #666; font-size: 14px;">
                 共 ${this.rankingsTotal} 条记录，第 ${this.rankingsPage} / ${totalPages} 页
             </div>
-            <div style="display: flex; gap: 8px;">
+            <div style="display: flex; gap: 8px; align-items: center;">
                 <button id="battle-rankings-prev" 
                         class="pagination-btn" 
                         ${this.rankingsPage <= 1 ? 'disabled' : ''}
-                        style="padding: 6px 12px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer; ${this.rankingsPage <= 1 ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                        style="padding: 6px 12px; border: 1px solid #ddd; background: ${this.rankingsPage <= 1 ? '#f5f5f5' : '#fff'}; border-radius: 4px; cursor: ${this.rankingsPage <= 1 ? 'not-allowed' : 'pointer'}; color: ${this.rankingsPage <= 1 ? '#999' : '#333'}; ${this.rankingsPage <= 1 ? 'opacity: 0.5;' : ''}">
                     上一页
                 </button>
+                <div style="display: flex; gap: 4px; align-items: center;">
+                    <span style="font-size: 14px; color: #666;">跳转到</span>
+                    <input type="number" 
+                           id="battle-rankings-page-input" 
+                           min="1" 
+                           max="${totalPages}" 
+                           value="${this.rankingsPage}"
+                           style="width: 60px; padding: 4px 8px; border: 1px solid #ddd; border-radius: 4px; text-align: center; font-size: 14px;"
+                           onkeypress="if(event.key==='Enter'){document.getElementById('battle-rankings-go-btn').click();}">
+                    <span style="font-size: 14px; color: #666;">页</span>
+                    <button id="battle-rankings-go-btn" 
+                            class="pagination-btn"
+                            style="padding: 6px 12px; border: 1px solid #667eea; background: #667eea; color: #fff; border-radius: 4px; cursor: pointer;">
+                        跳转
+                    </button>
+                </div>
                 <button id="battle-rankings-next" 
                         class="pagination-btn" 
                         ${this.rankingsPage >= totalPages ? 'disabled' : ''}
-                        style="padding: 6px 12px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer; ${this.rankingsPage >= totalPages ? 'opacity: 0.5; cursor: not-allowed;' : ''}">
+                        style="padding: 6px 12px; border: 1px solid #ddd; background: ${this.rankingsPage >= totalPages ? '#f5f5f5' : '#fff'}; border-radius: 4px; cursor: ${this.rankingsPage >= totalPages ? 'not-allowed' : 'pointer'}; color: ${this.rankingsPage >= totalPages ? '#999' : '#333'}; ${this.rankingsPage >= totalPages ? 'opacity: 0.5;' : ''}">
                     下一页
                 </button>
             </div>
@@ -931,18 +951,43 @@ export class BattleView {
         // 绑定分页事件
         const prevBtn = document.getElementById('battle-rankings-prev');
         const nextBtn = document.getElementById('battle-rankings-next');
+        const goBtn = document.getElementById('battle-rankings-go-btn');
+        const pageInput = document.getElementById('battle-rankings-page-input');
         
-        if (prevBtn && this.rankingsPage > 1) {
-            prevBtn.addEventListener('click', () => {
+        if (prevBtn) {
+            prevBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.rankingsPage > 1) {
                 this.rankingsPage--;
                 this.loadRankingsList();
+                }
             });
         }
         
-        if (nextBtn && this.rankingsPage < totalPages) {
-            nextBtn.addEventListener('click', () => {
+        if (nextBtn) {
+            nextBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (this.rankingsPage < totalPages) {
                 this.rankingsPage++;
                 this.loadRankingsList();
+                }
+            });
+        }
+        
+        if (goBtn && pageInput) {
+            goBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const targetPage = parseInt(pageInput.value, 10);
+                if (targetPage >= 1 && targetPage <= totalPages && targetPage !== this.rankingsPage) {
+                    this.rankingsPage = targetPage;
+                    this.loadRankingsList();
+                } else if (targetPage < 1 || targetPage > totalPages) {
+                    alert(`请输入 1 到 ${totalPages} 之间的页码`);
+                    pageInput.value = this.rankingsPage;
+                }
             });
         }
     }
@@ -1280,7 +1325,8 @@ export class BattleView {
                 </h3>
                 <div style="color: #666; line-height: 1.8;">
                     <div style="margin-bottom: 6px;">• 如果没有进行过对战，等级分将初始化为 <span style="color: #1890ff; font-weight: 600;">800 分</span></div>
-                    <div>• 每个赛季开始时，所有玩家的等级分将重置为 <span style="color: #1890ff; font-weight: 600;">800 分</span></div>
+                    <div style="margin-bottom: 6px;">• 每个赛季开始时，所有玩家的等级分将重置为 <span style="color: #1890ff; font-weight: 600;">800 分</span></div>
+                    <div>• 对战等级不会重置</div>
                 </div>
             </div>
             
@@ -1635,6 +1681,15 @@ export class BattleView {
                             <strong>房间码:</strong> 
                             <code style="background:#fff;padding:4px 8px;border-radius:3px;font-family:monospace;font-size:20px;font-weight:bold;color:#667eea;">${roomCode}</code>
                         </div>
+                        ${isWaiting ? `
+                        <div style="margin-top:12px;padding:12px;background:#fff7e6;border-left:3px solid #faad14;border-radius:4px;margin-bottom:12px;">
+                            <div style="font-size:13px;color:#856404;line-height:1.6;">
+                                <div style="font-weight:600;margin-bottom:4px;">⚠️ 重要提示：</div>
+                                <div>• 请不要关闭此窗口，等待好友加入后即可开始对战</div>
+                                <div>• 分享房间码给好友，让他们加入对战吧！</div>
+                            </div>
+                        </div>
+                        ` : ''}
                         <div style="margin-top:12px;padding-top:12px;border-top:1px solid #e5e7eb;">
                             <div style="font-size:14px;color:#666;margin-bottom:8px;">
                                 ${isWaiting ? '分享房间码给好友，让他们加入对战吧！' : '房间已满，准备开始对战！'}
@@ -1695,11 +1750,29 @@ export class BattleView {
             }
         };
         const copyRoomCode = () => {
-            navigator.clipboard.writeText(roomCode).then(() => {
+            // 构建包含房间号、tracker链接和引导话术的完整文本
+            const trackerUrl = window.location.origin + window.location.pathname + '#battle';
+            const copyText = `房间号：${roomCode}
+
+快来和我一起对战吧！点击链接加入：
+${trackerUrl}
+
+在对战平台输入房间号 "${roomCode}" 即可加入对战！`;
+            
+            navigator.clipboard.writeText(copyText).then(() => {
                 copyBtn.textContent = '已复制！';
                 setTimeout(() => {
                     copyBtn.textContent = '复制房间码';
                 }, 2000);
+            }).catch(err => {
+                console.error('复制失败:', err);
+                // 降级方案：只复制房间号
+                navigator.clipboard.writeText(roomCode).then(() => {
+                    copyBtn.textContent = '已复制房间号';
+                setTimeout(() => {
+                    copyBtn.textContent = '复制房间码';
+                }, 2000);
+                });
             });
         };
         
@@ -1784,7 +1857,7 @@ export class BattleView {
             `;
             // 尝试在 title 后面插入，如果找不到 title，就在 body 的第一个 div 后面插入
             if (title && title.parentElement) {
-                title.insertAdjacentHTML('afterend', countdownHtml);
+            title.insertAdjacentHTML('afterend', countdownHtml);
             } else if (body && body.firstElementChild) {
                 body.firstElementChild.insertAdjacentHTML('afterend', countdownHtml);
             } else if (body) {
@@ -2240,6 +2313,11 @@ export class BattleView {
                     <div style="font-size:48px;margin-bottom:16px;">⏳</div>
                     <div style="font-size:16px;color:#666;margin-bottom:8px;">正在寻找对手...</div>
                     <div id="battle-matching-timer" style="font-size:14px;color:#999;">已等待 0 秒</div>
+                    <div id="battle-matching-invite-tip" style="display:none;margin-top:16px;padding:12px;background:#fff7e6;border-left:3px solid #faad14;border-radius:4px;text-align:left;">
+                        <div style="font-size:13px;color:#856404;line-height:1.6;">
+                            目前匹配人数较少，快<a id="battle-matching-invite-link" href="javascript:void(0);" style="color:#1890ff;text-decoration:underline;cursor:pointer;font-weight:600;">邀请</a>你的好友去对战吧！
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-actions" style="padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:center;">
                     <button id="battle-matching-cancel" class="admin-btn" style="background:#ff4d4f;color:#fff;border:1px solid #ff4d4f;">取消匹配</button>
@@ -2271,12 +2349,44 @@ export class BattleView {
      */
     startTimer() {
         const timerEl = document.getElementById('battle-matching-timer');
+        const inviteTipEl = document.getElementById('battle-matching-invite-tip');
+        const inviteLinkEl = document.getElementById('battle-matching-invite-link');
+        
         if (!timerEl) return;
+        
+        // 绑定邀请链接点击事件
+        if (inviteLinkEl) {
+            inviteLinkEl.addEventListener('click', () => {
+                const trackerUrl = window.location.origin + window.location.pathname + '#battle';
+                const copyText = `快来和我一起对战吧！点击链接加入：
+${trackerUrl}
+
+在对战平台选择"1v1匹配"即可开始对战！`;
+                
+                navigator.clipboard.writeText(copyText).then(() => {
+                    const originalText = inviteLinkEl.textContent;
+                    inviteLinkEl.textContent = '已复制！';
+                    inviteLinkEl.style.color = '#52c41a';
+                    setTimeout(() => {
+                        inviteLinkEl.textContent = originalText;
+                        inviteLinkEl.style.color = '#1890ff';
+                    }, 2000);
+                }).catch(err => {
+                    console.error('复制失败:', err);
+                    alert('复制失败，请手动复制链接');
+                });
+            });
+        }
         
         this.matchingTimer = setInterval(() => {
             if (!this.matchStartTime) return;
             const elapsed = Math.floor((Date.now() - this.matchStartTime) / 1000);
             timerEl.textContent = `已等待 ${elapsed} 秒`;
+            
+            // 超过10秒时显示邀请提示
+            if (elapsed >= 10 && inviteTipEl) {
+                inviteTipEl.style.display = 'block';
+            }
         }, 1000);
     }
 
@@ -2887,20 +2997,20 @@ export class BattleView {
                      onmouseout="this.style.background='#fff'; this.style.borderLeft='none'; this.style.paddingLeft='20px';">
                     <div style="font-size: 14px; color: #666; width: 180px; flex-shrink: 0;">
                         ${startTime}
-                    </div>
+                            </div>
                     <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
                         <div style="display: flex; align-items: center; gap: 6px;">
                             ${myAvatar ? `<img src="${myAvatar}" alt="${myNickname}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'" />` : ''}
                             <span style="font-size: 14px; color: #333; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;">${myNickname}</span>
                             <span style="padding: 2px 6px; background: ${myStatusColor}; color: #fff; border-radius: 4px; font-size: 11px; font-weight: 600; flex-shrink: 0;">${myStatusText}</span>
-                        </div>
+                            </div>
                         <span style="color: #999; font-size: 14px; flex-shrink: 0;">vs</span>
                         <div style="display: flex; align-items: center; gap: 6px;">
                             ${opponentAvatar ? `<img src="${opponentAvatar}" alt="${opponentNickname}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'" />` : ''}
                             <span style="font-size: 14px; color: #333; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;">${opponentNickname}</span>
                             <span style="padding: 2px 6px; background: ${opponentStatusColor}; color: #fff; border-radius: 4px; font-size: 11px; font-weight: 600; flex-shrink: 0;">${opponentStatusText}</span>
                         </div>
-                    </div>
+                        </div>
                     <div style="font-size: 16px; font-weight: 600; color: ${scoreChangeColor}; min-width: 50px; text-align: right; flex-shrink: 0;">
                         ${scoreChangeText}
                     </div>
@@ -2973,8 +3083,8 @@ export class BattleView {
                 e.preventDefault();
                 e.stopPropagation();
                 if (this.recordsPage > 1) {
-                    this.recordsPage--;
-                    this.loadRecordsList();
+                this.recordsPage--;
+                this.loadRecordsList();
                 }
             });
         }
@@ -2984,8 +3094,8 @@ export class BattleView {
                 e.preventDefault();
                 e.stopPropagation();
                 if (this.recordsPage < totalPages) {
-                    this.recordsPage++;
-                    this.loadRecordsList();
+                this.recordsPage++;
+                this.loadRecordsList();
                 }
             });
         }
@@ -2997,13 +3107,13 @@ export class BattleView {
     async viewRecordDetail(recordId) {
         // 从当前列表中查找记录
         const record = this.recordsList.find(r => r.id == recordId);
-        
-        if (!record) {
-            alert('未找到对战记录');
-            return;
-        }
-        
-        this.showRecordDetailModal(record);
+            
+            if (!record) {
+                alert('未找到对战记录');
+                return;
+            }
+            
+            this.showRecordDetailModal(record);
     }
 
     /**
@@ -3273,17 +3383,17 @@ export class BattleView {
                         ${opponentAvatar ? `<div style="margin-bottom: 8px;"><img src="${opponentAvatar}" alt="${opponentName}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" /></div>` : ''}
                         <div style="margin-bottom: 8px;">
                             <strong>昵称:</strong> <span style="font-weight: 600;">${opponentName}</span>
-                        </div>
+                    </div>
                         ${opponentUserId && opponentUserId !== -1 ? `<div style="margin-bottom: 8px;"><strong>用户ID:</strong> ${opponentUserId}</div>` : ''}
                         <div>
                             <strong>状态:</strong> 
                             ${opponentAc ? `<span style="color: #52c41a;">✅ AC (${formatAcTime(opponentAcTime)})</span>` : 
                               opponentAbandoned ? '<span style="color: #ff4d4f;">❌ 投降</span>' : 
                               '<span style="color: #999;">⏳ 进行中</span>'}
-                        </div>
-                    </div>
                 </div>
             </div>
+                    </div>
+                </div>
         `;
     }
 

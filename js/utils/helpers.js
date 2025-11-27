@@ -189,37 +189,37 @@ export function getBattleLevelColor(level) {
     const estimatedPoints = l * 10; // 每个等级约等于10成就分
     
     // 成就分颜色映射规则（与AchievementsView.js中的pickRarityClass保持一致）
-    if (estimatedPoints >= 200 || l >= 20) {
+    if (estimatedPoints >= 200 || l >= 200) {
         return {
             primary: '#dc3545', // red
             gradient: 'linear-gradient(135deg, #dc3545 0%, #c82333 100%)'
         };
     }
-    if (estimatedPoints >= 100 || l >= 10) {
+    if (estimatedPoints >= 100 || l >= 100) {
         return {
             primary: '#b8860b', // gold
             gradient: 'linear-gradient(135deg, #b8860b 0%, #daa520 100%)'
         };
     }
-    if (estimatedPoints >= 50 || l >= 5) {
+    if (estimatedPoints >= 50 || l >= 50) {
         return {
             primary: '#fd7e14', // orange
             gradient: 'linear-gradient(135deg, #fd7e14 0%, #e85d04 100%)'
         };
     }
-    if (estimatedPoints >= 30 || l >= 3) {
+    if (estimatedPoints >= 30 || l >= 30) {
         return {
             primary: '#6f42c1', // purple
             gradient: 'linear-gradient(135deg, #6f42c1 0%, #5a32a3 100%)'
         };
     }
-    if (estimatedPoints >= 20 || l >= 2) {
+    if (estimatedPoints >= 20 || l >= 20) {
         return {
             primary: '#0d6efd', // blue
             gradient: 'linear-gradient(135deg, #0d6efd 0%, #0a58ca 100%)'
         };
     }
-    if (estimatedPoints >= 10 || l >= 1) {
+    if (estimatedPoints >= 10 || l >= 10) {
         return {
             primary: '#28a745', // green
             gradient: 'linear-gradient(135deg, #28a745 0%, #1e7e34 100%)'
