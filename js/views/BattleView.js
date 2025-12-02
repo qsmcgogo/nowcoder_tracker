@@ -460,6 +460,14 @@ export class BattleView {
                         </button>
                 </div>
                 
+                    <!-- 内测赛季说明 -->
+                    <div style="background: linear-gradient(135deg, #fff7e6 0%, #fff1b8 100%); border: 2px solid #faad14; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(250,173,20,0.1);">
+                        <div style="display: flex; align-items: center; gap: 10px; color: #d46b08; font-weight: 600; font-size: 15px;">
+                            <span style="font-size: 20px;">⚠️</span>
+                            <span>当前为内测赛季，第一赛季会重置 rating 至 800，但不会重置对战等级</span>
+                    </div>
+                </div>
+                
                     <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
                         <!-- 1v1匹配 -->
                         <div class="battle-mode-card" 
@@ -1326,7 +1334,7 @@ export class BattleView {
                 <div style="color: #666; line-height: 1.8;">
                     <div style="margin-bottom: 6px;">• 如果没有进行过对战，等级分将初始化为 <span style="color: #1890ff; font-weight: 600;">800 分</span></div>
                     <div style="margin-bottom: 6px;">• 每个赛季开始时，所有玩家的等级分将重置为 <span style="color: #1890ff; font-weight: 600;">800 分</span></div>
-                    <div>• 对战等级不会重置</div>
+                    <div style="margin-bottom: 6px;">• 对战等级不会重置</div>
                 </div>
             </div>
             
@@ -2317,6 +2325,9 @@ ${trackerUrl}
                         <div style="font-size:13px;color:#856404;line-height:1.6;">
                             目前匹配人数较少，快<a id="battle-matching-invite-link" href="javascript:void(0);" style="color:#1890ff;text-decoration:underline;cursor:pointer;font-weight:600;">邀请</a>你的好友去对战吧！
                         </div>
+                        <div id="battle-matching-copy-success" style="display:none;margin-top:8px;font-size:13px;color:#52c41a;font-weight:600;">
+                            已复制邀请链接
+                        </div>
                     </div>
                 </div>
                 <div class="modal-actions" style="padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:center;">
@@ -2364,13 +2375,15 @@ ${trackerUrl}
 在对战平台选择"1v1匹配"即可开始对战！`;
                 
                 navigator.clipboard.writeText(copyText).then(() => {
-                    const originalText = inviteLinkEl.textContent;
-                    inviteLinkEl.textContent = '已复制！';
-                    inviteLinkEl.style.color = '#52c41a';
-                    setTimeout(() => {
-                        inviteLinkEl.textContent = originalText;
-                        inviteLinkEl.style.color = '#1890ff';
-                    }, 2000);
+                    // 显示"已复制邀请链接"提示
+                    const copySuccessEl = document.getElementById('battle-matching-copy-success');
+                    if (copySuccessEl) {
+                        copySuccessEl.style.display = 'block';
+                        // 2秒后隐藏提示
+                        setTimeout(() => {
+                            copySuccessEl.style.display = 'none';
+                        }, 2000);
+                    }
                 }).catch(err => {
                     console.error('复制失败:', err);
                     alert('复制失败，请手动复制链接');
@@ -2943,29 +2956,29 @@ ${trackerUrl}
             const opponentAc = opponent.ac || false;
             const opponentAbandoned = opponent.abandoned || false;
             
-            // 我的状态文本
+            // 我的状态文本（AC优先于放弃）
             let myStatusText = '';
             let myStatusColor = '#666';
-            if (myAbandoned) {
-                myStatusText = '放弃';
-                myStatusColor = '#ff4d4f';
-            } else if (myAc) {
+            if (myAc) {
                 myStatusText = 'AC';
                 myStatusColor = '#52c41a';
+            } else if (myAbandoned) {
+                myStatusText = '放弃';
+                myStatusColor = '#ff4d4f';
             } else {
                 myStatusText = '做题中';
                 myStatusColor = '#999';
             }
             
-            // 对手状态文本
+            // 对手状态文本（AC优先于放弃）
             let opponentStatusText = '';
             let opponentStatusColor = '#666';
-            if (opponentAbandoned) {
-                opponentStatusText = '放弃';
-                opponentStatusColor = '#ff4d4f';
-            } else if (opponentAc) {
+            if (opponentAc) {
                 opponentStatusText = 'AC';
                 opponentStatusColor = '#52c41a';
+            } else if (opponentAbandoned) {
+                opponentStatusText = '放弃';
+                opponentStatusColor = '#ff4d4f';
             } else {
                 opponentStatusText = '做题中';
                 opponentStatusColor = '#999';
@@ -2975,15 +2988,15 @@ ${trackerUrl}
             const scoreChangeColor = myScoreChange > 0 ? '#52c41a' : myScoreChange < 0 ? '#ff4d4f' : '#666';
             const scoreChangeText = myScoreChange > 0 ? `+${myScoreChange}` : `${myScoreChange}`;
             
-            // 结果文本和颜色（用于右侧标签）
+            // 结果文本和颜色（用于右侧标签，AC优先于放弃）
             let resultText = '';
             let resultColor = '#666';
-            if (myAbandoned) {
-                resultText = '放弃';
-                resultColor = '#ff4d4f';
-            } else if (myAc) {
+            if (myAc) {
                 resultText = isWin ? '胜利' : '失败';
                 resultColor = isWin ? '#52c41a' : '#ff4d4f';
+            } else if (myAbandoned) {
+                resultText = '放弃';
+                resultColor = '#ff4d4f';
             } else {
                 resultText = '做题中';
                 resultColor = '#999';
@@ -3253,7 +3266,12 @@ ${trackerUrl}
         
         const formatAcTime = (acTime) => {
             if (!acTime || acTime === 0) return '-';
-            const seconds = Math.floor(acTime / 1000);
+            // acTime 是绝对时间戳（毫秒），需要计算相对于 startTime 的时间差
+            const startTime = record.startTime || 0;
+            if (!startTime) return '-';
+            const timeDiff = acTime - startTime; // 时间差（毫秒）
+            if (timeDiff < 0) return '-';
+            const seconds = Math.floor(timeDiff / 1000);
             const minutes = Math.floor(seconds / 60);
             const secs = seconds % 60;
             return `${minutes}分${secs}秒`;
@@ -3320,15 +3338,15 @@ ${trackerUrl}
             }
         }
         
-        // 结果
+        // 结果（AC优先于放弃）
         let resultText = '';
         let resultColor = '#666';
-        if (myAbandoned) {
-            resultText = '放弃';
-            resultColor = '#ff4d4f';
-        } else if (myAc) {
+        if (myAc) {
             resultText = isWin ? '胜利' : '失败';
             resultColor = isWin ? '#52c41a' : '#ff4d4f';
+        } else if (myAbandoned) {
+            resultText = '放弃';
+            resultColor = '#ff4d4f';
         } else {
             resultText = '做题中';
             resultColor = '#999';
@@ -3339,7 +3357,12 @@ ${trackerUrl}
                 <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 12px;">基本信息</div>
                 <div style="background: #f5f5f5; padding: 12px; border-radius: 6px;">
                     <div style="margin-bottom: 8px;"><strong>对战类型:</strong> ${typeText}</div>
-                    <div style="margin-bottom: 8px;"><strong>题目ID:</strong> ${record.problemId || '-'}</div>
+                    <div style="margin-bottom: 8px;">
+                        <strong>题目:</strong> 
+                        ${record.problemId ? 
+                            `<a href="https://ac.nowcoder.com/acm/problem/${record.problemId}" target="_blank" rel="noopener noreferrer" style="color: #1890ff; text-decoration: none; font-weight: 500;">${record.problemId}</a>` 
+                            : '-'}
+                    </div>
                     <div style="margin-bottom: 8px;"><strong>房间ID:</strong> ${record.roomId || '-'}</div>
                     <div style="margin-bottom: 8px;"><strong>开始时间:</strong> ${formatTime(record.startTime)}</div>
                     <div style="margin-bottom: 8px;"><strong>结束时间:</strong> ${formatTime(record.endTime)}</div>

@@ -137,12 +137,12 @@ export const skillTreeData = {
                     // 右边列：从上到下
                     { id: 's3-col-search', name: '搜索入门', nodeIds: ['dfs-advanced', 'bfs-advanced', 'two-pointers-advanced', 'binary-search-advanced'] },
                     { id: 's3-col-graph', name: '图论入门', nodeIds: ['graph-def-advanced', 'build-graph-search-advanced', 'unweighted-shortest-advanced'] },
-                    { id: 's3-col-union-find', name: '并查集', nodeIds: ['union-find-intro', 'minimum-spanning-tree'] }
+                    { id: 's3-col-union-find', name: '并查集', nodeIds: ['union-find-intro'] }
                 ]
             },
             {
                 id: 'stage-4',
-                name: '第四章：进阶之路'
+                name: '第四章：韬光逐影'
             }
         ],
         nodes: {
@@ -592,6 +592,34 @@ export class SkillTreeView {
                     `;
                 }
 
+                if (stage.id === 'stage-3') {
+                    // 第三章后的间章：惊鸿
+                    // 解锁逻辑：第三章平均进度 ≥ 70% 或 tracker累计通过100题（与 Boss 关解锁条件保持一致）
+                    const jinghongAvg = 0; // 暂不单独统计间章进度，占位为 0%
+                    const mini3MeetProgress = stage3Avg >= 70;
+                    const mini3MeetSolved = solvedCount >= 100;
+                    const mini3IsLocked = isAdmin ? false : (!isLoggedIn || !(mini3MeetProgress || mini3MeetSolved));
+                    const mini3LockReason = !isLoggedIn
+                        ? '请先登录开启技能树之旅'
+                        : `第三章平均进度达到70% <br>或<br>tracker累计通过100题：${solvedCount} / 100 <span class=\"dep-cross\">×</span>`;
+
+                    return `
+                        <div class="skill-tree-card-group side-mini stage-3">
+                            ${cardHtml}
+                            <div class="skill-tree-mini-card ${mini3IsLocked ? 'locked' : ''}" data-mini-of="stage-3" title="间章：惊鸿">
+                                <div class="skill-tree-mini-card__header">
+                                    <span class="skill-tree-mini-card__title">间章：惊鸿</span>
+                                    <span class="skill-tree-mini-card__progress-text">通关率: ${jinghongAvg}%</span>
+                                </div>
+                                <div class="skill-tree-mini-card__progress-bar">
+                                    <div class="skill-tree-mini-card__progress-bar-inner" style="width: ${jinghongAvg}%;"></div>
+                                </div>
+                                ${mini3IsLocked ? `<div class=\"skill-tree-card__tooltip\">${mini3LockReason}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
+
                 return cardHtml;
             }).join('');
 
@@ -696,11 +724,113 @@ export class SkillTreeView {
                 </div>
             `;
 
-            this.container.innerHTML = `${banner}<div class="skill-tree-summary">${stagesHtml}
-                <!-- 占位空格：第四行，撑开视觉间距 -->
-                <div class="skill-tree-spacer" style="grid-column: 1 / 4; grid-row: 4; height: 10px;"></div>
-                ${bossChapterHtml}
-            </div>`;
+            // 第四章：韬光逐影，作为第二篇章（潜龙篇）的开端，目前仅做占位展示
+            const stage4Obj = tree.stages.find(s => s.id === 'stage-4');
+            const stage4CardHtml = stage4Obj ? `
+                <div class="skill-tree-card stage-4 locked" data-stage-id="${stage4Obj.id}" aria-disabled="true" style="opacity: 0.95;">
+                    <div class="stage-bg-pattern stage-bg-shadow">
+                        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
+                            <defs>
+                                <linearGradient id="shadowGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#722ed1" stop-opacity="0.2" />
+                                    <stop offset="100%" stop-color="#22075e" stop-opacity="0.4" />
+                                </linearGradient>
+                            </defs>
+                            <circle cx="100" cy="100" r="60" fill="url(#shadowGradient)" />
+                            <path d="M 60 100 Q 100 40 140 100 T 60 100" fill="#ffffff" fill-opacity="0.06" />
+                            <path d="M 60 100 Q 100 160 140 100 T 60 100" fill="#000000" fill-opacity="0.06" />
+                        </svg>
+                    </div>
+                    <div class="skill-tree-card__header">
+                        <h3 class="skill-tree-card__title">${stage4Obj.name}</h3>
+                        <span class="skill-tree-card__progress-text">通关率: 0%</span>
+                    </div>
+                    <div class="skill-tree-card__progress-bar">
+                        <div class="skill-tree-card__progress-bar-inner" style="width: 0%;"></div>
+                    </div>
+                    <div class="skill-tree-card__tooltip">内容正在建设中，敬请期待</div>
+                </div>
+            ` : '';
+
+            this.container.innerHTML = `${banner}
+                <!-- 萌新篇：第1~3章 + 间章 + Boss梦 -->
+                <div style="border: 3px dashed #d9d9d9; border-radius: 16px; padding: 24px; margin-bottom: 24px; background: linear-gradient(135deg, rgba(255, 245, 238, 0.3) 0%, rgba(255, 250, 250, 0.2) 100%); position: relative;">
+                    <div style="position: absolute; top: -14px; left: 24px; background: #fff; padding: 4px 16px; font-size: 18px; font-weight: 700; color: #fa8c16; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px;">
+                        <span>萌新篇</span>
+                        <div id="newbie-guide-help" 
+                             style="width: 20px; height: 20px; border-radius: 50%; background: rgba(250, 140, 22, 0.1); border: 1px solid rgba(250, 140, 22, 0.3);
+                                    display: flex; align-items: center; justify-content: center; cursor: pointer; 
+                                    font-size: 12px; font-weight: bold; color: #fa8c16; transition: all 0.2s;"
+                             onmouseover="this.style.background='rgba(250, 140, 22, 0.2)'; this.style.transform='scale(1.1)'"
+                             onmouseout="this.style.background='rgba(250, 140, 22, 0.1)'; this.style.transform='scale(1)'">
+                            ?
+                        </div>
+                        <div id="newbie-guide-tooltip" 
+                             style="display: none; position: fixed; max-width: 400px;
+                                    background: #1a1a1a; backdrop-filter: blur(10px); color: #ffffff; padding: 16px; border-radius: 12px; 
+                                    font-size: 13px; line-height: 1.8; z-index: 99999; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);">
+                            <div style="font-weight: 600; margin-bottom: 12px; color: #ffd700; display: flex; align-items: center; gap: 6px; opacity: 1;">
+                                <span>📚</span> <span>萌新篇说明</span>
+                            </div>
+                            <div style="margin-bottom: 12px; opacity: 1;">
+                                <div style="color: #ffd700; font-weight: 600; margin-bottom: 6px;">学习前置：</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• 具备基本的计算机操作能力</div>
+                            </div>
+                            <div style="padding-top: 12px; border-top: 1px solid rgba(255,255,255,0.2); opacity: 1;">
+                                <div style="color: #ffd700; font-weight: 600; margin-bottom: 6px;">该篇毕业水平参考：</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• 牛客周赛可完成 5~6 题</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• 蓝桥杯 B 组全国二等奖</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• 百度之星可入围决赛</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• 区域赛概率获得铜奖</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="skill-tree-summary">${stagesHtml}
+                        <!-- 占位空格：第四行，撑开视觉间距 -->
+                        <div class="skill-tree-spacer" style="grid-column: 1 / 4; grid-row: 4; height: 10px;"></div>
+                        ${bossChapterHtml}
+                    </div>
+                </div>
+
+                <!-- 潜龙篇：第4~6章 占位（先展示第四章），下方用云雾表示后续内容建设中 -->
+                <div style="border: 3px dashed #d9d9d9; border-radius: 16px; padding: 24px; margin-bottom: 24px; background: linear-gradient(135deg, rgba(230, 247, 255, 0.35) 0%, rgba(241, 245, 255, 0.25) 100%); position: relative;">
+                    <div style="position: absolute; top: -14px; left: 24px; background: #fff; padding: 4px 16px; font-size: 18px; font-weight: 700; color: #1890ff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 8px;">
+                        <span>潜龙篇</span>
+                        <div id="dragon-guide-help" 
+                             style="width: 20px; height: 20px; border-radius: 50%; background: rgba(24, 144, 255, 0.06); border: 1px solid rgba(24, 144, 255, 0.25);
+                                    display: flex; align-items: center; justify-content: center; cursor: pointer; 
+                                    font-size: 12px; font-weight: bold; color: #1890ff; transition: all 0.2s;">
+                            ?
+                        </div>
+                        <div id="dragon-guide-tooltip" 
+                             style="display: none; position: fixed; max-width: 400px;
+                                    background: #0b1220; backdrop-filter: blur(10px); color: #ffffff; padding: 16px; border-radius: 12px; 
+                                    font-size: 13px; line-height: 1.8; z-index: 99999; box-shadow: 0 8px 24px rgba(0,0,0,0.6); border: 1px solid rgba(144,205,244,0.4);">
+                            <div style="font-weight: 600; margin-bottom: 12px; color: #40a9ff; display: flex; align-items: center; gap: 6px; opacity: 1;">
+                                <span>🐉</span> <span>潜龙篇说明</span>
+                            </div>
+                            <div style="margin-bottom: 12px; opacity: 1;">
+                                <div style="color: #40a9ff; font-weight: 600; margin-bottom: 6px;">学习前置（推荐）：</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• 已基本掌握萌新篇中的全部知识点</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• 对图论、动态规划等方向已有一定实践经验</div>
+                            </div>
+                            <div style="padding-top: 12px; border-top: 1px solid rgba(144,205,244,0.35); opacity: 1;">
+                                <div style="color: #40a9ff; font-weight: 600; margin-bottom: 6px;">该篇毕业水平参考：</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• 区域赛稳定获得铜奖，具备争夺银奖的实力</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• Codeforces 稳定橙名水平</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• 蓝桥杯 A 组全国一等奖</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="skill-tree-summary" style="position: relative; margin-top: 8px;">
+                        ${stage4CardHtml}
+                    </div>
+                    <!-- 云雾渐隐效果，表示后续章节还在更新中 -->
+                    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 140px; background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.85) 60%, rgba(255,255,255,1) 100%); pointer-events: none; z-index: 10;"></div>
+                    <div style="position: absolute; bottom: 18px; left: 0; width: 100%; text-align: center; color: #8c8c8c; font-size: 14px; z-index: 11; font-weight: 500; letter-spacing: 2px;">
+                        ✨ 更多篇章正在建设中 ✨
+                    </div>
+                </div>`;
             this.bindSummaryEvents();
             // 概览页连线（使用SVG覆盖层，避免重复与错位）
             if (this.enableSummaryLines) setTimeout(() => this.setupSummarySvg(), 0);
@@ -2036,6 +2166,81 @@ export class SkillTreeView {
 
     // 绑定概览页事件
     bindSummaryEvents() {
+        // 绑定"萌新篇"问号提示框事件
+        const newbieHelp = document.getElementById('newbie-guide-help');
+        const newbieTooltip = document.getElementById('newbie-guide-tooltip');
+        if (newbieHelp && newbieTooltip) {
+            newbieHelp.addEventListener('mouseenter', () => {
+                // 动态计算位置，使用fixed定位
+                const helpRect = newbieHelp.getBoundingClientRect();
+                newbieTooltip.style.display = 'block';
+                // 提示框显示在问号下方，右对齐（先设置为右对齐）
+                newbieTooltip.style.top = (helpRect.bottom + 12) + 'px';
+                // 先获取提示框宽度，然后计算位置
+                setTimeout(() => {
+                    const tooltipWidth = newbieTooltip.offsetWidth || 400;
+                    let leftPos = helpRect.right - tooltipWidth;
+                    // 如果提示框超出左边界，则左对齐
+                    if (leftPos < 12) {
+                        leftPos = helpRect.left;
+                    }
+                    // 如果提示框超出右边界，则右对齐到窗口边缘
+                    if (leftPos + tooltipWidth > window.innerWidth - 12) {
+                        leftPos = window.innerWidth - tooltipWidth - 12;
+                    }
+                    newbieTooltip.style.left = leftPos + 'px';
+                }, 0);
+            });
+            newbieHelp.addEventListener('mouseleave', () => {
+                // 延迟隐藏，允许鼠标移动到提示框
+                setTimeout(() => {
+                    if (!newbieTooltip.matches(':hover')) {
+                        newbieTooltip.style.display = 'none';
+                    }
+                }, 100);
+            });
+            // 鼠标移入提示框时保持显示
+            newbieTooltip.addEventListener('mouseenter', () => {
+                newbieTooltip.style.display = 'block';
+            });
+            newbieTooltip.addEventListener('mouseleave', () => {
+                newbieTooltip.style.display = 'none';
+            });
+        }
+        // 绑定"潜龙篇"问号提示框事件
+        const dragonHelp = document.getElementById('dragon-guide-help');
+        const dragonTooltip = document.getElementById('dragon-guide-tooltip');
+        if (dragonHelp && dragonTooltip) {
+            dragonHelp.addEventListener('mouseenter', () => {
+                const helpRect = dragonHelp.getBoundingClientRect();
+                dragonTooltip.style.display = 'block';
+                dragonTooltip.style.top = (helpRect.bottom + 12) + 'px';
+                setTimeout(() => {
+                    const tooltipWidth = dragonTooltip.offsetWidth || 400;
+                    let leftPos = helpRect.right - tooltipWidth;
+                    if (leftPos < 12) {
+                        leftPos = helpRect.left;
+                    }
+                    if (leftPos + tooltipWidth > window.innerWidth - 12) {
+                        leftPos = window.innerWidth - tooltipWidth - 12;
+                    }
+                    dragonTooltip.style.left = leftPos + 'px';
+                }, 0);
+            });
+            dragonHelp.addEventListener('mouseleave', () => {
+                setTimeout(() => {
+                    if (!dragonTooltip.matches(':hover')) {
+                        dragonTooltip.style.display = 'none';
+                    }
+                }, 100);
+            });
+            dragonTooltip.addEventListener('mouseenter', () => {
+                dragonTooltip.style.display = 'block';
+            });
+            dragonTooltip.addEventListener('mouseleave', () => {
+                dragonTooltip.style.display = 'none';
+            });
+        }
         const cards = this.container.querySelectorAll('.skill-tree-card');
         cards.forEach(card => {
             // 如果卡片是锁定的，则不添加点击事件
@@ -2069,6 +2274,16 @@ export class SkillTreeView {
                 this.renderInterlude25Detail();
             });
         }
+        // 间章3：惊鸿（迷你卡）点击进入：建设中占位页
+        const mini3 = this.container.querySelector('.skill-tree-mini-card[data-mini-of="stage-3"]');
+        if (mini3 && !mini3.classList.contains('locked')) {
+            mini3.addEventListener('click', () => {
+                this.clearLines();
+                this.teardownSummarySvg && this.teardownSummarySvg();
+                // 目前“惊鸿”暂未正式开放，使用通用的“建设中”详情页
+                this.renderComingSoonDetail('间章：惊鸿');
+            });
+        }
         
         // Boss章节：梦
         const bossBtn = document.getElementById('skill-tree-boss-dream');
@@ -2085,16 +2300,16 @@ export class SkillTreeView {
         }
     }
 
-    // 使用 SVG 覆盖层绘制概览页连线（第一章->第二章，第二章->第三章）
+    // 使用 SVG 覆盖层绘制概览页连线（第一章->第二章，第二章->第三章，第三章->第四章）
     setupSummarySvg() {
-        const summary = this.container.querySelector('.skill-tree-summary');
-        if (!summary) return;
+        const root = this.container;
+        if (!root) return;
         this.teardownSummarySvg && this.teardownSummarySvg();
         // 创建 SVG 覆盖层
         const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
         svg.classList.add('skill-tree-svg');
         svg.setAttribute('preserveAspectRatio', 'none');
-        summary.appendChild(svg);
+        root.appendChild(svg);
         this._summarySvg = svg;
 
         // 绑定更新
@@ -2105,12 +2320,13 @@ export class SkillTreeView {
     }
 
     updateSummarySvg() {
-        const summary = this.container.querySelector('.skill-tree-summary');
-        if (!summary || !this._summarySvg) return;
-        const s1 = summary.querySelector('.skill-tree-card.stage-1');
-        const s2 = summary.querySelector('.skill-tree-card.stage-2');
-        const s3 = summary.querySelector('.skill-tree-card.stage-3');
-        const rect = summary.getBoundingClientRect();
+        const root = this.container;
+        if (!root || !this._summarySvg) return;
+        const s1 = root.querySelector('.skill-tree-card.stage-1');
+        const s2 = root.querySelector('.skill-tree-card.stage-2');
+        const s3 = root.querySelector('.skill-tree-card.stage-3');
+        const s4 = root.querySelector('.skill-tree-card.stage-4');
+        const rect = root.getBoundingClientRect();
         const getPoint = (el, px, py) => {
             const r = el.getBoundingClientRect();
             const x = r.left - rect.left + r.width * px;
@@ -2131,6 +2347,8 @@ export class SkillTreeView {
         };
         if (s1 && s2) draw(getPoint(s1, 1, 1), getPoint(s2, 0, 0));
         if (s2 && s3) draw(getPoint(s2, 0, 1), getPoint(s3, 1, 0));
+        // 第三章->第四章：从第三章底部中心连接到第四章顶部中心
+        if (s3 && s4) draw(getPoint(s3, 0.5, 1), getPoint(s4, 0.5, 0));
     }
 
     teardownSummarySvg() {

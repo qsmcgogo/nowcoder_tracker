@@ -340,7 +340,7 @@ export class TeamView {
                     <p>【每日一题】</p>
                     <p>每日一题累计打卡 ≥ 30 天的同学，可获得牛客娘贴纸一张。</p>
                     <p>每日一题累计打卡 ≥ 60 天的同学，可获得牛客娘吧唧一个。</p>
-                    <p>每日一题累计打卡 ≥ 100 天的同学，可获得牛客娘马克杯一个。</p>
+                    <p>每日一题累计打卡 ≥ 90 天的同学，可获得牛客娘马克杯一个。</p>
                     <p>*以上奖励可叠加。</p>
                 </div>
                 <div>
@@ -427,10 +427,10 @@ export class TeamView {
                             </div>
                             <div id="activity-users-clock-60" style="margin-top:4px;display:none;"></div>
                             <div style="margin-top:2px;color:#333;">
-                                ≥100 天：<b>${ge100}</b> 人
-                                ${ge100 > 0 ? `<button class="activity-toggle-btn" data-type="clock" data-level="100" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
+                                ≥90 天：<b>${ge100}</b> 人
+                                ${ge100 > 0 ? `<button class="activity-toggle-btn" data-type="clock" data-level="90" style="margin-left:8px;padding:2px 8px;font-size:11px;border:1px solid #ddd;border-radius:4px;background:#fff;cursor:pointer;">查看</button>` : ''}
                             </div>
-                            <div id="activity-users-clock-100" style="margin-top:4px;display:none;"></div>
+                            <div id="activity-users-clock-90" style="margin-top:4px;display:none;"></div>
                         </div>
                         <div class="metric-card" style="min-width:240px;flex:1;border:1px solid #eee;border-radius:8px;padding:12px;background:#fff;">
                             <div style="color:#777;font-size:12px;">题单制霸人数</div>
@@ -500,7 +500,7 @@ export class TeamView {
                                 <th>活动打卡总人次</th>
                                 <th>≥30</th>
                                 <th>≥60</th>
-                                <th>≥100</th>
+                                <th>>=90</th>
                                 <th>130制霸</th>
                                 <th>入门制霸</th>
                                 <th>进阶制霸</th>
@@ -596,9 +596,9 @@ export class TeamView {
                     } else if (level === '60') {
                         userIds = Array.isArray(data.ge60UserIds) ? data.ge60UserIds : [];
                         containerId = 'activity-users-clock-60';
-                    } else if (level === '100') {
+                    } else if (level === '90') {
                         userIds = Array.isArray(data.ge100UserIds) ? data.ge100UserIds : [];
-                        containerId = 'activity-users-clock-100';
+                        containerId = 'activity-users-clock-90';
                     }
                 } else if (type === 'topic' && topic) {
                     const data = this.activityUsersData?.topicUsers || {};

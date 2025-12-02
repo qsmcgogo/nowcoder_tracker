@@ -27,10 +27,11 @@ export class AchievementsView {
         // this.dynamicCatalog = {
         //   checkin: { series: [...], progress: { countDay, continueDay } },
         //   solve:   { series: [...] },
-        //   skill:   { series: [...] }
+        //   skill:   { series: [...] },
+        //   easter_egg: { rawList: [...] }  // 彩蛋成就只显示已获得的
         // }
         this.dynamicCatalog = {};
-        this.isLoadingCategory = { checkin: false, solve: false, skill: false };
+        this.isLoadingCategory = { checkin: false, solve: false, skill: false, easter_egg: false };
     }
 
     hide() {
@@ -104,9 +105,24 @@ export class AchievementsView {
         const dynamicCat = this.dynamicCatalog[this.activeCategory];
         const useRaw = !!dynamicCat && Array.isArray(dynamicCat.rawList) && dynamicCat.rawList.length > 0;
         const useDynamic = !!dynamicCat && Array.isArray(dynamicCat.series) && dynamicCat.series.length > 0;
-        // 若已加载到动态分类但数据为空，不再回退到本地缺省，直接提示“待更新”
+        // 若已加载到动态分类但数据为空，不再回退到本地缺省，直接提示"待更新"
         if (!!dynamicCat && !useRaw && !useDynamic) {
-            this.content.innerHTML = '<div class="achv-overview-card">待更新</div>';
+            // 彩蛋成就特殊处理：显示神秘描述
+            if (this.activeCategory === 'easter_egg') {
+                this.content.innerHTML = `
+                    <div class="achv-overview-card" style="text-align: center; padding: 40px 20px;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
+                        <div style="font-size: 18px; font-weight: 600; color: #333; margin-bottom: 12px;">神秘的彩蛋成就</div>
+                        <div style="font-size: 14px; color: #666; line-height: 1.8; max-width: 500px; margin: 0 auto;">
+                            隐藏的成就等待着被发现...<br/>
+                            只有当你获得它们时，才会揭开神秘的面纱。<br/>
+                            <span style="color: #999; font-size: 12px; margin-top: 8px; display: block;">继续探索，也许会有意外的惊喜 ✨</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                this.content.innerHTML = '<div class="achv-overview-card">待更新</div>';
+            }
             return;
         }
         const cat = (useDynamic || useRaw) ? dynamicCat : this.catalog[this.activeCategory];
@@ -121,7 +137,27 @@ export class AchievementsView {
 
         // 直出模式（不合并）
         if (useRaw && !preferSeries) {
-            const list = dynamicCat.rawList.slice();
+            let list = dynamicCat.rawList.slice();
+            
+            // 彩蛋成就：只显示已获得的成就（status === 1）
+            if (this.activeCategory === 'easter_egg') {
+                list = list.filter(b => Number(b.status) === 1);
+                if (list.length === 0) {
+                    this.content.innerHTML = `
+                        <div class="achv-overview-card" style="text-align: center; padding: 40px 20px;">
+                            <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
+                            <div style="font-size: 18px; font-weight: 600; color: #333; margin-bottom: 12px;">神秘的彩蛋成就</div>
+                            <div style="font-size: 14px; color: #666; line-height: 1.8; max-width: 500px; margin: 0 auto;">
+                                隐藏的成就等待着被发现...<br/>
+                                只有当你获得它们时，才会揭开神秘的面纱。<br/>
+                                <span style="color: #999; font-size: 12px; margin-top: 8px; display: block;">继续探索，也许会有意外的惊喜 ✨</span>
+                            </div>
+                        </div>
+                    `;
+                    return;
+                }
+            }
+            
             // 排序：已获得优先，其次按成就点从高到低
             list.sort((a, b) =>
                 (Number(b.status === 1) - Number(a.status === 1)) ||
@@ -160,6 +196,11 @@ export class AchievementsView {
                 info.appendChild(title);
                 if (b.detail) info.appendChild(requirementRow);
 
+                // 彩蛋成就：不显示未获得的成就（已在前面过滤）
+                if (this.activeCategory === 'easter_egg' && !isUnlocked) {
+                    return; // 不应该出现这种情况，但为了安全起见
+                }
+                
                 // 未合并模式下：对累计/连续/累计过题(401~415)显示进度条；
                 // 四个"题单制霸"（451~454）不显示进度条；技能树成就显示进度条
                 if (!isUnlocked) {
@@ -714,9 +755,9 @@ export class AchievementsView {
         return `${mm}-${dd} ${hh}:${mi}`;
     }
 
-    // 动态加载某个分类（checkin/solve/skill）的徽章数据
+    // 动态加载某个分类（checkin/solve/skill/easter_egg）的徽章数据
     async loadCategoryBadges(categoryKey) {
-        const map = { checkin: [1, 2, 3], solve: [4, 5], skill: [6] };
+        const map = { checkin: [1, 2, 3], solve: [4, 5], skill: [6], easter_egg: [7] };
         const icons = {
             checkin_total: '🟢',
             checkin_streak: '🔥',
@@ -971,6 +1012,16 @@ export class AchievementsView {
                 list = Object.values(badgeData.data);
             }
 
+            // 彩蛋成就：只保留已获得的成就，不构建series
+            if (categoryKey === 'easter_egg') {
+                list = list.filter(b => Number(b.status) === 1);
+                const dynamic = { rawList: list };
+                this.dynamicCatalog[categoryKey] = dynamic;
+                this.isLoadingCategory[categoryKey] = false;
+                this.renderContent();
+                return;
+            }
+            
             const series = buildSeriesFromBadges(list);
             const dynamic = { series, rawList: list };
 
@@ -1128,6 +1179,11 @@ function getStaticAchievementsCatalog() {
                     ]
                 }
             ]
+        },
+        easter_egg: {
+            name: '彩蛋',
+            series: [], // 彩蛋成就不显示列表，只显示已获得的
+            description: '隐藏的成就等待着被发现...只有当你获得它们时，才会揭开神秘的面纱。'
         }
     };
 

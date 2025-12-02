@@ -1,4 +1,4 @@
 {
-  "env": "d",
-  "battleDomain": "dac.nowcoder.com"
+  "env": "pre",
+  "battleDomain": "preac.nowcoder.com"
 }

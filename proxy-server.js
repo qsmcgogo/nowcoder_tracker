@@ -9,7 +9,7 @@ const app = express();
 const port = 3000;
 
 // 环境切换: 'www', 'pre', 或 'd'
-const CURRENT_ENV = 'd';
+const CURRENT_ENV = 'pre';
 
 // 自动生成 env-config.json 文件
 const battleDomainMap = {

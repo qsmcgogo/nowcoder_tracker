@@ -2368,6 +2368,7 @@ body .problems-table tbody tr td.status-none {
 .skill-tree-container {
     padding: 20px;
     background-color: #f9fafb;
+    position: relative; /* 作为 SVG 覆盖层的定位参考容器 */
 }
 
 .skill-tree-login-prompt {
@@ -2991,7 +2992,6 @@ body .problems-table tbody tr td.status-none {
 .toast-leave-active { transform: translateY(-8px); opacity: 0; transition: all .2s ease; }
 
 /* Skill tree summary SVG overlay */
-.skill-tree-summary { position: relative; }
 .skill-tree-svg {
     position: absolute;
     top: 0; left: 0; right: 0; bottom: 0;
@@ -3204,7 +3204,7 @@ body.dark-theme .profile-avatar {
 }
 .skill-tree-card-group.side-mini .skill-tree-mini-card {
     position: absolute;
-    top: 16px; /* 与第一章标题同行偏移 */
+    top: 16px; /* 默认：与第一章标题同行偏移 */
     left: calc(100% + 24px);
     border-color: #ff4d4f; /* 红色描边 */
 }
@@ -3399,6 +3399,16 @@ body.dark-theme .profile-avatar {
 .skill-tree-card-group.stage-1 { grid-column: 1 / 2; grid-row: 1; }
 /* 让第二章的间章相对定位于第二章卡片 */
 .skill-tree-card-group.stage-2 { grid-column: 3 / 4; grid-row: 3; margin-top: 40px; }
+/* 让第三章的间章相对定位于第三章卡片，保持第三章原来的位置布局 */
+.skill-tree-card-group.stage-3 { grid-column: 1 / 2; grid-row: 5; margin-top: 40px; }
+/* 第三章的“惊鸿”间章：在第三章卡片右侧、垂直居中，效果类似第一章与“拂晓”但位置更居中 */
+.skill-tree-card-group.stage-3 .skill-tree-mini-card {
+    top: 50%;
+    transform: translateY(-50%);
+}
+.skill-tree-card-group.stage-3::before {
+    top: 50%;
+}
 
 /* Summary View Card */
 .skill-tree-card {
