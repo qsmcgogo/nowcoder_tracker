@@ -786,8 +786,8 @@ export class SkillTreeView {
                         </div>
                     </div>
                     <div class="skill-tree-summary">${stagesHtml}
-                        <!-- 占位空格：第四行，撑开视觉间距 -->
-                        <div class="skill-tree-spacer" style="grid-column: 1 / 4; grid-row: 4; height: 10px;"></div>
+                <!-- 占位空格：第四行，撑开视觉间距 -->
+                <div class="skill-tree-spacer" style="grid-column: 1 / 4; grid-row: 4; height: 10px;"></div>
                         ${bossChapterHtml}
                     </div>
                 </div>
@@ -830,7 +830,7 @@ export class SkillTreeView {
                     <div style="position: absolute; bottom: 18px; left: 0; width: 100%; text-align: center; color: #8c8c8c; font-size: 14px; z-index: 11; font-weight: 500; letter-spacing: 2px;">
                         ✨ 更多篇章正在建设中 ✨
                     </div>
-                </div>`;
+            </div>`;
             this.bindSummaryEvents();
             // 概览页连线（使用SVG覆盖层，避免重复与错位）
             if (this.enableSummaryLines) setTimeout(() => this.setupSummarySvg(), 0);

@@ -179,6 +179,7 @@ app.use('/problem/tracker/team/activity/teams/leaderboard', manualProxyHandler('
 // Battle routes
 app.use('/problem/tracker/battle/match', manualProxyHandler('/problem/tracker/battle/match'));
 app.use('/problem/tracker/battle/match-ai', manualProxyHandler('/problem/tracker/battle/match-ai'));
+app.use('/problem/tracker/battle/match-mirror', manualProxyHandler('/problem/tracker/battle/match-mirror'));
 app.use('/problem/tracker/battle/poll', manualProxyHandler('/problem/tracker/battle/poll'));
 app.use('/problem/tracker/battle/cancel', manualProxyHandler('/problem/tracker/battle/cancel'));
 app.use('/problem/tracker/battle/info', manualProxyHandler('/problem/tracker/battle/info'));
@@ -188,8 +189,17 @@ app.use('/problem/tracker/battle/template', manualProxyHandler('/problem/tracker
 app.use('/problem/tracker/battle/create-room', manualProxyHandler('/problem/tracker/battle/create-room'));
 app.use('/problem/tracker/battle/join-room', manualProxyHandler('/problem/tracker/battle/join-room'));
 app.use('/problem/tracker/battle/disband-room', manualProxyHandler('/problem/tracker/battle/disband-room'));
-// Admin endpoint for batch processing room status
+app.use('/problem/tracker/battle/force-abandon', manualProxyHandler('/problem/tracker/battle/force-abandon'));
+// Mirror mode endpoints
+app.use('/problem/tracker/battle/create-mirror', manualProxyHandler('/problem/tracker/battle/create-mirror'));
+app.use('/problem/tracker/battle/create-mirror-room', manualProxyHandler('/problem/tracker/battle/create-mirror-room'));
+app.use('/problem/tracker/battle/challenge-mirror-room', manualProxyHandler('/problem/tracker/battle/challenge-mirror-room'));
+app.use('/problem/tracker/battle/remove-mirror', manualProxyHandler('/problem/tracker/battle/remove-mirror'));
+app.use('/problem/tracker/battle/check-mirrors', manualProxyHandler('/problem/tracker/battle/check-mirrors'));
+app.use('/problem/tracker/battle/my-mirrors', manualProxyHandler('/problem/tracker/battle/my-mirrors'));
+// Admin endpoints
 app.use('/problem/tracker/battle/batch-process-room-status', manualProxyHandler('/problem/tracker/battle/batch-process-room-status'));
+app.use('/problem/tracker/battle/set-score', manualProxyHandler('/problem/tracker/battle/set-score'));
 
 
 // Endpoint to get current environment config

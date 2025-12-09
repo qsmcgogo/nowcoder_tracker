@@ -9,9 +9,55 @@
 </head>
 <body>
     <div class="container">
-        <header>
-            <h1>牛客tracker</h1>
-            <nav class="main-tabs">
+        <header class="tracker-header">
+            <nav class="tracker-nav">
+                <a href="https://www.nowcoder.com" target="_blank" class="tracker-logo">
+                    <img src="https://static.nowcoder.com/fe/file/logo/1.png" alt="牛客tracker" style="height: 32px;">
+                </a>
+                <ul class="tracker-nav-menu">
+                    <li class="tracker-nav-item">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'daily\']').click();">Tracker</a>
+                    </li>
+                    <li class="tracker-nav-item">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'problems\']').click();">题库</a>
+                    </li>
+                    <li class="tracker-nav-item">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'rankings\']').click();">排行榜</a>
+                    </li>
+                    <li class="tracker-nav-item">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'skill-tree\']').click();">技能树</a>
+                    </li>
+                    <li class="tracker-nav-item">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'achievements\']').click();">成就</a>
+                    </li>
+                    <li class="tracker-nav-item">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'battle\']').click();" style="position: relative;">对战<span style="position: absolute; top: -2px; right: -2px; background: #ff4d4f; color: #fff; font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: 600; line-height: 1.2;">BETA</span></a>
+                    </li>
+                    <li class="tracker-nav-item">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'team\']').click();">团队</a>
+                    </li>
+                    <li class="tracker-nav-item">
+                        <a href="https://ac.nowcoder.com" target="_blank" class="tracker-nav-link">竞赛</a>
+                    </li>
+                </ul>
+                <div class="tracker-nav-right">
+                    <div class="tracker-help-menu" id="tracker-help-menu">
+                        <a href="#" class="tracker-nav-link tracker-help-link" onclick="event.preventDefault(); return false;">
+                            帮助
+                        </a>
+                        <div class="tracker-help-dropdown" id="tracker-help-dropdown" style="display: none;">
+                            <a href="#" class="tracker-dropdown-item" onclick="event.preventDefault(); document.querySelector('[data-tab=\'faq\']').click(); document.getElementById('tracker-help-dropdown').style.display='none';">
+                                <span>常见问题</span>
+                            </a>
+                            <a href="#" class="tracker-dropdown-item" onclick="event.preventDefault(); document.querySelector('[data-tab=\'changelog\']').click(); document.getElementById('tracker-help-dropdown').style.display='none';">
+                                <span>版本更新</span>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </nav>
+            <!-- 保留原有的tab按钮用于功能切换 -->
+            <nav class="main-tabs" style="display: none;">
                 <button class="tab-btn activity-tab-btn" id="activity-tab-btn" title="查看活动详情">🔥 活动</button>
                 <button class="tab-btn" data-tab="problems">题库</button>
                 <button class="tab-btn" data-tab="rankings">排行榜</button>
@@ -58,6 +104,7 @@
                         <button class="contest-tab" data-contest="2">牛客挑战赛</button>
                         <button class="contest-tab" data-contest="21">寒假营</button>
                         <button class="contest-tab" data-contest="22">XCPC</button>
+                        <button class="contest-tab" data-contest="25">蓝桥杯</button>
                         <button class="contest-tab" data-contest="20">多校</button>
                     </div>
     

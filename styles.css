@@ -82,11 +82,262 @@ body {
 
 header {
     text-align: center;
-    padding: 40px 20px 20px 20px;
-    background: linear-gradient(to bottom, var(--primary-color) 0%, var(--background-color) 100%);
+    padding: 0;
+    background: #fff;
     border-radius: 0;
-    margin: -20px auto 20px auto;
+    margin: 0;
     width: 100%;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+/* Tracker导航栏样式 */
+.tracker-header {
+    background: #fff;
+    border-bottom: 1px solid #e5e7eb;
+}
+
+.tracker-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 24px;
+    height: 56px;
+    max-width: 1400px;
+    margin: 0 auto;
+}
+
+.tracker-logo {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    margin-right: 32px;
+}
+
+.tracker-nav-menu {
+    display: flex;
+    align-items: center;
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    flex: 1;
+    gap: 0;
+    overflow-x: auto;
+    overflow-y: hidden;
+}
+
+.tracker-nav-item {
+    position: relative;
+}
+
+.tracker-nav-link {
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    height: 56px;
+    color: #333;
+    text-decoration: none;
+    font-size: 15px;
+    font-weight: 500;
+    transition: color 0.2s;
+    position: relative;
+}
+
+.tracker-nav-link:hover {
+    color: #1890ff;
+}
+
+.tracker-nav-item.active .tracker-nav-link {
+    color: #1890ff;
+}
+
+.tracker-nav-item.active .tracker-nav-link::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 20px;
+    right: 20px;
+    height: 2px;
+    background: #1890ff;
+}
+
+.tracker-nav-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-left: auto;
+}
+
+.tracker-user-avatar {
+    position: relative;
+    cursor: pointer;
+}
+
+.tracker-user-avatar img {
+    border: 2px solid #e5e7eb;
+    transition: border-color 0.2s;
+}
+
+.tracker-user-avatar:hover img {
+    border-color: #1890ff;
+}
+
+.tracker-user-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    width: 280px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 1001;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* 镜像流光溢彩动画 */
+@keyframes mirrorRotate {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@keyframes mirrorShimmer {
+    0% {
+        background-position: 0% 50%;
+    }
+    50% {
+        background-position: 100% 50%;
+    }
+    100% {
+        background-position: 0% 50%;
+    }
+}
+
+@keyframes mirrorShine {
+    0% {
+        opacity: 0.3;
+        transform: rotate(0deg) scale(1);
+    }
+    50% {
+        opacity: 0.6;
+        transform: rotate(180deg) scale(1.05);
+    }
+    100% {
+        opacity: 0.3;
+        transform: rotate(360deg) scale(1);
+    }
+}
+
+/* 镜像头像容器hover效果 */
+.mirror-icon-container:hover .mirror-glow-ring {
+    animation-duration: 1.5s;
+    filter: brightness(1.2);
+}
+
+.mirror-icon-container:hover .mirror-border-glow {
+    box-shadow: 0 0 30px rgba(24, 144, 255, 0.8),
+                0 0 60px rgba(135, 206, 250, 0.5),
+                inset 0 0 30px rgba(24, 144, 255, 0.3);
+}
+
+.mirror-icon-container:hover .mirror-avatar {
+    transform: scale(1.05);
+    transition: transform 0.3s ease;
+}
+
+.mirror-avatar-wrapper {
+    transition: transform 0.3s ease;
+}
+
+.mirror-icon-container:hover .mirror-avatar-wrapper {
+    transform: scale(1.1);
+}
+
+.tracker-dropdown-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 16px;
+    background: linear-gradient(135deg, #f5f7fa 0%, #fff 100%);
+}
+
+.tracker-dropdown-user-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.tracker-dropdown-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333;
+    margin-bottom: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.tracker-dropdown-id {
+    font-size: 13px;
+    color: #999;
+}
+
+.tracker-dropdown-divider {
+    height: 1px;
+    background: #f0f0f0;
+    margin: 8px 0;
+}
+
+.tracker-dropdown-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    color: #333;
+    text-decoration: none;
+    font-size: 14px;
+    transition: background-color 0.2s;
+}
+
+.tracker-dropdown-item:hover {
+    background: #f5f7fa;
+}
+
+/* 帮助菜单样式 */
+.tracker-help-menu {
+    position: relative;
+}
+
+.tracker-help-link {
+    cursor: pointer;
+}
+
+.tracker-help-dropdown {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 140px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 1001;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease;
 }
 
 
@@ -1014,6 +1265,35 @@ footer {
 @media (max-width: 768px) {
     .container {
         padding: 10px;
+    }
+    
+    .tracker-nav {
+        padding: 0 16px;
+    }
+    
+    .tracker-nav-menu {
+        gap: 0;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .tracker-nav-link {
+        padding: 0 12px;
+        font-size: 14px;
+        white-space: nowrap;
+    }
+    
+    .tracker-logo {
+        margin-right: 16px;
+    }
+    
+    .tracker-logo img {
+        height: 28px;
+    }
+    
+    .tracker-user-dropdown {
+        width: 240px;
+        right: -10px;
     }
     
     header {

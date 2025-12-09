@@ -39,7 +39,9 @@ export class AppState {
         // 用户状态
         this.loggedInUserId = null;
         this.loggedInUserData = null;
-        this.isAdmin = false; // 新增管理员状态
+        this.isAdmin = false; // 管理员状态
+        this.adminCheckedUserId = null; // 已检查过管理员状态的用户ID（用于缓存）
+        this.adminCheckPromise = null; // 正在进行的管理员检查Promise（避免并发请求）
         
         // 每日一题状态
         this.currentDailyProblem = null;
@@ -103,15 +105,62 @@ export class AppState {
         // ---- 调试信息 ----
         console.log(`[AppState] 正在设置用户ID:`, userId, `(类型: ${typeof userId})`);
         
+        const previousUserId = this.loggedInUserId;
         this.loggedInUserId = userId;
         this.loggedInUserData = userData;
-        // 在设置用户信息时，检查是否为管理员（使用宽松比较）
-        const uidStr = String(userId || '');
-        const adminSet = new Set(['919247', '999991351', '1030029998', '966251048']);
-        this.isAdmin = adminSet.has(uidStr);
         
-        // ---- 调试信息 ----
-        console.log(`[AppState] 管理员状态判定结果 (isAdmin):`, this.isAdmin);
+        // 如果用户ID变化或用户登出，清除管理员状态缓存
+        if (previousUserId !== userId) {
+            this.isAdmin = false;
+            this.adminCheckedUserId = null;
+            this.adminCheckPromise = null;
+        }
+    }
+    
+    /**
+     * 异步检查当前用户是否为管理员（调用后端接口）
+     * 使用缓存机制，避免重复调用接口
+     * @param {ApiService} apiService - API服务实例
+     * @returns {Promise<boolean>} 返回是否为管理员
+     */
+    async checkAdminStatus(apiService) {
+        // 如果用户未登录，直接返回 false
+        if (!this.loggedInUserId) {
+            this.isAdmin = false;
+            return false;
+        }
+        
+        // 如果已经检查过当前用户的管理员状态，直接返回缓存结果
+        if (this.adminCheckedUserId === this.loggedInUserId) {
+            return this.isAdmin;
+        }
+        
+        // 如果已经有正在进行的检查请求，等待该请求完成
+        if (this.adminCheckPromise) {
+            return await this.adminCheckPromise;
+        }
+        
+        // 创建新的检查请求
+        this.adminCheckPromise = (async () => {
+            try {
+                const isAdmin = await apiService.checkAdmin();
+                this.isAdmin = isAdmin;
+                this.adminCheckedUserId = this.loggedInUserId; // 记录已检查的用户ID
+                console.log(`[AppState] 管理员状态判定结果 (isAdmin):`, this.isAdmin, `(用户ID: ${this.loggedInUserId})`);
+                return isAdmin;
+            } catch (error) {
+                console.error('[AppState] 检查管理员状态失败:', error);
+                this.isAdmin = false;
+                // 即使失败也记录用户ID，避免重复请求
+                this.adminCheckedUserId = this.loggedInUserId;
+                return false;
+            } finally {
+                // 清除正在进行的请求标记
+                this.adminCheckPromise = null;
+            }
+        })();
+        
+        return await this.adminCheckPromise;
     }
     
     isLoggedIn() {

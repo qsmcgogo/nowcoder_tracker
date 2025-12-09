@@ -43,7 +43,7 @@ export class ProfileView {
             } catch (err) {
                 console.warn('Failed to fetch user info:', err);
             }
-
+            
             // 处理数据：后端返回的是扁平结构
             const user = myInfo.user || {};
             const checkin = myInfo.checkin || {};

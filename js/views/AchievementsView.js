@@ -112,7 +112,7 @@ export class AchievementsView {
                 this.content.innerHTML = `
                     <div class="achv-overview-card" style="text-align: center; padding: 40px 20px;">
                         <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
-                        <div style="font-size: 18px; font-weight: 600; color: #333; margin-bottom: 12px;">神秘的彩蛋成就</div>
+                        <div style="font-size: 18px; font-weight: 600; color: #333; margin-bottom: 12px;">彩蛋等待探索</div>
                         <div style="font-size: 14px; color: #666; line-height: 1.8; max-width: 500px; margin: 0 auto;">
                             隐藏的成就等待着被发现...<br/>
                             只有当你获得它们时，才会揭开神秘的面纱。<br/>
@@ -146,7 +146,7 @@ export class AchievementsView {
                     this.content.innerHTML = `
                         <div class="achv-overview-card" style="text-align: center; padding: 40px 20px;">
                             <div style="font-size: 48px; margin-bottom: 16px;">🎁</div>
-                            <div style="font-size: 18px; font-weight: 600; color: #333; margin-bottom: 12px;">神秘的彩蛋成就</div>
+                            <div style="font-size: 18px; font-weight: 600; color: #333; margin-bottom: 12px;">彩蛋等待探索</div>
                             <div style="font-size: 14px; color: #666; line-height: 1.8; max-width: 500px; margin: 0 auto;">
                                 隐藏的成就等待着被发现...<br/>
                                 只有当你获得它们时，才会揭开神秘的面纱。<br/>
@@ -163,10 +163,43 @@ export class AchievementsView {
                 (Number(b.status === 1) - Number(a.status === 1)) ||
                 ((Number(a.score) || 0) - (Number(b.score) || 0))
             );
-            list.forEach(b => {
+            list.forEach((b, index) => {
                 const isUnlocked = Number(b.status) === 1;
                 const card = document.createElement('div');
-                card.className = 'achv-card achv-row' + (isUnlocked ? ' unlocked' : '');
+                
+                // 彩蛋成就特殊样式
+                if (this.activeCategory === 'easter_egg') {
+                    card.className = 'achv-card achv-row unlocked easter-egg-card';
+                    // 添加炫酷的渐变背景和动画效果
+                    card.style.cssText = `
+                        background: linear-gradient(135deg, 
+                            rgba(255, 192, 203, 0.15) 0%, 
+                            rgba(255, 182, 193, 0.1) 50%, 
+                            rgba(255, 160, 122, 0.15) 100%);
+                        border: 2px solid rgba(255, 105, 180, 0.3);
+                        box-shadow: 0 4px 20px rgba(255, 105, 180, 0.2), 
+                                    0 0 30px rgba(255, 192, 203, 0.15);
+                        position: relative;
+                        overflow: hidden;
+                        animation: easterEggGlow ${2 + index * 0.5}s ease-in-out infinite;
+                    `;
+                    // 添加闪烁的装饰点
+                    const decor = document.createElement('div');
+                    decor.style.cssText = `
+                        position: absolute;
+                        top: -10px;
+                        right: -10px;
+                        width: 60px;
+                        height: 60px;
+                        background: radial-gradient(circle, rgba(255, 215, 0, 0.4) 0%, transparent 70%);
+                        border-radius: 50%;
+                        animation: sparkle ${1.5 + index * 0.3}s ease-in-out infinite;
+                        pointer-events: none;
+                    `;
+                    card.appendChild(decor);
+                } else {
+                    card.className = 'achv-card achv-row' + (isUnlocked ? ' unlocked' : '');
+                }
 
                 const info = document.createElement('div');
                 info.className = 'achv-info';
@@ -254,7 +287,45 @@ export class AchievementsView {
 
                 const pointsBadge = document.createElement('div');
                 pointsBadge.className = 'achv-points-badge';
-                pointsBadge.textContent = String(Number(b.score) || 0);
+                
+                // 彩蛋成就：显示不同颜色的蛋而不是分数
+                if (this.activeCategory === 'easter_egg') {
+                    // 根据成就ID选择不同颜色的蛋（使用ID确保每个成就固定显示同一种蛋）
+                    const eggEmojis = ['🥚', '🟡', '🟠', '🔴', '🟣', '🔵', '🟢', '⚪'];
+                    const eggIndex = (Number(b.id) || index) % eggEmojis.length;
+                    const selectedEgg = eggEmojis[eggIndex];
+                    
+                    // 根据蛋的类型设置不同的背景色和边框色
+                    const eggStyles = [
+                        { bg: 'rgba(255, 192, 203, 0.3)', border: 'rgba(255, 105, 180, 0.4)' }, // 白色蛋 - 粉色
+                        { bg: 'rgba(255, 255, 0, 0.3)', border: 'rgba(255, 215, 0, 0.5)' },   // 黄色 - 金色
+                        { bg: 'rgba(255, 165, 0, 0.3)', border: 'rgba(255, 140, 0, 0.5)' },   // 橙色 - 深橙
+                        { bg: 'rgba(255, 99, 71, 0.3)', border: 'rgba(220, 20, 60, 0.5)' },   // 红色 - 深红
+                        { bg: 'rgba(186, 85, 211, 0.3)', border: 'rgba(138, 43, 226, 0.5)' }, // 紫色 - 深紫
+                        { bg: 'rgba(30, 144, 255, 0.3)', border: 'rgba(0, 0, 255, 0.5)' },    // 蓝色 - 深蓝
+                        { bg: 'rgba(50, 205, 50, 0.3)', border: 'rgba(34, 139, 34, 0.5)' },   // 绿色 - 深绿
+                        { bg: 'rgba(211, 211, 211, 0.3)', border: 'rgba(128, 128, 128, 0.5)' } // 白色 - 灰色
+                    ];
+                    const style = eggStyles[eggIndex] || eggStyles[0];
+                    
+                    pointsBadge.textContent = selectedEgg;
+                    pointsBadge.style.cssText = `
+                        min-width: 42px;
+                        height: 42px;
+                        border-radius: 50%;
+                        background: linear-gradient(135deg, ${style.bg} 0%, rgba(255, 255, 255, 0.1) 100%);
+                        border: 2px solid ${style.border};
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 24px;
+                        font-weight: 800;
+                        box-shadow: 0 2px 10px ${style.border};
+                        animation: eggBounce ${1.5 + index * 0.2}s ease-in-out infinite;
+                    `;
+                } else {
+                    pointsBadge.textContent = String(Number(b.score) || 0);
+                }
 
                 card.appendChild(info);
                 card.appendChild(pointsBadge);
@@ -270,6 +341,11 @@ export class AchievementsView {
             const header = this.buildListHeader();
             this.content.appendChild(header);
             this.content.appendChild(container);
+            
+            // 如果是彩蛋成就，注入动画样式
+            if (this.activeCategory === 'easter_egg' && list.length > 0) {
+                this.injectEasterEggStyles();
+            }
             return;
         }
 
@@ -744,6 +820,50 @@ export class AchievementsView {
         return 'achv-frame--gray';
     }
     // 时间格式化：毫秒时间戳 -> MM-DD HH:mm
+    injectEasterEggStyles() {
+        // 检查是否已经注入过样式
+        if (document.getElementById('easter-egg-styles')) return;
+        
+        const style = document.createElement('style');
+        style.id = 'easter-egg-styles';
+        style.textContent = `
+            @keyframes easterEggGlow {
+                0%, 100% {
+                    box-shadow: 0 4px 20px rgba(255, 105, 180, 0.2), 
+                                0 0 30px rgba(255, 192, 203, 0.15);
+                }
+                50% {
+                    box-shadow: 0 4px 30px rgba(255, 105, 180, 0.4), 
+                                0 0 50px rgba(255, 192, 203, 0.3);
+                }
+            }
+            @keyframes sparkle {
+                0%, 100% {
+                    opacity: 0.4;
+                    transform: scale(1) rotate(0deg);
+                }
+                50% {
+                    opacity: 0.8;
+                    transform: scale(1.2) rotate(180deg);
+                }
+            }
+            @keyframes eggBounce {
+                0%, 100% {
+                    transform: translateY(0);
+                }
+                50% {
+                    transform: translateY(-5px);
+                }
+            }
+            .easter-egg-card:hover {
+                transform: translateY(-2px);
+                box-shadow: 0 6px 30px rgba(255, 105, 180, 0.4), 
+                            0 0 60px rgba(255, 192, 203, 0.3) !important;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+
     formatTime(ts) {
         const v = Number(ts);
         if (!v) return '';

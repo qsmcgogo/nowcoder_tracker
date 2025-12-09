@@ -97,7 +97,13 @@ export class DailyView {
             const responseData = data.data;
             const userId = responseData.uid && responseData.uid !== 0 ? String(responseData.uid) : null;
             this.state.setLoggedInUser(userId, responseData.user || null);
-            // 保存今日统计，供“题目卡片标题上方”与右侧统计共用
+            
+            // 如果用户已登录，检查管理员状态
+            if (userId) {
+                await this.state.checkAdminStatus(this.apiService);
+            }
+            
+            // 保存今日统计，供"题目卡片标题上方"与右侧统计共用
             this.todayInfoExtras = {
                 todayClockCount: Number(responseData.todayClockCount) || 0,
                 todayClockRank: Number(responseData.todayClockRank) || 0,
@@ -138,6 +144,12 @@ export class DailyView {
             }
             
             this.state.setLoggedInUser(responseData.uid, user);
+            
+            // 如果用户已登录，检查管理员状态
+            if (responseData.uid && responseData.uid !== 0) {
+                await this.state.checkAdminStatus(this.apiService);
+            }
+            
             this.renderUserSummaryPanel(user);
             
             // 管理员：仅保留分享链接工具

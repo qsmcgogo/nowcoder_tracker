@@ -439,6 +439,42 @@ export class ApiService {
         throw new Error((data && data.msg) || 'update submission count failed');
     }
 
+    /**
+     * 管理员设置用户对战分数
+     * @param {number} userId - 用户ID
+     * @param {number} type - 对战类型：1=人机对战，2=1v1对战
+     * @param {number} levelScore - 新的等级分
+     * @param {number} winCount - 胜场数（可选，不传则保持原值）
+     * @param {number} totalCount - 总场次（可选，不传则保持原值）
+     * @returns {Promise<{success: boolean, message?: string, before?: object, after?: object}>}
+     */
+    async adminSetBattleScore(userId, type, levelScore, winCount = null, totalCount = null) {
+        if (!userId) throw new Error('userId required');
+        if (!type || (type !== 1 && type !== 2)) throw new Error('type must be 1 or 2');
+        if (levelScore === undefined || levelScore === null) throw new Error('levelScore required');
+        
+        let url = `${this.apiBase}/problem/tracker/battle/set-score?userId=${encodeURIComponent(userId)}&type=${encodeURIComponent(type)}&levelScore=${encodeURIComponent(levelScore)}`;
+        
+        if (winCount !== null && winCount !== undefined) {
+            url += `&winCount=${encodeURIComponent(winCount)}`;
+        }
+        if (totalCount !== null && totalCount !== undefined) {
+            url += `&totalCount=${encodeURIComponent(totalCount)}`;
+        }
+        
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { success: false };
+        }
+        return { success: false, message: (data && data.msg) || '设置失败' };
+    }
+
     async teamInviteUser(teamId, userId) {
         const url = `${this.apiBase}/problem/tracker/team/invite/user`;
         const body = `teamId=${encodeURIComponent(teamId)}&userId=${encodeURIComponent(userId)}`;
@@ -608,6 +644,7 @@ export class ApiService {
                 '9': 9,
                 '6': 6,
                 '2': 2,
+                '25': 25, // 蓝桥杯
                 '20': 20, // 多校
                 '21': 21, // 寒假营
                 '22': 22, // XCPC
@@ -1488,6 +1525,120 @@ export class ApiService {
     }
 
     /**
+     * 查询镜像池中是否有可用镜像
+     * @param {string} mode - 对战模式（"1v1" 或 "ai"），默认"1v1"
+     * @returns {Promise<{hasMirrors: boolean, mirrors: Array, count: number}>}
+     */
+    async checkAvailableMirrors(mode = '1v1') {
+        const url = `${this.apiBase}/problem/tracker/battle/check-mirrors?mode=${encodeURIComponent(mode)}`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { hasMirrors: false, mirrors: [], count: 0 };
+        }
+        return { hasMirrors: false, mirrors: [], count: 0 };
+    }
+
+    /**
+     * 匹配镜像：从镜像池中随机选择一个镜像进行匹配
+     * @param {string} mode - 对战模式（"1v1" 或 "ai"），默认"1v1"
+     * @returns {Promise<{matched: boolean, roomId?: string, opponentId?: number, problemId?: number, startTime?: number, isMirror?: boolean, message?: string}>}
+     */
+    async matchMirror(mode = '1v1') {
+        const url = `${this.apiBase}/problem/tracker/battle/match-mirror?mode=${encodeURIComponent(mode)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { matched: false };
+        }
+        return { matched: false };
+    }
+
+    /**
+     * 创建镜像房间：创建房间用于生成镜像数据
+     * @param {string} mode - 对战模式（"1v1" 或 "ai"），默认"1v1"
+     * @returns {Promise<{roomId: string, problemId: number, startTime: number, mode: string}>}
+     */
+    async createMirrorRoom(mode = '1v1') {
+        const url = `${this.apiBase}/problem/tracker/battle/create-mirror-room?mode=${encodeURIComponent(mode)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || {};
+        }
+        throw new Error((data && data.msg) || '创建镜像房间失败');
+    }
+
+    /**
+     * 创建镜像：创建镜像并加入镜像池
+     * @param {string} mode - 对战模式（"1v1" 或 "ai"），默认"1v1"
+     * @returns {Promise<{success: boolean, message: string, userId?: number, rankScore?: number, mode?: string}>}
+     */
+    async createMirror(mode = '1v1') {
+        const url = `${this.apiBase}/problem/tracker/battle/create-mirror?mode=${encodeURIComponent(mode)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { success: false };
+        }
+        return { success: false, message: (data && data.msg) || '创建镜像失败' };
+    }
+
+    /**
+     * 移除镜像：从镜像池中移除镜像
+     * @param {string} mode - 对战模式（"1v1" 或 "ai"），默认"1v1"
+     * @returns {Promise<boolean>}
+     */
+    async removeMirror(mode = '1v1') {
+        const url = `${this.apiBase}/problem/tracker/battle/remove-mirror?mode=${encodeURIComponent(mode)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        return data && (data.code === 0 || data.code === 200);
+    }
+
+    /**
+     * 查询我的镜像列表（未被挑战的镜像）
+     * @returns {Promise<{mirrors: Array}>} 返回镜像列表，包含1v1和ai两种模式的镜像
+     */
+    async getMyMirrors() {
+        const url = `${this.apiBase}/problem/tracker/battle/my-mirrors`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { mirrors: [] };
+        }
+        return { mirrors: [] };
+    }
+
+    /**
      * 加入自定义房间
      * @param {string} roomCode - 房间码
      * @returns {Promise<{success: boolean, roomId?: string, problemId?: number, startTime?: number, opponentId?: number, alreadyInRoom?: boolean, message?: string}>}
@@ -1797,6 +1948,37 @@ export class ApiService {
     }
 
     /**
+     * 管理员重建对战排行榜
+     * @param {number} type - 对战类型：1=人机对战，2=1v1对战
+     * @returns {Promise<object>} 重建结果，包含：success、message、updatedCount、totalUsers
+     */
+    async adminRebuildLeaderboard(type) {
+        if (!type || (type !== 1 && type !== 2)) {
+            throw new Error('type must be 1 (人机对战) or 2 (1v1对战)');
+        }
+        const url = `${this.apiBase}/problem/tracker/battle/rebuild-leaderboard`;
+        const body = `type=${encodeURIComponent(type)}`;
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                body,
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && (data.code === 0 || data.code === 200)) {
+                return data.data || {};
+            }
+            throw new Error(data.message || '重建排行榜失败');
+        } catch (error) {
+            console.error('重建排行榜失败:', error);
+            throw error;
+        }
+    }
+
+    /**
      * 获取"我的"页面所需的所有信息（整合接口）
      * @returns {Promise<object>} 包含用户信息、打卡信息、技能树进度、成就信息、对战信息
      */
@@ -1812,6 +1994,29 @@ export class ApiService {
             return data.data || {};
         }
         throw new Error((data && data.msg) || '获取用户信息失败');
+    }
+
+    /**
+     * 检查当前用户是否是管理员
+     * @returns {Promise<boolean>} 返回是否为管理员
+     */
+    async checkAdmin() {
+        try {
+            const url = `${this.apiBase}/problem/tracker/admin/check`;
+            const res = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && (data.code === 0 || data.code === 200)) {
+                return (data.data && data.data.isAdmin) === true;
+            }
+            return false;
+        } catch (error) {
+            console.error('[ApiService] 检查管理员状态失败:', error);
+            return false;
+        }
     }
 
     /**

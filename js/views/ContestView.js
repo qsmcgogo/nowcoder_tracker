@@ -149,8 +149,8 @@ export class ContestView {
     // 转换为视图渲染所需字段（id/name/url/problems，并计算 difficultyScore）
     transformApiData(contests) {
         const difficultyScoreMap = { 1: 800, 2: 1200, 3: 1600, 4: 2000, 5: 2400, 6: 2800, 7: 3000, 8: 3200, 9: 3400, 10: 3500 };
-        // 非校园类（周赛/小白/练习/挑战/寒假营/多校/XCPC）
-        const nonCampusContestTabs = ['19', '9', '6', '2', '20', '21', '22'];
+        // 非校园类（周赛/小白/练习/挑战/寒假营/多校/XCPC/蓝桥杯）
+        const nonCampusContestTabs = ['19', '9', '6', '2', '20', '21', '22', '25'];
         const isNonCampusSpecificView = nonCampusContestTabs.includes(String(this.state.activeContestTab));
         
         return contests.map(contest => ({

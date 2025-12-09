@@ -47,6 +47,9 @@ export class BattleView {
         this.batchProcessInterval = null;
         this.batchProcessRunning = false;
         
+        // 时间同步相关
+        this.serverTimeOffset = 0; // 服务器时间偏移量（服务器时间 - 客户端时间）
+        
         this.bindEvents();
     }
 
@@ -147,32 +150,99 @@ export class BattleView {
                 <!-- 主内容区 -->
                 <section class="battle-content" style="flex: 1; background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px;">
                     ${this.state.isAdmin ? `
-                    <!-- 管理员：批量处理房间状态 -->
-                    <div id="battle-admin-batch-process" style="background: #f0f5ff; border: 1px solid #adc6ff; border-radius: 6px; padding: 12px 16px; margin-bottom: 20px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <div>
-                                <div style="font-size: 14px; font-weight: 600; color: #1d39c4; margin-bottom: 4px;">
-                                    🔧 管理员工具：批量处理房间状态
+                    <!-- 管理员工具区域 -->
+                    <div style="margin-bottom: 20px;">
+                        <!-- 批量处理房间状态 -->
+                        <div id="battle-admin-batch-process" style="background: #f0f5ff; border: 1px solid #adc6ff; border-radius: 6px; padding: 12px 16px; margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between;">
+                                <div>
+                                    <div style="font-size: 14px; font-weight: 600; color: #1d39c4; margin-bottom: 4px;">
+                                        🔧 管理员工具：批量处理房间状态
+                                    </div>
+                                    <div style="font-size: 12px; color: #666;">
+                                        每10秒自动批量处理所有活跃房间的状态
+                                    </div>
                                 </div>
-                                <div style="font-size: 12px; color: #666;">
-                                    每10秒自动批量处理所有活跃房间的状态
+                                <div style="display: flex; gap: 8px; align-items: center;">
+                                    <span id="battle-batch-process-status" style="font-size: 12px; color: #999; margin-right: 8px;">
+                                        ${this.batchProcessRunning ? '运行中...' : '已停止'}
+                                    </span>
+                                    <button id="battle-batch-process-start" 
+                                            ${this.batchProcessRunning ? 'disabled' : ''}
+                                            style="background: ${this.batchProcessRunning ? '#d9d9d9' : '#52c41a'}; color: #fff; border: none; padding: 6px 16px; border-radius: 4px; cursor: ${this.batchProcessRunning ? 'not-allowed' : 'pointer'}; font-size: 14px; font-weight: 600; opacity: ${this.batchProcessRunning ? '0.6' : '1'};">
+                                        开始
+                                    </button>
+                                    <button id="battle-batch-process-stop" 
+                                            ${!this.batchProcessRunning ? 'disabled' : ''}
+                                            style="background: ${!this.batchProcessRunning ? '#d9d9d9' : '#ff4d4f'}; color: #fff; border: none; padding: 6px 16px; border-radius: 4px; cursor: ${!this.batchProcessRunning ? 'not-allowed' : 'pointer'}; font-size: 14px; font-weight: 600; opacity: ${!this.batchProcessRunning ? '0.6' : '1'};">
+                                        停止
+                                    </button>
                                 </div>
                             </div>
-                            <div style="display: flex; gap: 8px; align-items: center;">
-                                <span id="battle-batch-process-status" style="font-size: 12px; color: #999; margin-right: 8px;">
-                                    ${this.batchProcessRunning ? '运行中...' : '已停止'}
-                                </span>
-                                <button id="battle-batch-process-start" 
-                                        ${this.batchProcessRunning ? 'disabled' : ''}
-                                        style="background: ${this.batchProcessRunning ? '#d9d9d9' : '#52c41a'}; color: #fff; border: none; padding: 6px 16px; border-radius: 4px; cursor: ${this.batchProcessRunning ? 'not-allowed' : 'pointer'}; font-size: 14px; font-weight: 600; opacity: ${this.batchProcessRunning ? '0.6' : '1'};">
-                                    开始
-                                </button>
-                                <button id="battle-batch-process-stop" 
-                                        ${!this.batchProcessRunning ? 'disabled' : ''}
-                                        style="background: ${!this.batchProcessRunning ? '#d9d9d9' : '#ff4d4f'}; color: #fff; border: none; padding: 6px 16px; border-radius: 4px; cursor: ${!this.batchProcessRunning ? 'not-allowed' : 'pointer'}; font-size: 14px; font-weight: 600; opacity: ${!this.batchProcessRunning ? '0.6' : '1'};">
-                                    停止
+                        </div>
+                        
+                        <!-- 设置用户对战分数 -->
+                        <div id="battle-admin-set-score" style="background: #fff7e6; border: 1px solid #ffd591; border-radius: 6px; padding: 12px 16px;">
+                            <div style="font-size: 14px; font-weight: 600; color: #d46b08; margin-bottom: 12px;">
+                                ⚙️ 管理员工具：设置用户对战分数
+                            </div>
+                            <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 12px; color: #666;">用户ID</label>
+                                    <input type="number" id="battle-admin-user-id" placeholder="用户ID" 
+                                           style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; width: 120px; font-size: 13px;">
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 12px; color: #666;">对战类型</label>
+                                    <select id="battle-admin-battle-type" 
+                                            style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; width: 120px; font-size: 13px;">
+                                        <option value="2">1v1对战</option>
+                                        <option value="1">人机对战</option>
+                                    </select>
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 12px; color: #666;">等级分</label>
+                                    <input type="number" id="battle-admin-level-score" placeholder="等级分" 
+                                           style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; width: 120px; font-size: 13px;">
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 12px; color: #666;">胜场数（可选）</label>
+                                    <input type="number" id="battle-admin-win-count" placeholder="留空保持原值" 
+                                           style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; width: 140px; font-size: 13px;">
+                                </div>
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 12px; color: #666;">总场次（可选）</label>
+                                    <input type="number" id="battle-admin-total-count" placeholder="留空保持原值" 
+                                           style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; width: 140px; font-size: 13px;">
+                                </div>
+                                <button id="battle-admin-set-score-btn" 
+                                        style="background: #fa8c16; color: #fff; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600; height: 32px;">
+                                    设置
                                 </button>
                             </div>
+                            <div id="battle-admin-set-score-result" style="margin-top: 12px; font-size: 12px; display: none;"></div>
+                        </div>
+                        
+                        <!-- 重建排行榜 -->
+                        <div id="battle-admin-rebuild-leaderboard" style="background: #f6ffed; border: 1px solid #b7eb8f; border-radius: 6px; padding: 12px 16px; margin-top: 12px;">
+                            <div style="font-size: 14px; font-weight: 600; color: #389e0d; margin-bottom: 12px;">
+                                🔄 管理员工具：重建对战排行榜
+                            </div>
+                            <div style="display: flex; gap: 12px; align-items: flex-end; flex-wrap: wrap;">
+                                <div style="display: flex; flex-direction: column; gap: 4px;">
+                                    <label style="font-size: 12px; color: #666;">对战类型</label>
+                                    <select id="battle-admin-rebuild-type" 
+                                            style="padding: 6px 12px; border: 1px solid #ddd; border-radius: 4px; width: 140px; font-size: 13px;">
+                                        <option value="2">1v1对战</option>
+                                        <option value="1">人机对战</option>
+                                    </select>
+                                </div>
+                                <button id="battle-admin-rebuild-btn" 
+                                        style="background: #52c41a; color: #fff; border: none; padding: 6px 16px; border-radius: 4px; cursor: pointer; font-size: 14px; font-weight: 600; height: 32px;">
+                                    重建排行榜
+                                </button>
+                            </div>
+                            <div id="battle-admin-rebuild-result" style="margin-top: 12px; font-size: 12px; display: none;"></div>
                         </div>
                     </div>
                     ` : ''}
@@ -196,9 +266,11 @@ export class BattleView {
         // 绑定侧边栏切换事件
         this.bindSidebarEvents();
         
-        // 绑定管理员批量处理按钮事件
+        // 绑定管理员功能事件
         if (this.state.isAdmin) {
             this.bindAdminBatchProcessEvents();
+            this.bindAdminSetScoreEvents();
+            this.bindAdminRebuildLeaderboardEvents();
         }
         
         // 渲染当前选中的视图
@@ -338,6 +410,204 @@ export class BattleView {
         }
         this.batchProcessRunning = false;
     }
+    
+    /**
+     * 绑定管理员设置对战分数事件
+     */
+    bindAdminSetScoreEvents() {
+        const setScoreBtn = document.getElementById('battle-admin-set-score-btn');
+        const resultEl = document.getElementById('battle-admin-set-score-result');
+        
+        if (!setScoreBtn) return;
+        
+        setScoreBtn.addEventListener('click', async () => {
+            const userIdInput = document.getElementById('battle-admin-user-id');
+            const typeSelect = document.getElementById('battle-admin-battle-type');
+            const levelScoreInput = document.getElementById('battle-admin-level-score');
+            const winCountInput = document.getElementById('battle-admin-win-count');
+            const totalCountInput = document.getElementById('battle-admin-total-count');
+            
+            if (!userIdInput || !typeSelect || !levelScoreInput) return;
+            
+            const userId = userIdInput.value.trim();
+            const type = parseInt(typeSelect.value);
+            const levelScore = levelScoreInput.value.trim();
+            const winCount = winCountInput.value.trim();
+            const totalCount = totalCountInput.value.trim();
+            
+            // 验证必填字段
+            if (!userId || !levelScore) {
+                if (resultEl) {
+                    resultEl.style.display = 'block';
+                    resultEl.style.color = '#ff4d4f';
+                    resultEl.textContent = '请填写用户ID和等级分';
+                }
+                return;
+            }
+            
+            // 验证数字格式
+            if (isNaN(parseInt(userId)) || isNaN(parseInt(levelScore))) {
+                if (resultEl) {
+                    resultEl.style.display = 'block';
+                    resultEl.style.color = '#ff4d4f';
+                    resultEl.textContent = '用户ID和等级分必须是数字';
+                }
+                return;
+            }
+            
+            // 验证可选字段
+            if (winCount && isNaN(parseInt(winCount))) {
+                if (resultEl) {
+                    resultEl.style.display = 'block';
+                    resultEl.style.color = '#ff4d4f';
+                    resultEl.textContent = '胜场数必须是数字';
+                }
+                return;
+            }
+            
+            if (totalCount && isNaN(parseInt(totalCount))) {
+                if (resultEl) {
+                    resultEl.style.display = 'block';
+                    resultEl.style.color = '#ff4d4f';
+                    resultEl.textContent = '总场次必须是数字';
+                }
+                return;
+            }
+            
+            // 禁用按钮，显示加载状态
+            setScoreBtn.disabled = true;
+            setScoreBtn.style.opacity = '0.6';
+            setScoreBtn.style.cursor = 'not-allowed';
+            setScoreBtn.textContent = '设置中...';
+            
+            if (resultEl) {
+                resultEl.style.display = 'none';
+            }
+            
+            try {
+                const result = await this.api.adminSetBattleScore(
+                    parseInt(userId),
+                    type,
+                    parseInt(levelScore),
+                    winCount ? parseInt(winCount) : null,
+                    totalCount ? parseInt(totalCount) : null
+                );
+                
+                if (result.success) {
+                    if (resultEl) {
+                        resultEl.style.display = 'block';
+                        resultEl.style.color = '#52c41a';
+                        
+                        let message = '设置成功！';
+                        if (result.before && result.after) {
+                            const before = result.before;
+                            const after = result.after;
+                            message += `\n更新前：等级分=${before.levelScore || 'N/A'}, 胜场=${before.winCount || 'N/A'}, 总场次=${before.totalCount || 'N/A'}`;
+                            message += `\n更新后：等级分=${after.levelScore || 'N/A'}, 胜场=${after.winCount || 'N/A'}, 总场次=${after.totalCount || 'N/A'}`;
+                        }
+                        resultEl.textContent = message;
+                        resultEl.style.whiteSpace = 'pre-line';
+                    }
+                } else {
+                    if (resultEl) {
+                        resultEl.style.display = 'block';
+                        resultEl.style.color = '#ff4d4f';
+                        resultEl.textContent = result.message || '设置失败';
+                    }
+                }
+            } catch (error) {
+                console.error('设置对战分数失败:', error);
+                if (resultEl) {
+                    resultEl.style.display = 'block';
+                    resultEl.style.color = '#ff4d4f';
+                    resultEl.textContent = '设置失败：' + (error.message || '未知错误');
+                }
+            } finally {
+                // 恢复按钮状态
+                setScoreBtn.disabled = false;
+                setScoreBtn.style.opacity = '1';
+                setScoreBtn.style.cursor = 'pointer';
+                setScoreBtn.textContent = '设置';
+            }
+        });
+    }
+
+    /**
+     * 绑定管理员重建排行榜按钮事件
+     */
+    bindAdminRebuildLeaderboardEvents() {
+        const rebuildBtn = document.getElementById('battle-admin-rebuild-btn');
+        const resultEl = document.getElementById('battle-admin-rebuild-result');
+        
+        if (!rebuildBtn) return;
+        
+        rebuildBtn.addEventListener('click', async () => {
+            const typeSelect = document.getElementById('battle-admin-rebuild-type');
+            
+            if (!typeSelect) return;
+            
+            const type = parseInt(typeSelect.value);
+            const typeName = type === 1 ? '人机对战' : '1v1对战';
+            
+            // 确认对话框
+            const confirmed = await this.showConfirmDialog(
+                '确定要重建排行榜吗？',
+                `这将重建${typeName}的排行榜，根据数据库中的所有用户rating重建Redis排行榜。此操作可能需要一些时间。`,
+                '确定重建',
+                '取消'
+            );
+            
+            if (!confirmed) return;
+            
+            // 禁用按钮，显示加载状态
+            rebuildBtn.disabled = true;
+            rebuildBtn.style.opacity = '0.6';
+            rebuildBtn.style.cursor = 'not-allowed';
+            rebuildBtn.textContent = '重建中...';
+            
+            if (resultEl) {
+                resultEl.style.display = 'none';
+            }
+            
+            try {
+                const result = await this.api.adminRebuildLeaderboard(type);
+                
+                if (result.success) {
+                    if (resultEl) {
+                        resultEl.style.display = 'block';
+                        resultEl.style.color = '#52c41a';
+                        
+                        let message = `重建成功！`;
+                        if (result.updatedCount !== undefined && result.totalUsers !== undefined) {
+                            message += ` 更新了 ${result.updatedCount} / ${result.totalUsers} 个用户`;
+                        }
+                        if (result.message) {
+                            message += `\n${result.message}`;
+                        }
+                        resultEl.textContent = message;
+                    }
+                    
+                    this.showSuccessMessage(`${typeName}排行榜重建成功`);
+                } else {
+                    throw new Error(result.message || '重建失败');
+                }
+            } catch (error) {
+                console.error('重建排行榜失败:', error);
+                if (resultEl) {
+                    resultEl.style.display = 'block';
+                    resultEl.style.color = '#ff4d4f';
+                    resultEl.textContent = '重建失败：' + (error.message || '未知错误');
+                }
+                this.showErrorMessage('重建排行榜失败：' + (error.message || '未知错误'));
+            } finally {
+                // 恢复按钮状态
+                rebuildBtn.disabled = false;
+                rebuildBtn.style.opacity = '1';
+                rebuildBtn.style.cursor = 'pointer';
+                rebuildBtn.textContent = '重建排行榜';
+            }
+        });
+    }
 
     /**
      * 渲染当前选中的视图
@@ -346,6 +616,8 @@ export class BattleView {
         switch (this.currentSidebarTab) {
             case 'start':
                 this.renderStartView();
+                // 切换到开始对战页面时，刷新"我的镜像"列表
+                this.loadMyMirrors();
                 break;
             case 'rankings':
                 this.renderRankingsView();
@@ -413,8 +685,8 @@ export class BattleView {
                         </div>
                             <div id="battle-level-help-tooltip" 
                                  style="display: none; position: fixed; max-width: 300px;
-                                        background: #1a1a1a; backdrop-filter: blur(10px); color: #ffffff; padding: 16px; border-radius: 12px; 
-                                        font-size: 13px; line-height: 1.6; z-index: 99999; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2);">
+                                        background: #1a1a1a !important; backdrop-filter: blur(10px); color: #ffffff; padding: 16px; border-radius: 12px; 
+                                        font-size: 13px; line-height: 1.6; z-index: 999999; box-shadow: 0 8px 24px rgba(0,0,0,0.5); border: 1px solid rgba(255,255,255,0.2); opacity: 1 !important;">
                                 <div style="font-weight: 600; margin-bottom: 8px; color: #ffd700; display: flex; align-items: center; gap: 6px; opacity: 1;">
                                     <span>⭐</span> <span>升级规则</span>
                             </div>
@@ -429,7 +701,7 @@ export class BattleView {
                         <div style="font-size: 36px; font-weight: 800; text-shadow: 0 2px 8px rgba(0,0,0,0.2); font-family: 'Arial Black', sans-serif;">Lv.${currentLevel}</div>
                     </div>
                     
-                    <div style="position: relative; z-index: 1;">
+                    <div style="position: relative; z-index: 0;">
                         <div style="display: flex; justify-content: space-between; font-size: 14px; opacity: 0.9; margin-bottom: 8px; font-weight: 500;">
                             <span>当前经验</span>
                             <span>${currentLevelExp} / ${expRequired}</span>
@@ -464,7 +736,7 @@ export class BattleView {
                     <div style="background: linear-gradient(135deg, #fff7e6 0%, #fff1b8 100%); border: 2px solid #faad14; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(250,173,20,0.1);">
                         <div style="display: flex; align-items: center; gap: 10px; color: #d46b08; font-weight: 600; font-size: 15px;">
                             <span style="font-size: 20px;">⚠️</span>
-                            <span>当前为内测赛季，第一赛季会重置 rating 至 800，但不会重置对战等级</span>
+                            <span>当前为内测赛季，第一赛季会重置 rating 至 500（可继承部分rating），但不会重置对战等级</span>
                     </div>
                 </div>
                 
@@ -533,6 +805,26 @@ export class BattleView {
                                 </button>
                             </div>
                         </div>
+                        
+                        <!-- 我的镜像 -->
+                        <div id="battle-my-mirrors-section" style="margin-top: 24px; background: #fff; border: 2px solid #e5e7eb; border-radius: 16px; padding: 20px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <div style="font-size: 18px; font-weight: 700; color: #333; display: flex; align-items: center; gap: 8px;">
+                                    <span>🪞</span> 我的镜像
+                                </div>
+                                <button id="battle-refresh-mirrors-btn" 
+                                        style="font-size: 12px; color: #667eea; background: #f0f5ff; border: 1px solid #667eea; 
+                                               padding: 4px 10px; border-radius: 6px; cursor: pointer; 
+                                               transition: all 0.2s; font-weight: 500;"
+                                        onmouseover="this.style.background='#667eea'; this.style.color='#fff'"
+                                        onmouseout="this.style.background='#f0f5ff'; this.style.color='#667eea'">
+                                    刷新
+                                </button>
+                            </div>
+                            <div id="battle-my-mirrors-content" style="min-height: 60px;">
+                                <div style="text-align: center; padding: 20px; color: #999; font-size: 14px;">加载中...</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
                 
@@ -582,10 +874,10 @@ export class BattleView {
                                 <span style="color: ${rankColor};">⚔️</span> 1v1 对战
                             </div>
                             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                                <div style="font-size: 14px; font-weight: 600; color: ${rankColor};">
+                                <div style="font-size: 14px; font-weight: 600; color: ${textColor};">
                                     ${rank1v1.name}
                                 </div>
-                                <div style="font-size: 20px; font-weight: 800; color: ${rankColor};">${info1v1.levelScore}</div>
+                                <div style="font-size: 20px; font-weight: 800; color: ${textColor};">${info1v1.levelScore}</div>
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
@@ -639,10 +931,10 @@ export class BattleView {
                                 <span style="color: ${rankColor};">🤖</span> 人机对战
                             </div>
                             <div style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
-                                <div style="font-size: 14px; font-weight: 600; color: ${rankColor};">
+                                <div style="font-size: 14px; font-weight: 600; color: ${textColor};">
                                     ${rankAI.name}
                                 </div>
-                                <div style="font-size: 20px; font-weight: 800; color: ${rankColor};">${infoAI.levelScore}</div>
+                                <div style="font-size: 20px; font-weight: 800; color: ${textColor};">${infoAI.levelScore}</div>
                             </div>
                         </div>
                         <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
@@ -708,6 +1000,341 @@ export class BattleView {
             seasonRatingBtn.addEventListener('click', () => {
                 this.showSeasonRatingModal();
             });
+        }
+        
+        // 加载我的镜像
+        this.loadMyMirrors();
+        
+        // 绑定刷新镜像按钮
+        const refreshMirrorsBtn = document.getElementById('battle-refresh-mirrors-btn');
+        if (refreshMirrorsBtn) {
+            refreshMirrorsBtn.addEventListener('click', () => {
+                this.loadMyMirrors();
+            });
+        }
+    }
+    
+    /**
+     * 加载我的镜像列表
+     */
+    async loadMyMirrors() {
+        const contentEl = document.getElementById('battle-my-mirrors-content');
+        if (!contentEl) return;
+        
+        try {
+            const result = await this.api.getMyMirrors();
+            const mirrors = result.mirrors || [];
+            
+            // 获取当前用户头像
+            let userAvatar = '';
+            const currentUser = this.state.loggedInUserData || {};
+            
+            // 优先使用 avatar，然后是 headUrl
+            if (currentUser.avatar) {
+                userAvatar = currentUser.avatar.startsWith('http') 
+                    ? currentUser.avatar 
+                    : `https://uploadfiles.nowcoder.com${currentUser.avatar}`;
+            } else if (currentUser.headUrl) {
+                userAvatar = currentUser.headUrl.startsWith('http') 
+                    ? currentUser.headUrl 
+                    : `https://uploadfiles.nowcoder.com${currentUser.headUrl}`;
+            }
+            
+            // 如果还是没有头像，尝试从对战排行榜获取
+            if (!userAvatar && this.state.loggedInUserId) {
+                try {
+                    // 使用对战排行榜API获取1v1排行榜，limit设置大一些以增加找到用户的概率
+                    const rankingsResult = await this.api.battleLeaderboard(2, 1, 200); // 获取1v1排行榜前200名
+                    if (rankingsResult && rankingsResult.list) {
+                        const myRanking = rankingsResult.list.find(u => 
+                            String(u.userId) === String(this.state.loggedInUserId)
+                        );
+                        if (myRanking) {
+                            userAvatar = myRanking.avatar || myRanking.headUrl || '';
+                            if (userAvatar && !userAvatar.startsWith('http')) {
+                                // 处理相对路径的头像URL
+                                if (userAvatar.startsWith('/')) {
+                                    userAvatar = `https://uploadfiles.nowcoder.com${userAvatar}`;
+                                } else {
+                                    userAvatar = `https://uploadfiles.nowcoder.com/${userAvatar}`;
+                                }
+                            }
+                            // 更新 loggedInUserData 以便后续使用
+                            if (userAvatar && this.state.loggedInUserData) {
+                                this.state.loggedInUserData.avatar = userAvatar;
+                                this.state.loggedInUserData.headUrl = userAvatar;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.warn('从对战排行榜获取头像失败:', e);
+                }
+            }
+            
+            // 调试信息
+            console.log('镜像头像信息:', {
+                loggedInUserId: this.state.loggedInUserId,
+                loggedInUserData: this.state.loggedInUserData,
+                userAvatar: userAvatar,
+                hasAvatar: !!userAvatar
+            });
+            
+            if (mirrors.length === 0) {
+                contentEl.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #999; font-size: 14px;">
+                        <div style="font-size: 32px; margin-bottom: 8px;">🪞</div>
+                        <div>暂无未挑战的镜像</div>
+                        <div style="font-size: 12px; color: #ccc; margin-top: 8px;">创建镜像后，其他玩家可以挑战您的镜像</div>
+                    </div>
+                `;
+                return;
+            }
+            
+            // 显示图标列表
+            contentEl.innerHTML = `
+                <div style="display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-start;">
+                    ${mirrors.map((mirror, index) => {
+                        const mode = mirror.mode === '1v1' ? '1v1对战' : '人机对战';
+                        const rankScore = mirror.rankScore || 0;
+                        const createTimeMs = mirror.createTime || 0;
+                        const createTime = createTimeMs ? new Date(createTimeMs).toLocaleString('zh-CN') : '-';
+                        const isAC = mirror.isAC || false;
+                        const abandoned = mirror.abandoned || false;
+                        const status = isAC ? 'AC' : (abandoned ? '放弃' : '未完成');
+                        const statusColor = isAC ? '#52c41a' : (abandoned ? '#ff4d4f' : '#999');
+                        
+                        // AC时间或放弃时间（直接使用JSON中的时间字段）
+                        let acOrAbandonTimeText = '';
+                        if (isAC && mirror.acTime && mirror.acTime > 0) {
+                            // AC时间：计算从创建时间到AC时间的时长
+                            const timeDiff = mirror.acTime - createTimeMs;
+                            if (timeDiff > 0) {
+                                const minutes = Math.floor(timeDiff / 60000);
+                                const seconds = Math.floor((timeDiff % 60000) / 1000);
+                                acOrAbandonTimeText = `${minutes}分${seconds}秒`;
+                            }
+                        } else if (abandoned && mirror.abandonTime && mirror.abandonTime > 0) {
+                            // 放弃时间：计算从创建时间到放弃时间的时长
+                            const timeDiff = mirror.abandonTime - createTimeMs;
+                            if (timeDiff > 0) {
+                                const minutes = Math.floor(timeDiff / 60000);
+                                const seconds = Math.floor((timeDiff % 60000) / 1000);
+                                acOrAbandonTimeText = `${minutes}分${seconds}秒`;
+                            }
+                        }
+                        
+                        // 题目信息
+                        const problemTitle = mirror.problemTitle || '';
+                        const problemUrl = mirror.problemUrl || (mirror.problemId ? `https://ac.nowcoder.com/acm/problem/${mirror.problemId}` : '');
+                        const problemId = mirror.problemId || 0;
+                        
+                        // 提交次数
+                        const submissionCount = mirror.submissionCount || 0;
+                        
+                        // 生成唯一ID用于tooltip
+                        const tooltipId = `mirror-tooltip-${index}`;
+                        
+                        // 生成题目链接
+                        const problemLink = problemUrl || (problemId ? `https://ac.nowcoder.com/acm/problem/${problemId}` : '#');
+                        
+                        return `
+                            <div class="mirror-icon-container" 
+                                 data-mirror-index="${index}"
+                                 data-problem-url="${problemLink}"
+                                 style="position: relative; cursor: pointer;">
+                                <!-- 镜像图标 -->
+                                <div class="mirror-avatar-wrapper" style="position: relative; width: 64px; height: 64px;">
+                                    <!-- 外层旋转光环 -->
+                                    <div class="mirror-glow-ring" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                                                border-radius: 50%; 
+                                                background: conic-gradient(from 0deg, 
+                                                    transparent 0deg, 
+                                                    rgba(24, 144, 255, 0.3) 60deg,
+                                                    rgba(135, 206, 250, 0.6) 120deg,
+                                                    rgba(24, 144, 255, 0.8) 180deg,
+                                                    rgba(135, 206, 250, 0.6) 240deg,
+                                                    rgba(24, 144, 255, 0.3) 300deg,
+                                                    transparent 360deg);
+                                                animation: mirrorRotate 3s linear infinite;
+                                                z-index: 1;
+                                                padding: 3px;">
+                                        <div style="width: 100%; height: 100%; background: #1a1a1a; border-radius: 50%;"></div>
+                                    </div>
+                                    
+                                    <!-- 中层流光边框 -->
+                                    <div class="mirror-border-glow" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                                                border-radius: 50%; 
+                                                border: 3px solid transparent;
+                                                background: linear-gradient(135deg, 
+                                                    rgba(24, 144, 255, 0.8) 0%,
+                                                    rgba(135, 206, 250, 0.6) 25%,
+                                                    rgba(24, 144, 255, 0.4) 50%,
+                                                    rgba(135, 206, 250, 0.6) 75%,
+                                                    rgba(24, 144, 255, 0.8) 100%);
+                                                background-size: 200% 200%;
+                                                animation: mirrorShimmer 2s ease-in-out infinite;
+                                                z-index: 2;
+                                                box-shadow: 0 0 20px rgba(24, 144, 255, 0.5),
+                                                            0 0 40px rgba(135, 206, 250, 0.3),
+                                                            inset 0 0 20px rgba(24, 144, 255, 0.2);">
+                                    </div>
+                                    
+                                    <!-- 用户头像 -->
+                                    <div class="mirror-avatar" style="position: absolute; top: 4px; left: 4px; width: calc(100% - 8px); height: calc(100% - 8px);
+                                                border-radius: 50%; overflow: hidden; z-index: 3;
+                                                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                                                display: flex; align-items: center; justify-content: center;
+                                                box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.3),
+                                                            0 0 10px rgba(24, 144, 255, 0.4);">
+                                        ${userAvatar ? 
+                                            `<img src="${userAvatar}" alt="镜像" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;" onerror="this.style.display='none'; this.parentElement.innerHTML='<div style=\\'font-size: 28px;\\'>🪞</div>';" />` :
+                                            '<div style="font-size: 28px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.3));">🪞</div>'
+                                        }
+                                    </div>
+                                    
+                                    <!-- 内层光泽效果 -->
+                                    <div class="mirror-shine" style="position: absolute; top: 4px; left: 4px; width: calc(100% - 8px); height: calc(100% - 8px);
+                                                border-radius: 50%; 
+                                                background: radial-gradient(circle at 30% 30%, 
+                                                    rgba(255, 255, 255, 0.4) 0%,
+                                                    rgba(255, 255, 255, 0.1) 30%,
+                                                    transparent 60%);
+                                                z-index: 4;
+                                                pointer-events: none;
+                                                animation: mirrorShine 3s ease-in-out infinite;">
+                                    </div>
+                                    
+                                    <!-- 状态角标 -->
+                                    <div style="position: absolute; bottom: -2px; right: -2px; width: 20px; height: 20px;
+                                                background: ${statusColor}; border: 2px solid #fff; border-radius: 50%;
+                                                display: flex; align-items: center; justify-content: center;
+                                                font-size: 11px; font-weight: 600; color: #fff; z-index: 5;
+                                                box-shadow: 0 2px 6px rgba(0,0,0,0.3),
+                                                            0 0 8px ${statusColor};">
+                                        ${isAC ? '✓' : (abandoned ? '✗' : '○')}
+                                    </div>
+                                </div>
+                                
+                                <!-- Tooltip 详细信息 -->
+                                <div id="${tooltipId}" 
+                                     class="mirror-tooltip"
+                                     style="display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+                                            margin-bottom: 8px; background: #1a1a1a; color: #fff; padding: 12px;
+                                            border-radius: 8px; font-size: 12px; line-height: 1.6; white-space: nowrap;
+                                            z-index: 1000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                                            pointer-events: none; min-width: 200px;">
+                                    <div style="font-weight: 600; margin-bottom: 8px; color: #1890ff; border-bottom: 1px solid rgba(255,255,255,0.2); padding-bottom: 6px;">
+                                        ${mode}
+                                    </div>
+                                    ${problemTitle && problemUrl ? `
+                                        <div style="margin-bottom: 6px;">
+                                            <strong style="color: #999;">题目:</strong> 
+                                            <a href="${problemUrl}" target="_blank" rel="noopener noreferrer" 
+                                               style="color: #4dabf7; text-decoration: none; display: block; margin-top: 2px; word-break: break-all; white-space: normal;">
+                                                ${problemTitle}
+                                            </a>
+                                            <span style="color: #666;">(${problemId})</span>
+                                        </div>
+                                    ` : problemId ? `
+                                        <div style="margin-bottom: 6px;">
+                                            <strong style="color: #999;">题目ID:</strong> 
+                                            <a href="${problemUrl}" target="_blank" rel="noopener noreferrer" 
+                                               style="color: #4dabf7; text-decoration: none;">
+                                                ${problemId}
+                                            </a>
+                                        </div>
+                                    ` : ''}
+                                    <div style="margin-bottom: 4px;">
+                                        <strong style="color: #999;">等级分:</strong> <span style="color: #fff;">${rankScore}</span>
+                                    </div>
+                                    ${submissionCount > 0 ? `
+                                        <div style="margin-bottom: 4px;">
+                                            <strong style="color: #999;">提交次数:</strong> <span style="color: #fff;">${submissionCount}</span>
+                                        </div>
+                                    ` : ''}
+                                    <div style="margin-bottom: 4px;">
+                                        <strong style="color: #999;">状态:</strong> 
+                                        <span style="color: ${statusColor}; font-weight: 600;">${status}</span>
+                                    </div>
+                                    <div style="margin-bottom: 4px;">
+                                        <strong style="color: #999;">创建时间:</strong> 
+                                        <span style="color: #fff;">${createTime}</span>
+                                    </div>
+                                    ${acOrAbandonTimeText ? `
+                                        <div>
+                                            <strong style="color: #999;">${isAC ? 'AC时间' : '放弃时间'}:</strong> 
+                                            <span style="color: ${statusColor}; font-weight: 600;">${acOrAbandonTimeText.replace(/^(AC时间|放弃时间):\s*/, '')}</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+            
+            // 绑定hover事件显示tooltip和点击事件跳转题目
+            contentEl.querySelectorAll('.mirror-icon-container').forEach((container, index) => {
+                const tooltip = document.getElementById(`mirror-tooltip-${index}`);
+                if (!tooltip) return;
+                
+                // 点击事件：跳转到题目
+                container.addEventListener('click', (e) => {
+                    // 如果点击的是tooltip中的链接，不处理（让链接自己处理）
+                    if (e.target.closest('.mirror-tooltip')) {
+                        return;
+                    }
+                    const problemUrl = container.dataset.problemUrl;
+                    if (problemUrl && problemUrl !== '#') {
+                        window.open(problemUrl, '_blank');
+                    }
+                });
+                
+                container.addEventListener('mouseenter', (e) => {
+                    tooltip.style.display = 'block';
+                    // 动态调整位置，确保不超出视口
+                    const rect = container.getBoundingClientRect();
+                    const tooltipRect = tooltip.getBoundingClientRect();
+                    const left = rect.left + (rect.width / 2) - (tooltipRect.width / 2);
+                    const top = rect.top - tooltipRect.height - 8;
+                    
+                    // 检查是否超出左边界
+                    if (left < 10) {
+                        tooltip.style.left = '10px';
+                        tooltip.style.transform = 'none';
+                    } else if (left + tooltipRect.width > window.innerWidth - 10) {
+                        tooltip.style.left = 'auto';
+                        tooltip.style.right = '10px';
+                        tooltip.style.transform = 'none';
+                    } else {
+                        tooltip.style.left = '50%';
+                        tooltip.style.transform = 'translateX(-50%)';
+                    }
+                    
+                    // 检查是否超出上边界
+                    if (top < 10) {
+                        tooltip.style.top = 'auto';
+                        tooltip.style.bottom = '100%';
+                        tooltip.style.marginBottom = '8px';
+                        tooltip.style.marginTop = '0';
+                    } else {
+                        tooltip.style.top = 'auto';
+                        tooltip.style.bottom = '100%';
+                        tooltip.style.marginBottom = '8px';
+                    }
+                });
+                
+                container.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                });
+            });
+        } catch (error) {
+            console.error('加载我的镜像失败:', error);
+            contentEl.innerHTML = `
+                <div style="text-align: center; padding: 20px; color: #ff4d4f; font-size: 14px;">
+                    加载失败，请稍后重试
+                </div>
+            `;
         }
     }
 
@@ -1332,8 +1959,8 @@ export class BattleView {
                     <span>ℹ️</span> <span>初始分数与赛季重置</span>
                 </h3>
                 <div style="color: #666; line-height: 1.8;">
-                    <div style="margin-bottom: 6px;">• 如果没有进行过对战，等级分将初始化为 <span style="color: #1890ff; font-weight: 600;">800 分</span></div>
-                    <div style="margin-bottom: 6px;">• 每个赛季开始时，所有玩家的等级分将重置为 <span style="color: #1890ff; font-weight: 600;">800 分</span></div>
+                    <div style="margin-bottom: 6px;">• 如果没有进行过对战，等级分将初始化为 <span style="color: #1890ff; font-weight: 600;">500 分</span></div>
+                    <div style="margin-bottom: 6px;">• 每个赛季开始时，所有玩家的等级分将重置，但可以继承部分上赛季分数</div>
                     <div style="margin-bottom: 6px;">• 对战等级不会重置</div>
                 </div>
             </div>
@@ -1809,9 +2436,32 @@ ${trackerUrl}
         
         const { roomId, roomCode } = this.roomCreatedModalData;
         // 解析 startTime：如果是13位数字（毫秒），直接使用；如果是10位（秒），乘以1000
-        const startTime = result.startTime ? (result.startTime > 1000000000000 ? result.startTime : result.startTime * 1000) : null;
+        const serverStartTime = result.startTime ? (result.startTime > 1000000000000 ? result.startTime : result.startTime * 1000) : null;
         
-        console.log('updateRoomCreatedModal - startTime:', startTime, 'result:', result);
+        // 计算时间偏移量：如果后端返回了服务器当前时间，可以用来校准
+        // 这里我们假设 startTime 是基于服务器时间的，通过计算剩余时间来避免时间不同步问题
+        const clientNow = Date.now();
+        let startTime = serverStartTime;
+        
+        if (serverStartTime) {
+            // 计算剩余时间（秒）
+            const remainingSeconds = Math.max(0, Math.floor((serverStartTime - clientNow) / 1000));
+            console.log('updateRoomCreatedModal - 服务器startTime:', serverStartTime, '客户端当前时间:', clientNow, '剩余秒数:', remainingSeconds);
+            
+            // 如果剩余时间合理（0-60秒之间），使用相对时间方式
+            // 这样可以避免客户端时间不准确的问题
+            if (remainingSeconds >= 0 && remainingSeconds <= 60) {
+                // 使用客户端时间 + 剩余时间作为目标时间
+                startTime = clientNow + remainingSeconds * 1000;
+                console.log('使用相对时间方式，调整后的startTime:', startTime);
+            } else if (remainingSeconds < 0) {
+                // 如果已经过期，使用默认值
+                console.warn('startTime已过期，使用默认值');
+                startTime = null;
+            }
+        }
+        
+        console.log('updateRoomCreatedModal - final startTime:', startTime, 'result:', result);
         
         // 更新模态框内容
         const modal = this.roomCreatedModal;
@@ -1883,12 +2533,24 @@ ${trackerUrl}
         
         // 确保倒计时容器存在后再启动倒计时
         if (countdownContainer) {
-            // 如果 startTime 存在，使用它；否则使用默认值（当前时间+5秒）
-            const finalStartTime = startTime || (Date.now() + 5000);
-            console.log('启动倒计时 - finalStartTime:', finalStartTime, 'enterBtn:', enterBtn);
+            // 如果 startTime 存在且未过期，使用它；否则使用默认值（当前时间+5秒）
+            let finalStartTime = startTime;
+            const clientNow = Date.now();
+            if (!finalStartTime || clientNow >= finalStartTime) {
+                // 如果没有startTime或已过期，使用默认值（当前时间+5秒）
+                finalStartTime = clientNow + 5000;
+                console.log('startTime不存在或已过期，使用默认值:', finalStartTime);
+            }
+            const remainingSeconds = Math.floor((finalStartTime - clientNow) / 1000);
+            console.log('启动倒计时 - finalStartTime:', finalStartTime, '客户端当前时间:', clientNow, '剩余秒数:', remainingSeconds, 'enterBtn:', enterBtn);
             this.startRoomCountdown(finalStartTime, enterBtn, { roomId });
         } else {
-            console.warn('倒计时容器不存在，无法启动倒计时', { body, countdownContainer });
+            console.error('倒计时容器不存在，无法启动倒计时', { 
+                body, 
+                countdownContainer, 
+                modal: this.roomCreatedModal,
+                modalHTML: this.roomCreatedModal ? this.roomCreatedModal.innerHTML.substring(0, 200) : 'null'
+            });
         }
     }
     
@@ -1902,8 +2564,12 @@ ${trackerUrl}
             try {
                 // 轮询检查房间状态（通过poll接口）
                 const result = await this.api.battlePoll();
-                if (result.matched && result.roomId === roomId) {
+                console.log('房间轮询结果:', result, '期望的roomId:', roomId);
+                
+                // 检查是否有人加入：matched为true且roomId匹配，或者有startTime且roomId匹配
+                if (result && result.roomId === roomId && (result.matched || result.startTime)) {
                     // 房间已开始（有人加入）
+                    console.log('检测到房间已满，停止轮询并更新模态框', result);
                     this.stopRoomPolling();
                     this.updateRoomCreatedModal(result);
                 }
@@ -2127,6 +2793,16 @@ ${trackerUrl}
         `;
         document.body.appendChild(modal);
         
+        // 使用 requestAnimationFrame 确保 DOM 完全渲染后再获取元素
+        requestAnimationFrame(() => {
+            this.bindModalEvents(modal, roomId, isInBattle);
+        });
+    }
+    
+    /**
+     * 绑定模态框事件
+     */
+    bindModalEvents(modal, roomId, isInBattle) {
         const closeBtn = document.getElementById('battle-already-close');
         const returnBtn = document.getElementById('battle-already-return');
         const abandonBtn = document.getElementById('battle-already-abandon');
@@ -2144,33 +2820,238 @@ ${trackerUrl}
             closeModal();
         };
         
-        const abandonBattle = async () => {
-            if (!isInBattle) return;
+        const abandonBattle = async (e) => {
+            console.log('abandonBattle 函数被调用', e);
             
-            // 确认对话框
-            const confirmed = confirm('确定要放弃当前对战吗？放弃后将无法恢复，且不会获得任何经验。');
+            // 阻止事件冒泡，防止被 modal 的点击事件拦截
+            if (e) {
+                e.stopPropagation();
+                e.preventDefault();
+            }
+            
+            if (!isInBattle) {
+                console.warn('放弃对战：isInBattle 为 false');
+                return;
+            }
+            
+            // 使用自定义确认对话框
+            const confirmed = await this.showConfirmDialog(
+                '确定要放弃当前对战吗？',
+                '放弃后将无法恢复，且不会获得任何经验。',
+                '放弃对战',
+                '取消'
+            );
+            console.log('确认对话框结果:', confirmed);
             if (!confirmed) return;
             
             try {
                 // 调用强制放弃接口
                 await this.api.battleForceAbandon();
-                alert('已成功放弃对战，现在可以开始新的对战了');
+                // 使用自定义成功提示
+                this.showSuccessMessage('已成功放弃对战，现在可以开始新的对战了');
                 closeModal();
                 // 刷新页面以更新状态
-                window.location.reload();
+                setTimeout(() => {
+                    window.location.reload();
+                }, 1500);
             } catch (error) {
                 console.error('放弃对战失败:', error);
-                alert('放弃对战失败：' + (error.message || '未知错误'));
+                this.showErrorMessage('放弃对战失败：' + (error.message || '未知错误'));
             }
         };
         
-        if (closeBtn) closeBtn.addEventListener('click', closeModal);
-        if (returnBtn) returnBtn.addEventListener('click', returnToRoom);
-        if (abandonBtn) abandonBtn.addEventListener('click', abandonBattle);
+        if (closeBtn) {
+            closeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                closeModal();
+            });
+        }
+        if (returnBtn) {
+            returnBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                returnToRoom();
+            });
+        }
+        if (abandonBtn) {
+            // 添加调试日志
+            console.log('放弃对战按钮已找到，准备绑定事件', abandonBtn);
+            // 使用捕获阶段绑定，确保事件优先处理
+            abandonBtn.addEventListener('click', (e) => {
+                console.log('放弃对战按钮被点击了', e);
+                e.stopPropagation(); // 立即阻止冒泡
+                e.preventDefault(); // 阻止默认行为
+                abandonBattle(e);
+            }, true); // 使用捕获阶段
+            
+            // 确保按钮可以点击
+            abandonBtn.style.pointerEvents = 'auto';
+            abandonBtn.style.cursor = 'pointer';
+            abandonBtn.style.zIndex = '10001';
+            abandonBtn.style.position = 'relative';
+            
+            // 添加鼠标悬停测试
+            abandonBtn.addEventListener('mouseenter', () => {
+                console.log('鼠标悬停在放弃对战按钮上');
+            });
+            
+            // 测试按钮是否真的存在且可见
+            setTimeout(() => {
+                const testBtn = document.getElementById('battle-already-abandon');
+                if (testBtn) {
+                    console.log('按钮仍然存在，位置:', testBtn.getBoundingClientRect());
+                    console.log('按钮样式:', window.getComputedStyle(testBtn));
+                } else {
+                    console.error('按钮在延迟检查时不存在了！');
+                }
+            }, 100);
+        } else {
+            console.warn('放弃对战按钮未找到，isInBattle:', isInBattle);
+            console.warn('modal HTML:', modal.innerHTML.substring(0, 500));
+        }
         
+        // 只在点击 modal 背景时关闭，不拦截子元素的点击
+        // 使用捕获阶段，但让子元素的事件先处理
         modal.addEventListener('click', (e) => {
-            if (e.target === modal) closeModal();
+            // 如果点击的是按钮或其他交互元素，不关闭 modal
+            const clickedButton = e.target.closest('button');
+            if (clickedButton && clickedButton.id === 'battle-already-abandon') {
+                console.log('modal 点击事件检测到放弃按钮被点击，不处理');
+                return;
+            }
+            if (e.target === modal) {
+                closeModal();
+            }
+        }, false); // 使用冒泡阶段，让按钮的捕获事件先处理
+    }
+
+    /**
+     * 显示自定义确认对话框
+     * @param {string} title - 标题
+     * @param {string} message - 消息内容
+     * @param {string} confirmText - 确认按钮文本
+     * @param {string} cancelText - 取消按钮文本
+     * @returns {Promise<boolean>} 用户是否确认
+     */
+    showConfirmDialog(title, message, confirmText = '确定', cancelText = '取消') {
+        return new Promise((resolve) => {
+            const existing = document.getElementById('battle-confirm-dialog');
+            if (existing) existing.remove();
+            
+            const modal = document.createElement('div');
+            modal.id = 'battle-confirm-dialog';
+            modal.className = 'modal';
+            modal.style.display = 'flex';
+            modal.style.zIndex = '10002'; // 确保在最上层
+            modal.innerHTML = `
+                <div class="modal-content" style="max-width:400px;">
+                    <div class="modal-header">
+                        <h3>${title}</h3>
+                    </div>
+                    <div class="modal-body" style="padding:20px;">
+                        <div style="font-size:14px;color:#666;line-height:1.6;">
+                            ${message}
+                        </div>
+                    </div>
+                    <div class="modal-actions" style="padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:flex-end;gap:12px;">
+                        <button id="battle-confirm-cancel" 
+                                class="admin-btn" 
+                                style="background:#f5f5f5;color:#333;border:1px solid #e5e5e5;padding:10px 24px;cursor:pointer;font-size:14px;">
+                            ${cancelText}
+                        </button>
+                        <button id="battle-confirm-ok" 
+                                class="admin-btn" 
+                                style="background:#ff4d4f;color:#fff;border:1px solid #ff4d4f;padding:10px 24px;cursor:pointer;font-size:14px;">
+                            ${confirmText}
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            
+            const closeDialog = (result) => {
+                modal.remove();
+                resolve(result);
+            };
+            
+            const cancelBtn = document.getElementById('battle-confirm-cancel');
+            const okBtn = document.getElementById('battle-confirm-ok');
+            
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    closeDialog(false);
+                });
+            }
+            if (okBtn) {
+                okBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    closeDialog(true);
+                });
+            }
+            
+            // 点击背景关闭（返回 false）
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    closeDialog(false);
+                }
+            });
         });
+    }
+
+    /**
+     * 显示成功消息
+     * @param {string} message - 消息内容
+     */
+    showSuccessMessage(message) {
+        this.showMessage(message, 'success');
+    }
+
+    /**
+     * 显示错误消息
+     * @param {string} message - 消息内容
+     */
+    showErrorMessage(message) {
+        this.showMessage(message, 'error');
+    }
+
+    /**
+     * 显示消息提示
+     * @param {string} message - 消息内容
+     * @param {string} type - 类型：'success' 或 'error'
+     */
+    showMessage(message, type = 'success') {
+        const existing = document.getElementById('battle-message-toast');
+        if (existing) existing.remove();
+        
+        const toast = document.createElement('div');
+        toast.id = 'battle-message-toast';
+        toast.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: ${type === 'success' ? '#52c41a' : '#ff4d4f'};
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 6px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 10003;
+            font-size: 14px;
+            max-width: 400px;
+            word-wrap: break-word;
+        `;
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        // 3秒后自动消失
+        setTimeout(() => {
+            toast.style.transition = 'opacity 0.3s';
+            toast.style.opacity = '0';
+            setTimeout(() => {
+                if (toast.parentNode) {
+                    toast.parentNode.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
     }
 
     /**
@@ -2181,8 +3062,36 @@ ${trackerUrl}
         if (existing) existing.remove();
         
         const roomId = result.roomId;
-        const startTime = result.startTime ? (result.startTime > 1000000000000 ? result.startTime : result.startTime * 1000) : null;
-        const canEnterNow = !startTime || Date.now() >= startTime;
+        const serverStartTime = result.startTime ? (result.startTime > 1000000000000 ? result.startTime : result.startTime * 1000) : null;
+        
+        // 使用相对时间方式处理时间同步问题
+        let startTime = serverStartTime;
+        const clientNow = Date.now();
+        let canEnterNow = !serverStartTime;
+        
+        if (serverStartTime) {
+            // 计算剩余时间（秒）
+            const remainingSeconds = Math.floor((serverStartTime - clientNow) / 1000);
+            console.log('showJoinRoomSuccessModal - 服务器startTime:', serverStartTime, '客户端当前时间:', clientNow, '剩余秒数:', remainingSeconds);
+            
+            // 如果剩余时间合理（0-60秒之间），使用相对时间方式
+            if (remainingSeconds >= 0 && remainingSeconds <= 60) {
+                // 使用客户端时间 + 剩余时间作为目标时间
+                startTime = clientNow + remainingSeconds * 1000;
+                canEnterNow = false;
+                console.log('使用相对时间方式，调整后的startTime:', startTime);
+            } else if (remainingSeconds < 0) {
+                // 如果已经过期，可以立即进入
+                canEnterNow = true;
+                startTime = null;
+                console.log('startTime已过期，可以立即进入');
+            } else {
+                // 剩余时间超过60秒，可能是时间不同步，使用相对时间
+                startTime = clientNow + Math.min(remainingSeconds, 60) * 1000;
+                canEnterNow = false;
+                console.log('剩余时间过长，使用相对时间方式');
+            }
+        }
         
         const modal = document.createElement('div');
         modal.id = 'battle-join-room-success-modal';
@@ -2329,6 +3238,27 @@ ${trackerUrl}
                             已复制邀请链接
                         </div>
                     </div>
+                    <div id="battle-matching-mirror-tip" style="display:none;margin-top:16px;padding:16px;background:#e6f7ff;border:1px solid #91d5ff;border-radius:4px;">
+                        <div style="font-size:14px;color:#1890ff;margin-bottom:12px;font-weight:600;">
+                            💡 可选择开启镜像模式
+                        </div>
+                        <div style="display:flex;gap:8px;justify-content:center;">
+                            <button id="battle-matching-enable-mirror" class="admin-btn" style="background:#1890ff;color:#fff;border:1px solid #1890ff;padding:8px 20px;font-size:14px;">开启镜像模式</button>
+                        </div>
+                    </div>
+                    <div id="battle-matching-mirror-loading" style="display:none;margin-top:16px;padding:16px;text-align:center;">
+                        <div style="font-size:14px;color:#666;">正在查询镜像...</div>
+                    </div>
+                    <div id="battle-matching-mirror-options" style="display:none;margin-top:16px;padding:16px;background:#f0f9ff;border:1px solid #91d5ff;border-radius:4px;">
+                        <div id="battle-matching-no-mirror" style="display:none;">
+                            <div style="font-size:14px;color:#666;margin-bottom:12px;">暂无可用镜像，您可以创建镜像供其他玩家挑战</div>
+                            <button id="battle-matching-create-mirror" class="admin-btn" style="background:#52c41a;color:#fff;border:1px solid #52c41a;padding:8px 20px;font-size:14px;width:100%;">创建镜像房间</button>
+                        </div>
+                        <div id="battle-matching-has-mirror" style="display:none;">
+                            <div style="font-size:14px;color:#666;margin-bottom:12px;">发现 <span id="battle-matching-mirror-count" style="color:#1890ff;font-weight:600;">0</span> 个可用镜像</div>
+                            <button id="battle-matching-challenge-mirror" class="admin-btn" style="background:#1890ff;color:#fff;border:1px solid #1890ff;padding:8px 20px;font-size:14px;width:100%;">挑战镜像</button>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-actions" style="padding:12px 20px;border-top:1px solid #eee;display:flex;justify-content:center;">
                     <button id="battle-matching-cancel" class="admin-btn" style="background:#ff4d4f;color:#fff;border:1px solid #ff4d4f;">取消匹配</button>
@@ -2391,16 +3321,156 @@ ${trackerUrl}
             });
         }
         
+        // 绑定镜像模式相关按钮事件
+        const enableMirrorBtn = document.getElementById('battle-matching-enable-mirror');
+        const createMirrorBtn = document.getElementById('battle-matching-create-mirror');
+        const challengeMirrorBtn = document.getElementById('battle-matching-challenge-mirror');
+        
+        if (enableMirrorBtn) {
+            enableMirrorBtn.addEventListener('click', () => {
+                this.handleEnableMirrorMode();
+            });
+        }
+        
+        if (createMirrorBtn) {
+            createMirrorBtn.addEventListener('click', () => {
+                this.handleCreateMirror();
+            });
+        }
+        
+        if (challengeMirrorBtn) {
+            challengeMirrorBtn.addEventListener('click', () => {
+                this.handleChallengeMirror();
+            });
+        }
+        
         this.matchingTimer = setInterval(() => {
             if (!this.matchStartTime) return;
             const elapsed = Math.floor((Date.now() - this.matchStartTime) / 1000);
             timerEl.textContent = `已等待 ${elapsed} 秒`;
             
-            // 超过10秒时显示邀请提示
-            if (elapsed >= 10 && inviteTipEl) {
-                inviteTipEl.style.display = 'block';
+            // 超过10秒时显示邀请提示和镜像模式选项
+            if (elapsed >= 10) {
+                if (inviteTipEl) {
+                    inviteTipEl.style.display = 'block';
+                }
+                const mirrorTipEl = document.getElementById('battle-matching-mirror-tip');
+                if (mirrorTipEl && mirrorTipEl.style.display === 'none') {
+                    mirrorTipEl.style.display = 'block';
+                }
             }
         }, 1000);
+    }
+    
+    /**
+     * 处理开启镜像模式
+     */
+    async handleEnableMirrorMode() {
+        // 停止匹配
+        await this.cancelMatch();
+        
+        // 停止轮询和计时
+        this.stopPolling();
+        this.stopTimer();
+        
+        // 隐藏镜像模式提示，显示加载状态
+        const mirrorTipEl = document.getElementById('battle-matching-mirror-tip');
+        const loadingEl = document.getElementById('battle-matching-mirror-loading');
+        const optionsEl = document.getElementById('battle-matching-mirror-options');
+        const noMirrorEl = document.getElementById('battle-matching-no-mirror');
+        const hasMirrorEl = document.getElementById('battle-matching-has-mirror');
+        const mirrorCountEl = document.getElementById('battle-matching-mirror-count');
+        
+        if (mirrorTipEl) mirrorTipEl.style.display = 'none';
+        if (loadingEl) loadingEl.style.display = 'block';
+        if (optionsEl) optionsEl.style.display = 'none';
+        
+        try {
+            // 查询可用镜像（只查询1v1模式）
+            const result = await this.api.checkAvailableMirrors('1v1');
+            
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (optionsEl) optionsEl.style.display = 'block';
+            
+            if (result.hasMirrors && result.count > 0) {
+                // 有可用镜像，显示挑战镜像选项
+                if (noMirrorEl) noMirrorEl.style.display = 'none';
+                if (hasMirrorEl) hasMirrorEl.style.display = 'block';
+                if (mirrorCountEl) mirrorCountEl.textContent = result.count;
+            } else {
+                // 没有可用镜像，显示创建镜像房间选项
+                if (noMirrorEl) noMirrorEl.style.display = 'block';
+                if (hasMirrorEl) hasMirrorEl.style.display = 'none';
+            }
+        } catch (error) {
+            console.error('查询镜像失败:', error);
+            if (loadingEl) loadingEl.style.display = 'none';
+            if (optionsEl) optionsEl.style.display = 'block';
+            // 查询失败时，默认显示创建镜像选项
+            if (noMirrorEl) noMirrorEl.style.display = 'block';
+            if (hasMirrorEl) hasMirrorEl.style.display = 'none';
+        }
+    }
+    
+    /**
+     * 处理创建镜像房间
+     */
+    async handleCreateMirror() {
+        try {
+            // 创建镜像房间（1v1模式）
+            const result = await this.api.createMirrorRoom('1v1');
+            
+            // 隐藏匹配模态框
+            this.hideMatchingModal();
+            
+            // 显示房间创建成功，进入对战
+            if (result.roomId) {
+                this.roomId = result.roomId;
+                this.roomMode = 'mirror-create';
+                this.showMatchResult({
+                    matched: true,
+                    roomId: result.roomId,
+                    problemId: result.problemId,
+                    startTime: result.startTime,
+                    isMirror: true
+                });
+            }
+        } catch (error) {
+            console.error('创建镜像房间失败:', error);
+            alert('创建镜像房间失败：' + (error.message || '未知错误'));
+        }
+    }
+    
+    /**
+     * 处理挑战镜像
+     */
+    async handleChallengeMirror() {
+        try {
+            // 匹配镜像（1v1模式）
+            const result = await this.api.matchMirror('1v1');
+            
+            // 隐藏匹配模态框
+            this.hideMatchingModal();
+            
+            if (result.matched && result.roomId) {
+                // 匹配成功，显示房间信息
+                this.roomId = result.roomId;
+                this.roomMode = 'mirror-challenge';
+                this.showMatchResult({
+                    matched: true,
+                    roomId: result.roomId,
+                    opponentId: result.opponentId,
+                    problemId: result.problemId,
+                    startTime: result.startTime,
+                    isMirror: true
+                });
+            } else {
+                alert(result.message || '挑战镜像失败，镜像可能已被其他玩家挑战');
+            }
+        } catch (error) {
+            console.error('挑战镜像失败:', error);
+            alert('挑战镜像失败：' + (error.message || '未知错误'));
+        }
     }
 
     /**
@@ -2514,6 +3584,10 @@ ${trackerUrl}
         
         // 判断是否是人机对战
         const isAIMode = this.roomMode === 'ai';
+        // 判断是否是镜像模式
+        const isMirrorMode = result.isMirror || this.roomMode === 'mirror-create' || this.roomMode === 'mirror-challenge';
+        const isMirrorChallenge = this.roomMode === 'mirror-challenge';
+        const isMirrorCreate = this.roomMode === 'mirror-create';
         
         // 解析开始时间（startTime 是时间戳，单位可能是秒或毫秒）
         const startTime = result.startTime ? (result.startTime > 1000000000000 ? result.startTime : result.startTime * 1000) : null;
@@ -2530,14 +3604,14 @@ ${trackerUrl}
         modal.innerHTML = `
             <div class="modal-content" style="max-width:500px;">
                 <div class="modal-header">
-                    <h3>${isAIMode ? '正在生成AI对手' : '匹配成功！'}</h3>
+                    <h3>${isAIMode ? '正在生成AI对手' : (isMirrorChallenge ? '挑战镜像成功！' : (isMirrorCreate ? '镜像房间创建成功！' : '匹配成功！'))}</h3>
                     <button id="battle-result-close" class="modal-close" aria-label="关闭">&times;</button>
                 </div>
                 <div class="modal-body" style="padding:20px;">
                     <div style="text-align:center;margin-bottom:16px;">
-                        <div style="font-size:48px;margin-bottom:12px;">${isAIMode ? '🤖' : '🎉'}</div>
+                        <div style="font-size:48px;margin-bottom:12px;">${isAIMode ? '🤖' : (isMirrorMode ? '🪞' : '🎉')}</div>
                         <div style="font-size:18px;font-weight:600;color:#333;margin-bottom:8px;">
-                            ${isAIMode ? '正在生成和你旗鼓相当的AI' : '匹配成功'}
+                            ${isAIMode ? '正在生成和你旗鼓相当的AI' : (isMirrorChallenge ? '已成功挑战镜像，准备开始对战' : (isMirrorCreate ? '镜像房间已创建，完成对战后将生成镜像' : '匹配成功'))}
                     </div>
                     </div>
                     <div style="background:#f5f5f5;padding:16px;border-radius:6px;margin-bottom:16px;">
@@ -2579,6 +3653,10 @@ ${trackerUrl}
         const closeResult = () => {
             this.stopCountdown();
             modal.remove();
+            // 如果是镜像创建模式，关闭后刷新"我的镜像"列表
+            if (isMirrorCreate) {
+                this.loadMyMirrors();
+            }
         };
         
         const enterRoom = () => {
@@ -3002,14 +4080,31 @@ ${trackerUrl}
                 resultColor = '#999';
             }
             
+            // 检查是否是镜像对决
+            // 如果记录有 isMirror 标记，或者对手是镜像挑战者，说明这是镜像对决
+            const recordIsMirror = record.isMirror || false;
+            const opponentIsMirrorChallenger = opponent.isMirrorChallenger || false;
+            const opponentIsMirror = opponent.isMirror || false;
+            
+            // 判断当前用户的角色：
+            // - 如果对手是镜像挑战者，则当前用户是镜像创建者
+            // - 如果对手是镜像，则当前用户是镜像挑战者
+            // - 如果记录有 isMirrorCreator 标记，当前用户是镜像创建者
+            // - 如果记录有 isMirrorChallenger 标记，当前用户是镜像挑战者
+            const isMirrorCreator = record.isMirrorCreator || opponentIsMirrorChallenger || false;
+            const isMirrorChallenger = record.isMirrorChallenger || opponentIsMirror || false;
+            const isMirrorBattle = recordIsMirror || isMirrorCreator || isMirrorChallenger;
+            const mirrorTag = isMirrorCreator ? '🪞 镜像创建' : (isMirrorChallenger ? '🪞 镜像挑战' : '');
+            
             return `
                 <div class="battle-record-item" 
                      data-record-id="${record.id}" 
-                     style="padding: 16px 20px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 20px;"
-                     onmouseover="this.style.background='#f8f9fa'; this.style.borderLeft='3px solid #667eea'; this.style.paddingLeft='17px';"
-                     onmouseout="this.style.background='#fff'; this.style.borderLeft='none'; this.style.paddingLeft='20px';">
+                     style="padding: 16px 20px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: all 0.2s; display: flex; align-items: center; gap: 20px; ${isMirrorBattle ? 'background: #f0f9ff; border-left: 3px solid #1890ff;' : ''}"
+                     onmouseover="this.style.background='${isMirrorBattle ? '#e6f7ff' : '#f8f9fa'}'; ${!isMirrorBattle ? 'this.style.borderLeft=\'3px solid #667eea\'; this.style.paddingLeft=\'17px\';' : ''}"
+                     onmouseout="this.style.background='${isMirrorBattle ? '#f0f9ff' : '#fff'}'; ${!isMirrorBattle ? 'this.style.borderLeft=\'none\'; this.style.paddingLeft=\'20px\';' : ''}">
                     <div style="font-size: 14px; color: #666; width: 180px; flex-shrink: 0;">
                         ${startTime}
+                        ${mirrorTag ? `<div style="font-size: 11px; color: #1890ff; margin-top: 4px; font-weight: 600;">${mirrorTag}</div>` : ''}
                             </div>
                     <div style="display: flex; align-items: center; gap: 12px; flex: 1; min-width: 0;">
                         <div style="display: flex; align-items: center; gap: 6px;">
@@ -3022,6 +4117,7 @@ ${trackerUrl}
                             ${opponentAvatar ? `<img src="${opponentAvatar}" alt="${opponentNickname}" style="width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex-shrink: 0;" onerror="this.style.display='none'" />` : ''}
                             <span style="font-size: 14px; color: #333; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 80px;">${opponentNickname}</span>
                             <span style="padding: 2px 6px; background: ${opponentStatusColor}; color: #fff; border-radius: 4px; font-size: 11px; font-weight: 600; flex-shrink: 0;">${opponentStatusText}</span>
+                            ${(isMirrorBattle && (opponentIsMirror || opponentIsMirrorChallenger)) ? '<span style="padding: 2px 6px; background: #1890ff; color: #fff; border-radius: 4px; font-size: 11px; font-weight: 600; flex-shrink: 0;">🪞</span>' : ''}
                         </div>
                         </div>
                     <div style="font-size: 16px; font-weight: 600; color: ${scoreChangeColor}; min-width: 50px; text-align: right; flex-shrink: 0;">
@@ -3280,6 +4376,30 @@ ${trackerUrl}
         // 对战类型
         const typeText = record.type === 1 ? '人机对战' : record.type === 2 ? '1v1对战' : '未知';
         
+        // 对手信息
+        const opponent = record.opponent || {};
+        // 优先使用 nickname，如果没有则使用 name，最后使用默认值
+        const opponentName = opponent.nickname || opponent.name || (record.type === 1 ? 'AI' : '未知');
+        const opponentUserId = opponent.userId || (record.type === 1 ? -1 : null);
+        const opponentAvatar = opponent.avatar || opponent.headUrl || '';
+        const opponentAc = opponent.ac || false;
+        
+        // 检查是否是镜像对决
+        // 如果记录有 isMirror 标记，或者对手是镜像挑战者，说明这是镜像对决
+        const recordIsMirror = record.isMirror || false;
+        const opponentIsMirrorChallenger = opponent.isMirrorChallenger || false;
+        const opponentIsMirror = opponent.isMirror || false;
+        
+        // 判断当前用户的角色：
+        // - 如果对手是镜像挑战者，则当前用户是镜像创建者
+        // - 如果对手是镜像，则当前用户是镜像挑战者
+        // - 如果记录有 isMirrorCreator 标记，当前用户是镜像创建者
+        // - 如果记录有 isMirrorChallenger 标记，当前用户是镜像挑战者
+        const isMirrorCreator = record.isMirrorCreator || opponentIsMirrorChallenger || false;
+        const isMirrorChallenger = record.isMirrorChallenger || opponentIsMirror || false;
+        const isMirrorBattle = recordIsMirror || isMirrorCreator || isMirrorChallenger;
+        const mirrorTypeText = isMirrorCreator ? '镜像创建' : (isMirrorChallenger ? '镜像挑战' : '');
+        
         // 我的信息
         const myAc = record.myAc || false;
         const myAcTime = record.myAcTime || 0;
@@ -3288,14 +4408,6 @@ ${trackerUrl}
         const isWin = record.isWin || false;
         const myScoreChangeColor = myScoreChange > 0 ? '#52c41a' : myScoreChange < 0 ? '#ff4d4f' : '#666';
         const myScoreChangeText = myScoreChange > 0 ? `+${myScoreChange}` : `${myScoreChange}`;
-        
-        // 对手信息
-        const opponent = record.opponent || {};
-        // 优先使用 nickname，如果没有则使用 name，最后使用默认值
-        const opponentName = opponent.nickname || opponent.name || (record.type === 1 ? 'AI' : '未知');
-        const opponentUserId = opponent.userId || (record.type === 1 ? -1 : null);
-        const opponentAvatar = opponent.avatar || opponent.headUrl || '';
-        const opponentAc = opponent.ac || false;
         const opponentAcTime = opponent.acTime || 0;
         const opponentAbandoned = opponent.abandoned || false;
         
@@ -3353,10 +4465,21 @@ ${trackerUrl}
         }
         
         return `
+            ${isMirrorBattle ? `
+            <div style="margin-bottom: 20px; background: #e6f7ff; border: 2px solid #1890ff; border-radius: 8px; padding: 16px;">
+                <div style="display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 600; color: #1890ff;">
+                    <span>🪞</span>
+                    <span>镜像对决 - ${mirrorTypeText}</span>
+                </div>
+                <div style="font-size: 13px; color: #666; margin-top: 8px;">
+                    ${isMirrorCreator ? '您创建了镜像，其他玩家可以挑战您的镜像进行对战。' : '您挑战了其他玩家创建的镜像进行对战。'}
+                </div>
+            </div>
+            ` : ''}
             <div style="margin-bottom: 20px;">
                 <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 12px;">基本信息</div>
                 <div style="background: #f5f5f5; padding: 12px; border-radius: 6px;">
-                    <div style="margin-bottom: 8px;"><strong>对战类型:</strong> ${typeText}</div>
+                    <div style="margin-bottom: 8px;"><strong>对战类型:</strong> ${typeText}${isMirrorBattle ? ` <span style="color: #1890ff; font-weight: 600;">(镜像)</span>` : ''}</div>
                     <div style="margin-bottom: 8px;">
                         <strong>题目:</strong> 
                         ${record.problemId ? 
@@ -3401,6 +4524,7 @@ ${trackerUrl}
                     <div style="background: #fff7e6; padding: 16px; border-radius: 6px; border: 2px solid #faad14;">
                         <div style="font-weight: 600; color: #faad14; margin-bottom: 12px; font-size: 16px; display: flex; align-items: center; gap: 8px;">
                             对手
+                            ${isMirrorChallenger ? '<span style="color: #1890ff; font-size: 12px; font-weight: normal;">🪞 (镜像)</span>' : ''}
                             ${opponentAbandoned ? '<span style="color: #ff4d4f; font-size: 12px; font-weight: normal;">(已投降)</span>' : ''}
                         </div>
                         ${opponentAvatar ? `<div style="margin-bottom: 8px;"><img src="${opponentAvatar}" alt="${opponentName}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;" /></div>` : ''}

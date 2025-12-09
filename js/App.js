@@ -332,13 +332,19 @@ export class NowcoderTracker {
             });
         }
 
+        // 初始化帮助菜单
+        this.initHelpMenu();
+        
         // 监听 USER_LOGIN（来自 todayinfo），自动填充并在相应页签触发查询
-        eventBus.on(EVENTS.USER_LOGIN, (userData) => {
+        eventBus.on(EVENTS.USER_LOGIN, async (userData) => {
             const uid = userData && (userData.uid ? String(userData.uid) : String(userData));
             if (!uid) return;
             
-            // 调用 AppState 的方法来统一设置用户，并检查管理员状态
+            // 调用 AppState 的方法来统一设置用户
             this.state.setLoggedInUser(uid, userData);
+            
+            // 异步检查管理员状态
+            await this.state.checkAdminStatus(this.apiService);
 
             if (this.elements.userIdInput && !this.elements.userIdInput.value) this.elements.userIdInput.value = uid;
             if (this.elements.rankUserIdInput && !this.elements.rankUserIdInput.value) this.elements.rankUserIdInput.value = uid;
@@ -353,7 +359,7 @@ export class NowcoderTracker {
                 document.querySelector('h1').appendChild(adminBadge);
             }
 
-            // 登录后根据管理员身份刷新“更新过题数”按钮可见性
+            // 登录后根据管理员身份刷新"更新过题数"按钮可见性
             const adminUpdateBtn2 = document.getElementById('rank-admin-update-btn');
             if (adminUpdateBtn2) {
                 adminUpdateBtn2.style.display = this.state.isAdmin ? 'inline-block' : 'none';
@@ -447,6 +453,8 @@ export class NowcoderTracker {
     }
     
     switchMainTab(tabName, options = {}) {
+        // 更新导航栏active状态
+        this.updateNavActiveState(tabName);
         // 将当前标签写入哈希，保持可分享/可返回
         const normalized = this.normalizeTabName(tabName);
         const currentHash = (window.location.hash || '').replace(/^#/, '');
@@ -728,7 +736,7 @@ export class NowcoderTracker {
         return null;
     }
 
-    // 在全局初始化阶段探测并设置登录态（使用 todayinfo，避免必须在“打卡”页才识别登录）
+    // 在全局初始化阶段探测并设置登录态（使用 todayinfo，避免必须在"打卡"页才识别登录）
     async detectAndSetLoggedInUser() {
         try {
             const data = await this.apiService.fetchDailyTodayInfo();
@@ -736,12 +744,16 @@ export class NowcoderTracker {
                 const d = data.data;
                 const uid = d.uid && d.uid !== 0 ? String(d.uid) : null;
                 this.state.setLoggedInUser(uid, d.user || null);
+                
+                // 如果用户已登录，检查管理员状态
                 if (uid) {
+                    await this.state.checkAdminStatus(this.apiService);
                     eventBus.emit(EVENTS.USER_LOGIN, { uid, user: d.user || null, ...d });
                 }
             } else {
                 // 未登录或异常时，显式清空本地登录态
                 this.state.setLoggedInUser(null, null);
+                this.state.isAdmin = false;
             }
         } catch (_) {
             // 忽略错误，不影响其它页面加载
@@ -901,6 +913,59 @@ export class NowcoderTracker {
             }
         };
         check();
+    }
+    
+    /**
+     * 初始化帮助菜单
+     */
+    initHelpMenu() {
+        const helpMenu = document.getElementById('tracker-help-menu');
+        const helpDropdown = document.getElementById('tracker-help-dropdown');
+        if (!helpMenu || !helpDropdown) return;
+        
+        // 点击帮助链接显示/隐藏下拉菜单
+        const helpLink = helpMenu.querySelector('.tracker-help-link');
+        if (helpLink) {
+            helpLink.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isVisible = helpDropdown.style.display === 'block';
+                helpDropdown.style.display = isVisible ? 'none' : 'block';
+            });
+        }
+        
+        // 点击外部区域关闭下拉菜单
+        document.addEventListener('click', (e) => {
+            if (!helpMenu.contains(e.target) && !helpDropdown.contains(e.target)) {
+                helpDropdown.style.display = 'none';
+            }
+        });
+    }
+    
+    /**
+     * 更新导航栏active状态
+     */
+    updateNavActiveState(tabName) {
+        const navItems = document.querySelectorAll('.tracker-nav-item');
+        navItems.forEach(item => {
+            item.classList.remove('active');
+        });
+        
+        // 根据tabName映射到导航栏项
+        // 导航栏顺序：首页(0), 题库(1), 排行榜(2), 技能树(3), 成就(4), 对战(5), 团队(6), 竞赛(7)
+        const navMap = {
+            'daily': 0,         // 首页
+            'problems': 1,      // 题库
+            'rankings': 2,      // 排行榜
+            'skill-tree': 3,    // 技能树
+            'achievements': 4,  // 成就
+            'battle': 5,        // 对战
+            'team': 6           // 团队
+        };
+        
+        const navIndex = navMap[tabName];
+        if (navIndex !== undefined && navItems[navIndex]) {
+            navItems[navIndex].classList.add('active');
+        }
     }
 }
 
