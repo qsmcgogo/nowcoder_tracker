@@ -1946,6 +1946,7 @@ export class BattleView {
                         <li><strong>1v1 匹配：</strong>与实力相近的玩家进行对战</li>
                         <li><strong>人机大战：</strong>与AI对手进行练习对战</li>
                         <li><strong>好友对战：</strong>创建房间邀请好友一起对战</li>
+                        <li><strong>镜像模式：</strong>可以创建自己的镜像，等待其他玩家挑战，实现"跨时空挑战"</li>
                     </ul>
                     <p>
                         对战开始后，系统会实时更新双方的提交状态。当双方都完成（AC）或放弃后，系统会根据规则自动结算分数。
@@ -2043,6 +2044,25 @@ export class BattleView {
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+            
+            <div style="background: #f6ffed; padding: 20px; border-radius: 12px; margin-top: 24px; border: 2px solid #b7eb8f;">
+                <h3 style="font-size: 18px; color: #333; margin-bottom: 16px; font-weight: 600;">🪞 镜像模式说明</h3>
+                <div style="line-height: 1.8; color: #666;">
+                    <p style="margin-bottom: 12px;">
+                        镜像模式是一个特殊的对战模式，让你可以创建自己的镜像，等待其他玩家挑战，实现"跨时空挑战"。
+                    </p>
+                    <ul style="margin-left: 20px; margin-bottom: 12px;">
+                        <li><strong>创建镜像：</strong>你可以创建自己的镜像，系统会记录你当前的对战状态和表现</li>
+                        <li><strong>等待挑战：</strong>创建的镜像会保存在系统中，其他玩家可以挑战你的镜像</li>
+                        <li><strong>跨时空挑战：</strong>即使你不在线，其他玩家也可以挑战你的镜像，与你进行对战</li>
+                        <li><strong>分数影响：</strong>镜像模式的对战结果会影响你的等级分和经验值，就像正常对战一样</li>
+                        <li><strong>开启时机：</strong>当匹配不到对手时，可以开启镜像模式创建镜像，等待其他玩家挑战</li>
+                    </ul>
+                    <p style="color: #999; font-size: 14px; margin-top: 8px;">
+                        💡 提示：镜像模式让你即使不在线时也能与其他玩家对战，同时其他玩家也可以挑战你的镜像，实现跨时空的竞技体验。
+                    </p>
                 </div>
             </div>
             
