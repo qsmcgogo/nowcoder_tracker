@@ -1047,60 +1047,23 @@ export class AdminView {
             const uniqueProblemIds = [...new Set(problemIds)];
 
             errorEl.style.display = 'none';
+            
+            // 确认删除
+            if (!confirm(`确定要删除 ${uniqueProblemIds.length} 道题目吗？\n\nproblemId列表：${uniqueProblemIds.join(', ')}`)) {
+                return;
+            }
+
             submitBtn.disabled = true;
-            submitBtn.textContent = '查询中...';
+            submitBtn.textContent = '删除中...';
 
             try {
-                // 根据problemId查询对应的记录ID
-                const recordIds = [];
-                const notFoundIds = [];
-                
-                for (const problemId of uniqueProblemIds) {
-                    try {
-                        const item = await this.apiService.adminBattleProblemGetByProblemId(problemId);
-                        if (item && item.id) {
-                            recordIds.push(item.id);
-                        } else {
-                            notFoundIds.push(problemId);
-                        }
-                    } catch (error) {
-                        // 如果查询失败，说明题目不存在
-                        notFoundIds.push(problemId);
-                    }
-                }
-
-                if (recordIds.length === 0) {
-                    errorEl.textContent = '未找到任何有效的对战题目记录';
-                    errorEl.style.display = 'block';
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = '批量删除';
-                    return;
-                }
-
-                // 如果有不存在的problemId，提示用户
-                let confirmMessage = `确定要删除 ${recordIds.length} 道题目吗？`;
-                if (notFoundIds.length > 0) {
-                    confirmMessage += `\n\n注意：以下problemId未找到（将跳过）：\n${notFoundIds.join(', ')}`;
-                }
-
-                if (!confirm(confirmMessage)) {
-                    submitBtn.disabled = false;
-                    submitBtn.textContent = '批量删除';
-                    return;
-                }
-
-                submitBtn.textContent = '删除中...';
-                
-                // 执行批量删除
-                await this.apiService.adminBattleProblemBatchDelete(recordIds);
+                // 直接使用problemId列表进行批量删除
+                const result = await this.apiService.adminBattleProblemBatchDelete(uniqueProblemIds);
                 modal.remove();
                 this.loadBattleList(this.battlePage);
                 
-                let successMessage = `成功删除 ${recordIds.length} 道题目`;
-                if (notFoundIds.length > 0) {
-                    successMessage += `\n跳过 ${notFoundIds.length} 个不存在的problemId：${notFoundIds.join(', ')}`;
-                }
-                alert(successMessage);
+                const deletedCount = result.rowsAffected || uniqueProblemIds.length;
+                alert(`成功删除 ${deletedCount} 道题目`);
             } catch (error) {
                 errorEl.textContent = error.message || '批量删除失败';
                 errorEl.style.display = 'block';

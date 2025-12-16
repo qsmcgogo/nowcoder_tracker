@@ -91,7 +91,87 @@ export class ActivityView {
         `;
         
         if (tab === 'intro') {
+            // 先显示活动说明
             box.innerHTML = infoHtml;
+            
+            // 然后加载并显示"我的进度"
+            try {
+                const myInfo = await this.api.fetchMyInfo();
+                const checkin = myInfo.checkin || {};
+                const skillTree = myInfo.skillTree || {};
+                const chapterProgress = skillTree.chapterProgress || {};
+                
+                // 累计打卡天数
+                const checkinCount = checkin.countDay || 0;
+                
+                // 计算下一个奖励
+                let nextRewardText = '';
+                if (checkinCount < 30) {
+                    const daysLeft = 30 - checkinCount;
+                    nextRewardText = `再打卡 ${daysLeft} 天可以获得牛客娘贴纸一张`;
+                } else if (checkinCount < 60) {
+                    const daysLeft = 60 - checkinCount;
+                    nextRewardText = `再打卡 ${daysLeft} 天可以获得牛客娘吧唧一个`;
+                } else if (checkinCount < 90) {
+                    const daysLeft = 90 - checkinCount;
+                    nextRewardText = `再打卡 ${daysLeft} 天可以获得牛客娘马克杯一个`;
+                } else {
+                    nextRewardText = '已完成所有打卡奖励！';
+                }
+                
+                // 章节显示名称映射（只显示活动相关的章节）
+                const chapterDisplayNames = {
+                    'chapter1': '第一章：晨曦微光',
+                    'interlude_dawn': '间章：拂晓',
+                    'chapter2': '第二章：懵懂新芽'
+                };
+                
+                // 章节顺序（根据活动说明：第一章、间章、第二章）
+                const chapterOrder = ['chapter1', 'interlude_dawn', 'chapter2'];
+                
+                // 构建技能树进度条HTML
+                let skillTreeHtml = '';
+                chapterOrder.forEach(chapterKey => {
+                    const progress = chapterProgress[chapterKey] || 0;
+                    const progressPercent = Math.round(progress * 100);
+                    const displayName = chapterDisplayNames[chapterKey] || chapterKey;
+                    
+                    skillTreeHtml += `
+                        <div style="margin-bottom: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <span style="font-size: 14px; color: #333;">${displayName}</span>
+                                <span style="font-size: 14px; color: #666; font-weight: 600;">${progressPercent}%</span>
+                            </div>
+                            <div style="width: 100%; height: 8px; background: #f0f0f0; border-radius: 4px; overflow: hidden;">
+                                <div style="width: ${progressPercent}%; height: 100%; background: linear-gradient(90deg, #1890ff 0%, #52c41a 100%); transition: width 0.3s ease;"></div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                // 添加"我的进度"部分
+                const myProgressHtml = `
+                    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #e8e8e8;">
+                        <div style="font-weight: 700; font-size: 16px; color: #333; margin-bottom: 16px;">我的进度 <span style="font-weight: 400; font-size: 13px; color: #999;">(参与活动即可领奖。若学校无负责人，可自己当团长)</span></div>
+                        
+                        <div style="margin-bottom: 20px;">
+                            <div style="font-size: 14px; color: #666; margin-bottom: 8px;">累计打卡</div>
+                            <div style="font-size: 24px; font-weight: 700; color: #1890ff; margin-bottom: 6px;">${checkinCount} 天</div>
+                            <div style="font-size: 13px; color: #52c41a; font-weight: 500;">${nextRewardText}</div>
+                        </div>
+                        
+                        <div>
+                            <div style="font-size: 14px; color: #666; margin-bottom: 12px;">技能树进度</div>
+                            ${skillTreeHtml}
+                        </div>
+                    </div>
+                `;
+                
+                box.innerHTML = infoHtml + myProgressHtml;
+            } catch (error) {
+                console.error('Failed to load my progress:', error);
+                // 如果加载失败，只显示活动说明，不显示进度
+            }
             return;
         }
         

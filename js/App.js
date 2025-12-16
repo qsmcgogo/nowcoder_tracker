@@ -966,7 +966,7 @@ export class NowcoderTracker {
         });
         
         // 根据tabName映射到导航栏项
-        // 导航栏顺序：首页(0), 题库(1), 排行榜(2), 技能树(3), 成就(4), 对战(5), 团队(6), 竞赛(7), 活动(8), 管理员(9)
+        // 导航栏顺序：首页(0), 题库(1), 排行榜(2), 技能树(3), 成就(4), 对战(5), 团队(6), 竞赛(7), 活动(8), 我的(9), 管理员(10)
         const navMap = {
             'daily': 0,         // 首页
             'problems': 1,      // 题库
@@ -975,7 +975,8 @@ export class NowcoderTracker {
             'achievements': 4,  // 成就
             'battle': 5,        // 对战
             'team': 6,          // 团队
-            'activity': 8       // 活动（在竞赛后面）
+            'activity': 8,      // 活动（在竞赛后面）
+            'profile': 9        // 我的
         };
         
         const navIndex = navMap[tabName];

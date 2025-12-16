@@ -2347,11 +2347,11 @@ export class ApiService {
     }
 
     /**
-     * 批量删除对战题目
+     * 批量删除对战题目（按 problemId）
      */
-    async adminBattleProblemBatchDelete(ids) {
+    async adminBattleProblemBatchDelete(problemIds) {
         const body = new URLSearchParams();
-        body.append('ids', JSON.stringify(ids));
+        body.append('problemIds', JSON.stringify(problemIds));
 
         const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/batch-delete`, {
             method: 'POST',
@@ -2362,7 +2362,7 @@ export class ApiService {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json();
         if (data.code === 0) return data.data;
-        throw new Error(data.message || '批量删除失败');
+        throw new Error(data.msg || data.message || '批量删除失败');
     }
 
     /**
