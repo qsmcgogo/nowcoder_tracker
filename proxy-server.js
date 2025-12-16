@@ -200,6 +200,32 @@ app.use('/problem/tracker/battle/my-mirrors', manualProxyHandler('/problem/track
 // Admin endpoints
 app.use('/problem/tracker/battle/batch-process-room-status', manualProxyHandler('/problem/tracker/battle/batch-process-room-status'));
 app.use('/problem/tracker/battle/set-score', manualProxyHandler('/problem/tracker/battle/set-score'));
+app.use('/problem/tracker/battle/rebuild-leaderboard', manualProxyHandler('/problem/tracker/battle/rebuild-leaderboard'));
+
+// Admin: Clock Question Management (每日一题管理)
+app.use('/problem/tracker/clock/question/add', manualProxyHandler('/problem/tracker/clock/question/add'));
+app.use('/problem/tracker/clock/question/update', manualProxyHandler('/problem/tracker/clock/question/update'));
+app.use('/problem/tracker/clock/question/update-by-id', manualProxyHandler('/problem/tracker/clock/question/update-by-id'));
+app.use('/problem/tracker/clock/question/delete', manualProxyHandler('/problem/tracker/clock/question/delete'));
+app.use('/problem/tracker/clock/question/delete-by-id', manualProxyHandler('/problem/tracker/clock/question/delete-by-id'));
+app.use('/problem/tracker/clock/question/get', manualProxyHandler('/problem/tracker/clock/question/get'));
+app.use('/problem/tracker/clock/question/list', manualProxyHandler('/problem/tracker/clock/question/list'));
+app.use('/problem/tracker/clock/question/list-by-date-range', manualProxyHandler('/problem/tracker/clock/question/list-by-date-range'));
+
+// Admin: Battle Problem Management (对战题目管理)
+app.use('/problem/tracker/battle/problem/admin/add', manualProxyHandler('/problem/tracker/battle/problem/admin/add'));
+app.use('/problem/tracker/battle/problem/admin/update', manualProxyHandler('/problem/tracker/battle/problem/admin/update'));
+app.use('/problem/tracker/battle/problem/admin/delete', manualProxyHandler('/problem/tracker/battle/problem/admin/delete'));
+app.use('/problem/tracker/battle/problem/admin/get', manualProxyHandler('/problem/tracker/battle/problem/admin/get'));
+app.use('/problem/tracker/battle/problem/admin/get-by-problem-id', manualProxyHandler('/problem/tracker/battle/problem/admin/get-by-problem-id'));
+app.use('/problem/tracker/battle/problem/admin/list', manualProxyHandler('/problem/tracker/battle/problem/admin/list'));
+app.use('/problem/tracker/battle/problem/admin/batch-add', manualProxyHandler('/problem/tracker/battle/problem/admin/batch-add'));
+app.use('/problem/tracker/battle/problem/admin/batch-delete', manualProxyHandler('/problem/tracker/battle/problem/admin/batch-delete'));
+app.use('/problem/tracker/battle/problem/admin/check-delete', manualProxyHandler('/problem/tracker/battle/problem/admin/check-delete'));
+app.use('/problem/tracker/battle/problem/admin/reset-stats', manualProxyHandler('/problem/tracker/battle/problem/admin/reset-stats'));
+
+// Admin: Check Permission (管理员权限检查)
+app.use('/problem/tracker/admin/check', manualProxyHandler('/problem/tracker/admin/check'));
 
 
 // Endpoint to get current environment config

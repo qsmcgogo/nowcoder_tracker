@@ -959,17 +959,57 @@ export class ApiService {
         // 后端需要完整的 iframe 串；保持原样传递（仅做 URL 编码）
         const shareLink = String(shareLinkRaw).trim();
 
-        const qs = `date=${encodeURIComponent(dateStr)}&shareLink=${encodeURIComponent(shareLink)}`;
-        const url = `${this.apiBase}/problem/tracker/clock/add-share-link?${qs}`;
+        // 将参数放在 POST body 中，使用 application/x-www-form-urlencoded 格式
+        const body = new URLSearchParams();
+        body.append('date', dateStr);
+        body.append('shareLink', shareLink);
+        
+        const url = `${this.apiBase}/problem/tracker/clock/add-share-link`;
 
         const res = await fetch(url, {
             method: 'POST',
-            // 空 body 即可，参数在 querystring
             headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
                 'Accept': 'application/json, text/plain, */*'
-            }
+            },
+            body: body.toString()
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        // 处理 HTTP 405 错误（可能是权限问题导致的）
+        if (res.status === 405) {
+            // 尝试解析响应体，看是否有错误信息
+            let errorMsg = 'HTTP 405 Method Not Allowed';
+            try {
+                const errorData = await res.json().catch(() => null);
+                if (errorData && errorData.msg) {
+                    errorMsg = errorData.msg;
+                } else if (errorData && errorData.message) {
+                    errorMsg = errorData.message;
+                } else {
+                    errorMsg = '权限检查失败：可能是登录状态失效或需要管理员权限。请检查是否已登录且具有管理员权限。';
+                }
+            } catch (e) {
+                errorMsg = '权限检查失败：可能是登录状态失效或需要管理员权限。请检查是否已登录且具有管理员权限。';
+            }
+            throw new Error(errorMsg);
+        }
+        
+        if (!res.ok) {
+            // 尝试解析错误响应
+            let errorMsg = `HTTP ${res.status}`;
+            try {
+                const errorData = await res.json().catch(() => null);
+                if (errorData && errorData.msg) {
+                    errorMsg = errorData.msg;
+                } else if (errorData && errorData.message) {
+                    errorMsg = errorData.message;
+                }
+            } catch (e) {
+                // 忽略解析错误
+            }
+            throw new Error(errorMsg);
+        }
+        
         const data = await res.json().catch(() => ({}));
         if (data && typeof data.code !== 'undefined' && data.code !== 0) {
             throw new Error(data.msg || '服务端返回错误');
@@ -2035,6 +2075,326 @@ export class ApiService {
             return data.data?.chapters || [];
         }
         throw new Error((data && data.msg) || '获取章节进度失败');
+    }
+
+    // ==================== 管理员API：每日一题管理 ====================
+
+    /**
+     * 新增每日一题
+     */
+    async adminClockQuestionAdd(date, questionId, problemId, shareLink = '') {
+        const body = new URLSearchParams();
+        body.append('date', date);
+        if (questionId) body.append('questionId', questionId);
+        if (problemId) body.append('problemId', problemId);
+        if (shareLink) body.append('shareLink', shareLink);
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/clock/question/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '新增失败');
+    }
+
+    /**
+     * 更新每日一题（按日期）
+     */
+    async adminClockQuestionUpdate(date, questionId, problemId, shareLink = '') {
+        const body = new URLSearchParams();
+        body.append('date', date);
+        if (questionId) body.append('questionId', questionId);
+        if (problemId) body.append('problemId', problemId);
+        if (shareLink) body.append('shareLink', shareLink);
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/clock/question/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '更新失败');
+    }
+
+    /**
+     * 更新每日一题（按ID）
+     */
+    async adminClockQuestionUpdateById(id, questionId, problemId, shareLink = '') {
+        const body = new URLSearchParams();
+        body.append('id', id);
+        if (questionId) body.append('questionId', questionId);
+        if (problemId) body.append('problemId', problemId);
+        if (shareLink) body.append('shareLink', shareLink);
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/clock/question/update-by-id`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '更新失败');
+    }
+
+    /**
+     * 删除每日一题（按日期）
+     */
+    async adminClockQuestionDelete(date) {
+        const body = new URLSearchParams();
+        body.append('date', date);
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/clock/question/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '删除失败');
+    }
+
+    /**
+     * 删除每日一题（按ID）
+     */
+    async adminClockQuestionDeleteById(id) {
+        const body = new URLSearchParams();
+        body.append('id', id);
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/clock/question/delete-by-id`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '删除失败');
+    }
+
+    /**
+     * 根据ID查询每日一题
+     */
+    async adminClockQuestionGet(id) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/clock/question/get?id=${id}`, {
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '查询失败');
+    }
+
+    /**
+     * 分页查询每日一题列表
+     */
+    async adminClockQuestionList(page = 1, limit = 20) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/clock/question/list?page=${page}&limit=${limit}`, {
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '查询失败');
+    }
+
+    /**
+     * 根据时间段分页查询每日一题列表
+     */
+    async adminClockQuestionListByDateRange(startDate, endDate, page = 1, limit = 20) {
+        const url = `${this.apiBase}/problem/tracker/clock/question/list-by-date-range?startDate=${encodeURIComponent(startDate)}&endDate=${encodeURIComponent(endDate)}&page=${page}&limit=${limit}`;
+        const res = await fetch(url, {
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.msg || data.message || '查询失败');
+    }
+
+    // ==================== 管理员API：对战题目管理 ====================
+
+    /**
+     * 新增对战题目
+     */
+    async adminBattleProblemAdd(problemId, levelScore) {
+        const body = new URLSearchParams();
+        body.append('problemId', problemId);
+        body.append('levelScore', levelScore);
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '新增失败');
+    }
+
+    /**
+     * 更新对战题目
+     */
+    async adminBattleProblemUpdate(id, levelScore) {
+        const body = new URLSearchParams();
+        body.append('id', id);
+        body.append('levelScore', levelScore);
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '更新失败');
+    }
+
+    /**
+     * 删除对战题目
+     */
+    async adminBattleProblemDelete(id) {
+        const body = new URLSearchParams();
+        body.append('id', id);
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '删除失败');
+    }
+
+    /**
+     * 根据ID查询对战题目
+     */
+    async adminBattleProblemGet(id) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/get?id=${id}`, {
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '查询失败');
+    }
+
+    /**
+     * 根据problemId查询对战题目
+     */
+    async adminBattleProblemGetByProblemId(problemId) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/get-by-problem-id?problemId=${problemId}`, {
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '查询失败');
+    }
+
+    /**
+     * 分页查询对战题目列表
+     */
+    async adminBattleProblemList(page = 1, limit = 20, levelScoreMin = 0, levelScoreMax = 0, orderBy = 'id', order = 'DESC') {
+        let url = `${this.apiBase}/problem/tracker/battle/problem/admin/list?page=${page}&limit=${limit}&orderBy=${orderBy}&order=${order}`;
+        if (levelScoreMin > 0) url += `&levelScoreMin=${levelScoreMin}`;
+        if (levelScoreMax > 0) url += `&levelScoreMax=${levelScoreMax}`;
+
+        const res = await fetch(url, {
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '查询失败');
+    }
+
+    /**
+     * 批量添加对战题目
+     */
+    async adminBattleProblemBatchAdd(items) {
+        const body = new URLSearchParams();
+        body.append('items', JSON.stringify(items));
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/batch-add`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '批量添加失败');
+    }
+
+    /**
+     * 批量删除对战题目
+     */
+    async adminBattleProblemBatchDelete(ids) {
+        const body = new URLSearchParams();
+        body.append('ids', JSON.stringify(ids));
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/batch-delete`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '批量删除失败');
+    }
+
+    /**
+     * 检查题目是否可以安全删除
+     */
+    async adminBattleProblemCheckDelete(id) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/check-delete?id=${id}`, {
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '检查失败');
+    }
+
+    /**
+     * 重置题目统计信息
+     */
+    async adminBattleProblemResetStats(id) {
+        const body = new URLSearchParams();
+        body.append('id', id);
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/reset-stats`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString(),
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data.code === 0) return data.data;
+        throw new Error(data.message || '重置失败');
     }
 }
 

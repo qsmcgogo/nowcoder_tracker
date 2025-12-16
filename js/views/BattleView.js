@@ -4021,6 +4021,29 @@ ${trackerUrl}
     }
 
     /**
+     * 根据分数变化判断胜利/失败/平局
+     * 规则：所有负分都是失败，+3也是失败，0分是平局，其余正分都是胜利
+     * @param {number} scoreChange - 分数变化
+     * @returns {string} 'win'表示胜利，'loss'表示失败，'draw'表示平局
+     */
+    getBattleResultByScoreChange(scoreChange) {
+        // 分数为0是平局
+        if (scoreChange === 0) {
+            return 'draw';
+        }
+        // 所有负分都是失败
+        if (scoreChange < 0) {
+            return 'loss';
+        }
+        // +3分也是失败
+        if (scoreChange === 3) {
+            return 'loss';
+        }
+        // 其余正分都是胜利
+        return 'win';
+    }
+
+    /**
      * 渲染对战记录列表
      */
     renderRecordsList() {
@@ -4045,7 +4068,8 @@ ${trackerUrl}
             const myAc = record.myAc || false;
             const myAbandoned = record.myAbandoned || false;
             const myScoreChange = record.myScoreChange || 0;
-            const isWin = record.isWin || false;
+            // 根据分数变化判断胜利/失败/平局，不依赖后端
+            const battleResult = this.getBattleResultByScoreChange(myScoreChange);
             
             // 对手信息
             const opponent = record.opponent || {};
@@ -4090,8 +4114,16 @@ ${trackerUrl}
             let resultText = '';
             let resultColor = '#666';
             if (myAc) {
-                resultText = isWin ? '胜利' : '失败';
-                resultColor = isWin ? '#52c41a' : '#ff4d4f';
+                if (battleResult === 'win') {
+                    resultText = '胜利';
+                    resultColor = '#52c41a';
+                } else if (battleResult === 'loss') {
+                    resultText = '失败';
+                    resultColor = '#ff4d4f';
+                } else {
+                    resultText = '平局';
+                    resultColor = '#faad14';
+                }
             } else if (myAbandoned) {
                 resultText = '放弃';
                 resultColor = '#ff4d4f';
@@ -4425,7 +4457,8 @@ ${trackerUrl}
         const myAcTime = record.myAcTime || 0;
         const myAbandoned = record.myAbandoned || false;
         const myScoreChange = record.myScoreChange || 0;
-        const isWin = record.isWin || false;
+        // 根据分数变化判断胜利/失败/平局，不依赖后端
+        const battleResult = this.getBattleResultByScoreChange(myScoreChange);
         const myScoreChangeColor = myScoreChange > 0 ? '#52c41a' : myScoreChange < 0 ? '#ff4d4f' : '#666';
         const myScoreChangeText = myScoreChange > 0 ? `+${myScoreChange}` : `${myScoreChange}`;
         const opponentAcTime = opponent.acTime || 0;
@@ -4451,7 +4484,7 @@ ${trackerUrl}
         } else if (myScoreChange === -20) {
             scoreChangeDesc = '（双方超时均未AC/放弃-20）';
         } else if (myScoreChange === 0) {
-            scoreChangeDesc = '（无变化）';
+            scoreChangeDesc = '（平局，无变化）';
         } else {
             // 其他情况，尝试推断是否有奖励时间加分
             // 如果分数是15的倍数+5，可能是先AC+奖励时间
@@ -4474,8 +4507,16 @@ ${trackerUrl}
         let resultText = '';
         let resultColor = '#666';
         if (myAc) {
-            resultText = isWin ? '胜利' : '失败';
-            resultColor = isWin ? '#52c41a' : '#ff4d4f';
+            if (battleResult === 'win') {
+                resultText = '胜利';
+                resultColor = '#52c41a';
+            } else if (battleResult === 'loss') {
+                resultText = '失败';
+                resultColor = '#ff4d4f';
+            } else {
+                resultText = '平局';
+                resultColor = '#faad14';
+            }
         } else if (myAbandoned) {
             resultText = '放弃';
             resultColor = '#ff4d4f';
@@ -4537,7 +4578,7 @@ ${trackerUrl}
                         </div>
                         <div>
                             <strong>结果:</strong> 
-                            <span style="color: ${isWin ? '#52c41a' : '#ff4d4f'}; font-weight: 600;">${isWin ? '胜利' : '失败'}</span>
+                            <span style="color: ${battleResult === 'win' ? '#52c41a' : battleResult === 'loss' ? '#ff4d4f' : '#faad14'}; font-weight: 600;">${battleResult === 'win' ? '胜利' : battleResult === 'loss' ? '失败' : '平局'}</span>
                         </div>
                     </div>
                     

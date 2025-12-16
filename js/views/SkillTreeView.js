@@ -132,8 +132,8 @@ export const skillTreeData = {
                 name: '第三章：初显峥嵘',
                 columns: [
                     // 左边列：从上到下
-                    { id: 's3-col-enum-advanced', name: '枚举进阶', nodeIds: ['state-compression-enum', 'subset-enum', 'enum-advanced-practice'] },
-                    { id: 's3-col-dp-advanced', name: '动态规划进阶', nodeIds: ['backpack-intro', 'interval-dp', 'tree-dp', 'state-compression-dp', 'dp-advanced-practice'] },
+                    { id: 's3-col-enum-advanced', name: '枚举进阶', nodeIds: ['state-compression-enum', 'enum-advanced-practice'] },
+                    { id: 's3-col-dp-advanced', name: '动态规划进阶', nodeIds: ['backpack-intro', 'interval-dp', 'tree-dp', 'state-compression-dp', 'subset-enum', 'dp-advanced-practice'] },
                     // 右边列：从上到下
                     { id: 's3-col-search', name: '搜索入门', nodeIds: ['dfs-advanced', 'bfs-advanced', 'two-pointers-advanced', 'binary-search-advanced'] },
                     { id: 's3-col-graph', name: '图论入门', nodeIds: ['graph-def-advanced', 'build-graph-search-advanced', 'unweighted-shortest-advanced'] },
@@ -223,7 +223,7 @@ export const skillTreeData = {
             'dp-advanced-practice': { id: 'dp-advanced-practice', name: 'dp进阶综练', dependencies: [] },
             // 枚举进阶
             'state-compression-enum': { id: 'state-compression-enum', name: '状压枚举', dependencies: [] },
-            'subset-enum': { id: 'subset-enum', name: '子集枚举', dependencies: [] },
+            'subset-enum': { id: 'subset-enum', name: '子集枚举', dependencies: ['state-compression-enum'] },
             'enum-advanced-practice': { id: 'enum-advanced-practice', name: '枚举进阶综练', dependencies: [] },
             // 并查集
             'union-find-intro': { id: 'union-find-intro', name: '并查集入门', dependencies: [] },

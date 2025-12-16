@@ -21,6 +21,7 @@ import { AchievementsView } from './views/AchievementsView.js';
 import { TeamView } from './views/TeamView.js';
 import { BattleView } from './views/BattleView.js';
 import { ActivityView } from './views/ActivityView.js';
+import { AdminView } from './views/AdminView.js';
 import { AchievementNotifier } from './services/AchievementNotifier.js';
 
 export class NowcoderTracker {
@@ -98,7 +99,9 @@ export class NowcoderTracker {
             // battle container
             battleContainer: document.getElementById('battle-container'),
             // activity container
-            activityContainer: document.getElementById('activity-view')
+            activityContainer: document.getElementById('activity-view'),
+            // admin container
+            adminContainer: document.getElementById('admin-container')
         };
     }
     
@@ -114,8 +117,12 @@ export class NowcoderTracker {
             team: new TeamView(this.elements, this.state, this.apiService),
             battle: new BattleView(this.elements, this.state, this.apiService),
             activity: new ActivityView(this.elements, this.state, this.apiService),
-            profile: new ProfileView(this.elements, this.state, this.apiService)
+            profile: new ProfileView(this.elements, this.state, this.apiService),
+            admin: new AdminView(this.elements, this.state, this.apiService)
         };
+        
+        // 将adminView实例暴露到全局，方便内联事件调用
+        window.adminView = this.views.admin;
     }
     
     bindEvents() {
@@ -359,6 +366,9 @@ export class NowcoderTracker {
                 document.querySelector('h1').appendChild(adminBadge);
             }
 
+            // 显示/隐藏管理员页签
+            this.updateAdminTabVisibility();
+
             // 登录后根据管理员身份刷新"更新过题数"按钮可见性
             const adminUpdateBtn2 = document.getElementById('rank-admin-update-btn');
             if (adminUpdateBtn2) {
@@ -420,6 +430,8 @@ export class NowcoderTracker {
         // 在任何标签页下先探测登录状态（通过 todayinfo），避免刷新后显示"未登录"
         try {
             await this.detectAndSetLoggedInUser();
+            // 初始化时更新管理员页签可见性（detectAndSetLoggedInUser 已经检查了管理员状态）
+            this.updateAdminTabVisibility();
         } catch (_) { /* ignore login bootstrap errors */ }
 
         if (initialInviteTid) {
@@ -590,6 +602,9 @@ export class NowcoderTracker {
             case 'profile':
                 this.views.profile.render();
                 break;
+            case 'admin':
+                this.views.admin.render();
+                break;
         }
         
         // 发布事件
@@ -693,7 +708,7 @@ export class NowcoderTracker {
 
     normalizeTabName(name) {
         const key = String(name || '').toLowerCase();
-        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','battle','activity','team','profile','faq','changelog']);
+        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','battle','activity','team','profile','faq','changelog','admin']);
         if (key.startsWith('team/')) return 'team';
         if (key.startsWith('invitet') || key.startsWith('inviteTeam'.toLowerCase())) return 'team';
         if (allowed.has(key)) return key;
@@ -951,7 +966,7 @@ export class NowcoderTracker {
         });
         
         // 根据tabName映射到导航栏项
-        // 导航栏顺序：首页(0), 题库(1), 排行榜(2), 技能树(3), 成就(4), 对战(5), 团队(6), 竞赛(7)
+        // 导航栏顺序：首页(0), 题库(1), 排行榜(2), 技能树(3), 成就(4), 对战(5), 团队(6), 竞赛(7), 活动(8), 管理员(9)
         const navMap = {
             'daily': 0,         // 首页
             'problems': 1,      // 题库
@@ -959,12 +974,29 @@ export class NowcoderTracker {
             'skill-tree': 3,    // 技能树
             'achievements': 4,  // 成就
             'battle': 5,        // 对战
-            'team': 6           // 团队
+            'team': 6,          // 团队
+            'activity': 8       // 活动（在竞赛后面）
         };
         
         const navIndex = navMap[tabName];
         if (navIndex !== undefined && navItems[navIndex]) {
             navItems[navIndex].classList.add('active');
+        }
+    }
+
+    /**
+     * 更新管理员页签的显示/隐藏状态
+     */
+    updateAdminTabVisibility() {
+        const adminNavItem = document.getElementById('admin-nav-item');
+        const adminTabBtn = document.getElementById('admin-tab-btn');
+        
+        if (this.state.isAdmin) {
+            if (adminNavItem) adminNavItem.style.display = '';
+            if (adminTabBtn) adminTabBtn.style.display = '';
+        } else {
+            if (adminNavItem) adminNavItem.style.display = 'none';
+            if (adminTabBtn) adminTabBtn.style.display = 'none';
         }
     }
 }

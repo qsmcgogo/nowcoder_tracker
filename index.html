@@ -39,6 +39,12 @@
                     <li class="tracker-nav-item">
                         <a href="https://ac.nowcoder.com" target="_blank" class="tracker-nav-link">竞赛</a>
                     </li>
+                    <li class="tracker-nav-item">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.getElementById('activity-tab-btn').click();">🔥 活动</a>
+                    </li>
+                    <li class="tracker-nav-item admin-nav-item" id="admin-nav-item" style="display: none;">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'admin\']').click();">⚙️ 管理员</a>
+                    </li>
                 </ul>
                 <div class="tracker-nav-right">
                     <div class="tracker-help-menu" id="tracker-help-menu">
@@ -69,6 +75,7 @@
                 <button class="tab-btn" data-tab="profile">我的</button>
                 <button class="tab-btn" data-tab="faq">常见问题</button>
                 <button class="tab-btn" data-tab="changelog">版本更新</button>
+                <button class="tab-btn admin-tab-btn" data-tab="admin" id="admin-tab-btn" style="display: none;">⚙️ 管理员</button>
             </nav>
         </header>
         
@@ -581,6 +588,13 @@
             <!-- Profile Tab -->
             <section id="profile" class="tab-content">
                <!-- Profile content will be rendered here by ProfileView.js -->
+            </section>
+
+            <!-- 管理员 -->
+            <section id="admin" class="tab-content">
+                <div id="admin-container" class="admin-container">
+                    <!-- Content will be rendered here by AdminView.js -->
+                </div>
             </section>
 
             <!-- 排行榜 -->
