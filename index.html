@@ -302,6 +302,21 @@
             </section>
 
             <section id="daily" class="tab-content active">
+                <a
+                    class="daily-page-banner"
+                    href="https://www.nowcoder.com/problem/tracker/activity/year2025/my?channelput=tracker2025year"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="打开我的 2025 年度报告（新标签页）"
+                >
+                    <img
+                        src="https://uploadfiles.nowcoder.com/images/20251225/919247_1766651288755/48B756517863730F29496ABBE9B4E0F2"
+                        alt="2025年度代码旅程 Nowcoder Tracker 年度报告"
+                        loading="eager"
+                        decoding="async"
+                        referrerpolicy="no-referrer"
+                    >
+                </a>
                 <h2>每日一题
                     <span class="coin-rule-tooltip">
                         <span class="coin-rule-icon">?</span>
@@ -1067,43 +1082,136 @@ cout &lt;&lt; "A\n" &lt;&lt; "B\n";     // 用 \n 实现换行</pre>
                 <div class="modal-body learning-demo-modal__body">
                     <!-- 原理概览（打开 Demo 时先展示） -->
                     <div id="digit-dp-demo-overview" class="learning-demo-overview" style="display:none;">
-                        <div class="learning-demo-overview__title">先看原理：什么是数位 DP？</div>
+                        <div class="learning-demo-overview__head">
+                            <div class="learning-demo-overview__title">数位DP 原理小课</div>
+                            <div class="learning-demo-overview__pager">
+                                <button id="digit-dp-demo-prev" class="admin-btn modal-secondary learning-demo-overview__pager-btn" type="button">上一页</button>
+                                <span id="digit-dp-demo-page-indicator" class="learning-demo-overview__pager-indicator">1 / 3</span>
+                                <button id="digit-dp-demo-next" class="admin-btn learning-demo-overview__pager-btn" type="button">下一页</button>
+                            </div>
+                        </div>
+
                         <div class="learning-demo-overview__body">
-                            <div class="learning-demo-overview__section">
-                                <div class="learning-demo-overview__h">问题形态</div>
-                                <div class="learning-demo-overview__p">
-                                    统计 <code>[0, N]</code> 中满足某种“数位性质”的数字个数（例如：数位和=K、不含某个数字、满足模式等）。
+                            <!-- Page 1 -->
+                            <div class="learning-demo-overview__page" data-page="0">
+                                <div class="learning-demo-overview__section">
+                                    <div class="learning-demo-overview__h">1）数位DP在解决什么？</div>
+                                    <div class="learning-demo-overview__p">
+                                        典型任务：统计 <code>[0, N]</code> 中满足某种“数位性质”的数字个数。<br/>
+                                        例如：数位和=K、不含某个数字、某个模式出现次数、模意义约束等。
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="learning-demo-overview__section">
-                                <div class="learning-demo-overview__h">核心状态（示例）</div>
-                                <div class="learning-demo-overview__p">
-                                    以“数位和 = K”为例，常用状态：
+                                <div class="learning-demo-overview__section">
+                                    <div class="learning-demo-overview__h">2）把 N 拆成 digits</div>
+                                    <div class="learning-demo-overview__p">
+                                        我们把 <code>N</code> 转成数组 <code>digits</code>（从高位到低位），然后“按位填数”。<br/>
+                                        你可以把它想成：从左到右给每一位选一个 digit，最后拼成一个数。
+                                    </div>
+                                    <pre class="learning-demo-overview__code">digits = [d0, d1, ..., d(len-1)]   // N 的每一位</pre>
+                                </div>
+                                <div class="learning-demo-overview__section">
+                                    <div class="learning-demo-overview__h">3）状态怎么定义？（以数位和=K为例）</div>
                                     <pre class="learning-demo-overview__code">dfs(pos, sum, tight)
-pos: 当前处理到第 pos 位（从高位到低位）
-sum: 已经累加的数位和
-tight: 是否贴着上界 N（tight=1 时本位最大只能到 N 的对应位）</pre>
+pos : 当前处理到第 pos 位（从 0 到 len）
+sum : 已经累加的数位和
+tight : 是否“贴着上界”N（tight=1 时本位上界 = digits[pos]）</pre>
                                 </div>
                             </div>
-                            <div class="learning-demo-overview__section">
-                                <div class="learning-demo-overview__h">dp 数组到底存什么？</div>
-                                <div class="learning-demo-overview__p">
-                                    当 <code>tight=0</code> 时，后续就不再受 N 限制，答案只由状态决定，因此可以记忆化：
-                                    <pre class="learning-demo-overview__code">dp[pos][sum] = dfs(pos, sum, 0)
-含义：从 pos 往后随便填(0..9)，最终满足目标的方案数</pre>
-                                </div>
-                            </div>
-                            <div class="learning-demo-overview__section">
-                                <div class="learning-demo-overview__h">dfs 的作用（最关键）</div>
-                                <div class="learning-demo-overview__p">
-                                    dfs 负责在当前位枚举数字 <code>d</code>，把问题拆成更小的子问题并求和：
+
+                            <!-- Page 2 -->
+                            <div class="learning-demo-overview__page" data-page="1" style="display:none;">
+                                <div class="learning-demo-overview__section">
+                                    <div class="learning-demo-overview__h">4）tight 到底是什么意思？</div>
+                                    <div class="learning-demo-overview__p">
+                                        tight=1 表示：前面所有位都“刚好等于 N 的前缀”，所以这一位最大只能选到 <code>digits[pos]</code>。<br/>
+                                        一旦某一位选了更小的数字（比如本位上界是 7，你选了 3），后面所有位都可以随便选 0..9 —— tight 就变成 0。
+                                    </div>
                                     <pre class="learning-demo-overview__code">up = tight ? digits[pos] : 9
-ans = 0
+nextTight = tight && (d == up)</pre>
+                                </div>
+                                <div class="learning-demo-overview__section">
+                                    <div class="learning-demo-overview__h">5）dp 数组存什么？为什么只在 tight=0 时记忆化？</div>
+                                    <div class="learning-demo-overview__p">
+                                        当 <code>tight=0</code>，后续不再受 N 限制，答案只由状态决定，所以可以缓存：<br/>
+                                        <code>dp[pos][sum] = dfs(pos, sum, 0)</code>
+                                    </div>
+                                    <pre class="learning-demo-overview__code">if (!tight && dp[pos][sum] 已算过) 直接返回
+if (!tight) dp[pos][sum] = ans</pre>
+                                </div>
+                                <div class="learning-demo-overview__section">
+                                    <div class="learning-demo-overview__h">6）边界：pos==len 代表什么？</div>
+                                    <div class="learning-demo-overview__p">
+                                        说明所有位都填完了。此时检查是否满足目标：<br/>
+                                        - 数位和问题：<code>sum == K</code> 就计数 1，否则 0。
+                                    </div>
+                                    <pre class="learning-demo-overview__code">if (pos == len) return (sum == K ? 1 : 0)</pre>
+                                </div>
+                            </div>
+
+                            <!-- Page 3 -->
+                            <div class="learning-demo-overview__page" data-page="2" style="display:none;">
+                                <div class="learning-demo-overview__section">
+                                    <div class="learning-demo-overview__h">7）dfs 在干嘛？（枚举这一位 + 递归下一位）</div>
+                                    <pre class="learning-demo-overview__code">ans = 0
+up = tight ? digits[pos] : 9
 for d in [0..up]:
-  ans += dfs(pos+1, sum + d, tight && d==up)</pre>
+  ans += dfs(pos+1, sum+d, tight && d==up)</pre>
+                                </div>
+                                <div class="learning-demo-overview__section">
+                                    <div class="learning-demo-overview__h">8）图示：状态 → 枚举 → 子问题 → 记忆化</div>
+                                    <div class="learning-demo-diagram">
+                                        <svg viewBox="0 0 900 260" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;">
+                                            <defs>
+                                                <linearGradient id="ddpG" x1="0%" y1="0%" x2="100%" y2="0%">
+                                                    <stop offset="0%" stop-color="#4dabf7" stop-opacity="0.22"/>
+                                                    <stop offset="100%" stop-color="#b197fc" stop-opacity="0.22"/>
+                                                </linearGradient>
+                                                <marker id="arrow" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto">
+                                                    <path d="M0,0 L10,3 L0,6 Z" fill="rgba(55,65,81,0.65)"/>
+                                                </marker>
+                                            </defs>
+                                            <!-- dfs state box -->
+                                            <rect x="24" y="44" width="260" height="120" rx="16" fill="url(#ddpG)" stroke="rgba(55,65,81,0.25)"/>
+                                            <text x="44" y="78" font-size="16" font-weight="700" fill="#111827">状态：dfs(pos, sum, tight)</text>
+                                            <text x="44" y="106" font-size="13" fill="#374151">pos：第几位</text>
+                                            <text x="44" y="128" font-size="13" fill="#374151">sum：累计和</text>
+                                            <text x="44" y="150" font-size="13" fill="#374151">tight：是否贴上界</text>
+
+                                            <!-- loop box -->
+                                            <rect x="330" y="44" width="250" height="120" rx="16" fill="rgba(255,255,255,0.9)" stroke="rgba(55,65,81,0.25)"/>
+                                            <text x="350" y="78" font-size="16" font-weight="700" fill="#111827">枚举当前位 d</text>
+                                            <text x="350" y="106" font-size="13" fill="#374151">up = tight ? digits[pos] : 9</text>
+                                            <text x="350" y="128" font-size="13" fill="#374151">for d = 0..up</text>
+                                            <text x="350" y="150" font-size="13" fill="#374151">nextTight = tight && d==up</text>
+
+                                            <!-- child box -->
+                                            <rect x="626" y="44" width="250" height="120" rx="16" fill="rgba(240,249,255,0.95)" stroke="rgba(55,65,81,0.25)"/>
+                                            <text x="646" y="78" font-size="16" font-weight="700" fill="#111827">子问题</text>
+                                            <text x="646" y="106" font-size="13" fill="#374151">dfs(pos+1, sum+d, nextTight)</text>
+                                            <text x="646" y="128" font-size="13" fill="#374151">把返回值加到 ans</text>
+
+                                            <!-- memo box -->
+                                            <rect x="260" y="188" width="380" height="56" rx="14" fill="rgba(17,24,39,0.90)" stroke="rgba(255,255,255,0.15)"/>
+                                            <text x="284" y="222" font-size="14" fill="#f9fafb">当 tight=0：dp[pos][sum] 记忆化复用（避免重复计算）</text>
+
+                                            <!-- arrows -->
+                                            <line x1="284" y1="104" x2="330" y2="104" stroke="rgba(55,65,81,0.55)" stroke-width="2" marker-end="url(#arrow)"/>
+                                            <line x1="580" y1="104" x2="626" y2="104" stroke="rgba(55,65,81,0.55)" stroke-width="2" marker-end="url(#arrow)"/>
+                                            <line x1="455" y1="164" x2="455" y2="188" stroke="rgba(55,65,81,0.35)" stroke-width="2" marker-end="url(#arrow)"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="learning-demo-overview__section">
+                                    <div class="learning-demo-overview__h">9）常见坑（快速扫一眼）</div>
+                                    <div class="learning-demo-overview__p">
+                                        - 前导零：一般当成正常填 0（相当于把短位数补齐到 len 位）<br/>
+                                        - 记忆化条件：只有 tight=0（不受上界限制）才安全复用<br/>
+                                        - 状态维度：别把范围开爆；演示里我们只做小 N
+                                    </div>
                                 </div>
                             </div>
                         </div>
+
                         <div class="learning-demo-overview__actions">
                             <button id="digit-dp-demo-start" class="admin-btn learning-demo-run-btn" type="button">开始练习</button>
                         </div>

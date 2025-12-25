@@ -2092,6 +2092,40 @@ body .problems-table tbody tr td.status-none {
 }
 
 /* --- Daily View Layout --- */
+#daily .daily-page-banner {
+    width: 100%;
+    margin: 12px 0 18px;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #0b1220;
+    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+    display: block;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    text-decoration: none;
+}
+
+#daily .daily-page-banner:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+}
+
+#daily .daily-page-banner:focus-visible {
+    outline: 3px solid rgba(50, 202, 153, 0.65);
+    outline-offset: 3px;
+}
+
+#daily .daily-page-banner img {
+    width: 100%;
+    height: auto;
+    display: block;
+    /* 原图为 2400x300 => 8:1，按此比例展示避免过高 */
+    aspect-ratio: 8 / 1;
+    object-fit: cover;
+    /* 顶部对齐，便于裁切时不丢上沿元素 */
+    object-position: top center;
+}
+
 .daily-view-container {
     display: flex;
     gap: 20px;
@@ -3089,6 +3123,45 @@ body .problems-table tbody tr td.status-none {
     display: flex;
     justify-content: flex-end;
     margin-top: 12px;
+}
+
+.learning-demo-overview__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 10px;
+}
+.learning-demo-overview__pager {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.learning-demo-overview__pager-indicator {
+    font-size: 13px;
+    color: #6b7280;
+    font-weight: 700;
+    min-width: 52px;
+    text-align: center;
+}
+.learning-demo-overview__pager-btn {
+    padding: 8px 12px;
+    border-radius: 10px;
+}
+.learning-demo-overview__page {
+    animation: overviewFade 180ms ease;
+}
+@keyframes overviewFade {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+.learning-demo-diagram {
+    margin-top: 10px;
+    background: rgba(255,255,255,0.8);
+    border: 1px solid rgba(229,231,235,0.95);
+    border-radius: 14px;
+    padding: 10px 10px;
+    overflow: hidden;
 }
 .learning-demo-layout {
     display: flex;

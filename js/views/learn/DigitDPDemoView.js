@@ -54,6 +54,10 @@ export class DigitDPDemoView {
         this.startBtn = document.getElementById('digit-dp-demo-start');
         this.layout = this.modal ? this.modal.querySelector('.learning-demo-layout') : null;
         this.actionsBar = this.modal ? this.modal.querySelector('.learning-demo-actions') : null;
+        this.overviewPages = this.overview ? Array.from(this.overview.querySelectorAll('.learning-demo-overview__page')) : [];
+        this.prevBtn = document.getElementById('digit-dp-demo-prev');
+        this.nextBtn = document.getElementById('digit-dp-demo-next');
+        this.pageIndicator = document.getElementById('digit-dp-demo-page-indicator');
         this.titleEl = document.getElementById('digit-dp-demo-title');
         this.closeBtn = document.getElementById('digit-dp-demo-close');
         this.challengeSelect = document.getElementById('digit-dp-demo-challenge');
@@ -79,6 +83,7 @@ export class DigitDPDemoView {
         this._cursor = 0;
         this._compiled = null; // { trace, answer, summary }
         this._activeChallenge = CHALLENGES[0];
+        this._overviewPage = 0;
 
         this.init();
     }
@@ -99,6 +104,8 @@ export class DigitDPDemoView {
 
         this.closeBtn && this.closeBtn.addEventListener('click', () => this.close());
         this.startBtn && this.startBtn.addEventListener('click', () => this.enterPractice());
+        this.prevBtn && this.prevBtn.addEventListener('click', () => this.gotoOverviewPage(this._overviewPage - 1));
+        this.nextBtn && this.nextBtn.addEventListener('click', () => this.gotoOverviewPage(this._overviewPage + 1));
         this.runBtn && this.runBtn.addEventListener('click', () => this.run());
         this.stepBtn && this.stepBtn.addEventListener('click', () => this.stepOnce());
         this.resetBtn && this.resetBtn.addEventListener('click', () => this.reset());
@@ -132,6 +139,8 @@ export class DigitDPDemoView {
         if (this.overview) this.overview.style.display = 'flex';
         if (this.layout) this.layout.style.display = 'none';
         if (this.actionsBar) this.actionsBar.style.display = 'none';
+        this._overviewPage = 0;
+        this.gotoOverviewPage(0);
         this.reset();
         if (this.statusEl) this.statusEl.textContent = '先把状态/dfs/记忆化看明白，再开始练习。';
     }
@@ -142,6 +151,20 @@ export class DigitDPDemoView {
         if (this.actionsBar) this.actionsBar.style.display = 'flex';
         this.reset();
         try { this.nInput && this.nInput.focus(); } catch (_) {}
+    }
+
+    gotoOverviewPage(idx) {
+        const pages = this.overviewPages || [];
+        const total = pages.length || 0;
+        if (total <= 0) return;
+        const next = Math.max(0, Math.min(total - 1, idx));
+        this._overviewPage = next;
+        pages.forEach((el, i) => {
+            el.style.display = (i === next) ? 'block' : 'none';
+        });
+        if (this.pageIndicator) this.pageIndicator.textContent = `${next + 1} / ${total}`;
+        if (this.prevBtn) this.prevBtn.disabled = (next === 0);
+        if (this.nextBtn) this.nextBtn.disabled = (next === total - 1);
     }
 
     setChallenge(c) {
