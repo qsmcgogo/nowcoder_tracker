@@ -201,6 +201,8 @@ app.use('/problem/tracker/battle/my-mirrors', manualProxyHandler('/problem/track
 app.use('/problem/tracker/battle/batch-process-room-status', manualProxyHandler('/problem/tracker/battle/batch-process-room-status'));
 app.use('/problem/tracker/battle/set-score', manualProxyHandler('/problem/tracker/battle/set-score'));
 app.use('/problem/tracker/battle/rebuild-leaderboard', manualProxyHandler('/problem/tracker/battle/rebuild-leaderboard'));
+// Admin: Clear a user's mirrors (Redis only)
+app.use('/problem/tracker/battle/clear-user-mirrors', manualProxyHandler('/problem/tracker/battle/clear-user-mirrors'));
 
 // Admin: Clock Question Management (每日一题管理)
 app.use('/problem/tracker/clock/question/add', manualProxyHandler('/problem/tracker/clock/question/add'));
@@ -224,8 +226,16 @@ app.use('/problem/tracker/battle/problem/admin/batch-delete', manualProxyHandler
 app.use('/problem/tracker/battle/problem/admin/check-delete', manualProxyHandler('/problem/tracker/battle/problem/admin/check-delete'));
 app.use('/problem/tracker/battle/problem/admin/reset-stats', manualProxyHandler('/problem/tracker/battle/problem/admin/reset-stats'));
 
+// Admin: Batch import Tracker problems into acm_problem_open
+// POST /acm-problem-open/batch-import-tracker
+app.use('/acm-problem-open/batch-import-tracker', manualProxyHandler('/acm-problem-open/batch-import-tracker'));
+// 正确路径：在 /problem/tracker 路由空间下
+app.use('/problem/tracker/acm-problem-open/batch-import-tracker', manualProxyHandler('/problem/tracker/acm-problem-open/batch-import-tracker'));
+
 // Admin: Check Permission (管理员权限检查)
 app.use('/problem/tracker/admin/check', manualProxyHandler('/problem/tracker/admin/check'));
+// Admin: Year report (验数，不走缓存)
+app.use('/problem/tracker/admin/year-report', manualProxyHandler('/problem/tracker/admin/year-report'));
 
 
 // Endpoint to get current environment config

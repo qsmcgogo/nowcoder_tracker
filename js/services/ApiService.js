@@ -633,9 +633,10 @@ export class ApiService {
      * @param {string} contestType - 比赛类型字符串
      * @param {number} page - 页码
      * @param {number} limit - 每页数量
+     * @param {string} category - 知识点分类（仅课程比赛使用）
      * @returns {Promise<object>} 比赛数据
      */
-    async fetchContests(contestType, page = 1, limit = 30) {
+    async fetchContests(contestType, page = 1, limit = 30, category = null) {
         try {
             // 比赛类型映射
             const contestTypeMap = {
@@ -648,6 +649,7 @@ export class ApiService {
                 '20': 20, // 多校
                 '21': 21, // 寒假营
                 '22': 22, // XCPC
+                '23': 23, // 课程
                 '100': 100, '101': 101, '102': 102, '103': 103
             };
 
@@ -661,7 +663,16 @@ export class ApiService {
             // 保底：仍找不到时，直接透传（以便后端做兼容路由）
             if (apiContestType === undefined) apiContestType = contestType;
 
-            const url = `${this.apiBase}/problem/tracker/list?contestType=${apiContestType}&page=${page}&limit=${limit}`;
+            let url = `${this.apiBase}/problem/tracker/list?contestType=${apiContestType}&page=${page}&limit=${limit}`;
+            // 如果是课程比赛（23）且指定了分类，添加category参数
+            if (apiContestType === 23 && category) {
+                url += `&category=${encodeURIComponent(category)}`;
+            }
+            // 如果是杯赛（25）且指定了分类，添加category参数
+            if (apiContestType === 25 && category) {
+                url += `&category=${encodeURIComponent(category)}`;
+            }
+
             const response = await fetch(url);
             if (!response.ok) throw new Error(`Network error: ${response.statusText}`);
             const data = await response.json();
@@ -2019,6 +2030,36 @@ export class ApiService {
     }
 
     /**
+     * 管理员：清理某用户的所有镜像（仅清理 Redis）。
+     * POST /problem/tracker/battle/clear-user-mirrors?userId=xxx
+     *
+     * @param {number|string} userId
+     * @returns {Promise<object>} 返回 {success, userId, total, removed, missing}
+     */
+    async adminClearUserMirrors(userId) {
+        const uid = Number(userId);
+        if (!uid || uid <= 0) throw new Error('userId 参数不合法');
+        const url = `${this.apiBase}/problem/tracker/battle/clear-user-mirrors`;
+        const body = `userId=${encodeURIComponent(uid)}`;
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+                body,
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json().catch(() => ({}));
+            if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+            throw new Error((data && (data.msg || data.message)) || '清理用户镜像失败');
+        } catch (error) {
+            console.error('清理用户镜像失败:', error);
+            throw error;
+        }
+    }
+
+    /**
      * 获取"我的"页面所需的所有信息（整合接口）
      * @returns {Promise<object>} 包含用户信息、打卡信息、技能树进度、成就信息、对战信息
      */
@@ -2057,6 +2098,30 @@ export class ApiService {
             console.error('[ApiService] 检查管理员状态失败:', error);
             return false;
         }
+    }
+
+    /**
+     * 管理员验数：查看指定用户年度报告（不走缓存）
+     * GET /problem/tracker/admin/year-report?uid=xxx&year=2025&trackerOnly=true
+     *
+     * @param {number|string} uid
+     * @param {number} year - 0 表示当前年
+     * @param {boolean} trackerOnly
+     * @returns {Promise<object>} year-report data
+     */
+    async adminYearReport(uid, year = 0, trackerOnly = true) {
+        const uidNum = Number(uid);
+        if (!uidNum || uidNum <= 0) throw new Error('uid 参数不合法');
+        const y = Number.isFinite(Number(year)) ? Number(year) : 0;
+        const url = `${this.apiBase}/problem/tracker/admin/year-report?uid=${encodeURIComponent(uidNum)}&year=${encodeURIComponent(y)}&trackerOnly=${encodeURIComponent(String(!!trackerOnly))}`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '获取年度报告失败');
     }
 
     /**
@@ -2395,6 +2460,73 @@ export class ApiService {
         const data = await res.json();
         if (data.code === 0) return data.data;
         throw new Error(data.message || '重置失败');
+    }
+
+    // ==================== 管理员API：批量导入 Tracker 题目到 acm_problem_open ====================
+
+    /**
+     * 批量导入 Tracker 题库题目到 acm_problem_open
+     *
+     * 后端文档：POST acm-problem-open/batch-import-tracker
+     * 参数为 x-www-form-urlencoded / form-data
+     *
+     * @param {Array<number>|Array<string>|string} problemIds - 推荐传数组；内部会序列化为 JSON 数组字符串
+     * @param {number} trackerSourceTagId - Tracker 来源 tagId（后端若无默认值通常必填）
+     * @param {number} batchSize - 分批大小（1-500，后端会 clamp）
+     * @param {boolean} dryRun - 是否仅统计不落库
+     * @returns {Promise<object>} 返回后端 data：{ created, updated, skipped, failed, failedIds, failedReason, ... }
+     */
+    async adminAcmProblemOpenBatchImportTracker(problemIds, trackerSourceTagId = 0, batchSize = 200, dryRun = false) {
+        // 注意：TrackerAdminController 在 /problem/tracker 路由空间下
+        // 其他管理员接口也均以 /problem/tracker/... 形式调用
+        const url = `${this.apiBase}/problem/tracker/acm-problem-open/batch-import-tracker`;
+
+        // 统一把 problemIds 序列化成 JSON 数组字符串（后端推荐格式）
+        let idsArray = [];
+        if (Array.isArray(problemIds)) {
+            idsArray = problemIds;
+        } else if (typeof problemIds === 'string') {
+            // 兼容直接透传字符串（逗号/空格/换行分隔或 JSON 数组）
+            const trimmed = problemIds.trim();
+            if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+                try {
+                    const parsed = JSON.parse(trimmed);
+                    if (Array.isArray(parsed)) idsArray = parsed;
+                    else idsArray = [];
+                } catch (_) {
+                    idsArray = [];
+                }
+            } else {
+                idsArray = trimmed
+                    .split(/[\n\r,，\t\s]+/)
+                    .map(s => s.trim())
+                    .filter(Boolean);
+            }
+        }
+
+        const normalized = idsArray
+            .map(v => parseInt(String(v).trim(), 10))
+            .filter(v => Number.isFinite(v) && v > 0);
+        const uniqueIds = [...new Set(normalized)];
+
+        const body = new URLSearchParams();
+        body.append('problemIds', JSON.stringify(uniqueIds));
+        body.append('trackerSourceTagId', String(parseInt(String(trackerSourceTagId || 0), 10) || 0));
+        body.append('batchSize', String(parseInt(String(batchSize || 200), 10) || 200));
+        body.append('dryRun', String(!!dryRun));
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: body.toString(),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '批量导入失败');
     }
 }
 

@@ -79,6 +79,24 @@ export const nodeIdToTagId = {
     // 并查集
     'union-find-intro': 1315,
     'minimum-spanning-tree': 1316,
+    // --- Stage 4 mappings ---
+    'fenwick-tree': 1500,
+    'st-table-rmq': 1501,
+    'segment-tree': 1502,
+    'dijkstra': 1503,
+    'lca': 1504,
+    'dsu-on-tree': 1505,
+    'digit-dp': 1506,
+    'rerooting-dp': 1507,
+    'expected-dp': 1508,
+    'dp-rolling-opt': 1509,
+    'dp-monoqueue-segtree-opt': 1510,
+    'sieve': 1511,
+    'euler-theorem': 1512,
+    'exgcd': 1513,
+    'kmp': 1514,
+    'manacher': 1515,
+    'trie': 1516,
     // --- Boss章节：梦 ---
     'thinking-challenge': 1400,  // 思维挑战
     'knowledge-challenge': 1401, // 知识点挑战
@@ -142,7 +160,19 @@ export const skillTreeData = {
             },
             {
                 id: 'stage-4',
-                name: '第四章：韬光逐影'
+                name: '第四章：韬光逐影',
+                columns: [
+                    { id: 's4-col-range-ds', name: '区间查询类数据结构', nodeIds: ['fenwick-tree', 'st-table-rmq', 'segment-tree'] },
+                    // 你定的“最小生成树”当前已有知识点（tag_id=1316），这里复用同一个节点
+                    { id: 's4-col-graph', name: '图论', nodeIds: ['dijkstra', 'minimum-spanning-tree', 'lca', 'dsu-on-tree'] },
+                    { id: 's4-col-dp', name: '动态规划提高', nodeIds: ['digit-dp', 'rerooting-dp', 'expected-dp', 'dp-rolling-opt', 'dp-monoqueue-segtree-opt'] },
+                    { id: 's4-col-nt', name: '数论进阶', nodeIds: ['sieve', 'euler-theorem', 'exgcd'] },
+                    { id: 's4-col-string', name: '字符串进阶', nodeIds: ['kmp', 'manacher', 'trie'] }
+                ]
+            },
+            {
+                id: 'stage-5',
+                name: '第五章：踏浪凌云'
             }
         ],
         nodes: {
@@ -228,6 +258,32 @@ export const skillTreeData = {
             // 并查集
             'union-find-intro': { id: 'union-find-intro', name: '并查集入门', dependencies: [] },
             'minimum-spanning-tree': { id: 'minimum-spanning-tree', name: '最小生成树', dependencies: [] },
+            // --- Stage 4 节（知识点） ---
+            // 依赖规则（按你的要求）：
+            // - 仅 LCA 依赖 ST 表
+            // - 其余第四章知识点均无依赖
+            // 区间查询类数据结构
+            'fenwick-tree': { id: 'fenwick-tree', name: '树状数组', dependencies: [] },
+            'st-table-rmq': { id: 'st-table-rmq', name: '倍增RMQ（ST表）', dependencies: [] },
+            'segment-tree': { id: 'segment-tree', name: '线段树', dependencies: [] },
+            // 图论
+            'dijkstra': { id: 'dijkstra', name: '最短路（Dijkstra）', dependencies: [] },
+            'lca': { id: 'lca', name: 'LCA', dependencies: ['st-table-rmq'] },
+            'dsu-on-tree': { id: 'dsu-on-tree', name: '树上启发式合并', dependencies: [] },
+            // 动态规划提高
+            'digit-dp': { id: 'digit-dp', name: '数位DP', dependencies: [] },
+            'rerooting-dp': { id: 'rerooting-dp', name: '换根DP', dependencies: [] },
+            'expected-dp': { id: 'expected-dp', name: '概率/期望DP', dependencies: [] },
+            'dp-rolling-opt': { id: 'dp-rolling-opt', name: '滚动数组优化', dependencies: [] },
+            'dp-monoqueue-segtree-opt': { id: 'dp-monoqueue-segtree-opt', name: '单调队列/线段树优化', dependencies: [] },
+            // 数论进阶
+            'sieve': { id: 'sieve', name: '筛法', dependencies: [] },
+            'euler-theorem': { id: 'euler-theorem', name: '欧拉定理', dependencies: [] },
+            'exgcd': { id: 'exgcd', name: '扩展欧几里得（exgcd）', dependencies: [] },
+            // 字符串进阶
+            'kmp': { id: 'kmp', name: 'KMP', dependencies: [] },
+            'manacher': { id: 'manacher', name: 'Manacher（马拉车）', dependencies: [] },
+            'trie': { id: 'trie', name: '字典树（Trie）', dependencies: [] },
             // --- Boss章节：梦 ---
             'thinking-challenge': { id: 'thinking-challenge', name: '思维挑战', dependencies: [] },
             'knowledge-challenge': { id: 'knowledge-challenge', name: '知识点挑战', dependencies: [] },
@@ -248,6 +304,7 @@ export class SkillTreeView {
         this.panelTitle = document.getElementById('skill-node-panel-title');
         this.panelScore = document.getElementById('skill-node-panel-score');
         this.panelDesc = document.getElementById('skill-node-panel-desc');
+        this.panelActions = document.getElementById('skill-node-panel-actions');
         this.panelProblems = document.getElementById('skill-node-panel-problems');
         this.panelCloseBtn = document.getElementById('skill-node-panel-close');
         
@@ -724,10 +781,12 @@ export class SkillTreeView {
                 </div>
             `;
 
-            // 第四章：韬光逐影，作为第二篇章（潜龙篇）的开端，目前仅做占位展示
+            // 第四章：韬光逐影（已开放点击进入详情）
+            // 第五章：踏浪凌云（占位展示，大卡）
             const stage4Obj = tree.stages.find(s => s.id === 'stage-4');
+            const stage5Obj = tree.stages.find(s => s.id === 'stage-5');
             const stage4CardHtml = stage4Obj ? `
-                <div class="skill-tree-card stage-4 locked" data-stage-id="${stage4Obj.id}" aria-disabled="true" style="opacity: 0.95;">
+                <div class="skill-tree-card stage-4" data-stage-id="${stage4Obj.id}" style="opacity: 0.98;">
                     <div class="stage-bg-pattern stage-bg-shadow">
                         <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
                             <defs>
@@ -743,6 +802,93 @@ export class SkillTreeView {
                     </div>
                     <div class="skill-tree-card__header">
                         <h3 class="skill-tree-card__title">${stage4Obj.name}</h3>
+                        <span class="skill-tree-card__progress-text">通关率: 0%</span>
+                    </div>
+                    <div class="skill-tree-card__progress-bar">
+                        <div class="skill-tree-card__progress-bar-inner" style="width: 0%;"></div>
+                    </div>
+                </div>
+            ` : '';
+            const stage5CardHtml = stage5Obj ? `
+                <div class="skill-tree-card stage-5 locked" data-stage-id="${stage5Obj.id}" aria-disabled="true" style="opacity: 0.92;">
+                    <div class="stage-bg-pattern stage-bg-wave">
+                        <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
+                            <defs>
+                                <linearGradient id="cloudSky" x1="0%" y1="0%" x2="100%" y2="100%">
+                                    <stop offset="0%" stop-color="#748ffc" stop-opacity="0.22" />
+                                    <stop offset="45%" stop-color="#4dabf7" stop-opacity="0.16" />
+                                    <stop offset="100%" stop-color="#b197fc" stop-opacity="0.20" />
+                                </linearGradient>
+                                <linearGradient id="cloudMist" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.06" />
+                                    <stop offset="70%" stop-color="#ffffff" stop-opacity="0.00" />
+                                    <stop offset="100%" stop-color="#ffffff" stop-opacity="0.00" />
+                                </linearGradient>
+                                <linearGradient id="cloudShineLine" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stop-color="#ffffff" stop-opacity="0.0" />
+                                    <stop offset="35%" stop-color="#dbe4ff" stop-opacity="0.55" />
+                                    <stop offset="65%" stop-color="#c5f6fa" stop-opacity="0.45" />
+                                    <stop offset="100%" stop-color="#ffffff" stop-opacity="0.0" />
+                                </linearGradient>
+                                <filter id="cloudGlow">
+                                    <feGaussianBlur stdDeviation="2.6" result="blur" />
+                                    <feMerge>
+                                        <feMergeNode in="blur"/>
+                                        <feMergeNode in="SourceGraphic"/>
+                                    </feMerge>
+                                </filter>
+                            </defs>
+                            <!-- 天空底色 -->
+                            <rect x="0" y="0" width="200" height="200" fill="url(#cloudSky)" opacity="0.95"/>
+                            <!-- 远处薄雾 -->
+                            <rect x="0" y="0" width="200" height="200" fill="url(#cloudMist)" />
+
+                            <!-- 云团（上方点缀） -->
+                            <g opacity="0.06">
+                                <circle cx="58" cy="52" r="28" fill="#ffffff"/>
+                                <circle cx="82" cy="46" r="22" fill="#ffffff"/>
+                                <circle cx="104" cy="56" r="26" fill="#ffffff"/>
+                                <circle cx="132" cy="48" r="20" fill="#ffffff"/>
+                                <circle cx="148" cy="62" r="24" fill="#ffffff"/>
+                            </g>
+
+                            <!-- 云海（分层云带，CSS 做轻微漂移） -->
+                            <path class="cloud-layer cloud-layer--1"
+                                  d="M -20 132
+                                     C -6 120, 12 120, 26 132
+                                     C 36 110, 60 110, 70 132
+                                     C 82 118, 100 118, 112 132
+                                     C 124 112, 150 112, 162 132
+                                     C 174 120, 190 120, 210 132
+                                     L 210 210 L -20 210 Z"
+                                  fill="#ffffff" fill-opacity="0.10"/>
+                            <path class="cloud-layer cloud-layer--2"
+                                  d="M -20 148
+                                     C -2 132, 18 132, 36 148
+                                     C 48 124, 74 126, 86 148
+                                     C 96 132, 116 132, 126 148
+                                     C 138 126, 162 126, 174 148
+                                     C 184 136, 196 136, 210 148
+                                     L 210 210 L -20 210 Z"
+                                  fill="#dbe4ff" fill-opacity="0.08"/>
+                            <path class="cloud-layer cloud-layer--3"
+                                  d="M -20 164
+                                     C 0 150, 18 150, 40 164
+                                     C 54 140, 78 142, 92 164
+                                     C 104 150, 122 150, 136 164
+                                     C 150 142, 172 142, 186 164
+                                     C 194 156, 202 156, 210 164
+                                     L 210 210 L -20 210 Z"
+                                  fill="#c5f6fa" fill-opacity="0.07"/>
+
+                            <!-- 云海流光 -->
+                            <path class="cloud-shine"
+                                  d="M 18 120 C 48 106, 78 132, 110 118 C 136 108, 158 128, 186 116"
+                                  stroke="url(#cloudShineLine)" stroke-width="3.0" fill="none" filter="url(#cloudGlow)" opacity="0.75"/>
+                        </svg>
+                    </div>
+                    <div class="skill-tree-card__header">
+                        <h3 class="skill-tree-card__title">${stage5Obj.name}</h3>
                         <span class="skill-tree-card__progress-text">通关率: 0%</span>
                     </div>
                     <div class="skill-tree-card__progress-bar">
@@ -822,12 +968,13 @@ export class SkillTreeView {
                             </div>
                         </div>
                     </div>
-                    <div class="skill-tree-summary" style="position: relative; margin-top: 8px;">
+                    <div class="skill-tree-summary" style="position: relative; margin-top: 8px; z-index: 5;">
                         ${stage4CardHtml}
+                        ${stage5CardHtml}
                     </div>
                     <!-- 云雾渐隐效果，表示后续章节还在更新中 -->
-                    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 140px; background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.85) 60%, rgba(255,255,255,1) 100%); pointer-events: none; z-index: 10;"></div>
-                    <div style="position: absolute; bottom: 18px; left: 0; width: 100%; text-align: center; color: #8c8c8c; font-size: 14px; z-index: 11; font-weight: 500; letter-spacing: 2px;">
+                    <div style="position: absolute; bottom: 0; left: 0; width: 100%; height: 90px; background: linear-gradient(to bottom, rgba(255,255,255,0) 0%, rgba(255,255,255,0.65) 82%, rgba(255,255,255,1) 100%); pointer-events: none; z-index: 1;"></div>
+                    <div style="position: absolute; bottom: 8px; left: 0; width: 100%; text-align: center; color: #8c8c8c; font-size: 14px; z-index: 2; font-weight: 500; letter-spacing: 2px; pointer-events:none;">
                         ✨ 更多篇章正在建设中 ✨
                     </div>
             </div>`;
@@ -885,8 +1032,11 @@ export class SkillTreeView {
             let rightColumnHtml = '';
             const isStage2 = stage.id === 'stage-2';
             const isStage3 = stage.id === 'stage-3';
+            const isStage4 = stage.id === 'stage-4';
             const posOrder = ['top','left','right','bottom'];
             let stage2AllHtml = '';
+            let stage4AllHtml = '';
+            const stage4PosOrder = ['pos1', 'pos2', 'pos3', 'pos4', 'pos5'];
 
             if (stage.columns) {
                 stage.columns.forEach((column, idx) => {
@@ -1003,7 +1153,9 @@ export class SkillTreeView {
                     // --- Hotfix for col-5 tooltip clipping ---
                     const extraStyle = column.id === 'col-5' ? 'style="overflow: visible;"' : '';
 
-                    const extraClasses = isStage2 ? ` two-per-row stage2-pos-${posOrder[idx] || 'top'}` : '';
+                    const extraClasses = isStage2
+                        ? ` two-per-row stage2-pos-${posOrder[idx] || 'top'}`
+                        : (isStage4 ? ` stage4-pos-${stage4PosOrder[idx] || 'pos1'}` : '');
                     const columnHtml = `
                         <div class="skill-tree-column ${columnLockClass}${extraClasses}" id="skill-tree-column-${column.id}" ${extraStyle}>
                             ${columnElementsHtml}
@@ -1013,6 +1165,8 @@ export class SkillTreeView {
                     `;
                     if (isStage2) {
                         stage2AllHtml += columnHtml;
+                    } else if (isStage4) {
+                        stage4AllHtml += columnHtml;
                     } else if (isStage3) {
                         // 第三章布局：左边是枚举进阶和动态规划进阶，右边是搜索入门、图论入门、并查集
                         if (column.id === 's3-col-enum-advanced' || column.id === 's3-col-dp-advanced') {
@@ -1041,10 +1195,19 @@ export class SkillTreeView {
                         </svg>
                         ${stage2AllHtml}
                    </div>`
-                : `<div class=\"skill-tree-dag-container ${isStage3 ? 'skill-tree-dag-container--stage3' : ''}\"><div class=\"dag-main-column\">${leftColumnHtml}</div><div class=\"dag-main-column\">${rightColumnHtml}</div></div>`;
+                : (isStage4
+                    ? `<div class="stage4-pentagon">
+                            <svg class="stage4-pentagon-decor" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                                <!-- 五边形轮廓（装饰用，位置由 CSS 控制） -->
+                                <path d="M50,6 L90,34 L74,86 L26,86 L10,34 Z" fill="none" stroke="rgba(24,144,255,0.20)" stroke-width="1.4"></path>
+                                <path d="M50,14 L84,38 L70,80 L30,80 L16,38 Z" fill="none" stroke="rgba(24,144,255,0.10)" stroke-width="1.1"></path>
+                            </svg>
+                            ${stage4AllHtml}
+                       </div>`
+                    : `<div class=\"skill-tree-dag-container ${isStage3 ? 'skill-tree-dag-container--stage3' : ''}\"><div class=\"dag-main-column\">${leftColumnHtml}</div><div class=\"dag-main-column\">${rightColumnHtml}</div></div>`);
 
             const html = `
-                <div class="skill-tree-detail ${isStage2 ? 'skill-tree-detail--stage2' : ''}">
+                <div class="skill-tree-detail ${isStage2 ? 'skill-tree-detail--stage2' : ''} ${isStage4 ? 'skill-tree-detail--stage4' : ''}">
                     <div class="skill-tree-detail__header">
                         <button id="skill-tree-back-btn" class="back-button">&larr; 返回所有阶段</button>
                         <h2>${stage.name}</h2>
@@ -2326,6 +2489,7 @@ export class SkillTreeView {
         const s2 = root.querySelector('.skill-tree-card.stage-2');
         const s3 = root.querySelector('.skill-tree-card.stage-3');
         const s4 = root.querySelector('.skill-tree-card.stage-4');
+        const s5 = root.querySelector('.skill-tree-card.stage-5');
         const rect = root.getBoundingClientRect();
         const getPoint = (el, px, py) => {
             const r = el.getBoundingClientRect();
@@ -2349,6 +2513,8 @@ export class SkillTreeView {
         if (s2 && s3) draw(getPoint(s2, 0, 1), getPoint(s3, 1, 0));
         // 第三章->第四章：从第三章底部中心连接到第四章顶部中心
         if (s3 && s4) draw(getPoint(s3, 0.5, 1), getPoint(s4, 0.5, 0));
+        // 第四章->第五章：从第四章底部中心连接到第五章顶部中心（大卡）
+        if (s4 && s5) draw(getPoint(s4, 0.5, 1), getPoint(s5, 0.5, 0));
     }
 
     teardownSummarySvg() {
@@ -2504,6 +2670,7 @@ export class SkillTreeView {
             this.panelTitle.textContent = staticNodeData.name;
             this.panelScore.textContent = ''; // Clear score while loading
             this.panelDesc.textContent = '正在加载描述...';
+            if (this.panelActions) this.panelActions.innerHTML = '';
             this.panelProblems.innerHTML = '<div class="loading-spinner-small"></div>';
             return;
         }
@@ -2511,6 +2678,47 @@ export class SkillTreeView {
         // 标题（已移除刷新按钮，改为在打开详情页时自动更新）
         this.panelTitle.textContent = tagInfo.tagName || staticNodeData.name;
         this.panelDesc.textContent = tagInfo.tagDesc || '暂无描述。';
+
+        // 右侧面板的“学习入口”（交互式 Demo）
+        if (this.panelActions) {
+            this.panelActions.innerHTML = '';
+            if (this.activeNodeId === 'basic-output') {
+                const html = `
+                    <div class="skill-node-panel__actions-row">
+                        <button id="skill-node-learn-demo-btn" type="button" class="admin-btn skill-node-learn-btn">
+                            ▶ 学习 Demo（基础输出）
+                        </button>
+                        <span class="skill-node-panel__actions-hint">先学会“输出/换行”，做题会顺很多</span>
+                    </div>
+                `;
+                this.panelActions.insertAdjacentHTML('beforeend', html);
+                const btn = this.panelActions.querySelector('#skill-node-learn-demo-btn');
+                if (btn && !btn._bound) {
+                    btn._bound = true;
+                    btn.addEventListener('click', () => {
+                        eventBus.emit(EVENTS.OPEN_OUTPUT_DEMO, { nodeId: 'basic-output', title: '学习 Demo：基础输出' });
+                    });
+                }
+            }
+            if (this.activeNodeId === 'digit-dp') {
+                const html = `
+                    <div class="skill-node-panel__actions-row" style="margin-top:10px;">
+                        <button id="skill-node-digitdp-demo-btn" type="button" class="admin-btn skill-node-learn-btn">
+                            ▶ 学习 Demo（数位DP）
+                        </button>
+                        <span class="skill-node-panel__actions-hint">用可视化轨迹把“pos/tight/记忆化”彻底看明白</span>
+                    </div>
+                `;
+                this.panelActions.insertAdjacentHTML('beforeend', html);
+                const btn = this.panelActions.querySelector('#skill-node-digitdp-demo-btn');
+                if (btn && !btn._bound) {
+                    btn._bound = true;
+                    btn.addEventListener('click', () => {
+                        eventBus.emit(EVENTS.OPEN_DIGIT_DP_DEMO, { nodeId: 'digit-dp', title: '学习 Demo：数位DP' });
+                    });
+                }
+            }
+        }
 
         const problems = tagInfo.problems || [];
 

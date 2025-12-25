@@ -12,6 +12,7 @@ export class AppState {
         // 比赛视图状态
         this.activeContestTab = 'all';
         this.contestsCurrentTab = 'all';
+        this.activeBeisaiCategory = null; // 杯赛分类：'蓝桥杯' | '传智杯' | null（表示全部杯赛）
         this.contests = [];
         this.totalContests = 0;
         this.contestsCurrentPage = 1;
@@ -28,6 +29,12 @@ export class AppState {
         this.interviewDataCache = null;
         this.interviewItems = [];
         this.interviewCurrentPage = 1;
+        
+        // 课程视图状态
+        this.activeCourseCategory = ''; // 空字符串表示"全部课程"
+        this.courseContests = [];
+        this.totalCourseContests = 0;
+        this.courseCurrentPage = 1;
         
         // 排行榜状态
         this.activeRankingsTab = 'problem'; // 'problem' or 'checkin'
@@ -54,7 +61,8 @@ export class AppState {
             practice: false,
             rankings: false,
             daily: false,
-            interview: false
+            interview: false,
+            course: false
         };
         
         // 渠道参数
@@ -81,6 +89,10 @@ export class AppState {
         this.contestsCurrentTab = tab;
     }
     
+    setActiveBeisaiCategory(category) {
+        this.activeBeisaiCategory = category;
+    }
+    
     setActivePracticeSubTab(tab) {
         this.activePracticeSubTab = tab;
     }
@@ -91,6 +103,10 @@ export class AppState {
     
     setActiveCampusSubTab(tab) {
         this.activeCampusSubTab = tab;
+    }
+    
+    setActiveCourseCategory(category) {
+        this.activeCourseCategory = category;
     }
     
     setActiveRankingsTab(tab) {

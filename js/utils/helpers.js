@@ -2,6 +2,16 @@
 import { APP_CONFIG } from '../config.js';
 
 /**
+ * 判断是否为有效的题目ID（“正常题目”口径：正整数）
+ * @param {any} value
+ * @returns {boolean}
+ */
+export function isValidProblemId(value) {
+    const n = Number(value);
+    return Number.isInteger(n) && n > 0;
+}
+
+/**
  * 构建带有channelPut参数的URL
  * @param {string} baseUrl - 基础URL
  * @param {string} channelPut - 渠道参数
@@ -278,5 +288,37 @@ export function hideCustomTooltip() {
     if (existingTooltip) {
         existingTooltip.remove();
     }
+}
+
+/**
+ * 显示自定义提示框（用于替代原生 title 的视觉展示）
+ * @param {HTMLElement} el - 触发元素
+ * @param {string} text - 提示文本
+ */
+export function showCustomTooltip(el, text) {
+    hideCustomTooltip();
+    if (!el || text == null) return;
+
+    const tooltip = document.createElement('div');
+    tooltip.className = 'custom-tooltip';
+
+    // 轻量转义，避免 title 中的特殊字符导致注入；同时支持换行
+    const safe = String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/\n/g, '<br>');
+    tooltip.innerHTML = safe;
+
+    document.body.appendChild(tooltip);
+
+    const rect = el.getBoundingClientRect();
+    // 默认显示在元素上方；若空间不足，尽量贴近顶部
+    const top = rect.top + window.scrollY - tooltip.offsetHeight - 6;
+    tooltip.style.left = `${rect.left + window.scrollX}px`;
+    tooltip.style.top = `${Math.max(0, top)}px`;
+    tooltip.style.opacity = '1';
 }
 

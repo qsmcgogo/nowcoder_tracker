@@ -1633,6 +1633,12 @@ body .problems-table tbody tr td.status-none {
     background-color: transparent;
 }
 
+/* course：比赛名全AC时，仅做“加粗”提示，文字颜色保持黑色 */
+#course-view td.course-contest-cell.status-all-ac a {
+    color: var(--text-color-primary) !important;
+    font-weight: 700;
+}
+
 /* Rankings Tab Styles */
 .rankings-table {
     width: 100%;
@@ -2991,9 +2997,341 @@ body .problems-table tbody tr td.status-none {
     line-height: 1.6;
 }
 
+.skill-node-panel__actions {
+    margin: -10px 0 18px;
+}
+.skill-node-panel__actions-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.skill-node-panel__actions-hint {
+    color: var(--text-color-secondary);
+    font-size: 12px;
+}
+.skill-node-learn-btn {
+    background: #1890ff;
+    color: #fff;
+}
+.skill-node-learn-btn:hover {
+    background: #147ad6;
+}
+
 .skill-node-panel__divider {
     border-top: 1px solid #e9ecef;
     margin: 20px 0;
+}
+
+/* 学习 Demo：基础输出（MVP） */
+.learning-demo-modal .modal-content {
+    width: 980px;
+    max-width: calc(100% - 40px);
+    height: 82vh;
+}
+.learning-demo-modal__body {
+    padding: 14px;
+}
+
+/* 学习 Demo：原理概览页（打开时优先展示） */
+.learning-demo-overview {
+    padding: 6px 6px 2px 6px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+.learning-demo-overview__title {
+    font-size: 18px;
+    font-weight: 800;
+    color: #111827;
+    margin-bottom: 12px;
+}
+.learning-demo-overview__body {
+    background: linear-gradient(135deg, rgba(240, 249, 255, 0.88), rgba(255, 255, 255, 0.96));
+    border: 1px solid rgba(229, 231, 235, 0.95);
+    border-radius: 14px;
+    padding: 14px 14px;
+    box-shadow: 0 8px 24px rgba(17, 24, 39, 0.06);
+    overflow: auto;
+    flex: 1;
+}
+.learning-demo-overview__section + .learning-demo-overview__section {
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed rgba(229, 231, 235, 0.95);
+}
+.learning-demo-overview__h {
+    font-weight: 800;
+    color: #374151;
+    margin-bottom: 6px;
+}
+.learning-demo-overview__p {
+    color: #374151;
+    line-height: 1.8;
+    font-size: 14px;
+}
+.learning-demo-overview__p code,
+.learning-demo-overview__code code {
+    background: rgba(17, 24, 39, 0.06);
+    padding: 1px 6px;
+    border-radius: 6px;
+}
+.learning-demo-overview__code {
+    margin-top: 8px;
+    padding: 10px 12px;
+    background: rgba(17, 24, 39, 0.92);
+    color: #f9fafb;
+    border-radius: 12px;
+    font-size: 13px;
+    overflow: auto;
+}
+.learning-demo-overview__actions {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 12px;
+}
+.learning-demo-layout {
+    display: flex;
+    gap: 14px;
+    height: 100%;
+}
+.learning-demo-left {
+    flex: 1.15;
+    display: flex;
+    flex-direction: column;
+    min-width: 320px;
+}
+.learning-demo-right {
+    flex: 0.85;
+    display: flex;
+    flex-direction: column;
+    min-width: 280px;
+}
+.learning-demo-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.learning-demo-hint {
+    color: var(--text-color-secondary);
+    font-size: 12px;
+}
+.learning-demo-label {
+    color: #555;
+    font-size: 12px;
+    margin-right: 4px;
+}
+.learning-demo-toolbar__right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.learning-demo-coach {
+    margin-bottom: 10px;
+    padding: 12px 12px;
+    border-radius: 12px;
+    border: 1px solid rgba(24,144,255,0.25);
+    background: linear-gradient(135deg, rgba(24,144,255,0.10), rgba(114,46,209,0.08));
+    position: relative;
+    overflow: hidden;
+}
+.learning-demo-coach::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    background: linear-gradient(90deg, rgba(24,144,255,0.0), rgba(24,144,255,0.35), rgba(114,46,209,0.25), rgba(24,144,255,0.0));
+    background-size: 240% 100%;
+    animation: coachGlow 5.2s linear infinite;
+    pointer-events: none;
+    opacity: 0.7;
+}
+@keyframes coachGlow {
+    0% { transform: translateX(-25%); }
+    100% { transform: translateX(25%); }
+}
+.learning-demo-coach__head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    position: relative;
+    z-index: 1;
+}
+.learning-demo-coach__title {
+    font-weight: 800;
+    color: #0b5ed7;
+    letter-spacing: 0.5px;
+}
+.learning-demo-coach__subtitle {
+    color: var(--text-color-secondary);
+    font-size: 12px;
+}
+.learning-demo-coach__body {
+    margin-top: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    z-index: 1;
+}
+.learning-demo-coach__say {
+    color: #334155;
+    font-size: 12px;
+    line-height: 1.45;
+}
+.learning-demo-coach__codewrap {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.learning-demo-coach__btns {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.learning-demo-coach__code {
+    display: inline-block;
+    padding: 8px 10px;
+    border-radius: 10px;
+    background: rgba(11,18,32,0.92);
+    color: #e8f0ff;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 12px;
+    white-space: pre;
+    box-shadow: 0 10px 26px rgba(11,18,32,0.16);
+}
+.learning-demo-coach__btn {
+    background: #1890ff;
+    color: #fff;
+}
+.learning-demo-coach__btn:hover {
+    background: #147ad6;
+}
+.learning-demo-coach__restore-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+}
+.learning-demo-select {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 6px 8px;
+    font-size: 12px;
+    background: #fff;
+}
+.learning-demo-editor {
+    flex: 1;
+    width: 100%;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 12px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: 13px;
+    line-height: 1.45;
+    resize: none;
+    background: #fcfcff;
+    tab-size: 4;
+}
+.learning-demo-errors {
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 10px;
+    border: 1px solid #ffd6d6;
+    background: #fff1f0;
+    color: #a8071a;
+    font-size: 12px;
+    white-space: pre-wrap;
+}
+.learning-demo-panel {
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 10px 12px;
+    background: #fff;
+}
+.learning-demo-panel__title {
+    font-weight: 700;
+    color: #222;
+    font-size: 13px;
+    margin-bottom: 8px;
+}
+.learning-demo-console {
+    margin: 0;
+    padding: 10px 10px;
+    border-radius: 8px;
+    background: #0b1220;
+    color: #e8f0ff;
+    min-height: 120px;
+    max-height: 240px;
+    overflow: auto;
+    font-size: 13px;
+    line-height: 1.45;
+    white-space: pre-wrap;
+}
+.learning-demo-steps {
+    margin: 0;
+    padding-left: 18px;
+    max-height: 280px;
+    overflow: auto;
+    color: #444;
+    font-size: 12px;
+}
+.learning-demo-steps li {
+    padding: 6px 6px;
+    border-radius: 8px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 10px;
+}
+.learning-demo-steps li.is-active {
+    background: #e6f7ff;
+    outline: 1px solid #91d5ff;
+}
+.learning-demo-steps li.is-done {
+    opacity: 0.65;
+}
+.learning-demo-steps .step-explain {
+    flex: 1;
+}
+.learning-demo-steps .step-preview {
+    color: #888;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+.learning-demo-actions {
+    align-items: center;
+}
+.learning-demo-status {
+    color: #444;
+    font-size: 12px;
+    max-width: 55%;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.35;
+}
+.learning-demo-run-btn {
+    background: #1890ff;
+    color: #fff;
+}
+.learning-demo-run-btn:hover {
+    background: #147ad6;
+}
+
+@media (max-width: 960px) {
+    .learning-demo-modal .modal-content {
+        width: calc(100% - 20px);
+        height: 86vh;
+    }
+    .learning-demo-layout {
+        flex-direction: column;
+    }
+    .learning-demo-status {
+        max-width: 100%;
+    }
 }
 
 .skill-node-panel__content h4 {
@@ -3670,6 +4008,36 @@ body.dark-theme .profile-avatar {
     margin-left: -10%;
 }
 
+/* 第五章：踏浪凌云 - 波浪/流光 */
+.stage-bg-wave {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 30% 20%, rgba(145, 167, 255, 0.10) 0%, transparent 55%),
+                radial-gradient(circle at 80% 30%, rgba(99, 230, 190, 0.08) 0%, transparent 60%);
+}
+.stage-bg-wave svg {
+    transform: scale(1.06);
+}
+.stage-bg-wave .cloud-layer {
+    transform-box: fill-box;
+    transform-origin: center;
+    animation: cloudDrift 6.2s ease-in-out infinite;
+}
+.stage-bg-wave .cloud-layer--2 { animation-duration: 7.4s; animation-delay: -1.3s; }
+.stage-bg-wave .cloud-layer--3 { animation-duration: 8.2s; animation-delay: -2.0s; }
+.stage-bg-wave .cloud-shine {
+    animation: cloudShine 4.2s ease-in-out infinite;
+}
+@keyframes cloudDrift {
+    0%, 100% { transform: translateX(-2.2%) translateY(0); }
+    50% { transform: translateX(2.2%) translateY(-1.0%); }
+}
+@keyframes cloudShine {
+    0%, 100% { opacity: 0.40; transform: translateX(-2%); }
+    50% { opacity: 0.88; transform: translateX(2%); }
+}
+
 /* 自定义位置：第二章在第一章右下、第三章在第二章左下 */
 .skill-tree-card.stage-1 { grid-column: 1 / 2; grid-row: 1; }
 .skill-tree-card.stage-2 { grid-column: 3 / 4; grid-row: 3; margin-top: 40px; }
@@ -3689,6 +4057,10 @@ body.dark-theme .profile-avatar {
 .skill-tree-card-group.stage-3::before {
     top: 50%;
 }
+
+/* 第四章/第五章（潜龙篇）大卡布局：参考第一章/第二章的“左上 + 右下” */
+.skill-tree-card.stage-4 { grid-column: 1 / 2; grid-row: 1; }
+.skill-tree-card.stage-5 { grid-column: 3 / 4; grid-row: 3; margin-top: 40px; }
 
 /* Summary View Card */
 .skill-tree-card {
@@ -3818,6 +4190,64 @@ body.dark-theme .profile-avatar {
 .skill-tree-detail--stage2 .stage2-pos-left { grid-column: 1; grid-row: 3; }
 .skill-tree-detail--stage2 .stage2-pos-right { grid-column: 3; grid-row: 3; }
 .skill-tree-detail--stage2 .stage2-pos-bottom { grid-column: 2; grid-row: 5; }
+
+/* 第四章五边形布局：五个大虚框分别放在“五角星/五边形”五个顶点 */
+.skill-tree-detail--stage4 .stage4-pentagon {
+    position: relative;
+    width: min(1100px, 96vw);
+    height: min(720px, 78vh);
+    margin: 10px auto 0 auto;
+}
+.skill-tree-detail--stage4 .stage4-pentagon-decor {
+    position: absolute;
+    left: 18%;
+    right: 18%;
+    top: 6%;
+    bottom: 10%;
+    z-index: 0;
+    pointer-events: none;
+}
+/* 第四章中列（大虚框）的尺寸需要收敛，否则五边形会互相遮挡 */
+.skill-tree-detail--stage4 .stage4-pentagon > .skill-tree-column {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    width: 320px;
+    z-index: 1;
+}
+
+/* 第四章：每个大虚框内部知识点两列，并适当缩窄节点样式 */
+.skill-tree-detail--stage4 .skill-tree-column__nodes {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+.skill-tree-detail--stage4 .skill-node {
+    min-width: 0;              /* 允许在两列中收缩 */
+    padding: 8px 10px;         /* 更紧凑 */
+}
+.skill-tree-detail--stage4 .skill-node__title {
+    font-size: 0.82rem;
+    line-height: 1.2;
+    word-break: break-word;    /* 避免长标题撑破布局 */
+}
+.skill-tree-detail--stage4 .skill-node__progress-text {
+    font-size: 0.75rem;
+}
+/* 五个顶点位置：沿用 interlude 的五角星顶点坐标风格 */
+.skill-tree-detail--stage4 .stage4-pos-pos1 { left: 50%; top: 8%; }   /* 顶点1：上 */
+.skill-tree-detail--stage4 .stage4-pos-pos2 { left: 88%; top: 34%; }  /* 顶点2：右上 */
+.skill-tree-detail--stage4 .stage4-pos-pos3 { left: 74%; top: 82%; }  /* 顶点3：右下 */
+.skill-tree-detail--stage4 .stage4-pos-pos4 { left: 26%; top: 82%; }  /* 顶点4：左下 */
+.skill-tree-detail--stage4 .stage4-pos-pos5 { left: 12%; top: 34%; }  /* 顶点5：左上 */
+
+@media (max-width: 980px) {
+    .skill-tree-detail--stage4 .stage4-pentagon {
+        height: min(820px, 85vh);
+    }
+    .skill-tree-detail--stage4 .stage4-pentagon > .skill-tree-column {
+        width: min(320px, 86vw);
+    }
+}
 
 .skill-tree-card.locked {
     background-color: #f3f4f6;

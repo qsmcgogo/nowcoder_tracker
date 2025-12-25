@@ -31,10 +31,17 @@ export class ContestView {
             this.fetchAndRenderContests();
         });
         
+        // 监听课程分类切换事件
+        eventBus.on(EVENTS.COURSE_CATEGORY_CHANGED, (category) => {
+            this.fetchAndRenderCourseContests();
+        });
+        
         // 监听视图切换事件
         eventBus.on(EVENTS.VIEW_CHANGED, (view) => {
             if (view === 'contests') {
                 this.fetchAndRenderContests();
+            } else if (view === 'course') {
+                this.fetchAndRenderCourseContests();
             }
         });
     }
@@ -102,10 +109,17 @@ export class ContestView {
         eventBus.emit(EVENTS.DATA_LOADING, { module: 'contests' });
         
         try {
+            // 如果是杯赛（25），需要传递category参数
+            let category = null;
+            if (this.state.activeContestTab === '25' && this.state.activeBeisaiCategory) {
+                category = this.state.activeBeisaiCategory;
+            }
+            
             const data = await this.apiService.fetchContests(
                 this.state.activeContestTab,
                 this.state.contestsCurrentPage,
-                this.contestsPageSize
+                this.contestsPageSize,
+                category
             );
             
             if (data && data.contests) {
@@ -154,10 +168,11 @@ export class ContestView {
         const isNonCampusSpecificView = nonCampusContestTabs.includes(String(this.state.activeContestTab));
         
         return contests.map(contest => ({
-            id: contest.contestId,
-            name: contest.contestName,
-            url: contest.contestUrl,
-            problems: (contest.questions || []).map(p => {
+            // 兼容后端字段：有的接口返回 contestId/contestName/contestUrl，有的返回 id/contestName/contestUrl 或 id/name/url
+            id: (contest.contestId != null ? contest.contestId : contest.id),
+            name: (contest.contestName != null ? contest.contestName : (contest.name != null ? contest.name : '')),
+            url: (contest.contestUrl != null ? contest.contestUrl : (contest.url != null ? contest.url : '')),
+            problems: (contest.questions || contest.problems || []).map(p => {
                 let score = null;
                 const d = Number(p.difficulty);
                 if (!isNaN(d) && d > 0) {
@@ -367,8 +382,8 @@ export class ContestView {
     }
     
     initTooltips() {
-        // 初始化题目标题的原生title提示
-        const problemLinks = document.querySelectorAll('#contests-view .problem-link');
+        // 初始化题目标题的原生title提示（支持竞赛视图和课程视图）
+        const problemLinks = document.querySelectorAll('#contests-view .problem-link, #course-view .problem-link');
         problemLinks.forEach(link => {
             const td = link.closest('td');
             const problemId = td && td.dataset.problemId;
@@ -382,8 +397,8 @@ export class ContestView {
             });
         });
 
-        // 初始化难度圈的自定义提示框
-        const circles = document.querySelectorAll('#contests-view .difficulty-circle');
+        // 初始化难度圈的自定义提示框（支持竞赛视图和课程视图）
+        const circles = document.querySelectorAll('#contests-view .difficulty-circle, #course-view .difficulty-circle');
         circles.forEach(circle => {
             if (circle.dataset.tooltipBound) return;
             circle.dataset.tooltipBound = 'true';
@@ -411,5 +426,357 @@ export class ContestView {
             circle.addEventListener('mouseenter', showTooltip);
             circle.addEventListener('mouseleave', hideTooltip);
         });
+    }
+    
+    // 获取课程比赛并渲染
+    async fetchAndRenderCourseContests() {
+        const courseTbody = document.getElementById('course-tbody');
+        if (!courseTbody) return;
+        
+        // 显示/隐藏教程卡片
+        this.renderCourseTutorial();
+        
+        courseTbody.innerHTML = `<tr><td colspan="8" class="loading">正在加载课程比赛数据...</td></tr>`;
+        
+        this.state.setLoadingState('course', true);
+        eventBus.emit(EVENTS.DATA_LOADING, { module: 'course' });
+        
+        try {
+            const category = this.state.activeCourseCategory || '';
+            const data = await this.apiService.fetchContests('23', this.state.courseCurrentPage, this.contestsPageSize, category);
+            
+            if (data && data.contests) {
+                const transformed = this.transformApiData(data.contests);
+                this.state.courseContests = transformed;
+                this.state.totalCourseContests = data.totalCount;
+                this.renderCourseContests();
+                this.renderCoursePagination();
+            } else {
+                this.renderCourseError('没有找到课程比赛数据');
+            }
+            
+            eventBus.emit(EVENTS.DATA_LOADED, { module: 'course', data });
+            
+            // 自动查询用户状态
+            if (this.elements.userIdInput && this.elements.userIdInput.value) {
+                setTimeout(() => {
+                    this.handleCourseUserStatusSearch(this.elements.userIdInput.value);
+                }, 100);
+            } else if (this.state.loggedInUserId) {
+                if (this.elements.userIdInput) {
+                    this.elements.userIdInput.value = this.state.loggedInUserId;
+                }
+                setTimeout(() => {
+                    this.handleCourseUserStatusSearch(this.state.loggedInUserId);
+                }, 100);
+            }
+        } catch (error) {
+            console.error('Error fetching course contests:', error);
+            this.renderCourseError('加载课程比赛数据失败');
+            eventBus.emit(EVENTS.DATA_ERROR, { module: 'course', error });
+        } finally {
+            this.state.setLoadingState('course', false);
+        }
+    }
+    
+    // 渲染课程教程卡片
+    renderCourseTutorial() {
+        const tutorialSection = document.getElementById('course-tutorial-section');
+        if (!tutorialSection) return;
+        
+        const category = this.state.activeCourseCategory || '';
+        const courseLink = APP_CONFIG.COURSE_LINKS[category];
+        
+        if (courseLink) {
+            // 显示教程卡片
+            tutorialSection.style.display = 'block';
+            
+            // 更新内容
+            const titleEl = document.getElementById('course-tutorial-title');
+            const descEl = document.getElementById('course-tutorial-desc');
+            const linkEl = document.getElementById('course-tutorial-link');
+            
+            if (titleEl) titleEl.textContent = `${courseLink.name}视频讲解`;
+            if (descEl) descEl.textContent = courseLink.description;
+            if (linkEl) {
+                linkEl.href = courseLink.url;
+                linkEl.textContent = '🎬 观看视频讲解';
+            }
+        } else {
+            // 隐藏教程卡片（全部课程或其他未配置的类别）
+            tutorialSection.style.display = 'none';
+        }
+    }
+    
+    // 渲染课程比赛列表（类似newbie130的展示方式：每行最多5个题目，满5个换行）
+    renderCourseContests() {
+        const courseTbody = document.getElementById('course-tbody');
+        if (!courseTbody) return;
+        
+        if (this.state.courseContests.length === 0) {
+            courseTbody.innerHTML = `<tr><td colspan="6">暂无课程比赛数据</td></tr>`;
+            return;
+        }
+        
+        let finalHtml = '';
+        
+        // 遍历每个比赛
+        for (const contest of this.state.courseContests) {
+            const cp = this.state.channelPut ? (this.state.channelPut + 'a') : undefined;
+            const contestUrl = helpers.buildUrlWithChannelPut(contest.url, cp);
+            const problems = contest.problems || [];
+            const contestIdAttr = String(contest.id != null ? contest.id : '');
+            
+            if (problems.length === 0) {
+                // 如果没有题目，只显示比赛名称
+                finalHtml += `<tr><td class="knowledge-point-cell">${contest.name}</td><td colspan="5"></td></tr>`;
+                continue;
+            }
+            
+            // 每行最多5个题目，满5个换行
+            let problemsInCurrentRow = 0;
+            let isFirstRow = true;
+            
+            for (let i = 0; i < problems.length; i++) {
+                const problem = problems[i];
+                
+                // 如果是每行的第一个题目，需要显示比赛名称
+                if (problemsInCurrentRow === 0) {
+                    if (!isFirstRow) {
+                        // 不是第一行，比赛名称列显示为空（续行）
+                        finalHtml += '<tr>';
+                        finalHtml += `<td class="knowledge-point-cell"></td>`;
+                    } else {
+                        // 第一行，显示比赛名称
+                        finalHtml += '<tr>';
+                        finalHtml += `<td class="knowledge-point-cell course-contest-cell" data-contest-id="${contestIdAttr}"><a href="${contestUrl}" target="_blank" rel="noopener noreferrer">${contest.name}</a></td>`;
+                        isFirstRow = false;
+                    }
+                }
+                
+                // 添加题目单元格
+                // 只给“正常题目”（有效 problemId）挂 data-problem-id，避免 undefined/0 参与全AC/AK判断
+                if (helpers.isValidProblemId(problem.problemId)) {
+                    finalHtml += `<td data-problem-id="${problem.problemId}" data-contest-id="${contestIdAttr}">${this.renderCourseProblemHTML(problem)}</td>`;
+                } else {
+                    finalHtml += `<td data-contest-id="${contestIdAttr}">${this.renderCourseProblemHTML(problem)}</td>`;
+                }
+                problemsInCurrentRow++;
+                
+                // 如果当前行已满5个题目，或者这是最后一个题目，需要换行
+                if (problemsInCurrentRow === 5 || i === problems.length - 1) {
+                    // 如果当前行不满5个，填充空单元格
+                    if (problemsInCurrentRow < 5 && i === problems.length - 1) {
+                        const remaining = 5 - problemsInCurrentRow;
+                        finalHtml += `<td></td>`.repeat(remaining);
+                    }
+                    finalHtml += '</tr>';
+                    problemsInCurrentRow = 0;
+                }
+            }
+        }
+        
+        courseTbody.innerHTML = finalHtml || `<tr><td colspan="6">暂无课程比赛数据</td></tr>`;
+        this.initTooltips();
+    }
+    
+    // 渲染课程题目HTML（不显示题号）
+    renderCourseProblemHTML(problem) {
+        let difficultyCircleHtml = '';
+
+        // Only render the circle if there is a valid difficulty score.
+        if (problem.difficultyScore) {
+            const difficultyInfo = helpers.getDifficultyInfo(problem.difficultyScore);
+            const circleStyle = helpers.getCircleStyle(difficultyInfo);
+            const tooltipContent = helpers.generateTooltipContent(problem).replace(/"/g, '&quot;');
+            difficultyCircleHtml = `<span class="difficulty-circle" style="${circleStyle}" data-tooltip="${tooltipContent}"></span>`;
+        }
+        
+        // 若入口URL带 channelPut，则竞赛加后缀"1"，否则回落到历史默认（helpers 内部默认）
+        const cp = this.state.channelPut ? (this.state.channelPut + '1') : undefined;
+        let finalUrl = helpers.buildUrlWithChannelPut(problem.url || problem.questionUrl, cp);
+        
+        // 题目名字省略处理
+        const truncatedTitle = problem.title && problem.title.length > 20 ? 
+            problem.title.substring(0, 20) + '...' : 
+            (problem.title || 'N/A');
+        
+        let titleHtml;
+        if (finalUrl) {
+            titleHtml = `<a class="problem-link" href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="${problem.title}">${truncatedTitle}</a>`;
+        } else {
+            titleHtml = `<span title="${problem.title || 'N/A'}">${truncatedTitle}</span>`;
+        }
+
+        return `
+            <div class="problem-cell-content">
+                ${difficultyCircleHtml}
+                ${titleHtml}
+            </div>
+        `;
+    }
+    
+    // 渲染课程分页
+    renderCoursePagination() {
+        const totalPages = Math.ceil(this.state.totalCourseContests / this.contestsPageSize);
+        const currentPage = this.state.courseCurrentPage;
+        
+        // 更新分页信息
+        const paginationInfo = document.getElementById('coursePaginationInfo');
+        if (paginationInfo) {
+            const start = (currentPage - 1) * this.contestsPageSize + 1;
+            const end = Math.min(currentPage * this.contestsPageSize, this.state.totalCourseContests);
+            paginationInfo.textContent = `共 ${this.state.totalCourseContests} 个比赛，显示第 ${start}-${end} 个`;
+        }
+        
+        // 更新分页按钮
+        const prevBtn = document.getElementById('coursePrevPage');
+        const nextBtn = document.getElementById('courseNextPage');
+        if (prevBtn) prevBtn.disabled = currentPage <= 1;
+        if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
+        
+        // 更新页码显示
+        const pageNumbers = document.getElementById('coursePageNumbers');
+        if (pageNumbers) {
+            const maxVisiblePages = 10;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            if (endPage - startPage < maxVisiblePages - 1) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+            
+            let pageHtml = '';
+            for (let i = startPage; i <= endPage; i++) {
+                pageHtml += `<button class="page-number ${i === currentPage ? 'active' : ''}" data-page="${i}">${i}</button>`;
+            }
+            pageNumbers.innerHTML = pageHtml;
+            
+            // 绑定页码点击事件
+            pageNumbers.querySelectorAll('.page-number').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const page = parseInt(btn.dataset.page);
+                    this.state.courseCurrentPage = page;
+                    this.fetchAndRenderCourseContests();
+                });
+            });
+        }
+        
+        // 绑定上一页/下一页按钮
+        if (prevBtn) {
+            prevBtn.onclick = () => {
+                if (currentPage > 1) {
+                    this.state.courseCurrentPage = currentPage - 1;
+                    this.fetchAndRenderCourseContests();
+                }
+            };
+        }
+        if (nextBtn) {
+            nextBtn.onclick = () => {
+                if (currentPage < totalPages) {
+                    this.state.courseCurrentPage = currentPage + 1;
+                    this.fetchAndRenderCourseContests();
+                }
+            };
+        }
+    }
+    
+    // 渲染课程错误信息
+    renderCourseError(message) {
+        const courseTbody = document.getElementById('course-tbody');
+        if (courseTbody) {
+            courseTbody.innerHTML = `<tr><td colspan="8" class="error">${message}</td></tr>`;
+        }
+    }
+    
+    // 处理课程用户状态查询
+    async handleCourseUserStatusSearch(userId) {
+        if (!userId) return;
+        
+        try {
+            const dbgEnabled = (typeof window !== 'undefined') && !!window.__TRACKER_DEBUG_COURSE_AK__;
+            const dbg = (...args) => { if (dbgEnabled) console.log('[course-ak][ContestView]', ...args); };
+
+            const qids = this.getCourseViewProblemIds();
+            dbg('handleCourseUserStatusSearch: qids', qids ? `len=${qids.split(',').length}` : 'null');
+            if (!qids) return;
+            
+            const diffData = await this.apiService.fetchUserProblemDiff(userId, qids, null);
+            dbg('diffData', { ac1: diffData?.ac1Qids?.length || 0, ac2: diffData?.ac2Qids?.length || 0 });
+            this.applyCourseProblemHighlighting(diffData, false);
+        } catch (error) {
+            console.error('Error in course user search:', error);
+        }
+    }
+    
+    // 获取课程视图中的题目ID
+    getCourseViewProblemIds() {
+        const dbgEnabled = (typeof window !== 'undefined') && !!window.__TRACKER_DEBUG_COURSE_AK__;
+        const dbg = (...args) => { if (dbgEnabled) console.log('[course-ak][ContestView]', ...args); };
+
+        const ids = Array.from(document.querySelectorAll('#course-view td[data-problem-id]'))
+            .map(el => el.getAttribute('data-problem-id'))
+            .filter(pid => helpers.isValidProblemId(pid))
+            .map(String);
+        dbg('getCourseViewProblemIds: collected', { totalCells: document.querySelectorAll('#course-view td[data-problem-id]').length, validIds: ids.length });
+        return ids.length ? ids.join(',') : null;
+    }
+    
+    // 应用课程题目高亮显示
+    applyCourseProblemHighlighting(data, hasRival) {
+        const dbgEnabled = (typeof window !== 'undefined') && !!window.__TRACKER_DEBUG_COURSE_AK__;
+        const dbg = (...args) => { if (dbgEnabled) console.log('[course-ak][ContestView]', ...args); };
+
+        const { ac1Qids = [], ac2Qids = [] } = data || {};
+        const ac1Set = new Set(ac1Qids.map(String));
+        const ac2Set = new Set(ac2Qids.map(String));
+
+        const allProblemCells = document.querySelectorAll('#course-view td[data-problem-id]');
+        const allContestTitleCells = document.querySelectorAll('#course-view td.course-contest-cell[data-contest-id]');
+        dbg('applyCourseProblemHighlighting: dom counts', { problemCells: allProblemCells.length, titleCells: allContestTitleCells.length });
+        
+        allProblemCells.forEach(cell => {
+            cell.classList.remove('status-ac', 'status-rival-ac', 'status-none', 'status-all-ac');
+        });
+        allContestTitleCells.forEach(cell => {
+            cell.classList.remove('status-all-ac');
+        });
+
+        allProblemCells.forEach(cell => {
+            const pid = cell.getAttribute('data-problem-id');
+            if (ac1Set.has(pid)) {
+                cell.classList.add('status-ac');
+            } else if (hasRival && ac2Set.has(pid)) {
+                cell.classList.add('status-rival-ac');
+            } else {
+                cell.classList.add('status-none');
+            }
+        });
+
+        // 课程视图：按比赛维度（跨行）“正常题目全AC”=> 视为 AK，比赛名变绿
+        const courseProblems = document.querySelectorAll('#course-view td[data-problem-id][data-contest-id]');
+        dbg('applyCourseProblemHighlighting: courseProblems', courseProblems.length);
+        if (courseProblems.length) {
+            const cidToPids = new Map();
+            courseProblems.forEach(cell => {
+                const cid = cell.getAttribute('data-contest-id') || '';
+                const pid = cell.getAttribute('data-problem-id');
+                if (!cid) return;
+                if (!helpers.isValidProblemId(pid)) return;
+                if (!cidToPids.has(cid)) cidToPids.set(cid, []);
+                cidToPids.get(cid).push(String(pid));
+            });
+            dbg('applyCourseProblemHighlighting: contests aggregated', { contests: cidToPids.size });
+            cidToPids.forEach((pids, cid) => {
+                // “正常题目”口径：有效 problemId；全部在 ac1Set 则标绿
+                const allAc = pids.length > 0 && pids.every(pid => ac1Set.has(pid));
+                const titleCell = document.querySelector(`#course-view td.course-contest-cell[data-contest-id="${String(cid).replace(/"/g, '\\"')}"]`);
+                if (dbgEnabled) dbg('contest check', { cid, pidsCnt: pids.length, allAc, titleCellFound: !!titleCell });
+                if (!titleCell) return;
+                if (allAc) titleCell.classList.add('status-all-ac');
+                else titleCell.classList.remove('status-all-ac');
+            });
+        } else {
+            dbg('applyCourseProblemHighlighting: no courseProblems found (selector td[data-problem-id][data-contest-id])');
+        }
     }
 }

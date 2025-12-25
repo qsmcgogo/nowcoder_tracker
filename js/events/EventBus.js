@@ -89,6 +89,7 @@ export const EVENTS = {
     CONTEST_TAB_CHANGED: 'contestTabChanged',
     PRACTICE_TAB_CHANGED: 'practiceTabChanged',
     INTERVIEW_TAB_CHANGED: 'interviewTabChanged',
+    COURSE_CATEGORY_CHANGED: 'courseCategoryChanged',
     
     // 数据加载事件
     DATA_LOADING: 'dataLoading',
@@ -112,5 +113,9 @@ export const EVENTS = {
     PAGE_ERROR: 'pageError'
     ,
     // 团队子标签
-    TEAM_TAB_CHANGED: 'teamTabChanged'
+    TEAM_TAB_CHANGED: 'teamTabChanged',
+
+    // 学习 Demo
+    OPEN_OUTPUT_DEMO: 'openOutputDemo',
+    OPEN_DIGIT_DP_DEMO: 'openDigitDpDemo'
 };

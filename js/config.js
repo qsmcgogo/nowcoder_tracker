@@ -72,17 +72,66 @@ export const APP_CONFIG = {
     // 对战域名配置（动态获取）
     BATTLE_DOMAIN: null, // 将在初始化时从服务器获取
     
-    // 对战段位配置
+    // 课程链接配置
+    COURSE_LINKS: {
+        '语法入门': {
+            url: 'https://ac.nowcoder.com/courses/cover/live/678',
+            name: '语法入门',
+            description: '掌握编程基础语法，从零开始构建编程思维！'
+        },
+        '算法入门': {
+            url: 'https://ac.nowcoder.com/courses/cover/live/724',
+            name: '算法入门',
+            description: '系统化学习算法基础，掌握核心算法思想！'
+        },
+        '数据结构': {
+            url: 'https://ac.nowcoder.com/courses/cover/live/707',
+            name: '数据结构',
+            description: '深入学习数据结构，掌握高效的数据组织方式！'
+        },
+        '图论': {
+            url: 'https://ac.nowcoder.com/courses/cover/live/740',
+            name: '图论',
+            description: '探索图的世界，掌握图论算法精髓！'
+        },
+        '字符串': {
+            url: 'https://ac.nowcoder.com/courses/cover/live/738',
+            name: '字符串',
+            description: '精通字符串处理，掌握高效匹配算法！'
+        },
+        '数学': {
+            url: 'https://ac.nowcoder.com/courses/cover/live/731',
+            name: '数学',
+            description: '深入学习数学算法，掌握数学在编程中的应用！'
+        },
+        '动态规划': {
+            url: 'https://ac.nowcoder.com/courses/cover/live/435',
+            name: '动态规划',
+            description: '深入理解动态规划，掌握状态转移的精髓！'
+        },
+        '计算几何': {
+            url: 'https://ac.nowcoder.com/courses/cover/live/737',
+            name: '计算几何',
+            description: '探索几何之美，掌握计算几何算法！'
+        },
+        '博弈': {
+            url: 'https://ac.nowcoder.com/courses/cover/live/746',
+            name: '博弈',
+            description: '学习博弈论，掌握策略思维！'
+        }
+    },
+    
+    // 对战段位配置（1400以上每300分一个段位）
     BATTLE_RANKS: {
         iron: { min: 0, max: 799, name: '黑铁', color: '#4a4a4a', gradient: 'linear-gradient(135deg, #4a4a4a 0%, #2d2d2d 100%)', bgColor: '#f5f5f5', textColor: '#333333' },
         bronze: { min: 800, max: 999, name: '青铜', color: '#cd7f32', gradient: 'linear-gradient(135deg, #cd7f32 0%, #b87333 100%)', bgColor: '#faf5f0', textColor: '#5c4033' },
         silver: { min: 1000, max: 1199, name: '白银', color: '#c0c0c0', gradient: 'linear-gradient(135deg, #c0c0c0 0%, #a8a8a8 100%)', bgColor: '#6c757d', textColor: '#ffffff' },
         gold: { min: 1200, max: 1399, name: '黄金', color: '#ffd700', gradient: 'linear-gradient(135deg, #ffd700 0%, #ffed4e 100%)', bgColor: '#fff9e6', textColor: '#856404' },
-        platinum: { min: 1400, max: 1599, name: '白金', color: '#e5e4e2', gradient: 'linear-gradient(135deg, #e5e4e2 0%, #d3d3d3 100%)', bgColor: '#4a5568', textColor: '#ffffff' },
-        diamond: { min: 1600, max: 1799, name: '钻石', color: '#b9f2ff', gradient: 'linear-gradient(135deg, #b9f2ff 0%, #87ceeb 100%)', bgColor: '#e6f7ff', textColor: '#0050b3' },
-        master: { min: 1800, max: 1999, name: '大师', color: '#9b59b6', gradient: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)', bgColor: '#f3e5f5', textColor: '#6a1b9a' },
-        grandmaster: { min: 2000, max: 2199, name: '宗师', color: '#e74c3c', gradient: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)', bgColor: '#ffebee', textColor: '#c62828' },
-        legend: { min: 2200, max: 9999, name: '王者', color: '#000000', gradient: 'linear-gradient(135deg, #000000 0%, #1a1a1a 100%)', bgColor: '#1a1a1a', textColor: '#ffffff' }
+        platinum: { min: 1400, max: 1699, name: '白金', color: '#e5e4e2', gradient: 'linear-gradient(135deg, #e5e4e2 0%, #d3d3d3 100%)', bgColor: '#4a5568', textColor: '#ffffff' },
+        diamond: { min: 1700, max: 1999, name: '钻石', color: '#b9f2ff', gradient: 'linear-gradient(135deg, #b9f2ff 0%, #87ceeb 100%)', bgColor: '#e6f7ff', textColor: '#0050b3' },
+        master: { min: 2000, max: 2299, name: '大师', color: '#9b59b6', gradient: 'linear-gradient(135deg, #9b59b6 0%, #8e44ad 100%)', bgColor: '#f3e5f5', textColor: '#6a1b9a' },
+        grandmaster: { min: 2300, max: 2599, name: '宗师', color: '#e74c3c', gradient: 'linear-gradient(135deg, #e74c3c 0%, #c0392b 100%)', bgColor: '#ffebee', textColor: '#c62828' },
+        legend: { min: 2600, max: 9999, name: '王者', color: '#000000', gradient: 'linear-gradient(135deg, #000000 0%, #1a1a1a 100%)', bgColor: '#1a1a1a', textColor: '#ffffff' }
     }
 };
 

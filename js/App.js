@@ -22,6 +22,8 @@ import { TeamView } from './views/TeamView.js';
 import { BattleView } from './views/BattleView.js';
 import { ActivityView } from './views/ActivityView.js';
 import { AdminView } from './views/AdminView.js';
+import { OutputDemoView } from './views/learn/OutputDemoView.js';
+import { DigitDPDemoView } from './views/learn/DigitDPDemoView.js';
 import { AchievementNotifier } from './services/AchievementNotifier.js';
 
 export class NowcoderTracker {
@@ -118,7 +120,10 @@ export class NowcoderTracker {
             battle: new BattleView(this.elements, this.state, this.apiService),
             activity: new ActivityView(this.elements, this.state, this.apiService),
             profile: new ProfileView(this.elements, this.state, this.apiService),
-            admin: new AdminView(this.elements, this.state, this.apiService)
+            admin: new AdminView(this.elements, this.state, this.apiService),
+            // 学习 Demo（不属于主 tab，但需要在全局初始化以订阅事件）
+            outputDemo: new OutputDemoView(this.elements, this.state, this.apiService),
+            digitDpDemo: new DigitDPDemoView(this.elements, this.state, this.apiService)
         };
         
         // 将adminView实例暴露到全局，方便内联事件调用
@@ -140,18 +145,18 @@ export class NowcoderTracker {
             });
         });
 
-        // problems页内视图切换（竞赛/算法学习/笔面试）
+        // problems页内视图切换（竞赛/算法学习/笔面试/课程）
         document.querySelectorAll('.view-type-tab').forEach(btn => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
-                const view = btn.dataset.view; // contests | practice | interview
+                const view = btn.dataset.view; // contests | practice | interview | course
 
                 // 切换按钮激活态
                 document.querySelectorAll('.view-type-tab').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
 
                 // 切换对应内容区域显示
-                const viewIds = ['contests-view', 'practice-view', 'interview-view'];
+                const viewIds = ['contests-view', 'practice-view', 'interview-view', 'course-view'];
                 viewIds.forEach(id => {
                     const el = document.getElementById(id);
                     if (!el) return;
@@ -184,15 +189,23 @@ export class NowcoderTracker {
         contestTabs.forEach(tab => {
             tab.addEventListener('click', (e) => {
                 e.preventDefault();
-                const tabName = tab.dataset.contest; // all | weekly | monthly | practice | challenge | xcpc
+                const tabName = tab.dataset.contest; // all | weekly | monthly | practice | challenge | xcpc | 25
+                const beisaiCategory = tab.dataset.beisaiCategory; // 蓝桥杯 | 传智杯（仅当contestType=25时有效）
                 if (!tabName) return;
 
                 // 切换UI高亮
                 contestTabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
 
+                // 如果是杯赛（25），需要设置category
+                if (tabName === '25' && beisaiCategory) {
+                    this.state.setActiveBeisaiCategory(beisaiCategory);
+                } else {
+                    this.state.setActiveBeisaiCategory(null);
+                }
+
                 this.switchContestTab(tabName);
-                // 切换竞赛子标签后，通过“Search”按钮触发刷新
+                // 切换竞赛子标签后，通过"Search"按钮触发刷新
                 if (this.state.loggedInUserId) this.triggerSearchWhenReady('contests');
             });
         });
@@ -254,6 +267,22 @@ export class NowcoderTracker {
                 this.switchPracticeTab(tabName);
                 // 练习子标签（如新手入门130）切换后，通过“Search”按钮触发刷新
                 if (this.state.loggedInUserId) this.triggerSearchWhenReady('practice');
+            });
+        });
+        
+        // 课程标签切换（读取 data-course-category）
+        const courseTabs = document.querySelectorAll('#course-view .contest-tab');
+        courseTabs.forEach(tab => {
+            tab.addEventListener('click', (e) => {
+                e.preventDefault();
+                const category = tab.dataset.courseCategory || ''; // 空字符串表示"全部课程"
+
+                // 切换UI高亮
+                courseTabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                this.switchCourseCategory(category);
+                if (this.state.loggedInUserId) this.triggerSearchWhenReady('course');
             });
         });
         
@@ -535,7 +564,7 @@ export class NowcoderTracker {
                         b.classList.toggle('active', b.dataset.view === defaultView);
                     });
                     // 显示对应内容
-                    ['contests-view','practice-view','interview-view'].forEach(id => {
+                    ['contests-view','practice-view','interview-view','course-view'].forEach(id => {
                         const el = document.getElementById(id);
                         if (!el) return;
                         const shouldShow = id === `${defaultView}-view`;
@@ -627,6 +656,10 @@ export class NowcoderTracker {
     
     switchContestTab(tabName) {
         this.state.setActiveContestTab(tabName);
+        // 如果不是杯赛（25），清除杯赛分类状态
+        if (tabName !== '25') {
+            this.state.setActiveBeisaiCategory(null);
+        }
         eventBus.emit(EVENTS.CONTEST_TAB_CHANGED, tabName);
     }
     
@@ -643,6 +676,12 @@ export class NowcoderTracker {
     switchCampusSubTab(tabName) {
         this.state.setActiveCampusSubTab(tabName);
         eventBus.emit(EVENTS.INTERVIEW_TAB_CHANGED, 'campus');
+    }
+    
+    switchCourseCategory(category) {
+        this.state.setActiveCourseCategory(category);
+        this.state.courseCurrentPage = 1; // 重置页码
+        eventBus.emit(EVENTS.COURSE_CATEGORY_CHANGED, category);
     }
     
     // 工具方法
@@ -813,9 +852,10 @@ export class NowcoderTracker {
     // 收集当前视图中的题目ID，用于调用 diff 接口
     async getScopedProblemIds() {
         let qids = '';
-        const selectIds = (selector) => Array.from(document.querySelectorAll(selector))
+        const selectIds = (selector, filterFn = null) => Array.from(document.querySelectorAll(selector))
             .map(el => el.getAttribute('data-problem-id'))
-            .filter(Boolean)
+            .filter(pid => (filterFn ? filterFn(pid) : Boolean(pid)))
+            .map(String)
             .join(',');
 
         const activeView = this.state.activeView;
@@ -826,17 +866,23 @@ export class NowcoderTracker {
         } else if (activeView === 'practice') {
             // practice 视图题目由 JSON 渲染，直接从 DOM 提取
             qids = selectIds('#practice-view td[data-problem-id]');
+        } else if (activeView === 'course') {
+            // 课程：只统计“正常题目”（有效 problemId），避免 undefined/0 影响全AC/AK判定
+            qids = selectIds('#course-view td[data-problem-id]', helpers.isValidProblemId);
         }
         return qids || null;
     }
 
     // Apply highlighting based on diff results
     applyProblemHighlighting(data, hasRival) {
+        const dbgEnabled = (typeof window !== 'undefined') && !!window.__TRACKER_DEBUG_COURSE_AK__;
+        const dbg = (...args) => { if (dbgEnabled) console.log('[course-ak][App]', ...args); };
+
         const { ac1Qids = [], ac2Qids = [] } = data || {};
         const ac1Set = new Set(ac1Qids.map(String));
         const ac2Set = new Set(ac2Qids.map(String));
 
-        const allProblemCells = document.querySelectorAll('#contests-view td[data-problem-id], #practice-view td[data-problem-id], #interview-view td[data-problem-id]');
+        const allProblemCells = document.querySelectorAll('#contests-view td[data-problem-id], #practice-view td[data-problem-id], #interview-view td[data-problem-id], #course-view td[data-problem-id]');
         
         // Reset all statuses first
         allProblemCells.forEach(cell => {
@@ -885,6 +931,32 @@ export class NowcoderTracker {
                     else cell.classList.remove('status-all-ac');
                 });
             });
+        }
+
+        // course 视图：按“比赛”维度（跨行）“全AC” 标记（比赛名变绿）
+        const courseProblems = document.querySelectorAll('#course-view td[data-problem-id][data-contest-id]');
+        dbg('applyProblemHighlighting: courseProblems', courseProblems.length);
+        if (courseProblems.length) {
+            const cidToPids = new Map();
+            courseProblems.forEach(cell => {
+                const cid = cell.getAttribute('data-contest-id') || '';
+                const pid = cell.getAttribute('data-problem-id');
+                if (!cid) return;
+                if (!helpers.isValidProblemId(pid)) return;
+                if (!cidToPids.has(cid)) cidToPids.set(cid, []);
+                cidToPids.get(cid).push(pid);
+            });
+            dbg('applyProblemHighlighting: contests aggregated', { contests: cidToPids.size });
+            cidToPids.forEach((pids, cid) => {
+                const allAc = pids.length > 0 && pids.every(pid => ac1Set.has(String(pid)));
+                const titleCell = document.querySelector(`#course-view td.course-contest-cell[data-contest-id="${String(cid).replace(/"/g, '\\"')}"]`);
+                if (dbgEnabled) dbg('contest check', { cid, pidsCnt: pids.length, allAc, titleCellFound: !!titleCell });
+                if (!titleCell) return;
+                if (allAc) titleCell.classList.add('status-all-ac');
+                else titleCell.classList.remove('status-all-ac');
+            });
+        } else {
+            dbg('applyProblemHighlighting: no courseProblems found (selector td[data-problem-id][data-contest-id])');
         }
     }
 
@@ -1007,3 +1079,11 @@ export const app = new NowcoderTracker();
 
 // 将app实例设置到window对象上，供其他模块使用
 window.app = app;
+
+// Debug marker：用于确认是否加载到最新前端代码（不会影响功能）
+try {
+    console.log('[course-ak][marker] App.js loaded', {
+        ts: Date.now(),
+        debugFlag: (typeof window !== 'undefined') ? !!window.__TRACKER_DEBUG_COURSE_AK__ : false
+    });
+} catch (_) {}

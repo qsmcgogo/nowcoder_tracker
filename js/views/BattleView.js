@@ -811,6 +811,12 @@ export class BattleView {
                             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                                 <div style="font-size: 18px; font-weight: 700; color: #333; display: flex; align-items: center; gap: 8px;">
                                     <span>🪞</span> 我的镜像
+                                    <span
+                                        title="镜像模式说明：每人最多创建 10 个镜像；超过 10 个将自动清除最先创建的镜像（先进先出）。"
+                                        onclick="alert('镜像模式说明：\n\n- 每人最多创建 10 个镜像\n- 超过 10 个将自动清除最先创建的镜像（先进先出）');"
+                                        style="display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:#f0f5ff; border:1px solid #667eea; color:#667eea; font-size:12px; font-weight:800; cursor:pointer; user-select:none;"
+                                        aria-label="镜像模式说明"
+                                    >?</span>
                                 </div>
                                 <button id="battle-refresh-mirrors-btn" 
                                         style="font-size: 12px; color: #667eea; background: #f0f5ff; border: 1px solid #667eea; 
@@ -2044,6 +2050,22 @@ export class BattleView {
                             </tr>
                         </tbody>
                     </table>
+                </div>
+            </div>
+
+            <!-- 反作弊与惩罚 -->
+            <div style="background: #fff1f0; padding: 20px; border-radius: 12px; margin-top: 24px; border: 2px solid #ffccc7;">
+                <h3 style="font-size: 18px; color: #333; margin-bottom: 12px; font-weight: 600;">🛡️ 反作弊与惩罚</h3>
+                <div style="color: #666; line-height: 1.9;">
+                    <div style="margin-bottom: 6px;">
+                        为保证公平竞技，严禁使用脚本/外挂/自动化提交等作弊行为。
+                    </div>
+                    <div style="margin-bottom: 6px;">
+                        一经发现将视情节严重性采取惩罚措施：<span style="color:#cf1322; font-weight:700;">扣除 rating、清理异常数据、封禁账号</span> 等。
+                    </div>
+                    <div style="font-size: 12px; color:#999; margin-top: 6px;">
+                        如遇异常对局/疑似作弊，可反馈给管理员协助处理。
+                    </div>
                 </div>
             </div>
             

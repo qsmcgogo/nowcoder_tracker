@@ -759,6 +759,8 @@ export class AchievementsView {
             rowsContainer.appendChild(empty);
         } else {
             recent.forEach(r => {
+                const pts = Number(r.score ?? r.points ?? 0) || 0;
+                const isEasterEgg = pts === 0;
                 const card = document.createElement('div');
                 card.className = 'achv-card achv-row unlocked';
 
@@ -768,9 +770,30 @@ export class AchievementsView {
                 const title = document.createElement('div');
                 title.className = 'achv-title';
                 const span = document.createElement('span');
-                span.className = `achv-frame ${this.pickRarityClass(Number(r.score || r.points || 0))}`;
+                span.className = `achv-frame ${this.pickRarityClass(pts)}`;
                 span.textContent = r.name || r.title || '';
                 title.appendChild(span);
+
+                // 成就点为 0：彩蛋成就，增加特殊标识
+                if (isEasterEgg) {
+                    const eggTag = document.createElement('span');
+                    eggTag.textContent = '彩蛋';
+                    eggTag.title = '彩蛋成就（成就点为 0）';
+                    eggTag.style.cssText = `
+                        display:inline-flex;
+                        align-items:center;
+                        justify-content:center;
+                        margin-left: 8px;
+                        padding: 2px 8px;
+                        border-radius: 999px;
+                        font-size: 12px;
+                        font-weight: 700;
+                        color: #d46b08;
+                        background: linear-gradient(135deg, rgba(255, 236, 179, 0.9) 0%, rgba(255, 201, 71, 0.7) 100%);
+                        border: 1px solid rgba(250, 173, 20, 0.6);
+                    `;
+                    title.appendChild(eggTag);
+                }
 
                 const requirementRow = document.createElement('div');
                 requirementRow.className = 'achv-target-row';
@@ -786,7 +809,24 @@ export class AchievementsView {
 
                 const pointsBadge = document.createElement('div');
                 pointsBadge.className = 'achv-points-badge';
-                pointsBadge.textContent = String(Number(r.score || r.points || 0));
+                if (isEasterEgg) {
+                    pointsBadge.textContent = '🥚';
+                    pointsBadge.title = '彩蛋成就（成就点为 0）';
+                    pointsBadge.style.cssText = `
+                        min-width: 44px;
+                        height: 44px;
+                        border-radius: 50%;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-size: 22px;
+                        background: linear-gradient(135deg, rgba(255, 182, 193, 0.35) 0%, rgba(255, 215, 0, 0.18) 100%);
+                        border: 2px solid rgba(255, 105, 180, 0.35);
+                        box-shadow: 0 2px 10px rgba(255, 105, 180, 0.18);
+                    `;
+                } else {
+                    pointsBadge.textContent = String(pts);
+                }
 
                 card.appendChild(info);
                 card.appendChild(pointsBadge);

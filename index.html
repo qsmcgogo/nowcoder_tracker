@@ -103,6 +103,7 @@
                     <button class="view-type-tab" data-view="contests">竞赛</button>
                     <button class="view-type-tab active" data-view="practice">算法学习</button>
                     <button class="view-type-tab" data-view="interview">笔面试</button>
+                    <button class="view-type-tab" data-view="course">课程</button>
                 </div>
 
                 <div id="contests-view" class="view-content active">
@@ -114,7 +115,8 @@
                         <button class="contest-tab" data-contest="2">牛客挑战赛</button>
                         <button class="contest-tab" data-contest="21">寒假营</button>
                         <button class="contest-tab" data-contest="22">XCPC</button>
-                        <button class="contest-tab" data-contest="25">蓝桥杯</button>
+                        <button class="contest-tab" data-contest="25" data-beisai-category="蓝桥杯">蓝桥杯</button>
+                        <button class="contest-tab" data-contest="25" data-beisai-category="传智杯">传智杯</button>
                         <button class="contest-tab" data-contest="20">多校</button>
                     </div>
     
@@ -239,6 +241,61 @@
                             <button id="interviewPrevPage" class="pagination-btn" disabled>上一页</button>
                             <div class="page-numbers" id="interviewPageNumbers"></div>
                             <button id="interviewNextPage" class="pagination-btn" disabled>下一页</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="course-view" class="view-content" style="display: none;">
+                    <div class="contest-tabs sub-tabs">
+                        <button class="contest-tab active" data-course-category="">全部课程</button>
+                        <button class="contest-tab" data-course-category="语法入门">语法入门</button>
+                        <button class="contest-tab" data-course-category="算法入门">算法入门</button>
+                        <button class="contest-tab" data-course-category="数据结构">数据结构</button>
+                        <button class="contest-tab" data-course-category="图论">图论</button>
+                        <button class="contest-tab" data-course-category="字符串">字符串</button>
+                        <button class="contest-tab" data-course-category="数学">数学</button>
+                        <button class="contest-tab" data-course-category="动态规划">动态规划</button>
+                        <button class="contest-tab" data-course-category="计算几何">计算几何</button>
+                        <button class="contest-tab" data-course-category="博弈">博弈</button>
+                    </div>
+                    
+                    <div id="course-tutorial-section" class="tutorial-section" style="display: none;">
+                        <div class="tutorial-card">
+                            <div class="tutorial-icon">📚</div>
+                            <div class="tutorial-content">
+                                <h3 id="course-tutorial-title">课程视频讲解</h3>
+                                <p id="course-tutorial-desc">系统化学习，从零开始掌握核心知识！</p>
+                                <a id="course-tutorial-link" href="#" 
+                                   target="_blank" rel="noopener noreferrer" class="tutorial-link">
+                                    🎬 观看视频讲解
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="contest-content">
+                        <div class="problems-table-container">
+                            <table class="problems-table practice-table">
+                                <thead>
+                                    <tr>
+                                        <th class="knowledge-point-header">比赛</th>
+                                        <th class="problems-header" colspan="5">题目</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="course-tbody">
+                                    <!-- Course contests will be dynamically inserted here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="pagination-container">
+                            <div class="pagination-info">
+                                <span id="coursePaginationInfo"></span>
+                            </div>
+                            <div class="pagination-controls">
+                                <button id="coursePrevPage" class="pagination-btn" disabled>上一页</button>
+                                <div class="page-numbers" id="coursePageNumbers"></div>
+                                <button id="courseNextPage" class="pagination-btn" disabled>下一页</button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -760,6 +817,13 @@
                 <div class="faq-container">
                     <div class="faq-content-wrapper">
                         <div class="faq-item">
+                            <h3>2025.12.25 ver. 5.3</h3>
+                            <ul>
+                                <li>1. 题库中增加课程题目</li>
+                                <li>2. 题库中增加蓝桥杯/传智杯近两年真题</li>
+                            </ul>
+                        </div>
+                        <div class="faq-item">
                             <h3>2025.12.10 ver. 5.2</h3>
                             <ul>
                                 <li>1. 对战模式不再加载缓存。1v1初始代码修复</li>
@@ -889,6 +953,7 @@
             <div class="skill-node-panel__content">
                 <h3 id="skill-node-panel-title" class="skill-node-panel__title"></h3>
                 <p id="skill-node-panel-desc" class="skill-node-panel__description"></p>
+                <div id="skill-node-panel-actions" class="skill-node-panel__actions"></div>
                 <div class="skill-node-panel__divider"></div>
                 <h4>题目</h4>
                 <ul id="skill-node-panel-problems" class="skill-node-panel__problems-list">
@@ -896,6 +961,213 @@
                 </ul>
                 <div class="skill-node-panel__footer">
                     <span id="skill-node-panel-score" class="skill-node-panel__score"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 学习 Demo：基础输出（MVP） -->
+        <div id="output-demo-modal" class="modal learning-demo-modal" style="display:none;">
+            <div class="modal-content learning-demo-modal__content">
+                <div class="modal-header">
+                    <h3 id="output-demo-title">学习 Demo：基础输出</h3>
+                    <button id="output-demo-close" class="modal-close" aria-label="关闭">&times;</button>
+                </div>
+                <div class="modal-body learning-demo-modal__body">
+                    <!-- 原理概览（打开 Demo 时先展示） -->
+                    <div id="output-demo-overview" class="learning-demo-overview" style="display:none;">
+                        <div class="learning-demo-overview__title">先看原理：输出与换行</div>
+                        <div class="learning-demo-overview__body">
+                            <div class="learning-demo-overview__section">
+                                <div class="learning-demo-overview__h">你将学会什么</div>
+                                <div class="learning-demo-overview__p">
+                                    - 用 <code>cout</code> 把内容输出到屏幕<br/>
+                                    - 用 <code>endl</code> 或 <code>\\n</code> 换行（常见写法）<br/>
+                                    - 用 <code>&lt;&lt;</code> 串联输出多个片段
+                                </div>
+                            </div>
+                            <div class="learning-demo-overview__section">
+                                <div class="learning-demo-overview__h">最常用的写法</div>
+                                <pre class="learning-demo-overview__code">cout &lt;&lt; "Hello" &lt;&lt; endl;   // 输出 Hello 并换行
+cout &lt;&lt; "A\\n" &lt;&lt; "B\\n";    // 用 \\n 实现换行</pre>
+                            </div>
+                            <div class="learning-demo-overview__section">
+                                <div class="learning-demo-overview__h">endl vs \\n（一句话）</div>
+                                <div class="learning-demo-overview__p">
+                                    - <code>\\n</code>：只是换行字符，速度更快（竞赛里更常用）<br/>
+                                    - <code>endl</code>：换行 + 刷新缓冲区（一般不必频繁用）
+                                </div>
+                            </div>
+                        </div>
+                        <div class="learning-demo-overview__actions">
+                            <button id="output-demo-start" class="admin-btn learning-demo-run-btn" type="button">开始练习</button>
+                        </div>
+                    </div>
+
+                    <div class="learning-demo-layout">
+                        <div class="learning-demo-left">
+                            <div class="learning-demo-toolbar">
+                                <div class="learning-demo-toolbar__left">
+                                    <span class="learning-demo-hint">这是一个“简化模拟器”，用于讲清输出与换行，不等价于真实编译器。</span>
+                                </div>
+                                <div class="learning-demo-toolbar__right">
+                                    <label class="learning-demo-label" for="output-demo-challenge">关卡</label>
+                                    <select id="output-demo-challenge" class="learning-demo-select"></select>
+                                    <label class="learning-demo-label" for="output-demo-speed">速度</label>
+                                    <input id="output-demo-speed" type="range" min="1" max="5" step="1" value="3" />
+                                </div>
+                            </div>
+                            <div id="output-demo-coach" class="learning-demo-coach">
+                                <div class="learning-demo-coach__head">
+                                    <div class="learning-demo-coach__title">萌新教练</div>
+                                    <div class="learning-demo-coach__subtitle" id="output-demo-coach-subtitle">把 TODO 补上，就能过关</div>
+                                </div>
+                                <div class="learning-demo-coach__body">
+                                    <div class="learning-demo-coach__say" id="output-demo-coach-say"></div>
+                                    <div class="learning-demo-coach__codewrap">
+                                        <code id="output-demo-coach-code" class="learning-demo-coach__code"></code>
+                                        <div class="learning-demo-coach__btns">
+                                            <button id="output-demo-coach-insert" class="admin-btn learning-demo-coach__btn" type="button">一键填入</button>
+                                            <button id="output-demo-coach-restore" class="admin-btn modal-secondary learning-demo-coach__restore-btn" type="button" disabled>还原</button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <textarea id="output-demo-code" class="learning-demo-editor" spellcheck="false"></textarea>
+                            <div id="output-demo-errors" class="learning-demo-errors" style="display:none;"></div>
+                        </div>
+                        <div class="learning-demo-right">
+                            <div class="learning-demo-panel">
+                                <div class="learning-demo-panel__title">stdout 可视化</div>
+                                <pre id="output-demo-console" class="learning-demo-console"></pre>
+                            </div>
+                            <div class="learning-demo-panel" style="margin-top:12px;">
+                                <div class="learning-demo-panel__title">执行步骤</div>
+                                <ol id="output-demo-steps" class="learning-demo-steps"></ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions learning-demo-actions">
+                    <div id="output-demo-status" class="learning-demo-status"></div>
+                    <div style="flex:1"></div>
+                    <button id="output-demo-reset" class="admin-btn modal-secondary" type="button">重置</button>
+                    <button id="output-demo-step" class="admin-btn" type="button">单步</button>
+                    <button id="output-demo-run" class="admin-btn learning-demo-run-btn" type="button">运行</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 学习 Demo：数位DP（MVP） -->
+        <div id="digit-dp-demo-modal" class="modal learning-demo-modal" style="display:none;">
+            <div class="modal-content learning-demo-modal__content">
+                <div class="modal-header">
+                    <h3 id="digit-dp-demo-title">学习 Demo：数位DP</h3>
+                    <button id="digit-dp-demo-close" class="modal-close" aria-label="关闭">&times;</button>
+                </div>
+                <div class="modal-body learning-demo-modal__body">
+                    <!-- 原理概览（打开 Demo 时先展示） -->
+                    <div id="digit-dp-demo-overview" class="learning-demo-overview" style="display:none;">
+                        <div class="learning-demo-overview__title">先看原理：什么是数位 DP？</div>
+                        <div class="learning-demo-overview__body">
+                            <div class="learning-demo-overview__section">
+                                <div class="learning-demo-overview__h">问题形态</div>
+                                <div class="learning-demo-overview__p">
+                                    统计 <code>[0, N]</code> 中满足某种“数位性质”的数字个数（例如：数位和=K、不含某个数字、满足模式等）。
+                                </div>
+                            </div>
+                            <div class="learning-demo-overview__section">
+                                <div class="learning-demo-overview__h">核心状态（示例）</div>
+                                <div class="learning-demo-overview__p">
+                                    以“数位和 = K”为例，常用状态：
+                                    <pre class="learning-demo-overview__code">dfs(pos, sum, tight)
+pos: 当前处理到第 pos 位（从高位到低位）
+sum: 已经累加的数位和
+tight: 是否贴着上界 N（tight=1 时本位最大只能到 N 的对应位）</pre>
+                                </div>
+                            </div>
+                            <div class="learning-demo-overview__section">
+                                <div class="learning-demo-overview__h">dp 数组到底存什么？</div>
+                                <div class="learning-demo-overview__p">
+                                    当 <code>tight=0</code> 时，后续就不再受 N 限制，答案只由状态决定，因此可以记忆化：
+                                    <pre class="learning-demo-overview__code">dp[pos][sum] = dfs(pos, sum, 0)
+含义：从 pos 往后随便填(0..9)，最终满足目标的方案数</pre>
+                                </div>
+                            </div>
+                            <div class="learning-demo-overview__section">
+                                <div class="learning-demo-overview__h">dfs 的作用（最关键）</div>
+                                <div class="learning-demo-overview__p">
+                                    dfs 负责在当前位枚举数字 <code>d</code>，把问题拆成更小的子问题并求和：
+                                    <pre class="learning-demo-overview__code">up = tight ? digits[pos] : 9
+ans = 0
+for d in [0..up]:
+  ans += dfs(pos+1, sum + d, tight && d==up)</pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="learning-demo-overview__actions">
+                            <button id="digit-dp-demo-start" class="admin-btn learning-demo-run-btn" type="button">开始练习</button>
+                        </div>
+                    </div>
+
+                    <div class="learning-demo-layout">
+                        <div class="learning-demo-left">
+                            <div class="learning-demo-toolbar">
+                                <div class="learning-demo-toolbar__left">
+                                    <span class="learning-demo-hint">这是一个“可视化模拟器”，用于讲清数位DP的状态与转移。</span>
+                                </div>
+                                <div class="learning-demo-toolbar__right">
+                                    <label class="learning-demo-label" for="digit-dp-demo-challenge">关卡</label>
+                                    <select id="digit-dp-demo-challenge" class="learning-demo-select"></select>
+                                    <label class="learning-demo-label" for="digit-dp-demo-speed">速度</label>
+                                    <input id="digit-dp-demo-speed" type="range" min="1" max="5" step="1" value="3" />
+                                </div>
+                            </div>
+
+                            <div id="digit-dp-demo-coach" class="learning-demo-coach">
+                                <div class="learning-demo-coach__head">
+                                    <div class="learning-demo-coach__title">DP 教练</div>
+                                    <div class="learning-demo-coach__subtitle" id="digit-dp-demo-coach-subtitle"></div>
+                                </div>
+                                <div class="learning-demo-coach__body">
+                                    <div class="learning-demo-coach__say" id="digit-dp-demo-coach-say"></div>
+                                    <div class="learning-demo-coach__codewrap">
+                                        <code id="digit-dp-demo-coach-code" class="learning-demo-coach__code"></code>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div style="display:flex; gap:10px; align-items:center; margin-top: 10px;">
+                                <div style="display:flex; gap:8px; align-items:center;">
+                                    <label class="learning-demo-label" for="digit-dp-demo-n">N</label>
+                                    <input id="digit-dp-demo-n" type="number" min="0" step="1" value="5000"
+                                           style="width:140px; padding:8px 10px; border:1px solid #e5e7eb; border-radius:10px;" />
+                                </div>
+                                <div id="digit-dp-demo-k-wrap" style="display:flex; gap:8px; align-items:center;">
+                                    <label class="learning-demo-label" for="digit-dp-demo-k">K</label>
+                                    <input id="digit-dp-demo-k" type="number" min="0" step="1" value="10"
+                                           style="width:120px; padding:8px 10px; border:1px solid #e5e7eb; border-radius:10px;" />
+                                </div>
+                            </div>
+                            <div id="digit-dp-demo-errors" class="learning-demo-errors" style="display:none; margin-top: 10px;"></div>
+                        </div>
+                        <div class="learning-demo-right">
+                            <div class="learning-demo-panel">
+                                <div class="learning-demo-panel__title">递归轨迹</div>
+                                <pre id="digit-dp-demo-console" class="learning-demo-console"></pre>
+                            </div>
+                            <div class="learning-demo-panel" style="margin-top:12px;">
+                                <div class="learning-demo-panel__title">步骤列表</div>
+                                <ol id="digit-dp-demo-steps" class="learning-demo-steps"></ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-actions learning-demo-actions">
+                    <div id="digit-dp-demo-status" class="learning-demo-status"></div>
+                    <div style="flex:1"></div>
+                    <button id="digit-dp-demo-reset" class="admin-btn modal-secondary" type="button">重置</button>
+                    <button id="digit-dp-demo-step" class="admin-btn" type="button">单步</button>
+                    <button id="digit-dp-demo-run" class="admin-btn learning-demo-run-btn" type="button">运行</button>
                 </div>
             </div>
         </div>

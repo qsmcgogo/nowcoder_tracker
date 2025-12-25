@@ -8,12 +8,16 @@ export class AdminView {
         this.container = elements.adminContainer;
         this.apiService = apiService;
         this.state = state;
-        this.currentTab = 'clock'; // 'clock' 或 'battle'
+        this.currentTab = 'clock'; // 'clock' | 'battle' | 'import' | 'yearReport'
         this.clockPage = 1;
         this.battlePage = 1;
         // 每日一题搜索条件
         this.clockSearchStartDate = null;
         this.clockSearchEndDate = null;
+        // 批量导入 Tracker 题库到 acm_problem_open：保存最近一次结果便于复用
+        this.importLastResult = null;
+        // 管理员验数：年度报告
+        this.adminYearReportLast = null;
     }
 
     /**
@@ -51,6 +55,12 @@ export class AdminView {
                     <button id="admin-tab-battle" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
                         对战题目管理
                     </button>
+                    <button id="admin-tab-import" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
+                        批量导入题库
+                    </button>
+                    <button id="admin-tab-year-report" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
+                        年度报告验数
+                    </button>
                 </div>
 
                 <!-- 每日一题管理 -->
@@ -62,6 +72,16 @@ export class AdminView {
                 <div id="admin-battle-panel" class="admin-panel" style="display: none;">
                     ${this.renderBattlePanel()}
                 </div>
+
+                <!-- 批量导入 Tracker 题库到 acm_problem_open -->
+                <div id="admin-import-panel" class="admin-panel" style="display: none;">
+                    ${this.renderImportPanel()}
+                </div>
+
+                <!-- 管理员验数：年度报告 -->
+                <div id="admin-year-report-panel" class="admin-panel" style="display: none;">
+                    ${this.renderAdminYearReportPanel()}
+                </div>
             </div>
         `;
 
@@ -71,6 +91,89 @@ export class AdminView {
         // 加载初始数据
         this.loadClockList();
         this.loadBattleList();
+    }
+
+    renderAdminYearReportPanel() {
+        const savedUid = localStorage.getItem('admin_year_report_uid') || '';
+        const savedYear = localStorage.getItem('admin_year_report_year') || '0';
+        const savedTrackerOnly = localStorage.getItem('admin_year_report_tracker_only') || 'true';
+        const savedClearMirrorUid = localStorage.getItem('admin_clear_user_mirrors_uid') || '';
+
+        // 注入样式
+        this.injectVisualStyles();
+
+        return `
+            <div style="display:flex; flex-direction:column; gap: 16px;">
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    管理员验数：查看某用户年度报告（不走缓存）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">GET /problem/tracker/admin/year-report</code><br>
+                    用途：快速检查后端年报数据结构/口径是否符合预期，并预览可视化效果。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">uid:</label>
+                        <input id="admin-year-report-uid" type="number" value="${savedUid}" placeholder="必填"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">year:</label>
+                        <input id="admin-year-report-year" type="number" value="${savedYear}" placeholder="0=当前年"
+                               style="width: 100px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">trackerOnly:</label>
+                        <input id="admin-year-report-tracker-only" type="checkbox" ${String(savedTrackerOnly) === 'true' ? 'checked' : ''} />
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-year-report-fetch-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        拉取数据
+                    </button>
+                </div>
+
+                <div id="admin-year-report-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+
+                <!-- 可视化预览区域 -->
+                <div id="admin-year-report-visuals" class="report-visuals-container" style="display:none;"></div>
+
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-year-report-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 420px;">（尚未拉取）</pre>
+                </div>
+            </div>
+
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    对战运维：清理某用户的所有镜像
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/battle/clear-user-mirrors?userId=xxx</code><br>
+                    说明：仅清理 Redis 里的镜像数据（镜像池/分桶/用户索引/队列），用于紧急处理异常刷镜像用户。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">userId:</label>
+                        <input id="admin-clear-user-mirrors-uid" type="number" value="${savedClearMirrorUid}" placeholder="必填"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-clear-user-mirrors-btn" style="background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        执行清理
+                    </button>
+                </div>
+
+                <div id="admin-clear-user-mirrors-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-clear-user-mirrors-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
+                </div>
+            </div>
+        `;
     }
 
     /**
@@ -173,6 +276,64 @@ export class AdminView {
     }
 
     /**
+     * 渲染批量导入面板：把 Tracker 题目导入 acm_problem_open
+     */
+    renderImportPanel() {
+        const savedTagId = localStorage.getItem('tracker_import_source_tag_id') || '';
+        const savedBatchSize = localStorage.getItem('tracker_import_batch_size') || '';
+        const savedDryRun = localStorage.getItem('tracker_import_dry_run') || 'false';
+
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    批量将 Tracker 题目导入到 acm_problem_open
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    管理员只需要每行一个 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">problemId</code>。<br>
+                    后端接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /acm-problem-open/batch-import-tracker</code>
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">trackerSourceTagId:</label>
+                        <input id="admin-import-tag-id" type="number" value="${savedTagId}" placeholder="可不填（走后端默认）"
+                               style="width: 220px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">batchSize:</label>
+                        <input id="admin-import-batch-size" type="number" min="1" max="500" value="${savedBatchSize}" placeholder="默认200（1-500）"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">dryRun:</label>
+                        <input id="admin-import-dry-run" type="checkbox" ${String(savedDryRun) === 'true' ? 'checked' : ''} />
+                        <span style="font-size: 12px; color:#999;">只统计不落库</span>
+                    </div>
+                    <div style="flex: 1;"></div>
+                    <button id="admin-import-preview-btn" style="background:#722ed1; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        解析预览
+                    </button>
+                    <button id="admin-import-submit-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        开始导入
+                    </button>
+                </div>
+
+                <textarea id="admin-import-problem-ids" rows="14"
+                          placeholder="每行一个 problemId，例如：&#10;1001&#10;1002&#10;1003"
+                          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 13px; resize: vertical;"></textarea>
+
+                <div id="admin-import-preview" style="margin-top: 10px; font-size: 13px; color:#666;"></div>
+                <div id="admin-import-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">导入结果</div>
+                    <pre id="admin-import-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
      * 绑定事件
      */
     bindEvents() {
@@ -182,6 +343,12 @@ export class AdminView {
         });
         document.getElementById('admin-tab-battle').addEventListener('click', () => {
             this.switchTab('battle');
+        });
+        document.getElementById('admin-tab-import').addEventListener('click', () => {
+            this.switchTab('import');
+        });
+        document.getElementById('admin-tab-year-report').addEventListener('click', () => {
+            this.switchTab('yearReport');
         });
 
         // 每日一题操作
@@ -211,6 +378,63 @@ export class AdminView {
         document.getElementById('admin-battle-search-by-id-btn').addEventListener('click', () => {
             this.searchBattleByProblemId();
         });
+
+        // 批量导入（如果 DOM 已渲染）
+        const previewBtn = document.getElementById('admin-import-preview-btn');
+        const submitBtn = document.getElementById('admin-import-submit-btn');
+        if (previewBtn) previewBtn.addEventListener('click', () => this.previewImportIds());
+        if (submitBtn) submitBtn.addEventListener('click', () => this.submitImportIds());
+
+        // 年度报告验数
+        const yrBtn = document.getElementById('admin-year-report-fetch-btn');
+        if (yrBtn) yrBtn.addEventListener('click', () => this.fetchAdminYearReport());
+
+        // 对战运维：清理某用户镜像
+        const clearMirrorsBtn = document.getElementById('admin-clear-user-mirrors-btn');
+        if (clearMirrorsBtn) clearMirrorsBtn.addEventListener('click', () => this.adminClearUserMirrors());
+    }
+
+    async adminClearUserMirrors() {
+        const uidInput = document.getElementById('admin-clear-user-mirrors-uid');
+        const errorEl = document.getElementById('admin-clear-user-mirrors-error');
+        const resultEl = document.getElementById('admin-clear-user-mirrors-result');
+        const btn = document.getElementById('admin-clear-user-mirrors-btn');
+
+        if (!uidInput || !errorEl || !resultEl || !btn) return;
+        errorEl.style.display = 'none';
+
+        const uid = parseInt(String(uidInput.value || '').trim(), 10);
+        if (!uid || uid <= 0) {
+            errorEl.textContent = '请填写有效的 userId（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        localStorage.setItem('admin_clear_user_mirrors_uid', String(uid));
+
+        const ok = confirm(
+            `确认清理该用户的所有镜像？\n\nuserId=${uid}\n\n说明：只清理 Redis 镜像数据（镜像池/分桶/索引/队列），用于紧急处理异常刷镜像。`
+        );
+        if (!ok) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '清理中...';
+        resultEl.textContent = `请求中...\nuserId=${uid}\n`;
+
+        try {
+            const data = await this.apiService.adminClearUserMirrors(uid);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            alert(`清理完成：total=${data?.total ?? '-'}，removed=${data?.removed ?? '-'}，missing=${data?.missing ?? '-'}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '清理失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '执行清理';
+        }
     }
 
     /**
@@ -220,23 +444,291 @@ export class AdminView {
         this.currentTab = tab;
         const clockPanel = document.getElementById('admin-clock-panel');
         const battlePanel = document.getElementById('admin-battle-panel');
+        const importPanel = document.getElementById('admin-import-panel');
+        const yearReportPanel = document.getElementById('admin-year-report-panel');
         const clockBtn = document.getElementById('admin-tab-clock');
         const battleBtn = document.getElementById('admin-tab-battle');
+        const importBtn = document.getElementById('admin-tab-import');
+        const yearReportBtn = document.getElementById('admin-tab-year-report');
+
+        // hide all
+        clockPanel.style.display = 'none';
+        battlePanel.style.display = 'none';
+        if (importPanel) importPanel.style.display = 'none';
+        if (yearReportPanel) yearReportPanel.style.display = 'none';
+
+        // reset btn styles
+        clockBtn.style.color = '#666';
+        clockBtn.style.borderBottomColor = 'transparent';
+        battleBtn.style.color = '#666';
+        battleBtn.style.borderBottomColor = 'transparent';
+        if (importBtn) {
+            importBtn.style.color = '#666';
+            importBtn.style.borderBottomColor = 'transparent';
+        }
+        if (yearReportBtn) {
+            yearReportBtn.style.color = '#666';
+            yearReportBtn.style.borderBottomColor = 'transparent';
+        }
 
         if (tab === 'clock') {
             clockPanel.style.display = 'block';
-            battlePanel.style.display = 'none';
             clockBtn.style.color = '#1890ff';
             clockBtn.style.borderBottomColor = '#1890ff';
-            battleBtn.style.color = '#666';
-            battleBtn.style.borderBottomColor = 'transparent';
-        } else {
-            clockPanel.style.display = 'none';
+        } else if (tab === 'battle') {
             battlePanel.style.display = 'block';
             battleBtn.style.color = '#1890ff';
             battleBtn.style.borderBottomColor = '#1890ff';
-            clockBtn.style.color = '#666';
-            clockBtn.style.borderBottomColor = 'transparent';
+        } else if (tab === 'import' && importPanel) {
+            importPanel.style.display = 'block';
+            if (importBtn) {
+                importBtn.style.color = '#1890ff';
+                importBtn.style.borderBottomColor = '#1890ff';
+            }
+        } else if (tab === 'yearReport' && yearReportPanel) {
+            yearReportPanel.style.display = 'block';
+            if (yearReportBtn) {
+                yearReportBtn.style.color = '#1890ff';
+                yearReportBtn.style.borderBottomColor = '#1890ff';
+            }
+        }
+    }
+
+    async fetchAdminYearReport() {
+        const uidInput = document.getElementById('admin-year-report-uid');
+        const yearInput = document.getElementById('admin-year-report-year');
+        const trackerOnlyInput = document.getElementById('admin-year-report-tracker-only');
+        const errorEl = document.getElementById('admin-year-report-error');
+        const resultEl = document.getElementById('admin-year-report-result');
+        const btn = document.getElementById('admin-year-report-fetch-btn');
+
+        if (!uidInput || !yearInput || !trackerOnlyInput || !errorEl || !resultEl) return;
+        errorEl.style.display = 'none';
+
+        const uid = parseInt(String(uidInput.value || '').trim(), 10);
+        const year = parseInt(String(yearInput.value || '0').trim(), 10) || 0;
+        const trackerOnly = !!trackerOnlyInput.checked;
+
+        if (!uid || uid <= 0) {
+            errorEl.textContent = '请填写有效的 uid（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        localStorage.setItem('admin_year_report_uid', String(uid));
+        localStorage.setItem('admin_year_report_year', String(yearInput.value || '0'));
+        localStorage.setItem('admin_year_report_tracker_only', String(trackerOnly));
+
+        const oldText = btn ? btn.textContent : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '拉取中...';
+        }
+        resultEl.textContent = `请求中...\nuid=${uid}, year=${year}, trackerOnly=${trackerOnly}\n`;
+
+        try {
+            const data = await this.apiService.adminYearReport(uid, year, trackerOnly);
+            this.adminYearReportLast = data;
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            this.renderYearReportVisuals(data);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '拉取失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+            document.getElementById('admin-year-report-visuals').style.display = 'none';
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = oldText || '拉取数据';
+            }
+        }
+    }
+
+    /**
+     * 解析输入的 problemId（支持换行/空格/逗号/Tab）
+     */
+    parseImportIds(text) {
+        const raw = String(text || '').trim();
+        if (!raw) return { ids: [], invalidTokens: [], inputCount: 0 };
+        const tokens = raw.split(/[\n\r,，\t\s]+/).map(s => s.trim()).filter(Boolean);
+        const invalidTokens = [];
+        const ids = [];
+        for (const t of tokens) {
+            const v = parseInt(t, 10);
+            if (!Number.isFinite(v) || v <= 0) invalidTokens.push(t);
+            else ids.push(v);
+        }
+        const unique = [...new Set(ids)];
+        return { ids: unique, invalidTokens, inputCount: tokens.length };
+    }
+
+    /**
+     * 解析预览
+     */
+    previewImportIds() {
+        const textarea = document.getElementById('admin-import-problem-ids');
+        const previewEl = document.getElementById('admin-import-preview');
+        const errorEl = document.getElementById('admin-import-error');
+        if (!textarea || !previewEl || !errorEl) return;
+
+        errorEl.style.display = 'none';
+        const { ids, invalidTokens, inputCount } = this.parseImportIds(textarea.value);
+        const invalidTip = invalidTokens.length > 0
+            ? `，发现 ${invalidTokens.length} 个非法项（已忽略）`
+            : '';
+        previewEl.innerHTML = `解析到 <b>${ids.length}</b> 个有效 problemId（输入项 ${inputCount}${invalidTip}）。`;
+    }
+
+    /**
+     * 提交导入
+     */
+    async submitImportIds() {
+        const textarea = document.getElementById('admin-import-problem-ids');
+        const tagIdInput = document.getElementById('admin-import-tag-id');
+        const batchSizeInput = document.getElementById('admin-import-batch-size');
+        const dryRunInput = document.getElementById('admin-import-dry-run');
+        const resultEl = document.getElementById('admin-import-result');
+        const errorEl = document.getElementById('admin-import-error');
+        const previewEl = document.getElementById('admin-import-preview');
+        const submitBtn = document.getElementById('admin-import-submit-btn');
+
+        if (!textarea || !tagIdInput || !batchSizeInput || !dryRunInput || !resultEl || !errorEl) return;
+        errorEl.style.display = 'none';
+
+        const { ids, invalidTokens, inputCount } = this.parseImportIds(textarea.value);
+        if (ids.length === 0) {
+            errorEl.textContent = '未解析到有效的 problemId（请每行一个数字 ID）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        // trackerSourceTagId 允许不填：不填则传 0，让后端使用 DEFAULT_TRACKER_SOURCE_TAG_ID
+        const trackerSourceTagId = parseInt(String(tagIdInput.value || '').trim(), 10) || 0;
+        const batchSizeRaw = String(batchSizeInput.value || '').trim();
+        let batchSize = parseInt(batchSizeRaw || '', 10);
+        if (!Number.isFinite(batchSize) || batchSize <= 0) batchSize = 200;
+        const dryRun = !!dryRunInput.checked;
+
+        // 保存配置，方便下次使用
+        localStorage.setItem('tracker_import_source_tag_id', String(tagIdInput.value || '').trim());
+        // 允许留空：留空时不写死成 200，保持用户的“未填写”状态
+        localStorage.setItem('tracker_import_batch_size', batchSizeRaw);
+        localStorage.setItem('tracker_import_dry_run', String(dryRun));
+
+        // 不填则依赖后端默认值；若后端未配置，会返回明确错误（前端直接展示）
+        if (trackerSourceTagId <= 0) {
+            const ok = confirm('trackerSourceTagId 未填写，将使用后端默认值（DEFAULT_TRACKER_SOURCE_TAG_ID）。\n\n若后端未配置默认值，本次会失败并返回“未配置”错误。\n\n是否继续？');
+            if (!ok) return;
+        }
+
+        if (previewEl) {
+            const invalidTip = invalidTokens.length > 0 ? `（忽略非法项 ${invalidTokens.length} 个）` : '';
+            previewEl.innerHTML = `即将提交：有效 problemId <b>${ids.length}</b> 个 / 输入项 ${inputCount} ${invalidTip}。`;
+        }
+
+        const oldBtnText = submitBtn ? submitBtn.textContent : '';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = dryRun ? '统计中...' : '导入中...';
+        }
+
+        try {
+            // 为避免一次请求携带过多 problemIds 触发网关/服务端 body 限制，做“自动分段提交”
+            const payloadStr = JSON.stringify(ids);
+            const MAX_IDS_PER_REQUEST = 2000;
+            const MAX_PAYLOAD_CHARS = 60000; // 粗略阈值：避免过大 body（编码后更大）
+            const needChunk = ids.length > MAX_IDS_PER_REQUEST || payloadStr.length > MAX_PAYLOAD_CHARS;
+
+            const chunks = [];
+            if (needChunk) {
+                for (let i = 0; i < ids.length; i += MAX_IDS_PER_REQUEST) {
+                    chunks.push(ids.slice(i, i + MAX_IDS_PER_REQUEST));
+                }
+            } else {
+                chunks.push(ids);
+            }
+
+            if (needChunk) {
+                const ok = confirm(`检测到本次导入数量较大（${ids.length} 个）。\n为避免单次请求过大导致失败，将自动拆分为 ${chunks.length} 次请求（每次最多 ${MAX_IDS_PER_REQUEST} 个）。\n\n是否继续？`);
+                if (!ok) {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.textContent = oldBtnText || '开始导入';
+                    }
+                    return;
+                }
+            }
+
+            // 汇总结果
+            const agg = {
+                inputCount: inputCount,
+                distinctCount: ids.length,
+                requestCount: chunks.length,
+                batchSize: batchSize,
+                trackerSourceTagId: trackerSourceTagId,
+                dryRun: dryRun,
+                created: 0,
+                updated: 0,
+                skipped: 0,
+                failed: 0,
+                failedIds: [],
+                failedReason: {}
+            };
+
+            resultEl.textContent = (dryRun ? 'dryRun 统计中...\n' : '导入执行中...\n')
+                + `idsCount=${ids.length}, requestCount=${chunks.length}, batchSize=${batchSize}, trackerSourceTagId=${trackerSourceTagId}\n`;
+
+            for (let idx = 0; idx < chunks.length; idx++) {
+                const chunk = chunks[idx];
+                resultEl.textContent += `\n[${idx + 1}/${chunks.length}] 提交 ${chunk.length} 个...\n`;
+                const data = await this.apiService.adminAcmProblemOpenBatchImportTracker(
+                    chunk,
+                    trackerSourceTagId,
+                    batchSize,
+                    dryRun
+                );
+
+                // 聚合统计
+                agg.created += Number(data?.created || 0);
+                agg.updated += Number(data?.updated || 0);
+                agg.skipped += Number(data?.skipped || 0);
+                const failedCount = Number(data?.failed || 0);
+                agg.failed += failedCount;
+
+                const failedIds = Array.isArray(data?.failedIds) ? data.failedIds : [];
+                for (const fid of failedIds) agg.failedIds.push(fid);
+
+                const fr = data?.failedReason && typeof data.failedReason === 'object' ? data.failedReason : {};
+                for (const k of Object.keys(fr)) {
+                    // 以首次原因优先，避免覆盖（也便于看“最早错误”）
+                    if (agg.failedReason[k] == null) agg.failedReason[k] = fr[k];
+                }
+
+                resultEl.textContent += `[${idx + 1}/${chunks.length}] 完成：created=${data?.created || 0}, updated=${data?.updated || 0}, skipped=${data?.skipped || 0}, failed=${data?.failed || 0}\n`;
+            }
+
+            // failedIds 去重
+            agg.failedIds = [...new Set(agg.failedIds.map(x => Number(x)).filter(n => Number.isFinite(n) && n > 0))];
+            agg.failed = agg.failedIds.length > 0 ? agg.failedIds.length : agg.failed;
+
+            this.importLastResult = agg;
+            resultEl.textContent += `\n==== 汇总 ====\n` + JSON.stringify(agg, null, 2);
+
+            if (agg.failed > 0) {
+                alert(`执行完成：新增 ${agg.created}，追加tag ${agg.updated}，跳过 ${agg.skipped}，失败 ${agg.failed}\n可在“导入结果”中查看 failedIds/failedReason。`);
+            } else {
+                alert(`执行完成：新增 ${agg.created}，追加tag ${agg.updated}，跳过 ${agg.skipped}。`);
+            }
+        } catch (e) {
+            errorEl.textContent = e && e.message ? e.message : '批量导入失败';
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${errorEl.textContent}`;
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = oldBtnText || '开始导入';
+            }
         }
     }
 
@@ -1006,6 +1498,10 @@ export class AdminView {
                         </div>
                     </div>
                     <div id="batch-delete-error" style="color: #ff4d4f; margin-top: 12px; display: none;"></div>
+                    <div id="batch-delete-result" style="margin-top: 12px; display: none;">
+                        <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">删除结果</div>
+                        <pre id="batch-delete-result-json" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 220px;"></pre>
+                    </div>
                 </div>
                 <div class="modal-actions" style="padding: 12px 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 12px;">
                     <button onclick="this.closest('.modal').remove()" style="padding: 8px 16px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">取消</button>
@@ -1018,6 +1514,8 @@ export class AdminView {
         document.body.appendChild(modal);
 
         const errorEl = modal.querySelector('#batch-delete-error');
+        const resultWrapEl = modal.querySelector('#batch-delete-result');
+        const resultJsonEl = modal.querySelector('#batch-delete-result-json');
         const submitBtn = modal.querySelector('#batch-delete-submit');
         const problemIdsInput = modal.querySelector('#batch-delete-problem-ids');
 
@@ -1047,6 +1545,7 @@ export class AdminView {
             const uniqueProblemIds = [...new Set(problemIds)];
 
             errorEl.style.display = 'none';
+            if (resultWrapEl) resultWrapEl.style.display = 'none';
             
             // 确认删除
             if (!confirm(`确定要删除 ${uniqueProblemIds.length} 道题目吗？\n\nproblemId列表：${uniqueProblemIds.join(', ')}`)) {
@@ -1059,11 +1558,28 @@ export class AdminView {
             try {
                 // 直接使用problemId列表进行批量删除
                 const result = await this.apiService.adminBattleProblemBatchDelete(uniqueProblemIds);
-                modal.remove();
                 this.loadBattleList(this.battlePage);
                 
-                const deletedCount = result.rowsAffected || uniqueProblemIds.length;
+                const deletedCount = Number(
+                    (result && (result.rowsAffected ?? result.deletedCount ?? result.deleted ?? result.count)) ?? uniqueProblemIds.length
+                ) || uniqueProblemIds.length;
+
+                // 在弹窗内展示结果（比 alert 更直观）
+                if (resultWrapEl && resultJsonEl) {
+                    resultWrapEl.style.display = 'block';
+                    const showObj = Object.assign(
+                        {
+                            requested: uniqueProblemIds.length,
+                            deletedCount: deletedCount
+                        },
+                        (result && typeof result === 'object') ? result : { raw: result }
+                    );
+                    resultJsonEl.textContent = JSON.stringify(showObj, null, 2);
+                }
+
                 alert(`成功删除 ${deletedCount} 道题目`);
+                submitBtn.textContent = '再删一批';
+                submitBtn.disabled = false;
             } catch (error) {
                 errorEl.textContent = error.message || '批量删除失败';
                 errorEl.style.display = 'block';
@@ -1077,6 +1593,752 @@ export class AdminView {
 
     async handleBatchDelete() {
         this.showBatchDeleteModal();
+    }
+
+    /**
+     * 渲染年度报告可视化（分页酷炫版）
+     */
+    renderYearReportVisuals(data) {
+        const container = document.getElementById('admin-year-report-visuals');
+        if (!container) return;
+        
+        container.style.display = 'block';
+        
+        // 1. 生成页面数据
+        const slides = this.generateReportSlides(data);
+        
+        // 2. 构建 HTML 结构
+        let slidesHtml = '';
+        slides.forEach((slide, idx) => {
+            const isHidden = idx !== 0 ? 'display:none;' : '';
+            const chartHtml = slide.chartId ? `<div class="slide-chart-container" id="${slide.chartId}"></div>` : '';
+            const contentHtml = slide.content ? slide.content : `
+                <div class="slide-text">${slide.text}</div>
+                ${chartHtml}
+            `;
+            
+            slidesHtml += `
+                <div class="report-slide slide-${slide.type}" id="report-slide-${idx}" style="${isHidden}">
+                    <div class="slide-inner">
+                        <div class="slide-header">
+                            <div class="slide-subtitle">${slide.subtitle || ''}</div>
+                            <div class="slide-title">${slide.title}</div>
+                        </div>
+                        <div class="slide-body">
+                            ${contentHtml}
+                        </div>
+                        <div class="slide-footer">
+                            ${idx + 1} / ${slides.length}
+                        </div>
+                    </div>
+                </div>
+            `;
+        });
+
+        container.innerHTML = `
+            <div class="report-stage">
+                ${slidesHtml}
+                <div class="slide-controls">
+                    <button id="slide-prev-btn" class="slide-btn" disabled>❮</button>
+                    <button id="slide-next-btn" class="slide-btn">❯</button>
+                </div>
+            </div>
+        `;
+
+        // 3. 渲染图表 (在 DOM 插入后)
+        // 注意：某些图表库如果容器隐藏可能渲染大小有问题，但我们是手写SVG，通常没问题。
+        // 如果有问题，可以在切换 slide 时再渲染。这里先一次性渲染。
+        
+        // Slide 2: Time
+        if (slides.find(s => s.type === 'time')) {
+            this.drawTimeDistribution(data.habits?.hour_histogram, document.getElementById('slide-chart-time'));
+        }
+        // Slide 3: Trend
+        if (slides.find(s => s.type === 'trend')) {
+            this.drawTrend(data.timeseries?.by_month, document.getElementById('slide-chart-trend'));
+        }
+        // Slide 4: Radar
+        if (slides.find(s => s.type === 'radar')) {
+            this.drawRadar(data.tags?.radar, document.getElementById('slide-chart-radar'));
+        }
+        // Slide 5: Difficulty
+        if (slides.find(s => s.type === 'difficulty')) {
+            this.drawDifficulty(data.difficulty?.bucket_breakdown, document.getElementById('slide-chart-diff'));
+        }
+
+        // 4. 绑定翻页事件
+        let currentSlide = 0;
+        const totalSlides = slides.length;
+        const prevBtn = document.getElementById('slide-prev-btn');
+        const nextBtn = document.getElementById('slide-next-btn');
+
+        const updateButtons = () => {
+            prevBtn.disabled = currentSlide === 0;
+            nextBtn.disabled = currentSlide === totalSlides - 1;
+            prevBtn.style.opacity = prevBtn.disabled ? '0.3' : '1';
+            nextBtn.style.opacity = nextBtn.disabled ? '0.3' : '1';
+        };
+
+        const showSlide = (idx) => {
+            // 简单切换：隐藏所有，显示当前
+            for (let i = 0; i < totalSlides; i++) {
+                const el = document.getElementById(`report-slide-${i}`);
+                if (el) {
+                    el.style.display = i === idx ? 'flex' : 'none';
+                    if (i === idx) {
+                        // 简单的进入动画类重置
+                        el.classList.remove('fade-in');
+                        void el.offsetWidth; // trigger reflow
+                        el.classList.add('fade-in');
+                    }
+                }
+            }
+            currentSlide = idx;
+            updateButtons();
+        };
+
+        prevBtn.onclick = () => {
+            if (currentSlide > 0) showSlide(currentSlide - 1);
+        };
+        nextBtn.onclick = () => {
+            if (currentSlide < totalSlides - 1) showSlide(currentSlide + 1);
+        };
+
+        // 键盘支持
+        if (!this.hasBoundSlideKeys) {
+            document.addEventListener('keydown', (e) => {
+                // 只有当面板显示时才响应
+                if (container.style.display === 'none') return;
+                if (e.key === 'ArrowLeft') document.getElementById('slide-prev-btn')?.click();
+                if (e.key === 'ArrowRight') document.getElementById('slide-next-btn')?.click();
+            });
+            this.hasBoundSlideKeys = true;
+        }
+        
+        updateButtons();
+    }
+
+    /**
+     * 生成报告各页面的文案和数据
+     */
+    generateReportSlides(data) {
+        const slides = [];
+
+        // --- Slide 1: 封面 ---
+        slides.push({
+            type: 'cover',
+            title: `${data.year || '2025'} 年度代码旅程`,
+            subtitle: `USER ID: ${data.uid}`,
+            content: `
+                <div class="stat-big-box">
+                    <div class="stat-val-huge">${data.overview.problems_solved}</div>
+                    <div class="stat-label">年度解题数</div>
+                </div>
+                <div class="stat-sub-text">击败了 <span style="color:#faad14">自己的懒惰</span></div>
+                <div style="margin-top:30px;font-size:14px;color:#999;">按左右键翻页 →</div>
+            `
+        });
+
+        // --- Slide 2: 勤奋 (活跃天数 + 作息) ---
+        const hours = data.habits?.hour_histogram || [];
+        let lateNightCount = 0;
+        // 23, 0, 1, 2, 3, 4 点视为深夜
+        [23, 0, 1, 2, 3, 4].forEach(h => lateNightCount += (hours[h] || 0));
+        
+        let timeCopy = '';
+        if (lateNightCount > 10) {
+            timeCopy = `你是名副其实的 <span class="highlight-text">深夜战神</span>，<br>在万籁俱寂时提交了 <span class="highlight-num">${lateNightCount}</span> 次代码。<br>记得早点休息，头发很重要。`;
+        } else if (hours.slice(6, 12).reduce((a,b)=>a+(b||0), 0) > hours.slice(18, 24).reduce((a,b)=>a+(b||0), 0)) {
+            timeCopy = `你习惯在 <span class="highlight-text">清晨</span> 开启挑战，<br>早起的鸟儿有虫吃。<br>清晨的第一行代码，最清醒。`;
+        } else {
+            timeCopy = `无数个 <span class="highlight-text">日与夜</span>，<br>都见证了你思维的火花。<br>坚持，是最大的天赋。`;
+        }
+
+        slides.push({
+            type: 'time',
+            title: '日夜兼程',
+            subtitle: 'ACTIVE DAYS',
+            text: `这一年，你活跃了 <span class="highlight-num">${data.overview.active_days}</span> 天。<br>${timeCopy}`,
+            chartId: 'slide-chart-time'
+        });
+
+        // --- Slide 3: 热血 (月份趋势) ---
+        let maxMonth = 1;
+        let maxMonthVal = 0;
+        const months = data.timeseries?.by_month || [];
+        months.forEach((m, i) => {
+            if (m.submissions > maxMonthVal) {
+                maxMonthVal = m.submissions;
+                maxMonth = i + 1;
+            }
+        });
+        
+        let monthCopy = '';
+        if (maxMonthVal > 0) {
+            monthCopy = `<span class="highlight-num">${maxMonth}月</span> 是你最热血的时刻，<br>单月狂飙 <span class="highlight-num">${maxMonthVal}</span> 次提交！<br>那个月发生了什么？`;
+        } else {
+            monthCopy = `平平淡淡才是真，<br>每一步都算数。<br>明年继续加油！`;
+        }
+
+        slides.push({
+            type: 'trend',
+            title: '热血时刻',
+            subtitle: 'MONTHLY TREND',
+            text: monthCopy,
+            chartId: 'slide-chart-trend'
+        });
+
+        // --- Slide 4: 技能 (雷达) ---
+        const favTag = data.tags?.favorite_tag;
+        let tagCopy = '';
+        if (favTag && favTag.tag_name) {
+            tagCopy = `你的真爱是 <span class="highlight-text">${favTag.tag_name}</span>，<br>解决该类题目 <span class="highlight-num">${favTag.solved_count}</span> 道。<br>专精一项，也是绝技。`;
+        } else {
+            tagCopy = `你正在构建自己的 <span class="highlight-text">六边形</span> 战士属性。<br>多点开花，全面发展。`;
+        }
+        
+        slides.push({
+            type: 'radar',
+            title: '能力版图',
+            subtitle: 'SKILL RADAR',
+            text: tagCopy,
+            chartId: 'slide-chart-radar'
+        });
+
+        // --- Slide 5: 攻坚 (最难题) ---
+        const hardest = data.difficulty?.hardest_solved;
+        let hardCopy = '';
+        if (hardest && hardest.title) {
+            hardCopy = `当你 AC <span class="highlight-text">${hardest.title}</span> (R${hardest.difficulty}) 时，<br>那种成就感一定无与伦比。<br>困难是强者的垫脚石。`;
+        } else {
+            hardCopy = `攀登高峰的路上，<br>每一步都值得铭记。<br>去挑战更难的题目吧！`;
+        }
+
+        slides.push({
+            type: 'difficulty',
+            title: '攻坚克难',
+            subtitle: 'DIFFICULTY',
+            text: hardCopy,
+            chartId: 'slide-chart-diff'
+        });
+
+        // --- Slide 6: 质量 (拆分出来) ---
+        const oneShot = data.highlights?.one_shot_ac?.count || 0;
+        let acRateRaw = data.quality?.first_ac_rate || 0;
+        // 格式化为百分比整数，例如 0.452 -> 45%
+        const acRate = Math.floor(Number(acRateRaw) * 100) + '%';
+        
+        slides.push({
+            type: 'quality',
+            title: '极致追求',
+            subtitle: 'QUALITY',
+            content: `
+                 <div class="summary-grid" style="gap:50px;">
+                    <div class="summary-item">
+                        <div class="s-val">${oneShot}</div>
+                        <div class="s-label">无伤AC次数</div>
+                    </div>
+                    <div class="summary-item">
+                        <div class="s-val">${acRate}</div>
+                        <div class="s-label">无伤AC率</div>
+                    </div>
+                 </div>
+                 <div class="slide-text" style="margin-top:30px;">
+                    每一次 <span class="highlight-text">One Shot</span>，<br>都是思维与代码的完美共鸣。
+                 </div>
+            `
+        });
+
+        // --- Slide 7: 结尾 (年度称号 + 总结) ---
+        const streak = data.overview.longest_streak || 0;
+        const solved = data.overview.problems_solved || 0;
+        const activeDays = data.overview.active_days || 0;
+        const hardestRating = data.difficulty?.hardest_solved?.difficulty || 0;
+        
+        // 计算称号
+        let titleName = '潜力新星';
+        let titleDesc = '未来的路还很长，保持热爱。';
+        let titleColor = '#52c41a'; // Green
+        if (activeDays > 200) {
+            titleName = '绝世卷王';
+            titleDesc = '只要卷不死，就往死里卷。';
+            titleColor = '#faad14'; // Gold
+        } else if (solved > 500) {
+            titleName = '登峰造极';
+            titleDesc = '你站在群山之巅，俯视代码的海洋。';
+            titleColor = '#f5222d'; // Red
+        } else if (hardestRating >= 2400) {
+            titleName = '屠龙勇士';
+            titleDesc = '面对最凶恶的难题，你挥出了致命一击。';
+            titleColor = '#722ed1'; // Purple
+        } else if (streak >= 30) {
+            titleName = '毅力帝';
+            titleDesc = '风雨无阻，你是时间的朋友。';
+            titleColor = '#1890ff'; // Blue
+        } else if (solved > 150) {
+            titleName = '中流砥柱';
+            titleDesc = '现在的你，已是独当一面的强者。';
+            titleColor = '#13c2c2'; // Cyan
+        }
+
+        slides.push({
+            type: 'end',
+            title: '年度称号',
+            subtitle: `${data.year || '2025'} ACHIEVEMENT`,
+            content: `
+                 <div style="position:relative; display:inline-block; padding: 20px 40px; border: 4px solid ${titleColor}; border-radius: 8px; margin-top: 20px;">
+                    <div style="font-size: 48px; font-weight: 900; color: ${titleColor}; letter-spacing: 6px; text-shadow: 0 0 15px ${titleColor}66;">
+                        ${titleName}
+                    </div>
+                    <div style="position:absolute; top:-14px; left:50%; transform:translateX(-50%); background:#1f1f1f; padding:0 10px; color:${titleColor}; font-size:12px; letter-spacing:2px;">
+                        NO. ${data.uid}
+                    </div>
+                 </div>
+                 
+                 <div class="slide-text" style="margin-top:30px; font-style: italic;">
+                    “${titleDesc}”
+                 </div>
+
+                 <div style="margin-top:50px; display:flex; gap:30px; justify-content:center; opacity:0.8;">
+                     <div style="text-align:center">
+                        <div style="font-size:18px; font-weight:700; color:#fff;">${solved}</div>
+                        <div style="font-size:10px; color:#888;">总解题</div>
+                     </div>
+                     <div style="text-align:center">
+                        <div style="font-size:18px; font-weight:700; color:#fff;">${streak}</div>
+                        <div style="font-size:10px; color:#888;">连打卡</div>
+                     </div>
+                     <div style="text-align:center">
+                        <div style="font-size:18px; font-weight:700; color:#fff;">${activeDays}</div>
+                        <div style="font-size:10px; color:#888;">活跃天</div>
+                     </div>
+                 </div>
+                 
+                 <div style="margin-top:40px;font-size:12px;opacity:0.3;">Generated by Nowcoder Tracker</div>
+            `
+        });
+
+        return slides;
+    }
+
+    /**
+     * 绘制简易热力图 (12个月平铺)
+     */
+    drawHeatmap(dayData, container) {
+        if (!dayData || !container) return;
+        // Map date -> count
+        const counts = {};
+        let maxVal = 0;
+        dayData.forEach(d => {
+            counts[d.date] = d.submissions; // 或 d.problems_solved
+            if (d.submissions > maxVal) maxVal = d.submissions;
+        });
+
+        // 生成12个月
+        let html = '';
+        for (let m = 0; m < 12; m++) {
+            // 简单起见，每个月 5x7 格子示意，真实日历计算较繁琐
+            // 这里我们做简化：直接把当月数据铺开
+            html += `<div class="month-grid-item"><div class="month-label">${m + 1}月</div><div class="month-days">`;
+            // 假设每月30天，真实对齐需要 new Date
+            for (let d = 1; d <= 31; d++) {
+                // 构造 YYYY-MM-DD (假定2025)
+                // 注意：这里没传年份，暂时无法准确对应星期，仅做格子展示
+                // 实际应从 dayData[0].date 获取年份
+                const dateKey = `2025-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                const val = counts[dateKey] || 0;
+                let colorClass = 'lvl-0';
+                if (val > 0) colorClass = 'lvl-1';
+                if (val > 2) colorClass = 'lvl-2';
+                if (val > 5) colorClass = 'lvl-3';
+                if (val > 8) colorClass = 'lvl-4';
+                html += `<div class="day-cell ${colorClass}" title="${dateKey}: ${val}"></div>`;
+            }
+            html += `</div></div>`;
+        }
+        container.innerHTML = html;
+    }
+
+    /**
+     * 绘制 SVG 雷达图
+     */
+    drawRadar(radarData, container) {
+        if (!radarData || radarData.length < 3) {
+            container.innerHTML = '<div style="text-align:center;padding:20px;color:#999">数据不足</div>';
+            return;
+        }
+        // 扩大画板尺寸以容纳长标签（如“动态规划”）
+        const size = 280;
+        const center = size / 2;
+        const radius = 85; // 半径适中
+        const count = radarData.length;
+        
+        // 计算多边形点
+        const getPolyPoints = (r) => {
+            return radarData.map((_, i) => {
+                const angle = (Math.PI * 2 * i) / count - Math.PI / 2;
+                const x = center + r * Math.cos(angle);
+                const y = center + r * Math.sin(angle);
+                return `${x},${y}`;
+            }).join(' ');
+        };
+
+        // 背景网格 (3层)
+        let svg = `<svg width="100%" height="100%" viewBox="0 0 ${size} ${size}" preserveAspectRatio="xMidYMid meet">`;
+        [0.3, 0.6, 1].forEach(scale => {
+            svg += `<polygon points="${getPolyPoints(radius * scale)}" fill="none" stroke="#ddd" stroke-width="1"/>`;
+        });
+
+        // 数据多边形
+        const dataPoints = radarData.map((item, i) => {
+            const score = item.score || 0;
+            const r = radius * score;
+            const angle = (Math.PI * 2 * i) / count - Math.PI / 2;
+            const x = center + r * Math.cos(angle);
+            const y = center + r * Math.sin(angle);
+            return `${x},${y}`;
+        }).join(' ');
+
+        svg += `<polygon points="${dataPoints}" fill="rgba(24, 144, 255, 0.2)" stroke="#1890ff" stroke-width="2"/>`;
+
+        // 文字标签
+        radarData.forEach((item, i) => {
+            const angle = (Math.PI * 2 * i) / count - Math.PI / 2;
+            const labelR = radius + 20; // 文字距离图形更远一点
+            const x = center + labelR * Math.cos(angle);
+            const y = center + labelR * Math.sin(angle);
+            
+            // 优化对齐逻辑
+            let anchor = 'middle';
+            // 角度归一化到 0~2PI
+            let normAngle = angle % (Math.PI * 2);
+            if (normAngle < 0) normAngle += Math.PI * 2;
+            
+            // 上 (3/2 PI 或 -1/2 PI)
+            if (Math.abs(normAngle - Math.PI * 1.5) < 0.2) {
+                anchor = 'middle';
+            } 
+            // 下 (1/2 PI)
+            else if (Math.abs(normAngle - Math.PI * 0.5) < 0.2) {
+                anchor = 'middle';
+            }
+            // 右 (0 或 2PI)
+            else if (Math.abs(normAngle) < 0.2 || Math.abs(normAngle - Math.PI*2) < 0.2) {
+                anchor = 'start';
+            }
+            // 左 (PI)
+            else if (Math.abs(normAngle - Math.PI) < 0.2) {
+                anchor = 'end';
+            }
+            // 其他象限
+            else {
+                anchor = x > center ? 'start' : 'end';
+            }
+
+            // 微调 Y 轴
+            let dy = 4;
+            if (y < center - radius) dy = 0; // 顶部文字上移
+            if (y > center + radius) dy = 10; // 底部文字下移
+
+            svg += `<text x="${x}" y="${y}" text-anchor="${anchor}" font-size="12" fill="#888" dy="${dy}">${item.name}</text>`;
+        });
+
+        svg += `</svg>`;
+        container.innerHTML = svg;
+    }
+
+    /**
+     * 绘制 SVG 趋势图 (柱状)
+     */
+    drawTrend(monthData, container) {
+        if (!monthData) return;
+        const h = 150;
+        const w = 300;
+        const barW = (w / 12) * 0.6;
+        const gap = (w / 12) * 0.4;
+        
+        let maxVal = 0;
+        monthData.forEach(d => maxVal = Math.max(maxVal, d.submissions));
+        if (maxVal === 0) maxVal = 1;
+
+        let svg = `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`;
+        
+        monthData.forEach((d, i) => {
+            const val = d.submissions;
+            const barH = (val / maxVal) * (h - 20);
+            const x = i * (w / 12) + gap / 2;
+            const y = h - barH - 20; // 留底部文字空间
+            svg += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="#1890ff" rx="2" />`;
+            svg += `<text x="${x + barW/2}" y="${h - 5}" font-size="10" fill="#999" text-anchor="middle">${i+1}</text>`;
+        });
+        
+        svg += `</svg>`;
+        container.innerHTML = svg;
+    }
+
+    /**
+     * 绘制 SVG 难度分布 (垂直柱状图)
+     */
+    drawDifficulty(rawBuckets, container) {
+        if (!rawBuckets) return;
+        
+        // 过滤掉 unknown (不区分大小写)
+        const buckets = rawBuckets.filter(b => b.bucket && b.bucket.toLowerCase() !== 'unknown');
+
+        const total = buckets.reduce((acc, cur) => acc + cur.problems_solved, 0);
+        if (total === 0) {
+            container.innerHTML = '<div style="color:#999">暂无数据</div>';
+            return;
+        }
+
+        const h = 180; // 增加高度
+        const w = 340;
+        let maxVal = 0;
+        buckets.forEach(b => maxVal = Math.max(maxVal, b.problems_solved));
+        if (maxVal === 0) maxVal = 1;
+
+        let svg = `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`;
+        
+        const count = buckets.length;
+        const gap = 10;
+        const barW = count > 0 ? (w - (count - 1) * gap) / count : w;
+        const colors = ['#bfbfbf', '#52c41a', '#1890ff', '#722ed1', '#eb2f96', '#f5222d', '#333']; // 对应不同段位颜色
+        
+        buckets.forEach((b, i) => {
+            const val = b.problems_solved;
+            const barH = (val / maxVal) * (h - 30); // 留出底部文字空间
+            const x = i * (barW + gap);
+            const y = h - barH - 20;
+            const color = colors[i % colors.length];
+            
+            // 柱子
+            if (val > 0) {
+                svg += `<rect x="${x}" y="${y}" width="${barW}" height="${barH}" fill="${color}" rx="2" opacity="0.8" />`;
+                // 数值 (如果柱子太矮就显示在上方，否则内部)
+                const textY = barH > 20 ? y + 15 : y - 5;
+                const textColor = barH > 20 ? '#fff' : '#888';
+                if (val > 0) {
+                     svg += `<text x="${x + barW/2}" y="${textY}" font-size="10" fill="${textColor}" text-anchor="middle">${val}</text>`;
+                }
+            }
+            
+            // 标签 (简化显示，如 "入门")
+            let label = b.bucket;
+            // 尝试简化标签，例如 "入门(0-999)" -> "入门"
+            if (label.includes('(')) label = label.split('(')[0];
+            
+            svg += `<text x="${x + barW/2}" y="${h-5}" font-size="10" fill="#666" text-anchor="middle">${label}</text>`;
+        });
+        
+        svg += `</svg>`;
+        container.innerHTML = svg;
+    }
+
+    /**
+     * 绘制 SVG 时间分布 (柱状)
+     */
+    drawTimeDistribution(hours, container) {
+        if (!hours) return;
+        const h = 100;
+        const w = 300;
+        let maxVal = 0;
+        hours.forEach(d => maxVal = Math.max(maxVal, d.submissions));
+        if (maxVal === 0) maxVal = 1;
+
+        let svg = `<svg width="100%" height="100%" viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">`;
+        const barW = w / 24;
+        
+        hours.forEach((d, i) => {
+            const val = d.submissions;
+            const barH = (val / maxVal) * h;
+            const x = i * barW;
+            const y = h - barH;
+            svg += `<rect x="${x}" y="${y}" width="${barW - 1}" height="${barH}" fill="#faad14" />`;
+        });
+        
+        svg += `</svg>`;
+        container.innerHTML = svg;
+    }
+
+    /**
+     * 注入可视化样式
+     */
+    injectVisualStyles() {
+        if (document.getElementById('admin-visual-styles')) return;
+        const style = document.createElement('style');
+        style.id = 'admin-visual-styles';
+        style.textContent = `
+            .report-visuals-container {
+                margin-top: 20px;
+                padding: 0;
+                background: #000;
+                border-radius: 12px;
+                overflow: hidden;
+                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            }
+            .report-stage {
+                position: relative;
+                width: 100%;
+                height: 480px; /* 固定高度模拟手机屏比例或幻灯片 */
+                background: linear-gradient(135deg, #1f1f1f 0%, #111 100%);
+                color: #fff;
+            }
+            .report-slide {
+                position: absolute;
+                inset: 0;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                padding: 40px;
+                box-sizing: border-box;
+                text-align: center;
+                animation: fadeIn 0.5s ease;
+            }
+            .fade-in {
+                animation: fadeIn 0.5s ease forwards;
+            }
+            @keyframes fadeIn {
+                from { opacity: 0; transform: translateY(10px); }
+                to { opacity: 1; transform: translateY(0); }
+            }
+            
+            .slide-inner {
+                width: 100%;
+                max-width: 400px;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+            }
+            .slide-header {
+                margin-bottom: 24px;
+            }
+            .slide-subtitle {
+                font-size: 12px;
+                text-transform: uppercase;
+                letter-spacing: 2px;
+                opacity: 0.6;
+                color: #faad14;
+                margin-bottom: 4px;
+            }
+            .slide-title {
+                font-size: 28px;
+                font-weight: 800;
+                background: linear-gradient(to right, #fff, #bbb);
+                -webkit-background-clip: text;
+                -webkit-text-fill-color: transparent;
+            }
+            .slide-body {
+                flex: 1;
+                width: 100%;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 20px;
+            }
+            .slide-text {
+                font-size: 16px;
+                line-height: 1.6;
+                color: #ddd;
+                margin-bottom: 10px;
+            }
+            .highlight-text {
+                color: #1890ff;
+                font-weight: 700;
+                font-size: 18px;
+            }
+            .highlight-num {
+                color: #faad14;
+                font-weight: 700;
+                font-size: 20px;
+                font-family: 'Segoe UI', Roboto, sans-serif;
+            }
+            .slide-footer {
+                margin-top: 30px;
+                font-size: 12px;
+                opacity: 0.3;
+            }
+            
+            .stat-val-huge {
+                font-size: 64px;
+                font-weight: 800;
+                color: #1890ff;
+                text-shadow: 0 0 20px rgba(24,144,255,0.3);
+                line-height: 1;
+            }
+            .stat-label {
+                font-size: 14px;
+                opacity: 0.7;
+                margin-top: 8px;
+            }
+            .stat-sub-text {
+                font-size: 16px;
+                margin-top: 16px;
+                font-weight: 600;
+            }
+            
+            .slide-chart-container {
+                width: 100%;
+                height: 220px;
+                background: rgba(255,255,255,0.03);
+                border-radius: 8px;
+                padding: 10px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .summary-grid {
+                display: flex;
+                gap: 30px;
+                justify-content: center;
+            }
+            .summary-item .s-val {
+                font-size: 28px;
+                font-weight: 700;
+                color: #52c41a;
+            }
+            .summary-item .s-label {
+                font-size: 12px;
+                opacity: 0.6;
+            }
+            
+            .slide-controls {
+                position: absolute;
+                bottom: 20px;
+                right: 20px;
+                display: flex;
+                gap: 8px;
+                z-index: 10;
+            }
+            .slide-btn {
+                background: rgba(255,255,255,0.1);
+                border: 1px solid rgba(255,255,255,0.2);
+                color: #fff;
+                width: 36px;
+                height: 36px;
+                border-radius: 50%;
+                cursor: pointer;
+                transition: all 0.2s;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 14px;
+            }
+            .slide-btn:hover:not(:disabled) {
+                background: rgba(255,255,255,0.3);
+            }
+            .slide-btn:disabled {
+                opacity: 0.3;
+                cursor: not-allowed;
+            }
+
+            /* 覆盖SVG文字颜色为浅色 */
+            .slide-chart-container text {
+                fill: #888 !important;
+            }
+        `;
+        document.head.appendChild(style);
     }
 
     /**

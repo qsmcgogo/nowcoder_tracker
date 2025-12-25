@@ -37,6 +37,26 @@ app.use('/problem', createProxyMiddleware({
     }
 }));
 
+// API代理 - acm-problem-open（用于管理员批量导入题库等）
+app.use('/acm-problem-open', createProxyMiddleware({
+    target: 'http://localhost:3000',
+    changeOrigin: true,
+    logLevel: 'debug',
+    onError: (err, req, res) => {
+        console.log('Proxy error:', err.message);
+        console.log('Request URL:', req.url);
+        console.log('Request method:', req.method);
+        res.status(500).json({
+            error: 'API服务不可用',
+            message: '请确保proxy-server.js正在运行 (node proxy-server.js)',
+            details: err.message
+        });
+    },
+    onProxyReq: (proxyReq, req, res) => {
+        console.log('Proxying request to:', proxyReq.path);
+    }
+}));
+
 // 健康检查端点
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', message: 'Static server is running' });
