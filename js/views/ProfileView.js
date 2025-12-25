@@ -262,12 +262,17 @@ export class ProfileView {
 
     getUserProfileHtml(user) {
         const avatarUrl = user.headUrl && user.headUrl.startsWith('http') ? user.headUrl : `https://uploadfiles.nowcoder.com${user.headUrl || ''}`;
+        const profileUrl = helpers.buildUrlWithChannelPut(`https://www.nowcoder.com/users/${user.uid}`, this.appState?.channelPut);
         
         return `
             <div class="profile-card">
                 <div class="profile-header">
                     <img src="${avatarUrl}" alt="${user.name}的头像" class="profile-avatar">
-                    <h2 class="profile-name">${user.name}</h2>
+                    <h2 class="profile-name">
+                        <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" class="profile-name-link" title="打开牛客个人主页">
+                            ${user.name}
+                        </a>
+                    </h2>
                     <p class="profile-uid">UID: ${user.uid}</p>
                 </div>
                 <div class="profile-stats">

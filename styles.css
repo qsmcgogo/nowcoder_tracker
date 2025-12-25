@@ -3744,6 +3744,21 @@ body .problems-table tbody tr td.status-none {
     margin: 0;
 }
 
+/* “我的”页：昵称可点击跳转个人主页 */
+.profile-name-link {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+}
+.profile-name-link:hover {
+    text-decoration: underline;
+}
+.profile-name-link:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.75);
+    outline-offset: 4px;
+    border-radius: 6px;
+}
+
 .profile-uid {
     color: rgba(255, 255, 255, 0.8);
     font-size: 1em;

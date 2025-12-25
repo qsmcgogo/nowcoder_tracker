@@ -836,6 +836,8 @@
                             <ul>
                                 <li>1. 题库中增加课程题目</li>
                                 <li>2. 题库中增加蓝桥杯/传智杯近两年真题</li>
+                                <li>3. 新增2025年度报告</li>
+                                <li>4. 技能树新增知识点教程demo</li>
                             </ul>
                         </div>
                         <div class="faq-item">
@@ -1097,24 +1099,51 @@ cout &lt;&lt; "A\n" &lt;&lt; "B\n";     // 用 \n 实现换行</pre>
                                 <div class="learning-demo-overview__section">
                                     <div class="learning-demo-overview__h">1）数位DP在解决什么？</div>
                                     <div class="learning-demo-overview__p">
-                                        典型任务：统计 <code>[0, N]</code> 中满足某种“数位性质”的数字个数。<br/>
+                                        典型任务：统计“不超过 <code>X</code> 的、满足某种数位性质”的数字个数。<br/>
+                                        等价表述：统计所有 <code>0 ≤ y ≤ X</code> 且满足性质的 <code>y</code> 的数量。<br/>
                                         例如：数位和=K、不含某个数字、某个模式出现次数、模意义约束等。
                                     </div>
                                 </div>
                                 <div class="learning-demo-overview__section">
-                                    <div class="learning-demo-overview__h">2）把 N 拆成 digits</div>
+                                    <div class="learning-demo-overview__h">2）把 X 拆成 digits</div>
                                     <div class="learning-demo-overview__p">
-                                        我们把 <code>N</code> 转成数组 <code>digits</code>（从高位到低位），然后“按位填数”。<br/>
+                                        我们把 <code>X</code> 转成数组 <code>digits</code>（从高位到低位），然后“按位填数”。<br/>
                                         你可以把它想成：从左到右给每一位选一个 digit，最后拼成一个数。
                                     </div>
-                                    <pre class="learning-demo-overview__code">digits = [d0, d1, ..., d(len-1)]   // N 的每一位</pre>
+                                    <pre class="learning-demo-overview__code">digits = [d0, d1, ..., d(len-1)]   // X 的每一位</pre>
                                 </div>
                                 <div class="learning-demo-overview__section">
-                                    <div class="learning-demo-overview__h">3）状态怎么定义？（以数位和=K为例）</div>
+                                    <div class="learning-demo-overview__h">3）状态怎么定义？（以“不超过 X 的、数位和=K”为例）</div>
                                     <pre class="learning-demo-overview__code">dfs(pos, sum, tight)
 pos : 当前处理到第 pos 位（从 0 到 len）
 sum : 已经累加的数位和
-tight : 是否“贴着上界”N（tight=1 时本位上界 = digits[pos]）</pre>
+tight : 是否“贴着上界”X（tight=1 时本位上界 = digits[pos]）</pre>
+                                    <div class="learning-demo-overview__p" style="margin-top:10px;">
+                                        只保留核心 <code>dfs</code>（你写数位DP时最需要背下来的部分）：
+                                    </div>
+                                    <pre class="learning-demo-overview__code" style="margin-top:10px;">// 前置：digits 是 X 的每一位（从高位到低位），K 是目标数位和
+// 记忆化：只在 tight=0 时缓存（不受上界影响）
+long long memo[20][200];
+bool vis[20][200];
+
+long long dfs(int pos, int sum, bool tight) {
+    if (pos == (int)digits.size()) {
+        return (sum == K) ? 1LL : 0LL;
+    }
+    if (!tight &amp;&amp; vis[pos][sum]) return memo[pos][sum];
+
+    int up = tight ? digits[pos] : 9;
+    long long ans = 0;
+    for (int d = 0; d &lt;= up; d++) {
+        ans += dfs(pos + 1, sum + d, tight &amp;&amp; (d == up));
+    }
+
+    if (!tight) {
+        vis[pos][sum] = true;
+        memo[pos][sum] = ans;
+    }
+    return ans;
+}</pre>
                                 </div>
                             </div>
 
@@ -1123,7 +1152,7 @@ tight : 是否“贴着上界”N（tight=1 时本位上界 = digits[pos]）</pr
                                 <div class="learning-demo-overview__section">
                                     <div class="learning-demo-overview__h">4）tight 到底是什么意思？</div>
                                     <div class="learning-demo-overview__p">
-                                        tight=1 表示：前面所有位都“刚好等于 N 的前缀”，所以这一位最大只能选到 <code>digits[pos]</code>。<br/>
+                                        tight=1 表示：前面所有位都“刚好等于 X 的前缀”，所以这一位最大只能选到 <code>digits[pos]</code>。<br/>
                                         一旦某一位选了更小的数字（比如本位上界是 7，你选了 3），后面所有位都可以随便选 0..9 —— tight 就变成 0。
                                     </div>
                                     <pre class="learning-demo-overview__code">up = tight ? digits[pos] : 9
@@ -1132,7 +1161,7 @@ nextTight = tight && (d == up)</pre>
                                 <div class="learning-demo-overview__section">
                                     <div class="learning-demo-overview__h">5）dp 数组存什么？为什么只在 tight=0 时记忆化？</div>
                                     <div class="learning-demo-overview__p">
-                                        当 <code>tight=0</code>，后续不再受 N 限制，答案只由状态决定，所以可以缓存：<br/>
+                                        当 <code>tight=0</code>，后续不再受 X 限制，答案只由状态决定，所以可以缓存：<br/>
                                         <code>dp[pos][sum] = dfs(pos, sum, 0)</code>
                                     </div>
                                     <pre class="learning-demo-overview__code">if (!tight && dp[pos][sum] 已算过) 直接返回
@@ -1206,7 +1235,7 @@ for d in [0..up]:
                                     <div class="learning-demo-overview__p">
                                         - 前导零：一般当成正常填 0（相当于把短位数补齐到 len 位）<br/>
                                         - 记忆化条件：只有 tight=0（不受上界限制）才安全复用<br/>
-                                        - 状态维度：别把范围开爆；演示里我们只做小 N
+                                        - 状态维度：别把范围开爆；演示里我们只做小 X
                                     </div>
                                 </div>
                             </div>
