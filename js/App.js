@@ -387,12 +387,15 @@ export class NowcoderTracker {
 
             // 如果是管理员，添加视觉提示（确保只添加一次）
             if (this.state.isAdmin && !document.querySelector('h1 .admin-badge')) {
-                const adminBadge = document.createElement('span');
-                adminBadge.textContent = '[Admin]';
-                adminBadge.className = 'admin-badge'; // 添加一个class用于检查
-                adminBadge.style.color = 'red';
-                adminBadge.style.marginLeft = '10px';
-                document.querySelector('h1').appendChild(adminBadge);
+                const h1Element = document.querySelector('h1');
+                if (h1Element) {
+                    const adminBadge = document.createElement('span');
+                    adminBadge.textContent = '[Admin]';
+                    adminBadge.className = 'admin-badge'; // 添加一个class用于检查
+                    adminBadge.style.color = 'red';
+                    adminBadge.style.marginLeft = '10px';
+                    h1Element.appendChild(adminBadge);
+                }
             }
 
             // 显示/隐藏管理员页签

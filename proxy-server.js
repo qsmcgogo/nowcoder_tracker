@@ -225,6 +225,8 @@ app.use('/problem/tracker/battle/problem/admin/batch-add', manualProxyHandler('/
 app.use('/problem/tracker/battle/problem/admin/batch-delete', manualProxyHandler('/problem/tracker/battle/problem/admin/batch-delete'));
 app.use('/problem/tracker/battle/problem/admin/check-delete', manualProxyHandler('/problem/tracker/battle/problem/admin/check-delete'));
 app.use('/problem/tracker/battle/problem/admin/reset-stats', manualProxyHandler('/problem/tracker/battle/problem/admin/reset-stats'));
+// Battle: Problem difficulty histogram (no admin required, but used in admin tools)
+app.use('/problem/tracker/battle/problem-difficulty-histogram', manualProxyHandler('/problem/tracker/battle/problem-difficulty-histogram'));
 
 // Admin: Batch import Tracker problems into acm_problem_open
 // POST /acm-problem-open/batch-import-tracker

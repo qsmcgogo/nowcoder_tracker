@@ -385,7 +385,8 @@ main {
     flex: 1;
     background: white;
     border-radius: 15px;
-    padding: 40px;
+    /* 原来 40px 留白偏大，内容利用率不高；收紧一点更紧凑 */
+    padding: 24px;
     margin: 20px 0;
     box-shadow: 0 10px 30px rgba(0,0,0,0.2);
 }
@@ -402,6 +403,11 @@ main {
 #problems, #rankings, #daily, #skill-tree, #achievements, #faq {
     padding: 20px;
 }
+
+/* Daily 顶部横幅：防止在某些布局/缩放下出现横向溢出 */
+#daily { overflow-x: hidden; }
+#daily .daily-page-banner { max-width: 100%; box-sizing: border-box; }
+#daily .daily-page-banner img { max-width: 100%; }
 
 .coming-soon {
     text-align: center;
@@ -1316,7 +1322,7 @@ footer {
     }
     
     main {
-        padding: 20px;
+        padding: 16px;
     }
     
     .tab-content h2 {
@@ -3065,6 +3071,11 @@ body .problems-table tbody tr td.status-none {
 }
 .learning-demo-modal__body {
     padding: 14px;
+    /* 让“头部固定 + 内容区滚动”生效：关键是 min-height:0，否则内部 overflow:auto 不会滚动 */
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
 }
 
 /* 学习 Demo：原理概览页（打开时优先展示） */
@@ -3073,6 +3084,7 @@ body .problems-table tbody tr td.status-none {
     height: 100%;
     display: flex;
     flex-direction: column;
+    min-height: 0; /* 允许内部滚动区域收缩 */
 }
 .learning-demo-overview__title {
     font-size: 18px;
@@ -3131,11 +3143,17 @@ body .problems-table tbody tr td.status-none {
     justify-content: space-between;
     gap: 12px;
     margin-bottom: 10px;
+    flex-wrap: wrap; /* 避免窄屏时把翻页挤出可视区域 */
+}
+.learning-demo-overview__head .learning-demo-overview__title {
+    flex: 1;
+    min-width: 220px;
 }
 .learning-demo-overview__pager {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-shrink: 0;
 }
 .learning-demo-overview__pager-indicator {
     font-size: 13px;
@@ -3147,6 +3165,15 @@ body .problems-table tbody tr td.status-none {
 .learning-demo-overview__pager-btn {
     padding: 8px 12px;
     border-radius: 10px;
+}
+
+/* 窄屏：翻页按钮换行到下一行居中 */
+@media (max-width: 720px) {
+    .learning-demo-overview__pager {
+        width: 100%;
+        justify-content: center;
+        margin-top: 4px;
+    }
 }
 .learning-demo-overview__page {
     animation: overviewFade 180ms ease;
@@ -3162,6 +3189,31 @@ body .problems-table tbody tr td.status-none {
     border-radius: 14px;
     padding: 10px 10px;
     overflow: hidden;
+}
+
+/* 数位DP教程插图 */
+.learning-demo-overview__img {
+    width: 100%;
+    height: auto;
+    display: block;
+    margin-top: 10px;
+    border-radius: 14px;
+    border: 1px solid rgba(229,231,235,0.95);
+    box-shadow: 0 10px 26px rgba(17, 24, 39, 0.10);
+}
+
+/* 数位DP弹窗：更大一些，避免图片/讲解过挤（不影响基础输出 Demo） */
+#digit-dp-demo-modal .modal-content.learning-demo-modal__content {
+    width: 1180px;
+    max-width: calc(100% - 32px);
+    height: 88vh;
+}
+
+@media (max-width: 960px) {
+    #digit-dp-demo-modal .modal-content.learning-demo-modal__content {
+        width: calc(100% - 20px);
+        height: 90vh;
+    }
 }
 .learning-demo-layout {
     display: flex;
@@ -3218,7 +3270,10 @@ body .problems-table tbody tr td.status-none {
     inset: -2px;
     background: linear-gradient(90deg, rgba(24,144,255,0.0), rgba(24,144,255,0.35), rgba(114,46,209,0.25), rgba(24,144,255,0.0));
     background-size: 240% 100%;
-    animation: coachGlow 5.2s linear infinite;
+    /* 去掉扫光动画（避免分散注意力） */
+    animation: none;
+    transform: none;
+    background-position: 50% 50%;
     pointer-events: none;
     opacity: 0.7;
 }
@@ -3276,6 +3331,41 @@ body .problems-table tbody tr td.status-none {
     font-size: 12px;
     white-space: pre;
     box-shadow: 0 10px 26px rgba(11,18,32,0.16);
+    /* 代码框可滚动，避免过长撑爆布局 */
+    max-height: 320px;
+    overflow: auto;
+}
+
+/* 调试高亮模式：按行渲染 + 高亮当前执行行 */
+.learning-demo-coach__code.code-debug {
+    display: block;
+    white-space: normal;
+    width: 100%;
+    max-width: 100%;
+}
+.learning-demo-coach__code .code-line {
+    display: flex;
+    gap: 10px;
+    padding: 2px 6px;
+    border-radius: 8px;
+}
+.learning-demo-coach__code .code-line.active {
+    background: rgba(250, 204, 21, 0.22);
+    box-shadow: inset 0 0 0 1px rgba(250, 204, 21, 0.28);
+}
+.learning-demo-coach__code .code-ln {
+    width: 2.4em;
+    text-align: right;
+    color: rgba(232, 240, 255, 0.55);
+    font-variant-numeric: tabular-nums;
+    user-select: none;
+    flex: 0 0 auto;
+}
+.learning-demo-coach__code .code-src {
+    /* 该换行就换行：保留缩进，同时允许长行自动折行 */
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    flex: 1 1 auto;
 }
 .learning-demo-coach__btn {
     background: #1890ff;

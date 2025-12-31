@@ -86,6 +86,7 @@ export const nodeIdToTagId = {
     'dijkstra': 1503,
     'lca': 1504,
     'dsu-on-tree': 1505,
+    'topo-sort': 1517,
     'digit-dp': 1506,
     'rerooting-dp': 1507,
     'expected-dp': 1508,
@@ -97,6 +98,12 @@ export const nodeIdToTagId = {
     'kmp': 1514,
     'manacher': 1515,
     'trie': 1516,
+    // --- Interlude 3.5 (间章：惊鸿) ---
+    'construction-advanced-35': 1320,
+    'simulation-advanced-35': 1321,
+    'discretization': 1322,
+    'offline-processing': 1323,
+    'analytic-geometry': 1324,
     // --- Boss章节：梦 ---
     'thinking-challenge': 1400,  // 思维挑战
     'knowledge-challenge': 1401, // 知识点挑战
@@ -164,7 +171,7 @@ export const skillTreeData = {
                 columns: [
                     { id: 's4-col-range-ds', name: '区间查询类数据结构', nodeIds: ['fenwick-tree', 'st-table-rmq', 'segment-tree'] },
                     // 你定的“最小生成树”当前已有知识点（tag_id=1316），这里复用同一个节点
-                    { id: 's4-col-graph', name: '图论', nodeIds: ['dijkstra', 'minimum-spanning-tree', 'lca', 'dsu-on-tree'] },
+                    { id: 's4-col-graph', name: '图论', nodeIds: ['dijkstra', 'minimum-spanning-tree', 'topo-sort', 'lca', 'dsu-on-tree'] },
                     { id: 's4-col-dp', name: '动态规划提高', nodeIds: ['digit-dp', 'rerooting-dp', 'expected-dp', 'dp-rolling-opt', 'dp-monoqueue-segtree-opt'] },
                     { id: 's4-col-nt', name: '数论进阶', nodeIds: ['sieve', 'euler-theorem', 'exgcd'] },
                     { id: 's4-col-string', name: '字符串进阶', nodeIds: ['kmp', 'manacher', 'trie'] }
@@ -268,6 +275,7 @@ export const skillTreeData = {
             'segment-tree': { id: 'segment-tree', name: '线段树', dependencies: [] },
             // 图论
             'dijkstra': { id: 'dijkstra', name: '最短路（Dijkstra）', dependencies: [] },
+            'topo-sort': { id: 'topo-sort', name: '拓扑排序', dependencies: [] },
             'lca': { id: 'lca', name: 'LCA', dependencies: ['st-table-rmq'] },
             'dsu-on-tree': { id: 'dsu-on-tree', name: '树上启发式合并', dependencies: [] },
             // 动态规划提高
@@ -282,12 +290,18 @@ export const skillTreeData = {
             'exgcd': { id: 'exgcd', name: '扩展欧几里得（exgcd）', dependencies: [] },
             // 字符串进阶
             'kmp': { id: 'kmp', name: 'KMP', dependencies: [] },
-            'manacher': { id: 'manacher', name: 'Manacher（马拉车）', dependencies: [] },
-            'trie': { id: 'trie', name: '字典树（Trie）', dependencies: [] },
-            // --- Boss章节：梦 ---
-            'thinking-challenge': { id: 'thinking-challenge', name: '思维挑战', dependencies: [] },
-            'knowledge-challenge': { id: 'knowledge-challenge', name: '知识点挑战', dependencies: [] },
-            'code-challenge': { id: 'code-challenge', name: '代码挑战', dependencies: [] }
+    'manacher': { id: 'manacher', name: 'Manacher（马拉车）', dependencies: [] },
+    'trie': { id: 'trie', name: '字典树（Trie）', dependencies: [] },
+    // --- Interlude 3.5 nodes (间章：惊鸿) ---
+    'construction-advanced-35': { id: 'construction-advanced-35', name: '高级构造', dependencies: [] },
+    'simulation-advanced-35': { id: 'simulation-advanced-35', name: '高级模拟', dependencies: [] },
+    'discretization': { id: 'discretization', name: '离散化', dependencies: [] },
+    'offline-processing': { id: 'offline-processing', name: '离线处理', dependencies: [] },
+    'analytic-geometry': { id: 'analytic-geometry', name: '解析几何', dependencies: [] },
+    // --- Boss章节：梦 ---
+    'thinking-challenge': { id: 'thinking-challenge', name: '思维挑战', dependencies: [] },
+    'knowledge-challenge': { id: 'knowledge-challenge', name: '知识点挑战', dependencies: [] },
+    'code-challenge': { id: 'code-challenge', name: '代码挑战', dependencies: [] }
         }
     }
 };
@@ -440,12 +454,14 @@ export class SkillTreeView {
             const stage1Obj = tree.stages.find(s => s.id === 'stage-1');
             const stage2Obj = tree.stages.find(s => s.id === 'stage-2');
             const stage3Obj = tree.stages.find(s => s.id === 'stage-3');
+            const stage4Obj = tree.stages.find(s => s.id === 'stage-4');
                 chapterProgressMap = {
                     'CHAPTER1': { progress: calcStageAvg(stage1Obj) },
                     'INTERLUDE_DAWN': { progress: Math.round(['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'].map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / 5) },
                     'CHAPTER2': { progress: calcStageAvg(stage2Obj) },
                     'INTERLUDE_2_5': { progress: Math.round(['geometry', 'game-theory', 'simulation-advanced', 'construction-advanced', 'greedy-priority-queue'].map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / 5) },
-                    'CHAPTER3': { progress: calcStageAvg(stage3Obj) }
+                    'CHAPTER3': { progress: calcStageAvg(stage3Obj) },
+                    'CHAPTER4': { progress: calcStageAvg(stage4Obj) }
                 };
             }
 
@@ -453,6 +469,7 @@ export class SkillTreeView {
             const stage1Avg = chapterProgressMap['CHAPTER1']?.progress || 0;
             const stage2Avg = chapterProgressMap['CHAPTER2']?.progress || 0;
             const stage3Avg = chapterProgressMap['CHAPTER3']?.progress || 0;
+            const stage4Avg = chapterProgressMap['CHAPTER4']?.progress || 0;
             const interludeAvg = chapterProgressMap['INTERLUDE_DAWN']?.progress || 0;
             const interlude25Avg = chapterProgressMap['INTERLUDE_2_5']?.progress || 0;
 
@@ -802,10 +819,10 @@ export class SkillTreeView {
                     </div>
                     <div class="skill-tree-card__header">
                         <h3 class="skill-tree-card__title">${stage4Obj.name}</h3>
-                        <span class="skill-tree-card__progress-text">通关率: 0%</span>
+                        <span class="skill-tree-card__progress-text">通关率: ${stage4Avg}%</span>
                     </div>
                     <div class="skill-tree-card__progress-bar">
-                        <div class="skill-tree-card__progress-bar-inner" style="width: 0%;"></div>
+                        <div class="skill-tree-card__progress-bar-inner" style="width: ${stage4Avg}%;"></div>
                     </div>
                 </div>
             ` : '';
@@ -2074,6 +2091,83 @@ export class SkillTreeView {
         });
     }
 
+    // 渲染"间章：惊鸿" —— 5个知识点的轻量布局
+    async renderInterlude35Detail() {
+        const tree = this.skillTrees['newbie-130'];
+        const nodeIds = ['construction-advanced-35', 'simulation-advanced-35', 'discretization', 'offline-processing', 'analytic-geometry'];
+        // 预取进度
+        try {
+            const tagIds = nodeIds.map(id => nodeIdToTagId[id]).filter(Boolean);
+            if (tagIds.length) {
+                const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, tagIds);
+                this.currentStageProgress = progressData || { nodeProgress: {} };
+            }
+        } catch (_) { /* ignore progress fetch error */ }
+
+        const chips = nodeIds.map((id, idx) => {
+            const n = tree.nodes[id];
+            const tagId = nodeIdToTagId[id];
+            let pct = 0;
+            if (this.currentStageProgress && this.currentStageProgress.nodeProgress) {
+                const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
+                pct = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
+            }
+            const isCompleted = pct >= 100;
+            const stateClass = isCompleted ? 'skill-node--completed' : '';
+            const posClass = `interlude-chip--pos${idx + 1}`;
+            let backgroundStyle = '';
+            if (pct > 0 && pct < 100) {
+                backgroundStyle = `style="background: linear-gradient(to right, var(--primary-color-light) ${pct}%, #fff ${pct}%);"`;
+            }
+            return `
+                <div class="interlude-chip skill-node ${stateClass} ${posClass}" data-id="${id}" ${backgroundStyle}>
+                    <div class="skill-node__title">${n.name}</div>
+                    <div class="skill-node__progress-text">${pct}%</div>
+                </div>
+            `;
+        }).join('');
+
+        const html = `
+            <div class="interlude-detail">
+                <div class="interlude-ribbon">间章：惊鸿</div>
+                <div class="interlude-circle">
+                    <svg class="interlude-magic" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.5"></circle>
+                        <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(124,47,75,0.15)" stroke-width="1"></circle>
+                        <!-- 五角形轮廓（外） -->
+                        <path d="M50,10 L88,38 L74,82 L26,82 L12,38 Z" fill="none" stroke="rgba(124,47,75,0.18)" stroke-width="1.1"></path>
+                        <!-- 五角形轮廓（内，整体微上移） -->
+                        <path d="M50,20 L79,41 L68,74 L32,74 L21,41 Z" fill="none" stroke="rgba(124,47,75,0.12)" stroke-width="1"></path>
+                        <!-- 五角星（外顶点连线） -->
+                        <path d="M50,10 L74,82 L12,38 L88,38 L26,82 Z" fill="none" stroke="rgba(124,47,75,0.30)" stroke-width="1.4"></path>
+                    </svg>
+                    ${chips}
+                </div>
+            </div>
+        `;
+        this.container.innerHTML = html;
+
+        // 绑定点击 -> 展示面板（沿用节点面板逻辑）
+        this.container.querySelectorAll('.interlude-chip').forEach(el => {
+            el.addEventListener('click', (e) => {
+                const nodeId = e.currentTarget.getAttribute('data-id');
+                this.showNodePanel(nodeId);
+            });
+        });
+
+        // 返回按钮（复用详情页的绑定逻辑）
+        // 在标题栏左上角加一个返回按钮
+        const backBtn = document.createElement('button');
+        backBtn.className = 'back-button';
+        backBtn.textContent = '\u2190 返回所有阶段';
+        backBtn.style.marginBottom = '12px';
+        this.container.prepend(backBtn);
+        backBtn.addEventListener('click', () => {
+            this.currentView = 'summary';
+            this.render();
+        });
+    }
+
     // 旧版管理员增删改面板已移除
     
     // 计算所有知识点和题目的状态 (修改)
@@ -2437,14 +2531,13 @@ export class SkillTreeView {
                 this.renderInterlude25Detail();
             });
         }
-        // 间章3：惊鸿（迷你卡）点击进入：建设中占位页
+        // 间章3：惊鸿（迷你卡）点击进入：自定义迷你详情
         const mini3 = this.container.querySelector('.skill-tree-mini-card[data-mini-of="stage-3"]');
         if (mini3 && !mini3.classList.contains('locked')) {
             mini3.addEventListener('click', () => {
                 this.clearLines();
                 this.teardownSummarySvg && this.teardownSummarySvg();
-                // 目前“惊鸿”暂未正式开放，使用通用的“建设中”详情页
-                this.renderComingSoonDetail('间章：惊鸿');
+                this.renderInterlude35Detail();
             });
         }
         
@@ -2989,6 +3082,9 @@ export class SkillTreeView {
                 } else if (ribbon && ribbon.textContent.includes('含苞')) {
                     // 间章2.5：含苞
                     stageNodeIds = ['geometry', 'game-theory', 'simulation-advanced', 'construction-advanced', 'greedy-priority-queue'];
+                } else if (ribbon && ribbon.textContent.includes('惊鸿')) {
+                    // 间章3.5：惊鸿
+                    stageNodeIds = ['construction-advanced-35', 'simulation-advanced-35', 'discretization', 'offline-processing', 'analytic-geometry'];
                 } else {
                     // 默认使用间章1.5
                     stageNodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];

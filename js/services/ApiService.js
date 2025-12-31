@@ -2142,6 +2142,117 @@ export class ApiService {
         throw new Error((data && data.msg) || '获取章节进度失败');
     }
 
+    // ==================== Tracker 知识点后台管理（tracker_tag） ====================
+
+    /**
+     * 查询知识点详情
+     * GET /problem/tracker/tag/admin/get?tagId=xxx
+     * @param {number|string} tagId
+     * @returns {Promise<object>} TrackerTag
+     */
+    async trackerTagAdminGet(tagId) {
+        const tid = Number(tagId);
+        if (!tid || tid <= 0) throw new Error('tagId 参数不合法');
+        const url = `${this.apiBase}/problem/tracker/tag/admin/get?tagId=${encodeURIComponent(String(tid))}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '获取知识点失败');
+    }
+
+    /**
+     * 分页查询知识点列表（支持关键字）
+     * GET /problem/tracker/tag/admin/list?page=1&limit=20&keyword=xxx
+     */
+    async trackerTagAdminList(page = 1, limit = 20, keyword = '') {
+        const p = Math.max(1, Number(page) || 1);
+        const l = Math.max(1, Math.min(200, Number(limit) || 20));
+        const kw = String(keyword || '').trim();
+        const url = `${this.apiBase}/problem/tracker/tag/admin/list?page=${encodeURIComponent(String(p))}&limit=${encodeURIComponent(String(l))}&keyword=${encodeURIComponent(kw)}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) {
+            const d = data.data || {};
+            return {
+                page: Number(d.page) || p,
+                limit: Number(d.limit) || l,
+                total: Number(d.total) || 0,
+                keyword: d.keyword || kw,
+                list: Array.isArray(d.list) ? d.list : []
+            };
+        }
+        throw new Error((data && (data.msg || data.message)) || '获取知识点列表失败');
+    }
+
+    /**
+     * 新增知识点
+     * POST /problem/tracker/tag/admin/create
+     */
+    async trackerTagAdminCreate(tagId, tagName, tagDesc = '', tagTutorials = '') {
+        const tid = Number(tagId);
+        if (!tid || tid <= 0) throw new Error('tagId 参数不合法');
+        const name = String(tagName || '').trim();
+        if (!name) throw new Error('tagName 不能为空');
+        const url = `${this.apiBase}/problem/tracker/tag/admin/create`;
+        const body = `tagId=${encodeURIComponent(String(tid))}&tagName=${encodeURIComponent(name)}&tagDesc=${encodeURIComponent(String(tagDesc || ''))}&tagTutorials=${encodeURIComponent(String(tagTutorials || ''))}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body,
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '新增知识点失败');
+    }
+
+    /**
+     * 修改知识点
+     * POST /problem/tracker/tag/admin/update
+     */
+    async trackerTagAdminUpdate(tagId, tagName, tagDesc = '', tagTutorials = '') {
+        const tid = Number(tagId);
+        if (!tid || tid <= 0) throw new Error('tagId 参数不合法');
+        const name = String(tagName || '').trim();
+        if (!name) throw new Error('tagName 不能为空');
+        const url = `${this.apiBase}/problem/tracker/tag/admin/update`;
+        const body = `tagId=${encodeURIComponent(String(tid))}&tagName=${encodeURIComponent(name)}&tagDesc=${encodeURIComponent(String(tagDesc || ''))}&tagTutorials=${encodeURIComponent(String(tagTutorials || ''))}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body,
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '修改知识点失败');
+    }
+
+    /**
+     * 删除知识点（可选 force 强制）
+     * POST /problem/tracker/tag/admin/delete
+     */
+    async trackerTagAdminDelete(tagId, force = false) {
+        const tid = Number(tagId);
+        if (!tid || tid <= 0) throw new Error('tagId 参数不合法');
+        const url = `${this.apiBase}/problem/tracker/tag/admin/delete`;
+        const body = `tagId=${encodeURIComponent(String(tid))}&force=${encodeURIComponent(String(!!force))}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body,
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '删除知识点失败');
+    }
+
     // ==================== 管理员API：每日一题管理 ====================
 
     /**
@@ -2286,6 +2397,21 @@ export class ApiService {
         const data = await res.json();
         if (data.code === 0) return data.data;
         throw new Error(data.msg || data.message || '查询失败');
+    }
+
+    /**
+     * 查找每日一题（按 questionId 或 problemId）
+     * GET /problem/tracker/clock/question/find?questionId=0&problemId=0
+     */
+    async adminClockQuestionFind(questionId = 0, problemId = 0) {
+        const qid = parseInt(String(questionId || 0), 10) || 0;
+        const pid = parseInt(String(problemId || 0), 10) || 0;
+        const url = `${this.apiBase}/problem/tracker/clock/question/find?questionId=${encodeURIComponent(String(qid))}&problemId=${encodeURIComponent(String(pid))}`;
+        const res = await fetch(url, { credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data;
+        throw new Error((data && (data.msg || data.message)) || '查询失败');
     }
 
     // ==================== 管理员API：对战题目管理 ====================
@@ -2462,6 +2588,21 @@ export class ApiService {
         throw new Error(data.message || '重置失败');
     }
 
+    /**
+     * 对战：难度分布直方图（50桶，bucketSize=100，range=1~5000）
+     * GET /problem/tracker/battle/problem-difficulty-histogram
+     *
+     * 注意：后端不要求管理员权限，但前端仍放在管理员页签内展示。
+     */
+    async battleProblemDifficultyHistogram() {
+        const url = `${this.apiBase}/problem/tracker/battle/problem-difficulty-histogram`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '查询失败');
+    }
+
     // ==================== 管理员API：批量导入 Tracker 题目到 acm_problem_open ====================
 
     /**
@@ -2527,6 +2668,35 @@ export class ApiService {
         const data = await res.json().catch(() => ({}));
         if (data && (data.code === 0 || data.code === 200)) return data.data || {};
         throw new Error((data && (data.msg || data.message)) || '批量导入失败');
+    }
+
+    /**
+     * 比赛题目难度一键更新
+     * POST /problem/tracker/admin/acm-contest/rebuild-problem-difficulty
+     * @param {number} contestId - 比赛ID（必填）
+     * @param {boolean} dryRun - 是否只预览不写库（默认false）
+     * @param {number} acRateMax - 通过率截断阈值（默认85，范围1-100）
+     * @returns {Promise<Object>} 返回计算结果
+     */
+    async adminRebuildProblemDifficulty(contestId, dryRun = false, acRateMax = 85) {
+        const url = `${this.apiBase}/problem/tracker/admin/acm-contest/rebuild-problem-difficulty`;
+        const body = new URLSearchParams();
+        body.append('contestId', String(parseInt(String(contestId || 0), 10) || 0));
+        body.append('dryRun', String(!!dryRun));
+        body.append('acRateMax', String(Math.max(1, Math.min(100, parseInt(String(acRateMax || 85), 10) || 85))));
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: body.toString(),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '难度更新失败');
     }
 }
 

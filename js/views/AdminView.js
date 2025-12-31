@@ -8,9 +8,12 @@ export class AdminView {
         this.container = elements.adminContainer;
         this.apiService = apiService;
         this.state = state;
-        this.currentTab = 'clock'; // 'clock' | 'battle' | 'import' | 'yearReport'
+        this.currentTab = 'clock'; // 'clock' | 'battle' | 'import' | 'yearReport' | 'tag' | 'contestDifficulty'
         this.clockPage = 1;
         this.battlePage = 1;
+        this.battleSubTab = 'manage'; // 'manage' | 'histogram'
+        this.tagPage = 1;
+        this.tagKeyword = '';
         // 每日一题搜索条件
         this.clockSearchStartDate = null;
         this.clockSearchEndDate = null;
@@ -55,11 +58,17 @@ export class AdminView {
                     <button id="admin-tab-battle" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
                         对战题目管理
                     </button>
+                    <button id="admin-tab-tag" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
+                        知识点管理
+                    </button>
                     <button id="admin-tab-import" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
                         批量导入题库
                     </button>
                     <button id="admin-tab-year-report" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
                         年度报告验数
+                    </button>
+                    <button id="admin-tab-contest-difficulty" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
+                        比赛难度更新
                     </button>
                 </div>
 
@@ -73,6 +82,11 @@ export class AdminView {
                     ${this.renderBattlePanel()}
                 </div>
 
+                <!-- Tracker 知识点管理 -->
+                <div id="admin-tag-panel" class="admin-panel" style="display: none;">
+                    ${this.renderTagPanel()}
+                </div>
+
                 <!-- 批量导入 Tracker 题库到 acm_problem_open -->
                 <div id="admin-import-panel" class="admin-panel" style="display: none;">
                     ${this.renderImportPanel()}
@@ -81,6 +95,11 @@ export class AdminView {
                 <!-- 管理员验数：年度报告 -->
                 <div id="admin-year-report-panel" class="admin-panel" style="display: none;">
                     ${this.renderAdminYearReportPanel()}
+                </div>
+
+                <!-- 比赛题目难度一键更新 -->
+                <div id="admin-contest-difficulty-panel" class="admin-panel" style="display: none;">
+                    ${this.renderContestDifficultyPanel()}
                 </div>
             </div>
         `;
@@ -91,6 +110,45 @@ export class AdminView {
         // 加载初始数据
         this.loadClockList();
         this.loadBattleList();
+        this.loadTagList();
+    }
+
+    /**
+     * 渲染知识点管理面板（tracker_tag）
+     */
+    renderTagPanel() {
+        const kw = this.tagKeyword || '';
+        return `
+            <div>
+                <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; align-items:center;">
+                    <button id="admin-tag-add-btn" style="background: #52c41a; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        ➕ 新增知识点
+                    </button>
+                    <button id="admin-tag-batch-btn" style="background: #722ed1; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        📦 批量新增
+                    </button>
+                    <div style="flex:1;"></div>
+                    <div style="display:flex; align-items:center; gap: 8px; flex-wrap: wrap;">
+                        <label style="font-size: 14px; color: #666;">关键词:</label>
+                        <input id="admin-tag-keyword" type="text" value="${kw}"
+                               placeholder="按 tag_name / tag_desc 搜索"
+                               style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 240px;">
+                        <button id="admin-tag-search-btn" style="background: #1890ff; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            搜索
+                        </button>
+                        <button id="admin-tag-reset-btn" style="background: #999; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                            重置
+                        </button>
+                    </div>
+                </div>
+
+                <div id="admin-tag-list" style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; overflow: hidden;">
+                    <div style="padding: 20px; text-align: center; color: #999;">加载中...</div>
+                </div>
+
+                <div id="admin-tag-pagination" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 20px;"></div>
+            </div>
+        `;
     }
 
     renderAdminYearReportPanel() {
@@ -173,6 +231,57 @@ export class AdminView {
                     <pre id="admin-clear-user-mirrors-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
                 </div>
             </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 渲染比赛题目难度一键更新面板
+     */
+    renderContestDifficultyPanel() {
+        const savedContestId = localStorage.getItem('contest_difficulty_contest_id') || '';
+        const savedAcRateMax = localStorage.getItem('contest_difficulty_ac_rate_max') || '85';
+
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    比赛题目难度一键更新
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    用于<strong>已结束比赛</strong>：基于「每题通过人数 + 参赛者当前平均 rating」一键计算该比赛所有题目的难度，并更新到表 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">acm_problem_open.difficulty</code>。<br>
+                    后端接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/acm-contest/rebuild-problem-difficulty</code>
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">contestId:</label>
+                        <input id="admin-contest-difficulty-contest-id" type="number" value="${savedContestId}" placeholder="必填：比赛ID"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">acRateMax:</label>
+                        <input id="admin-contest-difficulty-ac-rate-max" type="number" min="1" max="100" value="${savedAcRateMax}" placeholder="默认85（1-100）"
+                               style="width: 140px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="flex: 1;"></div>
+                    <button id="admin-contest-difficulty-preview-btn" style="background:#722ed1; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        🔍 预览（不写库）
+                    </button>
+                    <button id="admin-contest-difficulty-submit-btn" style="background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        ✅ 写入数据库
+                    </button>
+                </div>
+
+                <div id="admin-contest-difficulty-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">计算结果</div>
+                    <div id="admin-contest-difficulty-summary" style="margin-bottom: 12px; padding: 12px; background: #f5f5f5; border-radius: 6px; font-size: 13px; display: none;"></div>
+                    <div id="admin-contest-difficulty-list" style="max-height: 500px; overflow-y: auto; border: 1px solid #e8e8e8; border-radius: 6px;">
+                        <div style="padding: 20px; text-align: center; color: #999;">（尚未执行）</div>
+                    </div>
+                </div>
+            </div>
         `;
     }
 
@@ -183,7 +292,7 @@ export class AdminView {
         return `
             <div>
                 <!-- 操作栏 -->
-                <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+                <div style="display: flex; gap: 12px; margin-bottom: 12px; flex-wrap: wrap;">
                     <button id="admin-clock-add-btn" style="background: #52c41a; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
                         ➕ 新增
                     </button>
@@ -204,6 +313,19 @@ export class AdminView {
                     </div>
                 </div>
 
+                <!-- 快速定位 -->
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom: 20px;">
+                    <div style="font-size: 13px; color:#666; font-weight: 600;">快速定位：</div>
+                    <input id="admin-clock-find-question-id" type="number" placeholder="questionId"
+                           style="width: 140px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                    <input id="admin-clock-find-problem-id" type="number" placeholder="problemId"
+                           style="width: 140px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                    <button id="admin-clock-find-btn" style="background:#722ed1; color:#fff; border:none; padding: 8px 16px; border-radius: 4px; cursor:pointer; font-size: 14px;">
+                        定位
+                    </button>
+                    <span style="font-size: 12px; color:#999;">二选一即可，两个都填会校验匹配</span>
+                </div>
+
                 <!-- 列表 -->
                 <div id="admin-clock-list" style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; overflow: hidden;">
                     <div style="padding: 20px; text-align: center; color: #999;">加载中...</div>
@@ -222,6 +344,20 @@ export class AdminView {
     renderBattlePanel() {
         return `
             <div>
+                <!-- 二级页签 -->
+                <div style="display:flex; gap:10px; align-items:center; margin-bottom: 14px; flex-wrap:wrap;">
+                    <button id="admin-battle-subtab-manage"
+                            style="padding: 8px 14px; border-radius: 999px; border: 1px solid ${this.battleSubTab === 'manage' ? '#1890ff' : '#ddd'}; background: ${this.battleSubTab === 'manage' ? '#e6f7ff' : '#fff'}; color: ${this.battleSubTab === 'manage' ? '#0958d9' : '#666'}; cursor:pointer; font-size: 13px; font-weight: 700;">
+                        管理题目
+                    </button>
+                    <button id="admin-battle-subtab-histogram"
+                            style="padding: 8px 14px; border-radius: 999px; border: 1px solid ${this.battleSubTab === 'histogram' ? '#1890ff' : '#ddd'}; background: ${this.battleSubTab === 'histogram' ? '#e6f7ff' : '#fff'}; color: ${this.battleSubTab === 'histogram' ? '#0958d9' : '#666'}; cursor:pointer; font-size: 13px; font-weight: 700;">
+                        查看数量
+                    </button>
+                    <span style="font-size: 12px; color:#999;">难度桶：1~100, 101~200, …, 4901~5000（共 50 桶）</span>
+                </div>
+
+                <div id="admin-battle-subpanel-manage" style="display:${this.battleSubTab === 'manage' ? 'block' : 'none'};">
                 <!-- 操作栏 -->
                 <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
                     <button id="admin-battle-add-btn" style="background: #52c41a; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
@@ -270,6 +406,26 @@ export class AdminView {
 
                 <!-- 分页 -->
                 <div id="admin-battle-pagination" style="display: flex; justify-content: center; align-items: center; gap: 12px; margin-top: 20px;">
+                </div>
+                </div>
+
+                <div id="admin-battle-subpanel-histogram" style="display:${this.battleSubTab === 'histogram' ? 'block' : 'none'};">
+                    <div style="background:#fff; border:1px solid #e8e8e8; border-radius: 12px; padding: 14px;">
+                        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                            <div style="font-size: 15px; font-weight: 800; color:#333;">难度分布柱状图</div>
+                            <div style="flex:1;"></div>
+                            <button id="admin-battle-histogram-refresh"
+                                    style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                                刷新
+                            </button>
+                        </div>
+                        <div id="admin-battle-histogram-meta" style="margin-top: 8px; font-size: 13px; color:#666;"></div>
+                        <div id="admin-battle-histogram-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                        <div id="admin-battle-histogram-chart"
+                             style="margin-top: 12px; overflow:auto; border: 1px solid #f0f0f0; border-radius: 10px; padding: 12px; background: linear-gradient(180deg, #fbfdff, #ffffff);">
+                            <div style="padding: 18px; text-align:center; color:#999;">（尚未加载）</div>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
@@ -344,11 +500,20 @@ export class AdminView {
         document.getElementById('admin-tab-battle').addEventListener('click', () => {
             this.switchTab('battle');
         });
+        const tagTabBtn = document.getElementById('admin-tab-tag');
+        if (tagTabBtn) {
+            tagTabBtn.addEventListener('click', () => {
+                this.switchTab('tag');
+            });
+        }
         document.getElementById('admin-tab-import').addEventListener('click', () => {
             this.switchTab('import');
         });
         document.getElementById('admin-tab-year-report').addEventListener('click', () => {
             this.switchTab('yearReport');
+        });
+        document.getElementById('admin-tab-contest-difficulty').addEventListener('click', () => {
+            this.switchTab('contestDifficulty');
         });
 
         // 每日一题操作
@@ -361,6 +526,8 @@ export class AdminView {
         document.getElementById('admin-clock-reset-btn').addEventListener('click', () => {
             this.resetClockSearch();
         });
+        const clockFindBtn = document.getElementById('admin-clock-find-btn');
+        if (clockFindBtn) clockFindBtn.addEventListener('click', () => this.handleClockFind());
 
         // 对战题目操作
         document.getElementById('admin-battle-add-btn').addEventListener('click', () => {
@@ -379,6 +546,14 @@ export class AdminView {
             this.searchBattleByProblemId();
         });
 
+        // 对战二级页签
+        const battleManageBtn = document.getElementById('admin-battle-subtab-manage');
+        const battleHistBtn = document.getElementById('admin-battle-subtab-histogram');
+        if (battleManageBtn) battleManageBtn.addEventListener('click', () => this.setBattleSubTab('manage'));
+        if (battleHistBtn) battleHistBtn.addEventListener('click', () => this.setBattleSubTab('histogram'));
+        const histRefreshBtn = document.getElementById('admin-battle-histogram-refresh');
+        if (histRefreshBtn) histRefreshBtn.addEventListener('click', () => this.loadBattleDifficultyHistogram());
+
         // 批量导入（如果 DOM 已渲染）
         const previewBtn = document.getElementById('admin-import-preview-btn');
         const submitBtn = document.getElementById('admin-import-submit-btn');
@@ -392,6 +567,28 @@ export class AdminView {
         // 对战运维：清理某用户镜像
         const clearMirrorsBtn = document.getElementById('admin-clear-user-mirrors-btn');
         if (clearMirrorsBtn) clearMirrorsBtn.addEventListener('click', () => this.adminClearUserMirrors());
+
+        // 知识点管理
+        const tagAddBtn = document.getElementById('admin-tag-add-btn');
+        const tagBatchBtn = document.getElementById('admin-tag-batch-btn');
+        const tagSearchBtn = document.getElementById('admin-tag-search-btn');
+        const tagResetBtn = document.getElementById('admin-tag-reset-btn');
+        if (tagAddBtn) tagAddBtn.addEventListener('click', () => this.showTagModal(null));
+        if (tagBatchBtn) tagBatchBtn.addEventListener('click', () => this.showTagBatchModal());
+        if (tagSearchBtn) tagSearchBtn.addEventListener('click', () => this.handleTagSearch());
+        if (tagResetBtn) tagResetBtn.addEventListener('click', () => this.resetTagSearch());
+        const kwInput = document.getElementById('admin-tag-keyword');
+        if (kwInput) {
+            kwInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') this.handleTagSearch();
+            });
+        }
+
+        // 比赛题目难度更新
+        const contestPreviewBtn = document.getElementById('admin-contest-difficulty-preview-btn');
+        const contestSubmitBtn = document.getElementById('admin-contest-difficulty-submit-btn');
+        if (contestPreviewBtn) contestPreviewBtn.addEventListener('click', () => this.handleContestDifficultyPreview());
+        if (contestSubmitBtn) contestSubmitBtn.addEventListener('click', () => this.handleContestDifficultySubmit());
     }
 
     async adminClearUserMirrors() {
@@ -444,24 +641,34 @@ export class AdminView {
         this.currentTab = tab;
         const clockPanel = document.getElementById('admin-clock-panel');
         const battlePanel = document.getElementById('admin-battle-panel');
+        const tagPanel = document.getElementById('admin-tag-panel');
         const importPanel = document.getElementById('admin-import-panel');
         const yearReportPanel = document.getElementById('admin-year-report-panel');
+        const contestDifficultyPanel = document.getElementById('admin-contest-difficulty-panel');
         const clockBtn = document.getElementById('admin-tab-clock');
         const battleBtn = document.getElementById('admin-tab-battle');
+        const tagBtn = document.getElementById('admin-tab-tag');
         const importBtn = document.getElementById('admin-tab-import');
         const yearReportBtn = document.getElementById('admin-tab-year-report');
+        const contestDifficultyBtn = document.getElementById('admin-tab-contest-difficulty');
 
         // hide all
         clockPanel.style.display = 'none';
         battlePanel.style.display = 'none';
+        if (tagPanel) tagPanel.style.display = 'none';
         if (importPanel) importPanel.style.display = 'none';
         if (yearReportPanel) yearReportPanel.style.display = 'none';
+        if (contestDifficultyPanel) contestDifficultyPanel.style.display = 'none';
 
         // reset btn styles
         clockBtn.style.color = '#666';
         clockBtn.style.borderBottomColor = 'transparent';
         battleBtn.style.color = '#666';
         battleBtn.style.borderBottomColor = 'transparent';
+        if (tagBtn) {
+            tagBtn.style.color = '#666';
+            tagBtn.style.borderBottomColor = 'transparent';
+        }
         if (importBtn) {
             importBtn.style.color = '#666';
             importBtn.style.borderBottomColor = 'transparent';
@@ -469,6 +676,10 @@ export class AdminView {
         if (yearReportBtn) {
             yearReportBtn.style.color = '#666';
             yearReportBtn.style.borderBottomColor = 'transparent';
+        }
+        if (contestDifficultyBtn) {
+            contestDifficultyBtn.style.color = '#666';
+            contestDifficultyBtn.style.borderBottomColor = 'transparent';
         }
 
         if (tab === 'clock') {
@@ -479,6 +690,15 @@ export class AdminView {
             battlePanel.style.display = 'block';
             battleBtn.style.color = '#1890ff';
             battleBtn.style.borderBottomColor = '#1890ff';
+            // 切到对战面板时，确保二级页签状态正确；若在 histogram 则拉取数据
+            try { this.setBattleSubTab(this.battleSubTab || 'manage'); } catch (_) {}
+        } else if (tab === 'tag' && tagPanel) {
+            tagPanel.style.display = 'block';
+            if (tagBtn) {
+                tagBtn.style.color = '#1890ff';
+                tagBtn.style.borderBottomColor = '#1890ff';
+            }
+            this.loadTagList(this.tagPage || 1);
         } else if (tab === 'import' && importPanel) {
             importPanel.style.display = 'block';
             if (importBtn) {
@@ -491,7 +711,499 @@ export class AdminView {
                 yearReportBtn.style.color = '#1890ff';
                 yearReportBtn.style.borderBottomColor = '#1890ff';
             }
+        } else if (tab === 'contestDifficulty' && contestDifficultyPanel) {
+            // 强制渲染：避免某些环境下初次渲染丢失/被清空导致 tab 内容为空
+            contestDifficultyPanel.innerHTML = this.renderContestDifficultyPanel();
+            // 重新绑定按钮事件（因为 innerHTML 重新注入会丢失事件）
+            const contestPreviewBtn = document.getElementById('admin-contest-difficulty-preview-btn');
+            const contestSubmitBtn = document.getElementById('admin-contest-difficulty-submit-btn');
+            if (contestPreviewBtn) contestPreviewBtn.addEventListener('click', () => this.handleContestDifficultyPreview());
+            if (contestSubmitBtn) contestSubmitBtn.addEventListener('click', () => this.handleContestDifficultySubmit());
+
+            contestDifficultyPanel.style.display = 'block';
+            if (contestDifficultyBtn) {
+                contestDifficultyBtn.style.color = '#1890ff';
+                contestDifficultyBtn.style.borderBottomColor = '#1890ff';
+            }
         }
+    }
+
+    // ====== 知识点管理（tracker_tag）======
+
+    handleTagSearch() {
+        const kwInput = document.getElementById('admin-tag-keyword');
+        this.tagKeyword = String(kwInput ? kwInput.value : '').trim();
+        this.tagPage = 1;
+        this.loadTagList(1);
+    }
+
+    resetTagSearch() {
+        const kwInput = document.getElementById('admin-tag-keyword');
+        if (kwInput) kwInput.value = '';
+        this.tagKeyword = '';
+        this.tagPage = 1;
+        this.loadTagList(1);
+    }
+
+    async loadTagList(page = 1) {
+        this.tagPage = page;
+        const listEl = document.getElementById('admin-tag-list');
+        const paginationEl = document.getElementById('admin-tag-pagination');
+        if (!listEl) return;
+        listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">加载中...</div>';
+        if (paginationEl) paginationEl.innerHTML = '';
+        try {
+            const kwInput = document.getElementById('admin-tag-keyword');
+            const kw = String(kwInput ? kwInput.value : (this.tagKeyword || '')).trim();
+            this.tagKeyword = kw;
+            const data = await this.apiService.trackerTagAdminList(page, 20, kw);
+            this.renderTagList(data);
+            this.renderTagPagination(data.total, data.page, data.limit);
+        } catch (e) {
+            listEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #ff4d4f;">加载失败: ${e && e.message ? e.message : '未知错误'}</div>`;
+        }
+    }
+
+    renderTagList(data) {
+        const listEl = document.getElementById('admin-tag-list');
+        if (!listEl) return;
+        const list = Array.isArray(data.list) ? data.list : [];
+        if (list.length === 0) {
+            listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">暂无数据</div>';
+            return;
+        }
+
+        const esc = (s) => String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+        const short = (s, n = 80) => {
+            const t = String(s || '').replace(/\s+/g, ' ').trim();
+            if (!t) return '-';
+            return t.length > n ? (t.slice(0, n) + '…') : t;
+        };
+
+        const rows = list.map(item => {
+            const tagId = item.tagId != null ? item.tagId : (item.id || '');
+            const name = item.tagName || '';
+            const desc = item.tagDesc || '';
+            return `
+                <div class="admin-tag-row" data-tag-id="${esc(tagId)}"
+                     style="display:flex; align-items:center; padding: 14px 16px; border-bottom: 1px solid #f0f0f0; gap: 16px; cursor: pointer;">
+                    <div style="width: 90px; flex: 0 0 auto; color:#111; font-weight:700;">#${esc(tagId)}</div>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-weight: 700; color: #333; margin-bottom: 4px; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">${esc(name)}</div>
+                        <div style="font-size: 13px; color: #666; overflow:hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            ${esc(short(desc, 120))}
+                        </div>
+                    </div>
+                    <div style="display:flex; gap: 8px; flex: 0 0 auto;">
+                        <button class="admin-tag-edit-btn" data-tag-id="${esc(tagId)}"
+                                style="background: #1890ff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                            编辑
+                        </button>
+                        <button class="admin-tag-delete-btn" data-tag-id="${esc(tagId)}" data-tag-name="${esc(name)}"
+                                style="background: #ff4d4f; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
+                            删除
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        listEl.innerHTML = rows;
+
+        listEl.querySelectorAll('.admin-tag-row').forEach(row => {
+            row.addEventListener('click', (e) => {
+                const t = e.target;
+                if (t && (t.closest('.admin-tag-edit-btn') || t.closest('.admin-tag-delete-btn'))) return;
+                const tid = Number(row.getAttribute('data-tag-id'));
+                if (tid) this.editTag(tid);
+            });
+        });
+        listEl.querySelectorAll('.admin-tag-edit-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const tid = Number(btn.getAttribute('data-tag-id'));
+                if (tid) this.editTag(tid);
+            });
+        });
+        listEl.querySelectorAll('.admin-tag-delete-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const tid = Number(btn.getAttribute('data-tag-id'));
+                const name = btn.getAttribute('data-tag-name') || '';
+                if (tid) this.deleteTag(tid, name);
+            });
+        });
+    }
+
+    renderTagPagination(total, page, limit) {
+        const paginationEl = document.getElementById('admin-tag-pagination');
+        if (!paginationEl) return;
+        const totalPages = Math.ceil((Number(total) || 0) / (Number(limit) || 20));
+        if (totalPages <= 1) {
+            paginationEl.innerHTML = '';
+            return;
+        }
+        let html = '';
+        if (page > 1) {
+            html += `<button class="admin-tag-prev-btn" data-page="${page - 1}" style="padding: 6px 12px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">上一页</button>`;
+        }
+        html += `<span style="color: #666; margin: 0 12px;">第 ${page} / ${totalPages} 页 (共 ${total} 条)</span>`;
+        if (page < totalPages) {
+            html += `<button class="admin-tag-next-btn" data-page="${page + 1}" style="padding: 6px 12px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">下一页</button>`;
+        }
+        html += `<span style="margin-left: 16px; color: #666;">跳转到:</span>`;
+        html += `<input type="number" id="admin-tag-goto-page" min="1" max="${totalPages}" value="${page}"
+                        style="width: 60px; padding: 4px 8px; margin: 0 8px; border: 1px solid #ddd; border-radius: 4px; text-align: center;">`;
+        html += `<button class="admin-tag-goto-btn" style="padding: 6px 12px; border: 1px solid #1890ff; background: #1890ff; color: #fff; border-radius: 4px; cursor: pointer;">跳转</button>`;
+
+        paginationEl.innerHTML = html;
+        paginationEl.querySelectorAll('.admin-tag-prev-btn, .admin-tag-next-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const targetPage = parseInt(btn.dataset.page);
+                this.loadTagList(targetPage);
+            });
+        });
+        const gotoBtn = paginationEl.querySelector('.admin-tag-goto-btn');
+        const gotoInput = paginationEl.querySelector('#admin-tag-goto-page');
+        if (gotoBtn && gotoInput) {
+            gotoBtn.addEventListener('click', () => {
+                const targetPage = parseInt(gotoInput.value);
+                if (targetPage >= 1 && targetPage <= totalPages) {
+                    this.loadTagList(targetPage);
+                } else {
+                    alert(`请输入 1-${totalPages} 之间的页码`);
+                }
+            });
+            gotoInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') gotoBtn.click();
+            });
+        }
+    }
+
+    async editTag(tagId) {
+        try {
+            const item = await this.apiService.trackerTagAdminGet(tagId);
+            this.showTagModal(item);
+        } catch (e) {
+            alert('加载失败: ' + (e && e.message ? e.message : '未知错误'));
+        }
+    }
+
+    async deleteTag(tagId, tagName = '') {
+        const name = tagName ? `（${tagName}）` : '';
+        if (!confirm(`确定要删除知识点 #${tagId}${name} 吗？`)) return;
+        try {
+            await this.apiService.trackerTagAdminDelete(tagId, false);
+            this.loadTagList(this.tagPage);
+            alert('删除成功');
+        } catch (e) {
+            const msg = e && e.message ? e.message : '删除失败';
+            const needForce = /force\s*=\s*true|强制|关联数据/i.test(msg);
+            if (needForce) {
+                const ok = confirm(`后端提示该知识点仍有关联数据，是否强制删除（force=true）？\n\n${msg}`);
+                if (!ok) return;
+                try {
+                    await this.apiService.trackerTagAdminDelete(tagId, true);
+                    this.loadTagList(this.tagPage);
+                    alert('强制删除成功');
+                } catch (e2) {
+                    alert('强制删除失败: ' + (e2 && e2.message ? e2.message : '未知错误'));
+                }
+            } else {
+                alert('删除失败: ' + msg);
+            }
+        }
+    }
+
+    showTagModal(item = null) {
+        const isEdit = !!item;
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+
+        const tagId = item?.tagId || '';
+        const tagName = item?.tagName || '';
+        const tagDesc = item?.tagDesc || '';
+        const tagTutorials = item?.tagTutorials || '';
+
+        const escAttr = (s) => String(s == null ? '' : s).replace(/"/g, '&quot;');
+
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 720px;">
+                <div class="modal-header">
+                    <h3>${isEdit ? '编辑' : '新增'}知识点</h3>
+                    <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <div style="margin-bottom: 16px; display:flex; gap: 12px; flex-wrap: wrap;">
+                        <div style="flex: 0 0 180px;">
+                            <label style="display: block; margin-bottom: 6px; font-weight: 600;">tagId *</label>
+                            <input type="number" id="tag-modal-tag-id" value="${escAttr(tagId)}" ${isEdit ? 'readonly' : ''}
+                                   placeholder="例如 1506"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                        <div style="flex: 1 1 320px;">
+                            <label style="display: block; margin-bottom: 6px; font-weight: 600;">tagName *</label>
+                            <input type="text" id="tag-modal-tag-name" value="${escAttr(tagName)}"
+                                   placeholder="例如 数位DP"
+                                   style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600;">tagDesc</label>
+                        <textarea id="tag-modal-tag-desc" rows="4"
+                                  style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; line-height: 1.5; resize: vertical;">${tagDesc || ''}</textarea>
+                    </div>
+
+                    <div style="margin-bottom: 6px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 600;">tagTutorials</label>
+                        <textarea id="tag-modal-tag-tutorials" rows="6"
+                                  placeholder="可放教程链接/JSON/文本（后端按字符串存储）"
+                                  style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; line-height: 1.5; resize: vertical;">${tagTutorials || ''}</textarea>
+                    </div>
+                    <div style="font-size: 12px; color: #888; line-height: 1.5;">
+                        提示：搜索支持按 tag_name / tag_desc 模糊匹配；删除默认会检查关联数据，必要时再 force=true 强制删除。
+                    </div>
+
+                    <div id="tag-modal-error" style="color: #ff4d4f; margin-top: 12px; display: none;"></div>
+                </div>
+                <div class="modal-actions" style="padding: 12px 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button onclick="this.closest('.modal').remove()" style="padding: 8px 16px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">取消</button>
+                    <button id="tag-modal-submit" style="padding: 8px 16px; border: none; background: #1890ff; color: #fff; border-radius: 4px; cursor: pointer;">
+                        ${isEdit ? '更新' : '添加'}
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const submitBtn = modal.querySelector('#tag-modal-submit');
+        submitBtn.addEventListener('click', async () => {
+            const errorEl = modal.querySelector('#tag-modal-error');
+            errorEl.style.display = 'none';
+
+            const tid = parseInt(String(modal.querySelector('#tag-modal-tag-id').value || '').trim(), 10);
+            const name = String(modal.querySelector('#tag-modal-tag-name').value || '').trim();
+            const desc = String(modal.querySelector('#tag-modal-tag-desc').value || '');
+            const tutorials = String(modal.querySelector('#tag-modal-tag-tutorials').value || '');
+
+            if (!tid || tid <= 0) {
+                errorEl.textContent = '请填写有效的 tagId（正整数）';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (!name) {
+                errorEl.textContent = '请填写 tagName（不能为空）';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const oldText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            submitBtn.textContent = isEdit ? '更新中...' : '添加中...';
+
+            try {
+                if (isEdit) {
+                    await this.apiService.trackerTagAdminUpdate(tid, name, desc, tutorials);
+                } else {
+                    await this.apiService.trackerTagAdminCreate(tid, name, desc, tutorials);
+                }
+                modal.remove();
+                this.loadTagList(this.tagPage || 1);
+                alert(isEdit ? '更新成功' : '添加成功');
+            } catch (e) {
+                errorEl.textContent = e && e.message ? e.message : '操作失败';
+                errorEl.style.display = 'block';
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = oldText || (isEdit ? '更新' : '添加');
+            }
+        });
+    }
+
+    // ===== 批量新增知识点 =====
+
+    parseTagBatchText(text) {
+        const lines = String(text || '').split(/\r?\n/);
+        const items = [];
+        const errors = [];
+
+        const parseLine = (raw, lineNo) => {
+            const s = String(raw || '').trim();
+            if (!s) return;
+
+            // 支持分隔符：Tab / | / 逗号 / 英文逗号
+            let parts = [];
+            if (s.includes('\t')) parts = s.split('\t');
+            else if (s.includes('|')) parts = s.split('|');
+            else if (s.includes('，')) parts = s.split('，');
+            else if (s.includes(',')) parts = s.split(',');
+            else parts = s.split(/\s+/); // 最后兜底：空格
+
+            parts = parts.map(x => String(x).trim());
+            const tagId = parseInt(parts[0] || '', 10);
+            const tagName = parts.length >= 2 ? parts[1] : '';
+            const tagDesc = parts.length >= 3 ? parts.slice(2).join(' ') : ''; // desc 允许包含空格
+
+            if (!Number.isFinite(tagId) || tagId <= 0) {
+                errors.push(`第 ${lineNo} 行：tagId 不合法：${parts[0] || ''}`);
+                return;
+            }
+            if (!tagName) {
+                errors.push(`第 ${lineNo} 行：tagName 不能为空`);
+                return;
+            }
+            items.push({ tagId, tagName, tagDesc, lineNo, raw: s });
+        };
+
+        lines.forEach((ln, idx) => parseLine(ln, idx + 1));
+        return { items, errors };
+    }
+
+    showTagBatchModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width: 760px;">
+                <div class="modal-header">
+                    <h3>批量新增知识点</h3>
+                    <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding: 20px;">
+                    <div style="font-size: 13px; color:#666; line-height:1.6; margin-bottom: 10px;">
+                        每行一条：<b>tagId</b>、<b>知识点名</b>、<b>desc</b><br/>
+                        分隔符支持：<code>Tab</code> / <code>|</code> / <code>,</code> / <code>空格</code><br/>
+                        例：<code>1517\t拓扑排序\t熟悉拓扑排序与入度法/DFS法，处理依赖关系并判断有向图是否存在环。</code>
+                    </div>
+                    <div style="display:flex; gap: 14px; align-items:center; flex-wrap:wrap; margin-bottom: 10px;">
+                        <label style="font-size: 13px; color:#666; display:flex; align-items:center; gap:8px;">
+                            <input id="admin-tag-batch-upsert" type="checkbox" checked />
+                            已存在则自动更新（create 失败后改走 update）
+                        </label>
+                        <div style="flex:1;"></div>
+                        <button id="admin-tag-batch-preview-btn" style="background:#722ed1; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                            解析预览
+                        </button>
+                    </div>
+
+                    <textarea id="admin-tag-batch-text" rows="12"
+                              placeholder="每行：tagId<Tab>name<Tab>desc"
+                              style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 13px; resize: vertical;"></textarea>
+
+                    <div id="admin-tag-batch-preview" style="margin-top: 10px; font-size: 13px; color:#666;"></div>
+                    <div id="admin-tag-batch-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                    <div style="margin-top: 12px;">
+                        <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">执行结果</div>
+                        <pre id="admin-tag-batch-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
+                    </div>
+                </div>
+                <div class="modal-actions" style="padding: 12px 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 12px;">
+                    <button onclick="this.closest('.modal').remove()" style="padding: 8px 16px; border: 1px solid #ddd; background: #fff; border-radius: 4px; cursor: pointer;">取消</button>
+                    <button id="admin-tag-batch-submit-btn" style="padding: 8px 16px; border: none; background: #1890ff; color: #fff; border-radius: 4px; cursor: pointer;">
+                        开始提交
+                    </button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+
+        const textarea = modal.querySelector('#admin-tag-batch-text');
+        const previewEl = modal.querySelector('#admin-tag-batch-preview');
+        const errorEl = modal.querySelector('#admin-tag-batch-error');
+        const resultEl = modal.querySelector('#admin-tag-batch-result');
+        const previewBtn = modal.querySelector('#admin-tag-batch-preview-btn');
+        const submitBtn = modal.querySelector('#admin-tag-batch-submit-btn');
+
+        const doPreview = () => {
+            errorEl.style.display = 'none';
+            const { items, errors } = this.parseTagBatchText(textarea.value);
+            if (errors.length) {
+                previewEl.innerHTML = `解析到 <b>${items.length}</b> 条可提交，发现 <b>${errors.length}</b> 条错误（请修正后再提交）。`;
+                errorEl.textContent = errors.slice(0, 20).join('\n') + (errors.length > 20 ? `\n... 还有 ${errors.length - 20} 条` : '');
+                errorEl.style.display = 'block';
+            } else {
+                previewEl.innerHTML = `解析到 <b>${items.length}</b> 条可提交。`;
+            }
+        };
+
+        previewBtn.addEventListener('click', doPreview);
+        textarea.addEventListener('input', () => { /* 用户输入时不强制预览 */ });
+
+        submitBtn.addEventListener('click', async () => {
+            errorEl.style.display = 'none';
+            resultEl.textContent = '准备解析...\n';
+
+            const { items, errors } = this.parseTagBatchText(textarea.value);
+            if (errors.length) {
+                errorEl.textContent = `存在解析错误，无法提交：\n` + errors.slice(0, 40).join('\n') + (errors.length > 40 ? `\n... 还有 ${errors.length - 40} 条` : '');
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (items.length === 0) {
+                errorEl.textContent = '未解析到可提交的行（请按格式填写）';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            const upsert = !!modal.querySelector('#admin-tag-batch-upsert').checked;
+            const ok = confirm(`确认提交 ${items.length} 条知识点？\n\n模式：${upsert ? '已存在则更新' : '仅新增（已存在会失败）'}`);
+            if (!ok) return;
+
+            const oldText = submitBtn.textContent;
+            submitBtn.disabled = true;
+            previewBtn.disabled = true;
+            submitBtn.textContent = '提交中...';
+
+            const agg = { total: items.length, created: 0, updated: 0, failed: 0, failures: [] };
+            resultEl.textContent = `开始提交：total=${agg.total}, upsert=${upsert}\n`;
+
+            for (let i = 0; i < items.length; i++) {
+                const it = items[i];
+                resultEl.textContent += `\n[${i + 1}/${items.length}] #${it.tagId} ${it.tagName} ... `;
+                try {
+                    await this.apiService.trackerTagAdminCreate(it.tagId, it.tagName, it.tagDesc, '');
+                    agg.created++;
+                    resultEl.textContent += `✅ created\n`;
+                } catch (e) {
+                    const msg = e && e.message ? e.message : 'create failed';
+                    if (upsert && /tagId\\s*已存在|已存在/i.test(msg)) {
+                        try {
+                            await this.apiService.trackerTagAdminUpdate(it.tagId, it.tagName, it.tagDesc, '');
+                            agg.updated++;
+                            resultEl.textContent += `♻️ updated\n`;
+                        } catch (e2) {
+                            const msg2 = e2 && e2.message ? e2.message : 'update failed';
+                            agg.failed++;
+                            agg.failures.push({ line: it.lineNo, tagId: it.tagId, reason: msg2 });
+                            resultEl.textContent += `❌ update failed: ${msg2}\n`;
+                        }
+                    } else {
+                        agg.failed++;
+                        agg.failures.push({ line: it.lineNo, tagId: it.tagId, reason: msg });
+                        resultEl.textContent += `❌ create failed: ${msg}\n`;
+                    }
+                }
+            }
+
+            resultEl.textContent += `\n==== 汇总 ====\ncreated=${agg.created}, updated=${agg.updated}, failed=${agg.failed}\n`;
+            if (agg.failures.length) {
+                resultEl.textContent += `\n失败明细（前 50 条）：\n` + agg.failures.slice(0, 50).map(x => `line=${x.line}, tagId=${x.tagId}, reason=${x.reason}`).join('\n');
+                if (agg.failures.length > 50) resultEl.textContent += `\n... 还有 ${agg.failures.length - 50} 条`;
+            }
+
+            try { this.loadTagList(this.tagPage || 1); } catch (_) {}
+
+            submitBtn.disabled = false;
+            previewBtn.disabled = false;
+            submitBtn.textContent = oldText || '开始提交';
+        });
     }
 
     async fetchAdminYearReport() {
@@ -543,6 +1255,197 @@ export class AdminView {
                 btn.textContent = oldText || '拉取数据';
             }
         }
+    }
+
+    /**
+     * 比赛题目难度更新：预览（dryRun=true）
+     */
+    async handleContestDifficultyPreview() {
+        const contestIdInput = document.getElementById('admin-contest-difficulty-contest-id');
+        const acRateMaxInput = document.getElementById('admin-contest-difficulty-ac-rate-max');
+        const errorEl = document.getElementById('admin-contest-difficulty-error');
+        const summaryEl = document.getElementById('admin-contest-difficulty-summary');
+        const listEl = document.getElementById('admin-contest-difficulty-list');
+        const previewBtn = document.getElementById('admin-contest-difficulty-preview-btn');
+
+        if (!contestIdInput || !acRateMaxInput || !errorEl || !summaryEl || !listEl) return;
+
+        errorEl.style.display = 'none';
+        const contestId = parseInt(String(contestIdInput.value || '').trim(), 10);
+        const acRateMax = parseInt(String(acRateMaxInput.value || '85').trim(), 10) || 85;
+
+        if (!contestId || contestId <= 0) {
+            errorEl.textContent = '请填写有效的 contestId（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        localStorage.setItem('contest_difficulty_contest_id', String(contestId));
+        localStorage.setItem('contest_difficulty_ac_rate_max', String(acRateMax));
+
+        const oldText = previewBtn ? previewBtn.textContent : '';
+        if (previewBtn) {
+            previewBtn.disabled = true;
+            previewBtn.textContent = '预览中...';
+        }
+        summaryEl.style.display = 'none';
+        listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">计算中...</div>';
+
+        try {
+            const data = await this.apiService.adminRebuildProblemDifficulty(contestId, true, acRateMax);
+            this.renderContestDifficultyResult(data, true);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '预览失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            listEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #ff4d4f;">失败：${msg}</div>`;
+        } finally {
+            if (previewBtn) {
+                previewBtn.disabled = false;
+                previewBtn.textContent = oldText || '🔍 预览（不写库）';
+            }
+        }
+    }
+
+    /**
+     * 比赛题目难度更新：写入数据库（dryRun=false）
+     */
+    async handleContestDifficultySubmit() {
+        const contestIdInput = document.getElementById('admin-contest-difficulty-contest-id');
+        const acRateMaxInput = document.getElementById('admin-contest-difficulty-ac-rate-max');
+        const errorEl = document.getElementById('admin-contest-difficulty-error');
+        const summaryEl = document.getElementById('admin-contest-difficulty-summary');
+        const listEl = document.getElementById('admin-contest-difficulty-list');
+        const submitBtn = document.getElementById('admin-contest-difficulty-submit-btn');
+
+        if (!contestIdInput || !acRateMaxInput || !errorEl || !summaryEl || !listEl) return;
+
+        errorEl.style.display = 'none';
+        const contestId = parseInt(String(contestIdInput.value || '').trim(), 10);
+        const acRateMax = parseInt(String(acRateMaxInput.value || '85').trim(), 10) || 85;
+
+        if (!contestId || contestId <= 0) {
+            errorEl.textContent = '请填写有效的 contestId（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        // 二次确认
+        const confirmed = confirm(`确认要将比赛 ${contestId} 的所有题目难度写入数据库吗？\n\n此操作将更新 acm_problem_open.difficulty 字段，请确保比赛已结束。`);
+        if (!confirmed) return;
+
+        localStorage.setItem('contest_difficulty_contest_id', String(contestId));
+        localStorage.setItem('contest_difficulty_ac_rate_max', String(acRateMax));
+
+        const oldText = submitBtn ? submitBtn.textContent : '';
+        if (submitBtn) {
+            submitBtn.disabled = true;
+            submitBtn.textContent = '写入中...';
+        }
+        summaryEl.style.display = 'none';
+        listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">计算并写入中...</div>';
+
+        try {
+            const data = await this.apiService.adminRebuildProblemDifficulty(contestId, false, acRateMax);
+            this.renderContestDifficultyResult(data, false);
+            alert(`成功更新 ${data.updatedCount || 0} 道题目的难度！`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '写入失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            listEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #ff4d4f;">失败：${msg}</div>`;
+        } finally {
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.textContent = oldText || '✅ 写入数据库';
+            }
+        }
+    }
+
+    /**
+     * 渲染比赛题目难度计算结果
+     */
+    renderContestDifficultyResult(data, isDryRun) {
+        const summaryEl = document.getElementById('admin-contest-difficulty-summary');
+        const listEl = document.getElementById('admin-contest-difficulty-list');
+
+        if (!summaryEl || !listEl) return;
+
+        const list = Array.isArray(data.list) ? data.list : [];
+        const updatedCount = data.updatedCount || 0;
+        const skippedCount = data.skippedCount || 0;
+        const failedCount = data.failedCount || 0;
+        const userCount = data.userCount || 0;
+        const avgRating = data.avgRating || 0;
+
+        // 汇总信息
+        summaryEl.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;">
+                <div><strong>比赛ID:</strong> ${data.contestId || '-'}</div>
+                <div><strong>比赛名称:</strong> ${data.contestName || '-'}</div>
+                <div><strong>参赛人数:</strong> ${userCount}</div>
+                <div><strong>平均Rating:</strong> ${avgRating.toFixed(1)}</div>
+                <div><strong>acRateMax:</strong> ${data.acRateMax || 85}</div>
+                <div><strong>模式:</strong> ${isDryRun ? '预览（不写库）' : '已写入数据库'}</div>
+                <div style="color: #52c41a;"><strong>成功更新:</strong> ${updatedCount}</div>
+                <div style="color: #faad14;"><strong>跳过:</strong> ${skippedCount}</div>
+                <div style="color: #ff4d4f;"><strong>失败:</strong> ${failedCount}</div>
+            </div>
+        `;
+        summaryEl.style.display = 'block';
+
+        // 题目列表
+        if (list.length === 0) {
+            listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">暂无题目数据</div>';
+            return;
+        }
+
+        const listHtml = list.map(item => {
+            const difficulty = item.difficulty || 0;
+            const isInvalid = difficulty <= 0;
+            const rowStyle = isInvalid 
+                ? 'background: #fff1f0; border-left: 3px solid #ff4d4f;' 
+                : 'background: #fff;';
+            const difficultyStyle = isInvalid 
+                ? 'color: #ff4d4f; font-weight: 600;' 
+                : 'color: #333;';
+            const statusText = isDryRun ? '（预览，未写入）' : (item.updated ? '✅ 已更新' : '❌ 未更新');
+            const reasonHtml = item.reason ? `<div style="font-size: 12px; color: #999; margin-top: 4px;">原因: ${item.reason}</div>` : '';
+
+            return `
+                <div style="${rowStyle} padding: 12px; border-bottom: 1px solid #f0f0f0;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; color: #333; margin-bottom: 4px;">
+                                题目ID: ${item.problemId || '-'}
+                            </div>
+                            <div style="font-size: 13px; color: #666; margin-bottom: 4px;">
+                                通过人数: ${item.acceptedCount || 0} / ${item.userCount || 0} 
+                                (通过率: ${(item.passingRate || 0).toFixed(2)}%)
+                            </div>
+                            <div style="font-size: 13px; color: #666;">
+                                平均Rating: ${(item.avgRating || 0).toFixed(1)}
+                            </div>
+                            ${reasonHtml}
+                        </div>
+                        <div style="text-align: right; margin-left: 16px;">
+                            <div style="${difficultyStyle} font-size: 18px; font-weight: 700; margin-bottom: 4px;">
+                                ${isInvalid ? '无效' : difficulty}
+                            </div>
+                            <div style="font-size: 12px; color: #999;">
+                                ${statusText}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        listEl.innerHTML = `
+            <div style="max-height: 500px; overflow-y: auto;">
+                ${listHtml}
+            </div>
+        `;
     }
 
     /**
@@ -823,6 +1726,13 @@ export class AdminView {
                     date = `${year}-${month}-${day}`;
                 }
             }
+
+            const title = item.questionTitle || '';
+            const uuid = item.questionUuid || '';
+            const questionLink = uuid ? `https://www.nowcoder.com/practice/${uuid}?channelPut=w252acm` : '';
+            const trackerLink = `https://www.nowcoder.com/problem/tracker`;
+            const videoCopy = this.buildDailyVideoCopy(title, date, questionLink);
+
             return `
                 <div style="display: flex; align-items: center; padding: 16px; border-bottom: 1px solid #f0f0f0; gap: 16px;">
                     <div style="flex: 1;">
@@ -831,8 +1741,18 @@ export class AdminView {
                             题目ID: ${item.questionId || '-'} | 
                             问题ID: ${item.problemId || '-'}
                         </div>
+                        ${title ? `<div style="margin-top:6px; font-size: 13px; color:#333; font-weight:600;">题目名：${title}</div>` : ''}
+                        ${questionLink ? `<div style="margin-top:4px; font-size: 12px;">
+                            <a href="${questionLink}" target="_blank" rel="noopener noreferrer" style="color:#1890ff; text-decoration:none;">题目链接（practice）</a>
+                            <span style="color:#999;"> | </span>
+                            <a href="${trackerLink}" target="_blank" rel="noopener noreferrer" style="color:#1890ff; text-decoration:none;">每日打卡链接</a>
+                        </div>` : `<div style="margin-top:4px; font-size: 12px; color:#999;">题目链接：暂无（questionUuid 缺失）</div>`}
                     </div>
                     <div style="display: flex; gap: 8px;">
+                        <button class="admin-clock-video-copy-btn" data-copy="${encodeURIComponent(videoCopy)}" ${questionLink ? '' : 'disabled'}
+                                style="background: ${questionLink ? '#722ed1' : '#ccc'}; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: ${questionLink ? 'pointer' : 'not-allowed'}; font-size: 13px;">
+                            生成发视频文案
+                        </button>
                         <button class="admin-clock-edit-btn" data-id="${item.id}" style="background: #1890ff; color: #fff; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-size: 13px;">
                             编辑
                         </button>
@@ -845,6 +1765,20 @@ export class AdminView {
         }).join('');
 
         listEl.innerHTML = rows;
+
+        // 绑定“生成发视频文案”
+        listEl.querySelectorAll('.admin-clock-video-copy-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                try {
+                    const copy = decodeURIComponent(String(btn.dataset.copy || ''));
+                    if (!copy) return;
+                    await this.copyToClipboard(copy);
+                    alert('已复制到剪贴板');
+                } catch (e) {
+                    alert(`复制失败：${e && e.message ? e.message : '未知错误'}`);
+                }
+            });
+        });
         
         // 绑定编辑和删除按钮事件
         listEl.querySelectorAll('.admin-clock-edit-btn').forEach(btn => {
@@ -861,6 +1795,72 @@ export class AdminView {
                 this.deleteClock(id, date);
             });
         });
+    }
+
+    // ===== 每日一题：快速定位（find） =====
+    async handleClockFind() {
+        const qidInput = document.getElementById('admin-clock-find-question-id');
+        const pidInput = document.getElementById('admin-clock-find-problem-id');
+        const qid = parseInt(String(qidInput ? qidInput.value : '0').trim(), 10) || 0;
+        const pid = parseInt(String(pidInput ? pidInput.value : '0').trim(), 10) || 0;
+        if (qid <= 0 && pid <= 0) {
+            alert('请至少填写一个：questionId 或 problemId');
+            return;
+        }
+
+        // 清空时间段筛选，避免用户误解
+        this.clockSearchStartDate = null;
+        this.clockSearchEndDate = null;
+        const startEl = document.getElementById('admin-clock-start-date');
+        const endEl = document.getElementById('admin-clock-end-date');
+        if (startEl) startEl.value = '';
+        if (endEl) endEl.value = '';
+
+        const listEl = document.getElementById('admin-clock-list');
+        const paginationEl = document.getElementById('admin-clock-pagination');
+        if (listEl) listEl.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">定位中...</div>';
+        if (paginationEl) paginationEl.innerHTML = '';
+
+        try {
+            const item = await this.apiService.adminClockQuestionFind(qid, pid);
+            this.renderClockList({ list: [item], total: 1, page: 1, limit: 20 });
+            if (paginationEl) paginationEl.innerHTML = `<span style="color:#666;">定位结果：共 1 条（使用 find 接口）</span>`;
+        } catch (e) {
+            if (listEl) listEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #ff4d4f;">定位失败: ${e && e.message ? e.message : '未知错误'}</div>`;
+        }
+    }
+
+    // ===== 每日一题：发视频文案 =====
+    buildDailyVideoCopy(questionTitle, dateYmd, questionLink) {
+        const safeTitle = String(questionTitle || '').trim() || '（题目名）';
+        const d = String(dateYmd || '').trim();
+        const ymd = d && /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : '';
+        const prettyDate = ymd ? ymd.replaceAll('-', '.') : 'YYYY.MM.DD';
+        const dailyLink = 'https://www.nowcoder.com/problem/tracker';
+        const qLink = String(questionLink || '').trim() || 'https://www.nowcoder.com/practice/{questionUuid}?channelPut=w252acm';
+        return `【每日一题讲解】${safeTitle} {${prettyDate}}\n每日打卡链接：${dailyLink}\n题目链接：${qLink}`;
+    }
+
+    async copyToClipboard(text) {
+        const s = String(text ?? '');
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+            await navigator.clipboard.writeText(s);
+            return;
+        }
+        // fallback
+        const ta = document.createElement('textarea');
+        ta.value = s;
+        ta.setAttribute('readonly', 'true');
+        ta.style.position = 'fixed';
+        ta.style.left = '-9999px';
+        ta.style.top = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+            document.execCommand('copy');
+        } finally {
+            document.body.removeChild(ta);
+        }
     }
 
     /**
@@ -1003,6 +2003,133 @@ export class AdminView {
         } catch (error) {
             listEl.innerHTML = `<div style="padding: 20px; text-align: center; color: #ff4d4f;">加载失败: ${error.message}</div>`;
         }
+    }
+
+    // ===== 对战：二级页签切换 =====
+    setBattleSubTab(subTab) {
+        const t = (subTab === 'histogram') ? 'histogram' : 'manage';
+        this.battleSubTab = t;
+
+        const managePanel = document.getElementById('admin-battle-subpanel-manage');
+        const histPanel = document.getElementById('admin-battle-subpanel-histogram');
+        if (managePanel) managePanel.style.display = t === 'manage' ? 'block' : 'none';
+        if (histPanel) histPanel.style.display = t === 'histogram' ? 'block' : 'none';
+
+        const btnManage = document.getElementById('admin-battle-subtab-manage');
+        const btnHist = document.getElementById('admin-battle-subtab-histogram');
+        if (btnManage) {
+            btnManage.style.borderColor = t === 'manage' ? '#1890ff' : '#ddd';
+            btnManage.style.background = t === 'manage' ? '#e6f7ff' : '#fff';
+            btnManage.style.color = t === 'manage' ? '#0958d9' : '#666';
+        }
+        if (btnHist) {
+            btnHist.style.borderColor = t === 'histogram' ? '#1890ff' : '#ddd';
+            btnHist.style.background = t === 'histogram' ? '#e6f7ff' : '#fff';
+            btnHist.style.color = t === 'histogram' ? '#0958d9' : '#666';
+        }
+
+        if (t === 'histogram') {
+            this.loadBattleDifficultyHistogram();
+        }
+    }
+
+    // ===== 对战：难度直方图 =====
+    async loadBattleDifficultyHistogram() {
+        const metaEl = document.getElementById('admin-battle-histogram-meta');
+        const errorEl = document.getElementById('admin-battle-histogram-error');
+        const chartEl = document.getElementById('admin-battle-histogram-chart');
+        if (!metaEl || !errorEl || !chartEl) return;
+        errorEl.style.display = 'none';
+        chartEl.innerHTML = '<div style="padding: 18px; text-align:center; color:#999;">加载中...</div>';
+        metaEl.textContent = '';
+
+        try {
+            const data = await this.apiService.battleProblemDifficultyHistogram();
+            this.renderBattleDifficultyHistogram(data);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '加载失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            chartEl.innerHTML = `<div style="padding: 18px; text-align:center; color:#ff4d4f;">加载失败：${msg}</div>`;
+        }
+    }
+
+    renderBattleDifficultyHistogram(data) {
+        const metaEl = document.getElementById('admin-battle-histogram-meta');
+        const chartEl = document.getElementById('admin-battle-histogram-chart');
+        if (!metaEl || !chartEl) return;
+
+        const bucketSize = Number(data?.bucketSize || 100);
+        const rangeMin = Number(data?.range?.min || 1);
+        const rangeMax = Number(data?.range?.max || 5000);
+        const total = Number(data?.total || 0);
+        const buckets = Array.isArray(data?.buckets) ? data.buckets : [];
+
+        metaEl.innerHTML = `bucketSize=<b>${bucketSize}</b>，range=<b>${rangeMin}~${rangeMax}</b>，total=<b>${total}</b>（1~5000 范围内题目总数）`;
+
+        if (!buckets.length) {
+            chartEl.innerHTML = '<div style="padding: 18px; text-align:center; color:#999;">暂无数据</div>';
+            return;
+        }
+
+        const maxCount = Math.max(1, ...buckets.map(b => Number(b?.count || 0)));
+        const barW = 14;
+        const gap = 4;
+        const height = 220;
+        const width = buckets.length * (barW + gap) + 16;
+
+        const bars = buckets.map((b, idx) => {
+            const start = Number(b?.start || 0);
+            const end = Number(b?.end || 0);
+            const count = Number(b?.count || 0);
+            const h = Math.round((count / maxCount) * (height - 30));
+            const x = 8 + idx * (barW + gap);
+            const y = height - 18 - h;
+            const title = `${start}~${end}: ${count}`;
+            const fill = count === 0 ? 'rgba(173,181,189,0.55)' : 'rgba(24,144,255,0.78)';
+            return `<g><title>${title}</title><rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" ry="3" fill="${fill}"></rect></g>`;
+        }).join('');
+
+        const ticks = buckets.map((b, idx) => {
+            if (idx % 10 !== 0) return '';
+            const start = Number(b?.start || 0);
+            const x = 8 + idx * (barW + gap);
+            return `<text x="${x}" y="${height - 4}" font-size="10" fill="rgba(0,0,0,0.45)">${start}</text>`;
+        }).join('');
+
+        const svg = `
+            <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="difficulty histogram">
+                <rect x="0" y="0" width="${width}" height="${height}" fill="transparent"></rect>
+                <line x1="0" y1="${height - 18}" x2="${width}" y2="${height - 18}" stroke="rgba(0,0,0,0.10)"></line>
+                ${bars}
+                ${ticks}
+            </svg>
+        `;
+
+        const top10 = buckets
+            .map(b => ({ start: Number(b?.start || 0), end: Number(b?.end || 0), count: Number(b?.count || 0) }))
+            .sort((a, c) => c.count - a.count)
+            .slice(0, 10);
+
+        chartEl.innerHTML = `
+            <div style="display:flex; gap:12px; align-items:flex-start; flex-wrap:wrap;">
+                <div style="min-width: 520px; flex: 1;">
+                    ${svg}
+                    <div style="margin-top:6px; font-size: 12px; color:#999;">
+                        提示：鼠标悬停每根柱子可查看区间与数量；底部刻度每 1000 标一次起点。
+                    </div>
+                </div>
+                <div style="min-width: 280px; max-width: 420px; flex: 0 0 auto;">
+                    <div style="font-size: 13px; font-weight: 700; color:#333; margin-bottom: 8px;">Top 10 桶</div>
+                    <div style="border:1px solid #f0f0f0; border-radius: 10px; overflow:hidden; background:#fff;">
+                        ${top10.map((b, i) => `<div style="display:flex; justify-content:space-between; padding: 10px 12px; border-bottom: ${i === top10.length - 1 ? 'none' : '1px solid #f5f5f5'};">
+                            <span style="color:#666; font-size:12px;">${b.start}~${b.end}</span>
+                            <span style="color:#111; font-weight:800;">${b.count}</span>
+                        </div>`).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     /**

@@ -217,12 +217,28 @@ export class OutputDemoView {
         this._lastCompiledCode = '';
         this._lastBeforeInsertCode = ''; // 单步还原：记录最近一次“一键填入”前的代码
         this._activeChallenge = CHALLENGES[0];
+        this._speedTouched = false;
 
         this.init();
     }
 
+    delayFromSpeed(speed) {
+        const s = Math.max(1, Math.min(5, Number(speed) || 1));
+        // 整体放慢：更适合看清每一步输出发生在哪里
+        // 1..5 => 650, 520, 420, 320, 240 (ms)
+        return [650, 520, 420, 320, 240][s - 1];
+    }
+
     init() {
         if (!this.modal) return;
+
+        // practice speed default: slowest, but don't fight user once they touched it
+        if (this.speedRange) {
+            this.speedRange.value = '1';
+            this.speedRange.addEventListener('input', () => {
+                this._speedTouched = true;
+            });
+        }
 
         // init select
         if (this.challengeSelect) {
@@ -277,6 +293,7 @@ export class OutputDemoView {
         if (this.overview) this.overview.style.display = 'none';
         if (this.layout) this.layout.style.display = 'flex';
         if (this.actionsBar) this.actionsBar.style.display = 'flex';
+        if (this.speedRange && !this._speedTouched) this.speedRange.value = '1';
         this.reset();
         // 聚焦编辑器（更像“进入练习”）
         try { this.codeEl && this.codeEl.focus(); } catch (_) {}
@@ -401,8 +418,8 @@ export class OutputDemoView {
             if (this.stepsEl) this.stepsEl.innerHTML = '';
             if (this.statusEl) this.statusEl.textContent = '运行中...';
 
-            const speed = Math.max(1, Math.min(5, Number(this.speedRange ? this.speedRange.value : 3) || 3));
-            const delay = 260 - (speed - 1) * 45;
+            const speed = Math.max(1, Math.min(5, Number(this.speedRange ? this.speedRange.value : 1) || 1));
+            const delay = this.delayFromSpeed(speed);
 
             while (runId === this._runId) {
                 const st = this._compiled.steps[this._cursor];
