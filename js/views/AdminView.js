@@ -2075,16 +2075,20 @@ export class AdminView {
         const maxCount = Math.max(1, ...buckets.map(b => Number(b?.count || 0)));
         const barW = 14;
         const gap = 4;
-        const height = 220;
-        const width = buckets.length * (barW + gap) + 16;
+        const height = 240;
+        const axisLeft = 46;   // 给 y 轴留的左边距
+        const axisBottom = 22; // x 轴区域高度
+        const axisTop = 10;    // 顶部留白
+        const plotH = height - axisTop - axisBottom;
+        const width = axisLeft + buckets.length * (barW + gap) + 12;
 
         const bars = buckets.map((b, idx) => {
             const start = Number(b?.start || 0);
             const end = Number(b?.end || 0);
             const count = Number(b?.count || 0);
-            const h = Math.round((count / maxCount) * (height - 30));
-            const x = 8 + idx * (barW + gap);
-            const y = height - 18 - h;
+            const h = Math.round((count / maxCount) * plotH);
+            const x = axisLeft + idx * (barW + gap);
+            const y = axisTop + (plotH - h);
             const title = `${start}~${end}: ${count}`;
             const fill = count === 0 ? 'rgba(173,181,189,0.55)' : 'rgba(24,144,255,0.78)';
             return `<g><title>${title}</title><rect x="${x}" y="${y}" width="${barW}" height="${h}" rx="3" ry="3" fill="${fill}"></rect></g>`;
@@ -2093,14 +2097,31 @@ export class AdminView {
         const ticks = buckets.map((b, idx) => {
             if (idx % 10 !== 0) return '';
             const start = Number(b?.start || 0);
-            const x = 8 + idx * (barW + gap);
-            return `<text x="${x}" y="${height - 4}" font-size="10" fill="rgba(0,0,0,0.45)">${start}</text>`;
+            const x = axisLeft + idx * (barW + gap);
+            return `<text x="${x}" y="${height - 6}" font-size="10" fill="rgba(0,0,0,0.45)">${start}</text>`;
+        }).join('');
+
+        // y 轴刻度（0/25/50/75/100%）
+        const yTicks = [0, 0.25, 0.5, 0.75, 1].map((p) => {
+            const value = Math.round(maxCount * p);
+            const y = axisTop + (plotH - Math.round(plotH * p));
+            return `
+                <g>
+                    <line x1="${axisLeft - 6}" y1="${y}" x2="${axisLeft - 2}" y2="${y}" stroke="rgba(0,0,0,0.25)"></line>
+                    <line x1="${axisLeft}" y1="${y}" x2="${width}" y2="${y}" stroke="rgba(0,0,0,0.06)"></line>
+                    <text x="${axisLeft - 10}" y="${y + 4}" text-anchor="end" font-size="10" fill="rgba(0,0,0,0.55)">${value}</text>
+                </g>
+            `;
         }).join('');
 
         const svg = `
             <svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" role="img" aria-label="difficulty histogram">
                 <rect x="0" y="0" width="${width}" height="${height}" fill="transparent"></rect>
-                <line x1="0" y1="${height - 18}" x2="${width}" y2="${height - 18}" stroke="rgba(0,0,0,0.10)"></line>
+                <!-- y axis -->
+                <line x1="${axisLeft}" y1="${axisTop}" x2="${axisLeft}" y2="${height - axisBottom}" stroke="rgba(0,0,0,0.18)"></line>
+                ${yTicks}
+                <!-- x axis -->
+                <line x1="${axisLeft}" y1="${height - axisBottom}" x2="${width}" y2="${height - axisBottom}" stroke="rgba(0,0,0,0.10)"></line>
                 ${bars}
                 ${ticks}
             </svg>
