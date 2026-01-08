@@ -167,11 +167,19 @@ export class ContestView {
         const nonCampusContestTabs = ['19', '9', '6', '2', '20', '21', '22', '25'];
         const isNonCampusSpecificView = nonCampusContestTabs.includes(String(this.state.activeContestTab));
         
-        return contests.map(contest => ({
+        return contests.map(contest => {
+            const cid = (contest.contestId != null ? contest.contestId : contest.id);
+            const needCharge = contest.needCharge === true;
+            const purchased = contest.purchased === true;
+            const canAccess = contest.canAccess != null ? contest.canAccess === true : (!needCharge || purchased);
+            return ({
             // 兼容后端字段：有的接口返回 contestId/contestName/contestUrl，有的返回 id/contestName/contestUrl 或 id/name/url
-            id: (contest.contestId != null ? contest.contestId : contest.id),
+            id: cid,
             name: (contest.contestName != null ? contest.contestName : (contest.name != null ? contest.name : '')),
             url: (contest.contestUrl != null ? contest.contestUrl : (contest.url != null ? contest.url : '')),
+            needCharge,
+            purchased,
+            canAccess,
             problems: (contest.questions || contest.problems || []).map(p => {
                 let score = null;
                 const d = Number(p.difficulty);
@@ -184,9 +192,12 @@ export class ContestView {
                         score = difficultyScoreMap[d] || null;
                     }
                 }
-                return { ...p, difficultyScore: score };
+                // question level canAccess（后端会补齐）；若缺省则沿用比赛级
+                const pCanAccess = (p.canAccess != null) ? (p.canAccess === true) : canAccess;
+                return { ...p, contestId: cid, needCharge, purchased, canAccess: pCanAccess, difficultyScore: score };
             })
-        }));
+        });
+        });
     }
     
     renderContests() {
@@ -226,7 +237,17 @@ export class ContestView {
             
             return `
                 <tr>
-                    <td><a href="${contestUrl}" target="_blank" rel="noopener noreferrer">${contest.name}</a></td>
+                    <td>
+                        ${contest.needCharge && !contest.canAccess
+                            ? `<span class="contest-link contest-locked js-paywall-buy"
+                                    data-contest-id="${this.escapeHtml(String(contest.id))}"
+                                    data-buy-url="${this.escapeHtml(this.buildBuyUrl(contest.id))}"
+                                    title="需购买后访问"
+                                    style="color:#9ca3af; cursor:pointer; font-weight:700;">
+                                    ${this.escapeHtml(contest.name)} 🔒
+                               </span>`
+                            : `<a href="${contestUrl}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(contest.name)}</a>`}
+                    </td>
                     ${problemsHtml}
                 </tr>
             `;
@@ -234,8 +255,43 @@ export class ContestView {
         
         this.elements.contestTbody.innerHTML = rowsHtml;
         this.initTooltips();
+        this.bindPaywallHandlers();
     }
     
+    buildBuyUrl(contestId) {
+        const cid = String(contestId || '').trim();
+        return `https://www.nowcoder.com/order?itemType=ACM_CONTEST_CHARGE&itemId=${encodeURIComponent(cid)}`;
+    }
+
+    escapeHtml(s) {
+        return String(s ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    bindPaywallHandlers() {
+        // 题目/比赛入口的“需购买”交互：点击引导到购买页
+        const els = document.querySelectorAll('#contests-view .js-paywall-buy, #course-view .js-paywall-buy');
+        els.forEach(el => {
+            if (el.dataset._bound === '1') return;
+            el.dataset._bound = '1';
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const buyUrl = el.getAttribute('data-buy-url') || '';
+                const msg = this.state.loggedInUserId
+                    ? '该题/比赛为付费内容，购买后可访问。现在去购买？'
+                    : '该题/比赛为付费内容，登录后可查看是否已购买并购买。现在去登录/购买？';
+                const ok = window.confirm(msg);
+                if (!ok) return;
+                if (buyUrl) window.open(buyUrl, '_blank', 'noopener,noreferrer');
+            });
+        });
+    }
+
     renderProblemHTML(problem, letter = null) {
         let difficultyCircleHtml = '';
 
@@ -254,11 +310,21 @@ export class ContestView {
         const cp = this.state.channelPut ? (this.state.channelPut + '1') : undefined;
         let finalUrl = helpers.buildUrlWithChannelPut(problem.url || problem.questionUrl, cp);
         let titleHtml;
+        const isLocked = (problem.needCharge === true) && (problem.canAccess === false);
+        const buyUrl = isLocked ? this.buildBuyUrl(problem.contestId) : '';
         
         if (isXCPC) {
             // For XCPC: only show difficulty circle and clickable letter, no title
-            if (finalUrl) {
+            if (finalUrl && !isLocked) {
                 titleHtml = `<a class="problem-link" href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="${problem.title || 'N/A'}">${letter || ''}</a>`;
+            } else if (isLocked) {
+                titleHtml = `<span class="problem-link problem-locked js-paywall-buy"
+                                data-contest-id="${this.escapeHtml(String(problem.contestId))}"
+                                data-buy-url="${this.escapeHtml(buyUrl)}"
+                                title="需购买后访问"
+                                style="color:#9ca3af; cursor:pointer; font-weight:800;">
+                                ${letter || ''} 🔒
+                             </span>`;
             } else {
                 titleHtml = `<span title="${problem.title || 'N/A'}">${letter || ''}</span>`;
             }
@@ -268,8 +334,16 @@ export class ContestView {
                 problem.title.substring(0, 20) + '...' : 
                 (problem.title || 'N/A');
             
-            if (finalUrl) {
+            if (finalUrl && !isLocked) {
                 titleHtml = `<a class="problem-link" href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="${problem.title}">${truncatedTitle}</a>`;
+            } else if (isLocked) {
+                titleHtml = `<span class="problem-link problem-locked js-paywall-buy"
+                                data-contest-id="${this.escapeHtml(String(problem.contestId))}"
+                                data-buy-url="${this.escapeHtml(buyUrl)}"
+                                title="需购买后访问"
+                                style="color:#9ca3af; cursor:pointer; font-weight:700;">
+                                ${this.escapeHtml(truncatedTitle)} 🔒
+                             </span>`;
             } else {
                 titleHtml = `<span title="${problem.title || 'N/A'}">${truncatedTitle}</span>`;
             }
@@ -278,7 +352,7 @@ export class ContestView {
         const letterPrefix = letter && !isXCPC ? `${letter}. ` : '';
         
         return `
-            <div class="problem-cell-content">
+            <div class="problem-cell-content" style="${isLocked ? 'opacity:0.65;' : ''}">
                 ${difficultyCircleHtml}
                 ${letterPrefix}${titleHtml}
             </div>
@@ -549,7 +623,17 @@ export class ContestView {
                     } else {
                         // 第一行，显示比赛名称
                         finalHtml += '<tr>';
-                        finalHtml += `<td class="knowledge-point-cell course-contest-cell" data-contest-id="${contestIdAttr}"><a href="${contestUrl}" target="_blank" rel="noopener noreferrer">${contest.name}</a></td>`;
+                        finalHtml += `<td class="knowledge-point-cell course-contest-cell" data-contest-id="${contestIdAttr}">
+                            ${contest.needCharge && !contest.canAccess
+                                ? `<span class="contest-link contest-locked js-paywall-buy"
+                                        data-contest-id="${this.escapeHtml(String(contest.id))}"
+                                        data-buy-url="${this.escapeHtml(this.buildBuyUrl(contest.id))}"
+                                        title="需购买后访问"
+                                        style="color:#9ca3af; cursor:pointer; font-weight:700;">
+                                        ${this.escapeHtml(contest.name)} 🔒
+                                   </span>`
+                                : `<a href="${contestUrl}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(contest.name)}</a>`}
+                        </td>`;
                         isFirstRow = false;
                     }
                 }
@@ -578,6 +662,7 @@ export class ContestView {
         
         courseTbody.innerHTML = finalHtml || `<tr><td colspan="6">暂无课程比赛数据</td></tr>`;
         this.initTooltips();
+        this.bindPaywallHandlers();
     }
     
     // 渲染课程题目HTML（不显示题号）
@@ -595,6 +680,8 @@ export class ContestView {
         // 若入口URL带 channelPut，则竞赛加后缀"1"，否则回落到历史默认（helpers 内部默认）
         const cp = this.state.channelPut ? (this.state.channelPut + '1') : undefined;
         let finalUrl = helpers.buildUrlWithChannelPut(problem.url || problem.questionUrl, cp);
+        const isLocked = (problem.needCharge === true) && (problem.canAccess === false);
+        const buyUrl = isLocked ? this.buildBuyUrl(problem.contestId) : '';
         
         // 题目名字省略处理
         const truncatedTitle = problem.title && problem.title.length > 20 ? 
@@ -602,14 +689,22 @@ export class ContestView {
             (problem.title || 'N/A');
         
         let titleHtml;
-        if (finalUrl) {
+        if (finalUrl && !isLocked) {
             titleHtml = `<a class="problem-link" href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="${problem.title}">${truncatedTitle}</a>`;
+        } else if (isLocked) {
+            titleHtml = `<span class="problem-link problem-locked js-paywall-buy"
+                            data-contest-id="${this.escapeHtml(String(problem.contestId))}"
+                            data-buy-url="${this.escapeHtml(buyUrl)}"
+                            title="需购买后访问"
+                            style="color:#9ca3af; cursor:pointer; font-weight:700;">
+                            ${this.escapeHtml(truncatedTitle)} 🔒
+                         </span>`;
         } else {
             titleHtml = `<span title="${problem.title || 'N/A'}">${truncatedTitle}</span>`;
         }
 
         return `
-            <div class="problem-cell-content">
+            <div class="problem-cell-content" style="${isLocked ? 'opacity:0.65;' : ''}">
                 ${difficultyCircleHtml}
                 ${titleHtml}
             </div>

@@ -372,6 +372,37 @@ export class NowcoderTracker {
             });
         }
 
+        // 管理员：清题库缓存（比赛列表缓存）
+        const clearBtn = document.getElementById('contest-cache-clear-btn');
+        if (clearBtn && !clearBtn._bound) {
+            clearBtn._bound = true;
+            clearBtn.addEventListener('click', async () => {
+                try {
+                    if (!this.state.isAdmin) return alert('需要管理员权限');
+                    const ok = window.confirm('确认清理 Tracker 题库（比赛列表）缓存？清理后将重新拉取最新数据。');
+                    if (!ok) return;
+                    const oldText = clearBtn.textContent;
+                    clearBtn.disabled = true;
+                    clearBtn.textContent = '清理中...';
+                    await this.apiService.adminClearContestCache();
+                    alert('已清理缓存（OK），将刷新当前列表');
+                    // 刷新当前 view（若在题库页）
+                    const v = this.state.activeView;
+                    if (v === 'contests' && this.views && this.views.contest) {
+                        await this.views.contest.fetchAndRenderContests();
+                    } else if (v === 'course' && this.views && this.views.contest) {
+                        await this.views.contest.fetchAndRenderCourseContests();
+                    }
+                    clearBtn.disabled = false;
+                    clearBtn.textContent = oldText;
+                } catch (e) {
+                    clearBtn.disabled = false;
+                    clearBtn.textContent = '清题库缓存';
+                    alert(e?.message || '清题库缓存失败');
+                }
+            });
+        }
+
         // 初始化帮助菜单
         this.initHelpMenu();
         
@@ -406,6 +437,10 @@ export class NowcoderTracker {
             this.updateAdminTabVisibility();
             // 显示/隐藏 Prompt 页签（当前与管理员相同：仅 admin 可见）
             this.updatePromptTabVisibility();
+
+            // 显示/隐藏“清题库缓存”按钮（仅管理员）
+            const cacheBtn = document.getElementById('contest-cache-clear-btn');
+            if (cacheBtn) cacheBtn.style.display = this.state.isAdmin ? 'inline-block' : 'none';
 
             // 登录后根据管理员身份刷新"更新过题数"按钮可见性
             const adminUpdateBtn2 = document.getElementById('rank-admin-update-btn');
@@ -471,6 +506,8 @@ export class NowcoderTracker {
             // 初始化时更新管理员页签可见性（detectAndSetLoggedInUser 已经检查了管理员状态）
             this.updateAdminTabVisibility();
             this.updatePromptTabVisibility();
+            const cacheBtn = document.getElementById('contest-cache-clear-btn');
+            if (cacheBtn) cacheBtn.style.display = this.state.isAdmin ? 'inline-block' : 'none';
         } catch (_) { /* ignore login bootstrap errors */ }
 
         if (initialInviteTid) {

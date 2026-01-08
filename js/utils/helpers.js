@@ -321,4 +321,3 @@ export function showCustomTooltip(el, text) {
     tooltip.style.top = `${Math.max(0, top)}px`;
     tooltip.style.opacity = '1';
 }
-

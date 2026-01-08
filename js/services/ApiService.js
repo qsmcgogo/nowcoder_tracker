@@ -9,6 +9,40 @@ export class ApiService {
         this.apiBase = apiBase;
     }
 
+    _shouldPreferDirectNowcoderHost() {
+        try {
+            const h = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '';
+            // 线上挂在 nowcoder 主站/预发时，通常没有我们这边的 /api/service/judge/* 反代，优先直连 gw-c / victorinox
+            return h === 'www.nowcoder.com' || h === 'nowcoder.com' || h === 'pre.nowcoder.com';
+        } catch (_) {
+            return false;
+        }
+    }
+
+    async _fetchJsonWithFallback(urls, fetchOptions, errorPrefix = '请求失败') {
+        const list = Array.isArray(urls) ? urls.filter(Boolean) : [];
+        let lastErr = null;
+        for (const url of list) {
+            try {
+                const res = await fetch(url, fetchOptions);
+                if (!res.ok) {
+                    const t = await res.text().catch(() => '');
+                    lastErr = new Error(t || `HTTP ${res.status}`);
+                    continue;
+                }
+                const data = await res.json().catch(() => null);
+                if (data == null || typeof data !== 'object') {
+                    lastErr = new Error('响应不是 JSON');
+                    continue;
+                }
+                return data;
+            } catch (e) {
+                lastErr = e;
+            }
+        }
+        throw new Error((lastErr && lastErr.message) ? `${errorPrefix}: ${lastErr.message}` : errorPrefix);
+    }
+
     // ---------------- internal helpers ----------------
     _unwrapCommon(data, fallbackMsg = '请求失败') {
         // 统一兼容后端包装：{code:0,msg:"OK",data:{...}}
@@ -2121,6 +2155,28 @@ export class ApiService {
     }
 
     /**
+     * 管理员：清 Tracker 比赛列表缓存（联调用）
+     * POST /problem/tracker/admin/contest-cache/clear
+     *
+     * @returns {Promise<boolean>}
+     */
+    async adminClearContestCache() {
+        const url = `${this.apiBase}/problem/tracker/admin/contest-cache/clear`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        this._unwrapCommon(data, '清题库缓存失败');
+        return true;
+    }
+
+    /**
      * 管理员验数：查看指定用户年度报告（不走缓存）
      * GET /problem/tracker/admin/year-report?uid=xxx&year=2025&trackerOnly=true
      *
@@ -2386,19 +2442,17 @@ export class ApiService {
      * POST /api/service/judge/submit  (proxy/nginx 会转发到 victorinox.nowcoder.com)
      */
     async judgeSubmit(payload) {
-        const url = `${this.apiBase}/api/service/judge/submit`;
-        const res = await fetch(url, {
+        const proxyUrl = `${this.apiBase}/api/service/judge/submit`;
+        const directUrl = `https://victorinox.nowcoder.com/api/service/judge/submit`;
+        const preferDirect = this._shouldPreferDirectNowcoderHost();
+        const urls = preferDirect ? [directUrl, proxyUrl] : [proxyUrl, directUrl];
+        return await this._fetchJsonWithFallback(urls, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload || {}),
             cache: 'no-store',
             credentials: 'include'
-        });
-        if (!res.ok) {
-            const t = await res.text().catch(() => '');
-            throw new Error(t || `HTTP ${res.status}`);
-        }
-        return await res.json().catch(() => ({}));
+        }, '提交判题失败');
     }
 
     /**
@@ -2412,13 +2466,11 @@ export class ApiService {
             if (v === undefined || v === null) return;
             qs.append(k, String(v));
         });
-        const url = `${this.apiBase}/api/service/judge/submit-status?${qs.toString()}`;
-        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
-        if (!res.ok) {
-            const t = await res.text().catch(() => '');
-            throw new Error(t || `HTTP ${res.status}`);
-        }
-        return await res.json().catch(() => ({}));
+        const proxyUrl = `${this.apiBase}/api/service/judge/submit-status?${qs.toString()}`;
+        const directUrl = `https://victorinox.nowcoder.com/api/service/judge/submit-status?${qs.toString()}`;
+        const preferDirect = this._shouldPreferDirectNowcoderHost();
+        const urls = preferDirect ? [directUrl, proxyUrl] : [proxyUrl, directUrl];
+        return await this._fetchJsonWithFallback(urls, { cache: 'no-store', credentials: 'include' }, '查询判题结果失败');
     }
 
     /**
@@ -2430,13 +2482,12 @@ export class ApiService {
         const qs = new URLSearchParams();
         // gw-c 接口要求 sceneType，不传会报 “sceneType 为空”
         qs.append('sceneType', String(Number.isFinite(st) ? st : 1));
-        const url = `${this.apiBase}/api/service/judge/token?${qs.toString()}`;
-        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
-        if (!res.ok) {
-            const t = await res.text().catch(() => '');
-            throw new Error(t || `HTTP ${res.status}`);
-        }
-        const data = await res.json().catch(() => ({}));
+        const proxyUrl = `${this.apiBase}/api/service/judge/token?${qs.toString()}`;
+        // 线上正确 host：gw-c.nowcoder.com
+        const directUrl = `https://gw-c.nowcoder.com/api/sparta/base-oauth/access-token?${qs.toString()}`;
+        const preferDirect = this._shouldPreferDirectNowcoderHost();
+        const urls = preferDirect ? [directUrl, proxyUrl] : [proxyUrl, directUrl];
+        const data = await this._fetchJsonWithFallback(urls, { cache: 'no-store', credentials: 'include' }, '获取判题 token 失败');
         if (data && (data.success === true) && (data.code === 0) && data.data && data.data.accessToken) {
             return data.data.accessToken;
         }
