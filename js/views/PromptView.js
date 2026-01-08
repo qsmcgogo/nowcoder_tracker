@@ -411,16 +411,18 @@ export class PromptView {
         `;
         resEl.style.display = 'block';
 
-        const fails = Array.isArray(res.details) ? res.details.filter(x => x && x.pass === false) : [];
-        if (!fails.length) {
-            failsEl.innerHTML = `<div style="padding: 14px; text-align:center; color:#135200; background:#f6ffed;">全部通过 ✅</div>`;
+        const details = Array.isArray(res.details) ? res.details.filter(x => x) : [];
+        if (!details.length) {
+            failsEl.innerHTML = `<div style="padding: 14px; text-align:center; color:#999;">（无用例明细）</div>`;
             return;
         }
-        const cards = fails.map((d, i) => `
+        const cards = details.map((d, i) => `
             <div style="padding: 12px; border-top:1px solid #f0f0f0;">
                 <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                     <div style="font-weight: 900; color:#111827;">Case ${this.escapeHtml(String(d.case || (i + 1)))}</div>
-                    <div style="padding: 2px 8px; border-radius: 999px; border:1px solid #ffccc7; background:#fff; font-size: 12px; font-weight: 800; color:#a8071a;">FAIL</div>
+                    ${d.pass === false
+                        ? `<div style="padding: 2px 8px; border-radius: 999px; border:1px solid #ffccc7; background:#fff; font-size: 12px; font-weight: 800; color:#a8071a;">FAIL</div>`
+                        : `<div style="padding: 2px 8px; border-radius: 999px; border:1px solid #b7eb8f; background:#fff; font-size: 12px; font-weight: 800; color:#135200;">PASS</div>`}
                 </div>
                 <div style="margin-top: 8px; display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div>
@@ -1019,12 +1021,32 @@ export class PromptView {
                         try {
                             const d = statusResp && statusResp.data ? statusResp.data : {};
                             const s = Number(d.status);
-                            // 经验值：4/5/6/7/8 一般为终态（WA/AC/RE/TLE/...）
-                            if (Number.isFinite(s) && [4, 5, 6, 7, 8].includes(s)) return true;
+
+                            // 1) 明确的“等待/评测中”文案：继续轮询
                             const en = String(d.enJudgeReplyDesc || '');
-                            if (en && en.toLowerCase().includes('waiting')) return false;
-                            // 没有 waiting 文案时：若 status 有值但不在终态，继续等；否则按未完成处理
-                            if (Number.isFinite(s)) return false;
+                            const enLower = en.toLowerCase();
+                            if (enLower.includes('waiting') || enLower.includes('judging') || enLower.includes('pending') || enLower.includes('running')) return false;
+
+                            // 2) 若已返回每个测试点结果（testCaseResults 长度 >= allCaseNum），认为判题结束
+                            const allCaseNum = d.allCaseNum != null ? Number(d.allCaseNum) : 0;
+                            if (allCaseNum > 0 && d.testCaseResults) {
+                                try {
+                                    const arr = typeof d.testCaseResults === 'string' ? JSON.parse(d.testCaseResults) : d.testCaseResults;
+                                    if (Array.isArray(arr) && arr.length >= allCaseNum) return true;
+                                } catch (_) { /* ignore parse errors */ }
+                            }
+
+                            // 3) 终态 status（补全 PE 等常见终态）
+                            // 经验值：4/5/6/7/8/13 多为终态（WA/AC/RE/TLE/MLE/PE...）
+                            if (Number.isFinite(s) && [4, 5, 6, 7, 8, 13].includes(s)) return true;
+
+                            // 4) 若已经有明确的评测结论文案（非空且非 waiting），也可认为终态
+                            if (en && enLower && !enLower.includes('waiting')) {
+                                // 例如：Accepted/Wrong Answer/Presentation Error/Compile Error...
+                                return true;
+                            }
+
+                            // 默认：继续等
                             return false;
                         } catch (e) {
                             return false;
@@ -1051,6 +1073,7 @@ export class PromptView {
                     while (Date.now() < deadline) {
                         last = await this.apiService.judgeSubmitStatus(params);
                         this.lastJudgeStatusResp = last;
+                        if (last && last.code != null && Number(last.code) !== 0) break;
                         if (isDone(last)) break;
                         await sleep(1000);
                     }
