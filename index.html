@@ -48,6 +48,9 @@
                     <li class="tracker-nav-item admin-nav-item" id="admin-nav-item" style="display: none;">
                         <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'admin\']').click();">⚙️ 管理员</a>
                     </li>
+                    <li class="tracker-nav-item prompt-nav-item" id="prompt-nav-item" style="display: none;">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'prompt\']').click();">🧪 Prompt</a>
+                    </li>
                 </ul>
                 <div class="tracker-nav-right">
                     <div class="tracker-help-menu" id="tracker-help-menu">
@@ -79,6 +82,7 @@
                 <button class="tab-btn" data-tab="faq">常见问题</button>
                 <button class="tab-btn" data-tab="changelog">版本更新</button>
                 <button class="tab-btn admin-tab-btn" data-tab="admin" id="admin-tab-btn" style="display: none;">⚙️ 管理员</button>
+                <button class="tab-btn prompt-tab-btn" data-tab="prompt" id="prompt-tab-btn" style="display: none;">🧪 Prompt</button>
             </nav>
         </header>
         
@@ -669,6 +673,15 @@
             <section id="admin" class="tab-content">
                 <div id="admin-container" class="admin-container">
                     <!-- Content will be rendered here by AdminView.js -->
+                </div>
+            </section>
+
+            <!-- Prompt（传统 Prompt 题目/评测） -->
+            <section id="prompt" class="tab-content">
+                <div class="content-wrapper">
+                    <div id="prompt-container" style="margin-top:8px;">
+                        <!-- Content will be rendered here by PromptView.js -->
+                    </div>
                 </div>
             </section>
 

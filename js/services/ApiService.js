@@ -9,6 +9,26 @@ export class ApiService {
         this.apiBase = apiBase;
     }
 
+    // ---------------- internal helpers ----------------
+    _unwrapCommon(data, fallbackMsg = '请求失败') {
+        // 统一兼容后端包装：{code:0,msg:"OK",data:{...}}
+        if (data && (data.code === 0 || data.code === 200)) return data.data;
+        if (data && (data.msg || data.message)) throw new Error(data.msg || data.message);
+        // 兼容少量接口直接返回业务 JSON（不包 code）
+        return data;
+    }
+
+    _toFormBody(params = {}) {
+        const body = new URLSearchParams();
+        Object.entries(params || {}).forEach(([k, v]) => {
+            if (v === undefined || v === null) return;
+            const s = String(v);
+            if (s === '') return;
+            body.append(k, s);
+        });
+        return body.toString();
+    }
+
     // 团队题单排行榜（一次返回累计/7日/今日）
     async teamTopicLeaderboard(teamId, topicId, page = 1, limit = 20) {
         const p = Math.max(1, Number(page) || 1);
@@ -2122,6 +2142,307 @@ export class ApiService {
         const data = await res.json().catch(() => ({}));
         if (data && (data.code === 0 || data.code === 200)) return data.data || {};
         throw new Error((data && (data.msg || data.message)) || '获取年度报告失败');
+    }
+
+    // ==================== Prompt Challenge Demo（管理员工具） ====================
+
+    /**
+     * 获取 Prompt Challenge 挑战列表
+     * GET /api/prompt-challenge/challenges
+     */
+    async promptChallengeList() {
+        // Java 版：支持 /prompt/challenge/challenges 以及兼容 /api/prompt-challenge/challenges
+        // 注意：Tracker 后端实际挂在 /problem/tracker/ 前缀下
+        const url = `${this.apiBase}/problem/tracker/api/prompt-challenge/challenges`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        // 兼容两种风格：直接返回 {challenges: []}，或按后端统一包装 {code,data}
+        if (data && Array.isArray(data.challenges)) return data.challenges;
+        if (data && (data.code === 0 || data.code === 200)) {
+            return (data.data && data.data.challenges) ? data.data.challenges : (data.data || []);
+        }
+        throw new Error((data && (data.msg || data.message)) || '获取挑战列表失败');
+    }
+
+    /**
+     * Prompt 测试资格检查（后端 gate）
+     * GET /problem/tracker/prompt/test-access
+     *
+     * @param {{questionId?: number|string}} params
+     * @returns {Promise<boolean>} 是否具备 Prompt 测试资格（含管理员直接放行）
+     */
+    async promptTestAccess(params = {}) {
+        const qid = params?.questionId;
+        const qs = new URLSearchParams();
+        if (qid != null && String(qid).trim() !== '') qs.set('questionId', String(qid).trim());
+        const url = `${this.apiBase}/problem/tracker/prompt/test-access${qs.toString() ? `?${qs.toString()}` : ''}`;
+        try {
+            const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+            if (!res.ok) return false;
+            const data = await res.json().catch(() => ({}));
+            if (data && (data.code === 0 || data.code === 200)) {
+                const d = data.data || {};
+                return d.ok === true;
+            }
+            return false;
+        } catch (e) {
+            console.error('[ApiService] Prompt 测试资格检查失败:', e);
+            return false;
+        }
+    }
+
+    /**
+     * Prompt 编程题/通用：仅获取 Prompt 质量分（不跑用例）
+     * POST /problem/tracker/prompt/quality/score（表单）
+     */
+    async promptQualityScore(payload) {
+        const url = `${this.apiBase}/problem/tracker/prompt/quality/score`;
+        const p = payload || {};
+        const form = {
+            questionId: p.questionId ?? p.question_id ?? '',
+            prompt: p.prompt ?? '',
+            mode: p.mode ?? 'normal',
+            debug: (p.debug === true || p.debug === 'true') ? 'true' : 'false'
+        };
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody(form),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '质量评分失败');
+    }
+
+    /**
+     * Prompt 编程题/通用：原创度检测（不跑用例）
+     * POST /problem/tracker/prompt/originality/check（表单）
+     *
+     * 参数：qid + prompt（后端会用 qid 拉题面/样例对照）
+     */
+    async promptOriginalityCheck(payload) {
+        const url = `${this.apiBase}/problem/tracker/prompt/originality/check`;
+        const p = payload || {};
+        const form = {
+            // 注意：文档推荐使用 qid；questionId 仅用于测试资格 gate（可选）
+            qid: p.qid ?? p.questionId ?? p.question_id ?? '',
+            questionId: p.questionId ?? p.question_id ?? '',
+            prompt: p.prompt ?? '',
+            problemJson: p.problemJson ?? p.problem_json ?? '',
+            debug: (p.debug === true || p.debug === 'true') ? 'true' : 'false'
+        };
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody(form),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '原创度检测失败');
+    }
+
+    /**
+     * 评测 Prompt Challenge
+     * POST /api/prompt-challenge/evaluate
+     */
+    async promptChallengeEvaluate(payload) {
+        const url = `${this.apiBase}/problem/tracker/api/prompt-challenge/evaluate`;
+        const p = payload || {};
+        // 兼容 snake_case（Python demo）与 camelCase（Java controller @Param）
+        const form = {
+            questionId: p.questionId ?? p.question_id ?? '',
+            challengeId: p.challengeId ?? p.challenge_id ?? '',
+            prompt: p.prompt ?? '',
+            mode: p.mode ?? 'normal',
+            model: p.model ?? '',
+            maxCases: p.maxCases ?? p.max_cases ?? '',
+            debug: (p.debug === true || p.debug === 'true') ? 'true' : 'false'
+        };
+        let res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody(form),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        // 本地 FastAPI demo 仍可能只支持 JSON body（422）；这里做一次兼容回退
+        if (res && res.status === 422) {
+            const jsonPayload = {
+                challenge_id: form.challengeId,
+                prompt: form.prompt,
+                mode: form.mode || 'normal',
+                model: form.model || null,
+                max_cases: form.maxCases ? Number(form.maxCases) : null,
+                debug: form.debug === 'true'
+            };
+            res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(jsonPayload),
+                cache: 'no-store',
+                credentials: 'include'
+            });
+        }
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '评测失败');
+    }
+
+    // ==================== Prompt Code Challenge（AI 编程题） ====================
+    // 注意：后端接口待接入；前端会先做 UI，并在接口不可用时给出友好提示/占位 demo。
+
+    /**
+     * AI 编程题：根据 prompt 生成代码
+     * POST /api/prompt-code/generate
+     */
+    async promptCodeGenerate(payload) {
+        const url = `${this.apiBase}/problem/tracker/api/prompt-code/generate`;
+        const p = payload || {};
+        // 后端是表单参数：problemId/language/problemJson/prompt/...
+        const problemObj = p.problem ?? p.problem_json ?? p.problemJson ?? null;
+        const problemJson = (typeof problemObj === 'string')
+            ? problemObj
+            : (problemObj && typeof problemObj === 'object' ? JSON.stringify(problemObj) : '');
+        const form = {
+            questionId: p.questionId ?? p.question_id ?? '',
+            problemId: p.problemId ?? p.problem_id ?? '',
+            language: p.language ?? 'cpp',
+            problemJson,
+            prompt: p.prompt ?? '',
+            model: p.model ?? '',
+            debug: (p.debug === true || p.debug === 'true') ? 'true' : 'false'
+        };
+        let res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody(form),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        // 本地 FastAPI demo 兼容：若只支持 JSON body（422）则回退
+        if (res && res.status === 422) {
+            const jsonPayload = {
+                problem_id: form.problemId,
+                language: form.language || 'cpp',
+                problem: problemObj && typeof problemObj === 'object' ? problemObj : null,
+                prompt: form.prompt,
+                model: form.model || null,
+                debug: form.debug === 'true'
+            };
+            res = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(jsonPayload),
+                cache: 'no-store',
+                credentials: 'include'
+            });
+        }
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '生成代码失败');
+    }
+
+    /**
+     * AI 编程题：评测生成的代码（跑用例）
+     * POST /api/prompt-code/evaluate
+     */
+    async promptCodeEvaluate(payload) {
+        const url = `${this.apiBase}/problem/tracker/api/prompt-code/evaluate`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {}),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        return await res.json().catch(() => ({}));
+    }
+
+    // ==================== Judge (victorinox) - local dev proxy ====================
+
+    /**
+     * 提交编程题判题（victorinox）
+     * POST /api/service/judge/submit  (proxy/nginx 会转发到 victorinox.nowcoder.com)
+     */
+    async judgeSubmit(payload) {
+        const url = `${this.apiBase}/api/service/judge/submit`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {}),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        return await res.json().catch(() => ({}));
+    }
+
+    /**
+     * 查询判题结果（victorinox）
+     * GET /api/service/judge/submit-status?... (proxy/nginx 会转发)
+     */
+    async judgeSubmitStatus(params) {
+        const p = params || {};
+        const qs = new URLSearchParams();
+        Object.entries(p).forEach(([k, v]) => {
+            if (v === undefined || v === null) return;
+            qs.append(k, String(v));
+        });
+        const url = `${this.apiBase}/api/service/judge/submit-status?${qs.toString()}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        return await res.json().catch(() => ({}));
+    }
+
+    /**
+     * 获取判题 accessToken（gw-c）
+     * GET /api/service/judge/token (proxy/nginx 会转发到 gw-c.nowcoder.com)
+     */
+    async judgeAccessToken(sceneType = 1) {
+        const st = (sceneType == null) ? 1 : Number(sceneType);
+        const qs = new URLSearchParams();
+        // gw-c 接口要求 sceneType，不传会报 “sceneType 为空”
+        qs.append('sceneType', String(Number.isFinite(st) ? st : 1));
+        const url = `${this.apiBase}/api/service/judge/token?${qs.toString()}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.success === true) && (data.code === 0) && data.data && data.data.accessToken) {
+            return data.data.accessToken;
+        }
+        // 兼容：部分环境可能返回 {code,msg,data:{accessToken}}
+        if (data && (data.code === 0) && data.data && data.data.accessToken) return data.data.accessToken;
+        throw new Error((data && (data.msg || data.message)) || '获取判题 token 失败');
     }
 
     /**

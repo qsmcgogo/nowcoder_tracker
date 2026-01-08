@@ -1,5 +1,6 @@
 const express = require('express');
 const https = require('https');
+const http = require('http');
 const HttpsProxyAgent = require('https-proxy-agent');
 const { URL } = require('url');
 const fs = require('fs');
@@ -34,6 +35,11 @@ const HOST_MAP = {
 
 const targetHost = HOST_MAP[CURRENT_ENV] || HOST_MAP['www']; // 默认指向 www
 
+// Judge host (victorinox)
+const JUDGE_HOST = 'https://victorinox.nowcoder.com';
+// Judge access-token host (gw-c)
+const JUDGE_TOKEN_HOST = 'https://gw-c.nowcoder.com';
+
 // A generic, robust manual proxy handler
 const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
     // Preserve sub-path after the mounted prefix; include query string
@@ -51,22 +57,28 @@ const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
     const csrfMatch = cookieHeader.match(/csrfToken=([^;]+)/);
     const csrfToken = csrfMatch ? csrfMatch[1].trim() : '';
 
+    const headers = {
+        'Accept': clientReq.headers['accept'] || 'application/json, text/plain, */*',
+        'Connection': 'keep-alive',
+        'Cookie': cookieHeader,
+        'Host': targetUrl.hostname,
+        'Referer': `https://${targetUrl.hostname}/problem/tracker/list`,
+        'X-CSRF-TOKEN': csrfToken
+    };
+    // 这些 header 在 curl/某些环境可能是 undefined，node 不允许 setHeader(undefined)
+    const ae = clientReq.headers['accept-encoding'];
+    if (ae) headers['Accept-Encoding'] = ae;
+    const al = clientReq.headers['accept-language'];
+    if (al) headers['Accept-Language'] = al;
+    const ua = clientReq.headers['user-agent'];
+    if (ua) headers['User-Agent'] = ua;
+
     const options = {
         hostname: targetUrl.hostname,
         port: 443,
         path: targetUrl.pathname + targetUrl.search,
         method: clientReq.method,
-        headers: {
-            'Accept': clientReq.headers['accept'] || 'application/json, text/plain, */*',
-            'Accept-Encoding': clientReq.headers['accept-encoding'],
-            'Accept-Language': clientReq.headers['accept-language'],
-            'Connection': 'keep-alive',
-            'Cookie': cookieHeader,
-            'Host': targetUrl.hostname,
-            'Referer': `https://${targetUrl.hostname}/problem/tracker/list`,
-            'User-Agent': clientReq.headers['user-agent'],
-            'X-CSRF-TOKEN': csrfToken
-        }
+        headers
     };
 
     // For POST/PUT requests, it's crucial to forward the body-related headers.
@@ -97,6 +109,154 @@ const manualProxyHandler = (basePath) => (clientReq, clientRes) => {
         clientReq.pipe(proxyReq, { end: true });
     } else {
         proxyReq.end(); // For GET/DELETE etc., just end the request.
+    }
+};
+
+// Simple proxy to victorinox judge service (to bypass CORS in local dev)
+const judgeProxyHandler = (basePath) => (clientReq, clientRes) => {
+    const subPathWithQuery = clientReq.url || '';
+    const prefix = basePath || '';
+    const correctPath = `${prefix}${subPathWithQuery}`;
+    console.log(`[Judge Proxy] '${clientReq.url}' -> '${correctPath}'`);
+
+    const targetUrl = new URL(`${JUDGE_HOST}${correctPath}`);
+
+    const cookieHeader = clientReq.headers['cookie'] || '';
+    const csrfMatch = cookieHeader.match(/csrfToken=([^;]+)/);
+    const csrfToken = csrfMatch ? csrfMatch[1].trim() : '';
+
+    const headers = {
+        'Accept': clientReq.headers['accept'] || 'application/json, text/plain, */*',
+        'Connection': 'keep-alive',
+        'Cookie': cookieHeader,
+        'Host': targetUrl.hostname,
+        'Referer': `https://${targetUrl.hostname}/`,
+        'X-CSRF-TOKEN': csrfToken
+    };
+    const ae = clientReq.headers['accept-encoding'];
+    if (ae) headers['Accept-Encoding'] = ae;
+    const al = clientReq.headers['accept-language'];
+    if (al) headers['Accept-Language'] = al;
+    const ua = clientReq.headers['user-agent'];
+    if (ua) headers['User-Agent'] = ua;
+
+    // For POST/PUT requests, forward body-related headers
+    if (clientReq.method === 'POST' || clientReq.method === 'PUT') {
+        const contentType = clientReq.headers['content-type'];
+        const contentLength = clientReq.headers['content-length'];
+        if (contentType) headers['Content-Type'] = contentType;
+        if (contentLength && contentLength !== '0') headers['Content-Length'] = contentLength;
+    }
+
+    const options = {
+        hostname: targetUrl.hostname,
+        port: 443,
+        path: targetUrl.pathname + targetUrl.search,
+        method: clientReq.method,
+        headers
+    };
+
+    const proxyReq = https.request(options, (targetRes) => {
+        clientRes.writeHead(targetRes.statusCode, targetRes.headers);
+        targetRes.pipe(clientRes, { end: true });
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('[Judge Proxy] Error:', err);
+        clientRes.status(500).send('Judge proxy error.');
+    });
+
+    if (clientReq.method === 'POST' || clientReq.method === 'PUT') {
+        clientReq.pipe(proxyReq, { end: true });
+    } else {
+        proxyReq.end();
+    }
+};
+
+// Proxy to gw-c access-token service (to bypass CORS in local dev)
+const judgeTokenProxyHandler = (basePath) => (clientReq, clientRes) => {
+    const subPathWithQuery = clientReq.url || '';
+    const prefix = basePath || '';
+    const correctPath = `${prefix}${subPathWithQuery}`;
+    console.log(`[JudgeToken Proxy] '${clientReq.url}' -> '${correctPath}'`);
+
+    const targetUrl = new URL(`${JUDGE_TOKEN_HOST}${correctPath}`);
+
+    const cookieHeader = clientReq.headers['cookie'] || '';
+    const csrfMatch = cookieHeader.match(/csrfToken=([^;]+)/);
+    const csrfToken = csrfMatch ? csrfMatch[1].trim() : '';
+
+    const headers = {
+        'Accept': clientReq.headers['accept'] || 'application/json, text/plain, */*',
+        'Connection': 'keep-alive',
+        'Cookie': cookieHeader,
+        'Host': targetUrl.hostname,
+        'Referer': `https://${targetUrl.hostname}/`,
+        'X-CSRF-TOKEN': csrfToken
+    };
+    const ae = clientReq.headers['accept-encoding'];
+    if (ae) headers['Accept-Encoding'] = ae;
+    const al = clientReq.headers['accept-language'];
+    if (al) headers['Accept-Language'] = al;
+    const ua = clientReq.headers['user-agent'];
+    if (ua) headers['User-Agent'] = ua;
+
+    const options = {
+        hostname: targetUrl.hostname,
+        port: 443,
+        path: targetUrl.pathname + targetUrl.search,
+        method: clientReq.method,
+        headers
+    };
+
+    const proxyReq = https.request(options, (targetRes) => {
+        clientRes.writeHead(targetRes.statusCode, targetRes.headers);
+        targetRes.pipe(clientRes, { end: true });
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('[JudgeToken Proxy] Error:', err);
+        clientRes.status(500).send('Judge token proxy error.');
+    });
+
+    proxyReq.end();
+};
+
+// Local forward handler for Prompt Challenge demo (FastAPI)
+// Default: http://127.0.0.1:8010
+const PROMPT_CHALLENGE_URL = process.env.PROMPT_CHALLENGE_URL || 'http://127.0.0.1:8010';
+const localForwardHandler = (targetBaseUrl) => (clientReq, clientRes) => {
+    const subPathWithQuery = clientReq.url || '';
+    const targetUrl = new URL(`${targetBaseUrl}${subPathWithQuery}`);
+    const isHttps = targetUrl.protocol === 'https:';
+    const mod = isHttps ? https : http;
+
+    const headers = { ...clientReq.headers };
+    // 修正 Host，避免上游按 Host 做判断
+    headers['host'] = targetUrl.host;
+
+    const options = {
+        hostname: targetUrl.hostname,
+        port: targetUrl.port || (isHttps ? 443 : 80),
+        path: targetUrl.pathname + targetUrl.search,
+        method: clientReq.method,
+        headers,
+    };
+
+    const proxyReq = mod.request(options, (targetRes) => {
+        clientRes.writeHead(targetRes.statusCode, targetRes.headers);
+        targetRes.pipe(clientRes, { end: true });
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('[Local Forward] Error:', err);
+        clientRes.status(502).send('Local forward error.');
+    });
+
+    if (clientReq.method === 'POST' || clientReq.method === 'PUT' || clientReq.method === 'PATCH') {
+        clientReq.pipe(proxyReq, { end: true });
+    } else {
+        proxyReq.end();
     }
 };
 
@@ -238,6 +398,24 @@ app.use('/problem/tracker/acm-problem-open/batch-import-tracker', manualProxyHan
 app.use('/problem/tracker/admin/check', manualProxyHandler('/problem/tracker/admin/check'));
 // Admin: Year report (验数，不走缓存)
 app.use('/problem/tracker/admin/year-report', manualProxyHandler('/problem/tracker/admin/year-report'));
+
+// Prompt Challenge / Prompt Code (pre/线上)：挂在 /problem/tracker/api 前缀下
+app.use('/problem/tracker/api/prompt-challenge', manualProxyHandler('/problem/tracker/api/prompt-challenge'));
+app.use('/problem/tracker/api/prompt-code', manualProxyHandler('/problem/tracker/api/prompt-code'));
+
+// Prompt Challenge demo API（本地 FastAPI service，保留给本地联调用）
+app.use('/api/prompt-challenge', localForwardHandler(`${PROMPT_CHALLENGE_URL}/api/prompt-challenge`));
+app.use('/api/prompt-code', localForwardHandler(`${PROMPT_CHALLENGE_URL}/api/prompt-code`));
+
+// Judge APIs - local dev only (对齐线上路径：/api/service/judge/*)
+app.use('/api/service/judge/submit', judgeProxyHandler('/api/service/judge/submit'));
+app.use('/api/service/judge/submit-status', judgeProxyHandler('/api/service/judge/submit-status'));
+app.use('/api/service/judge/token', judgeTokenProxyHandler('/api/sparta/base-oauth/access-token'));
+
+// 兼容旧路径（防止本地缓存页面还在打 /api/judge/*）
+app.use('/api/judge/submit', judgeProxyHandler('/api/service/judge/submit'));
+app.use('/api/judge/submit-status', judgeProxyHandler('/api/service/judge/submit-status'));
+app.use('/api/judge/token', judgeTokenProxyHandler('/api/sparta/base-oauth/access-token'));
 
 
 // Endpoint to get current environment config

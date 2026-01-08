@@ -49,6 +49,11 @@ export class AppState {
         this.isAdmin = false; // 管理员状态
         this.adminCheckedUserId = null; // 已检查过管理员状态的用户ID（用于缓存）
         this.adminCheckPromise = null; // 正在进行的管理员检查Promise（避免并发请求）
+
+        // Prompt 测试资格（后端 gate）
+        this.isPromptTester = false;
+        this.promptTesterCheckedUserId = null;
+        this.promptTesterCheckPromise = null;
         
         // 每日一题状态
         this.currentDailyProblem = null;
@@ -130,6 +135,10 @@ export class AppState {
             this.isAdmin = false;
             this.adminCheckedUserId = null;
             this.adminCheckPromise = null;
+
+            this.isPromptTester = false;
+            this.promptTesterCheckedUserId = null;
+            this.promptTesterCheckPromise = null;
         }
     }
     
@@ -177,6 +186,59 @@ export class AppState {
         })();
         
         return await this.adminCheckPromise;
+    }
+
+    /**
+     * 异步检查当前用户是否具备 Prompt 测试资格（调用后端 /prompt/test-access）
+     * 使用缓存机制，避免重复调用接口
+     *
+     * @param {ApiService} apiService - API服务实例
+     * @param {number|string} [questionId] - 可选：题目级 gate
+     * @returns {Promise<boolean>} 返回是否具备资格
+     */
+    async checkPromptTestAccessStatus(apiService, questionId = undefined) {
+        if (!this.loggedInUserId) {
+            this.isPromptTester = false;
+            return false;
+        }
+
+        // 管理员一定放行
+        if (this.isAdmin === true) {
+            this.isPromptTester = true;
+            this.promptTesterCheckedUserId = this.loggedInUserId;
+            return true;
+        }
+
+        if (this.promptTesterCheckedUserId === this.loggedInUserId) {
+            return this.isPromptTester;
+        }
+
+        if (this.promptTesterCheckPromise) {
+            return await this.promptTesterCheckPromise;
+        }
+
+        this.promptTesterCheckPromise = (async () => {
+            try {
+                const ok = await apiService.promptTestAccess({ questionId });
+                this.isPromptTester = ok === true;
+                this.promptTesterCheckedUserId = this.loggedInUserId;
+                console.log(`[AppState] Prompt 测试资格判定结果 (isPromptTester):`, this.isPromptTester, `(用户ID: ${this.loggedInUserId})`);
+                return this.isPromptTester;
+            } catch (error) {
+                console.error('[AppState] Prompt 测试资格检查失败:', error);
+                this.isPromptTester = false;
+                this.promptTesterCheckedUserId = this.loggedInUserId;
+                return false;
+            } finally {
+                this.promptTesterCheckPromise = null;
+            }
+        })();
+
+        return await this.promptTesterCheckPromise;
+    }
+
+    canAccessPrompt() {
+        return this.isAdmin === true || this.isPromptTester === true;
     }
     
     isLoggedIn() {

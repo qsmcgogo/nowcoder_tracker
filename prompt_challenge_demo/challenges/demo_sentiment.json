@@ -1,0 +1,14 @@
+{
+  "id": "demo_sentiment",
+  "name": "情感三分类：POS/NEG/NEU（严格输出）",
+  "type": "sentiment",
+  "description": "对输入文本做三分类，要求仅输出 POS/NEG/NEU（不能有任何多余字符）。用于验证“仅输出 + 约束”对稳定性的作用。",
+  "cases": [
+    { "id": "1", "input": "这产品真不错，用起来很顺手。", "expected": "POS" },
+    { "id": "2", "input": "体验太差了，完全用不了。", "expected": "NEG" },
+    { "id": "3", "input": "一般般吧，没有特别惊艳。", "expected": "NEU" },
+    { "id": "4", "input": "客服回复挺及时，但问题没解决。", "expected": "NEU" }
+  ]
+}
+
+

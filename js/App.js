@@ -22,6 +22,7 @@ import { TeamView } from './views/TeamView.js';
 import { BattleView } from './views/BattleView.js';
 import { ActivityView } from './views/ActivityView.js';
 import { AdminView } from './views/AdminView.js';
+import { PromptView } from './views/PromptView.js';
 import { OutputDemoView } from './views/learn/OutputDemoView.js';
 import { DigitDPDemoView } from './views/learn/DigitDPDemoView.js';
 import { AchievementNotifier } from './services/AchievementNotifier.js';
@@ -103,7 +104,9 @@ export class NowcoderTracker {
             // activity container
             activityContainer: document.getElementById('activity-view'),
             // admin container
-            adminContainer: document.getElementById('admin-container')
+            adminContainer: document.getElementById('admin-container'),
+            // prompt container
+            promptContainer: document.getElementById('prompt-container')
         };
     }
     
@@ -121,6 +124,7 @@ export class NowcoderTracker {
             activity: new ActivityView(this.elements, this.state, this.apiService),
             profile: new ProfileView(this.elements, this.state, this.apiService),
             admin: new AdminView(this.elements, this.state, this.apiService),
+            prompt: new PromptView(this.elements, this.state, this.apiService),
             // 学习 Demo（不属于主 tab，但需要在全局初始化以订阅事件）
             outputDemo: new OutputDemoView(this.elements, this.state, this.apiService),
             digitDpDemo: new DigitDPDemoView(this.elements, this.state, this.apiService)
@@ -400,6 +404,8 @@ export class NowcoderTracker {
 
             // 显示/隐藏管理员页签
             this.updateAdminTabVisibility();
+            // 显示/隐藏 Prompt 页签（当前与管理员相同：仅 admin 可见）
+            this.updatePromptTabVisibility();
 
             // 登录后根据管理员身份刷新"更新过题数"按钮可见性
             const adminUpdateBtn2 = document.getElementById('rank-admin-update-btn');
@@ -464,6 +470,7 @@ export class NowcoderTracker {
             await this.detectAndSetLoggedInUser();
             // 初始化时更新管理员页签可见性（detectAndSetLoggedInUser 已经检查了管理员状态）
             this.updateAdminTabVisibility();
+            this.updatePromptTabVisibility();
         } catch (_) { /* ignore login bootstrap errors */ }
 
         if (initialInviteTid) {
@@ -637,6 +644,9 @@ export class NowcoderTracker {
             case 'admin':
                 this.views.admin.render();
                 break;
+            case 'prompt':
+                this.views.prompt.render();
+                break;
         }
         
         // 发布事件
@@ -750,7 +760,7 @@ export class NowcoderTracker {
 
     normalizeTabName(name) {
         const key = String(name || '').toLowerCase();
-        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','battle','activity','team','profile','faq','changelog','admin']);
+        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','battle','activity','team','profile','faq','changelog','admin','prompt']);
         if (key.startsWith('team/')) return 'team';
         if (key.startsWith('invitet') || key.startsWith('inviteTeam'.toLowerCase())) return 'team';
         if (allowed.has(key)) return key;
@@ -758,6 +768,22 @@ export class NowcoderTracker {
         if (key === 'skills' || key === 'skill' || key === 'skilltree') return 'skill-tree';
         if (key === 'contest' || key === 'practice' || key === 'interview') return 'problems';
         return 'daily';
+    }
+
+    /**
+     * 更新 Prompt 页签的显示/隐藏状态
+     * 当前：管理员或具备 Prompt 测试资格可见
+     */
+    updatePromptTabVisibility() {
+        const promptNavItem = document.getElementById('prompt-nav-item');
+        const promptTabBtn = document.getElementById('prompt-tab-btn');
+        if (this.state.canAccessPrompt && this.state.canAccessPrompt()) {
+            if (promptNavItem) promptNavItem.style.display = '';
+            if (promptTabBtn) promptTabBtn.style.display = '';
+        } else {
+            if (promptNavItem) promptNavItem.style.display = 'none';
+            if (promptTabBtn) promptTabBtn.style.display = 'none';
+        }
     }
 
     parseTeamInviteRoute() {
@@ -802,15 +828,18 @@ export class NowcoderTracker {
                 const uid = d.uid && d.uid !== 0 ? String(d.uid) : null;
                 this.state.setLoggedInUser(uid, d.user || null);
                 
-                // 如果用户已登录，检查管理员状态
+                // 如果用户已登录，检查管理员状态 + Prompt 测试资格
                 if (uid) {
                     await this.state.checkAdminStatus(this.apiService);
+                    // 注意：Prompt gate 本身也会放行管理员，但这里仍做一次检查以支持非管理员白名单用户
+                    await this.state.checkPromptTestAccessStatus(this.apiService);
                     eventBus.emit(EVENTS.USER_LOGIN, { uid, user: d.user || null, ...d });
                 }
             } else {
                 // 未登录或异常时，显式清空本地登录态
                 this.state.setLoggedInUser(null, null);
                 this.state.isAdmin = false;
+                this.state.isPromptTester = false;
             }
         } catch (_) {
             // 忽略错误，不影响其它页面加载

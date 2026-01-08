@@ -8,7 +8,7 @@ export class AdminView {
         this.container = elements.adminContainer;
         this.apiService = apiService;
         this.state = state;
-        this.currentTab = 'clock'; // 'clock' | 'battle' | 'import' | 'yearReport' | 'tag' | 'contestDifficulty'
+        this.currentTab = 'clock'; // 'clock' | 'battle' | 'import' | 'yearReport' | 'tag' | 'contestDifficulty' | 'promptChallenge'
         this.clockPage = 1;
         this.battlePage = 1;
         this.battleSubTab = 'manage'; // 'manage' | 'histogram'
@@ -21,6 +21,8 @@ export class AdminView {
         this.importLastResult = null;
         // 管理员验数：年度报告
         this.adminYearReportLast = null;
+        // Prompt Challenge demo
+        this.promptChallengeListCache = null;
     }
 
     /**
@@ -70,6 +72,9 @@ export class AdminView {
                     <button id="admin-tab-contest-difficulty" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
                         比赛难度更新
                     </button>
+                    <button id="admin-tab-prompt-challenge" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
+                        Prompt 挑战评测
+                    </button>
                 </div>
 
                 <!-- 每日一题管理 -->
@@ -101,6 +106,11 @@ export class AdminView {
                 <div id="admin-contest-difficulty-panel" class="admin-panel" style="display: none;">
                     ${this.renderContestDifficultyPanel()}
                 </div>
+
+                <!-- Prompt Challenge Demo（管理员工具） -->
+                <div id="admin-prompt-challenge-panel" class="admin-panel" style="display: none;">
+                    ${this.renderPromptChallengePanel()}
+                </div>
             </div>
         `;
 
@@ -111,6 +121,105 @@ export class AdminView {
         this.loadClockList();
         this.loadBattleList();
         this.loadTagList();
+    }
+
+    renderPromptChallengePanel() {
+        const saved = {
+            prompt: localStorage.getItem('pc_prompt') || '',
+            mode: localStorage.getItem('pc_mode') || 'normal',
+            // Dify 场景下 model 实际不参与调用，但为了减少每次手填，这里给一个默认值
+            model: localStorage.getItem('pc_model') || 'doubao-seed-1-6-flash-250828',
+            challengeId: localStorage.getItem('pc_challenge_id') || '',
+            maxCases: localStorage.getItem('pc_max_cases') || ''
+        };
+        return `
+            <div style="background:#fff; border:1px solid #e8e8e8; border-radius: 12px; padding: 16px;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div style="font-size: 16px; font-weight: 800; color:#333;">Prompt Challenge 评测（Demo）</div>
+                    <div style="font-size: 12px; color:#999;">评分：final = CaseScore × QualityCoeff（启发式分项，仅用于验证闭环）</div>
+                    <div style="flex:1;"></div>
+                    <button id="pc-refresh-challenges" class="admin-btn modal-secondary" style="padding: 8px 12px;" type="button">刷新题单</button>
+                </div>
+
+                <div style="margin-top: 12px; display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end;">
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <label style="font-size: 12px; color:#666;">挑战题</label>
+                        <select id="pc-challenge-select" style="min-width:260px; padding: 8px 10px; border:1px solid #ddd; border-radius: 8px; font-size: 13px;">
+                            <option value="">（加载中...）</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <label style="font-size: 12px; color:#666;">赛道</label>
+                        <select id="pc-mode" style="min-width:140px; padding: 8px 10px; border:1px solid #ddd; border-radius: 8px; font-size: 13px;">
+                            <option value="normal" ${saved.mode === 'normal' ? 'selected' : ''}>常规</option>
+                            <option value="hacker" ${saved.mode === 'hacker' ? 'selected' : ''}>黑客（更偏短 prompt）</option>
+                        </select>
+                    </div>
+                    <div style="display:flex; flex-direction:column; gap:6px;">
+                        <label style="font-size: 12px; color:#666;">maxCases</label>
+                        <input id="pc-max-cases" value="${saved.maxCases}" placeholder="可不填"
+                               style="width:120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 8px; font-size: 13px;" />
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="pc-run" class="admin-btn" style="padding: 9px 14px; font-weight:700;" type="button">开始评测</button>
+                </div>
+
+                <!-- 题目说明 / 样例 -->
+                <div id="pc-challenge-preview" style="margin-top: 12px; display:none; border:1px solid #f0f0f0; border-radius: 12px; padding: 12px; background: linear-gradient(180deg, #fbfdff, #ffffff);">
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <div style="font-size: 13px; font-weight: 900; color:#111827;">题目说明</div>
+                        <div style="flex:1;"></div>
+                        <div id="pc-challenge-meta" style="font-size: 12px; color:#999;"></div>
+                    </div>
+                    <div id="pc-challenge-desc" style="margin-top: 8px; font-size: 13px; color:#374151; line-height: 1.65;"></div>
+                    <div style="margin-top: 10px; display:grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                        <div>
+                            <div style="font-size: 12px; color:#666; margin-bottom: 6px;">样例输入</div>
+                            <pre id="pc-sample-input" style="margin:0; white-space:pre-wrap; word-break:break-word; background:#0b1020; color:#e6edf3; padding: 10px; border-radius: 10px; max-height: 160px; overflow:auto;"></pre>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color:#666; margin-bottom: 6px;">样例输出（期望）</div>
+                            <pre id="pc-sample-output" style="margin:0; white-space:pre-wrap; word-break:break-word; background:#111827; color:#f9fafb; padding: 10px; border-radius: 10px; max-height: 160px; overflow:auto;"></pre>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-top: 12px; display:flex; gap:12px; flex-wrap:wrap;">
+                    <div style="flex:1; min-width: 320px;">
+                        <label style="display:block; font-size: 12px; color:#666; margin-bottom: 6px;">Prompt</label>
+                        <textarea id="pc-prompt" rows="8" placeholder="在这里粘贴/编辑提示词（建议包含：仅输出 + 格式约束 + 边界处理）"
+                                  style="width:100%; padding: 10px; border:1px solid #ddd; border-radius: 10px; font-size: 13px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">${saved.prompt}</textarea>
+                    </div>
+                    <div style="width: 360px; min-width: 320px;">
+                        <div style="font-size: 12px; color:#666; margin-bottom: 6px;">模型配置（可选；不填走后端默认）</div>
+                        <div style="display:flex; flex-direction:column; gap:10px;">
+                            <div style="display:flex; gap:10px; align-items:center;">
+                                <label style="width:72px; font-size: 12px; color:#666;">model</label>
+                                <input id="pc-model" value="${saved.model}" placeholder="doubao-seed-1-6-flash-250828"
+                                       style="flex:1; padding: 8px 10px; border:1px solid #ddd; border-radius: 8px; font-size: 13px;" />
+                            </div>
+                            <div style="font-size: 12px; color:#999; line-height: 1.5;">
+                                说明：api_key/base_url 由后端托管，不再从前端传参。
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="pc-error" style="margin-top: 12px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+
+                <div id="pc-summary" style="margin-top: 12px; display:none; padding: 12px; border:1px solid #f0f0f0; border-radius: 12px; background: linear-gradient(180deg, #fbfdff, #ffffff);"></div>
+
+                <div style="margin-top: 12px;">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div style="font-size: 13px; font-weight: 700; color:#333;">用例明细</div>
+                        <div style="font-size: 12px; color:#999;">（pass=严格匹配归一化结果）</div>
+                    </div>
+                    <div id="pc-details" style="margin-top: 8px; border:1px solid #f0f0f0; border-radius: 12px; overflow:auto; max-height: 520px;">
+                        <div style="padding: 18px; text-align:center; color:#999;">（尚未评测）</div>
+                    </div>
+                </div>
+            </div>
+        `;
     }
 
     /**
@@ -515,6 +624,12 @@ export class AdminView {
         document.getElementById('admin-tab-contest-difficulty').addEventListener('click', () => {
             this.switchTab('contestDifficulty');
         });
+        const pcTabBtn = document.getElementById('admin-tab-prompt-challenge');
+        if (pcTabBtn) {
+            pcTabBtn.addEventListener('click', () => {
+                this.switchTab('promptChallenge');
+            });
+        }
 
         // 每日一题操作
         document.getElementById('admin-clock-add-btn').addEventListener('click', () => {
@@ -589,6 +704,12 @@ export class AdminView {
         const contestSubmitBtn = document.getElementById('admin-contest-difficulty-submit-btn');
         if (contestPreviewBtn) contestPreviewBtn.addEventListener('click', () => this.handleContestDifficultyPreview());
         if (contestSubmitBtn) contestSubmitBtn.addEventListener('click', () => this.handleContestDifficultySubmit());
+
+        // Prompt Challenge demo
+        const pcRefreshBtn = document.getElementById('pc-refresh-challenges');
+        if (pcRefreshBtn) pcRefreshBtn.addEventListener('click', () => this.loadPromptChallengeList(true));
+        const pcRunBtn = document.getElementById('pc-run');
+        if (pcRunBtn) pcRunBtn.addEventListener('click', () => this.runPromptChallengeEvaluate());
     }
 
     async adminClearUserMirrors() {
@@ -645,12 +766,14 @@ export class AdminView {
         const importPanel = document.getElementById('admin-import-panel');
         const yearReportPanel = document.getElementById('admin-year-report-panel');
         const contestDifficultyPanel = document.getElementById('admin-contest-difficulty-panel');
+        const pcPanel = document.getElementById('admin-prompt-challenge-panel');
         const clockBtn = document.getElementById('admin-tab-clock');
         const battleBtn = document.getElementById('admin-tab-battle');
         const tagBtn = document.getElementById('admin-tab-tag');
         const importBtn = document.getElementById('admin-tab-import');
         const yearReportBtn = document.getElementById('admin-tab-year-report');
         const contestDifficultyBtn = document.getElementById('admin-tab-contest-difficulty');
+        const pcBtn = document.getElementById('admin-tab-prompt-challenge');
 
         // hide all
         clockPanel.style.display = 'none';
@@ -659,6 +782,7 @@ export class AdminView {
         if (importPanel) importPanel.style.display = 'none';
         if (yearReportPanel) yearReportPanel.style.display = 'none';
         if (contestDifficultyPanel) contestDifficultyPanel.style.display = 'none';
+        if (pcPanel) pcPanel.style.display = 'none';
 
         // reset btn styles
         clockBtn.style.color = '#666';
@@ -680,6 +804,10 @@ export class AdminView {
         if (contestDifficultyBtn) {
             contestDifficultyBtn.style.color = '#666';
             contestDifficultyBtn.style.borderBottomColor = 'transparent';
+        }
+        if (pcBtn) {
+            pcBtn.style.color = '#666';
+            pcBtn.style.borderBottomColor = 'transparent';
         }
 
         if (tab === 'clock') {
@@ -725,7 +853,314 @@ export class AdminView {
                 contestDifficultyBtn.style.color = '#1890ff';
                 contestDifficultyBtn.style.borderBottomColor = '#1890ff';
             }
+        } else if (tab === 'promptChallenge' && pcPanel) {
+            // 强制渲染：避免之前 tab 的 innerHTML 覆盖影响
+            pcPanel.innerHTML = this.renderPromptChallengePanel();
+            // 重新绑定按钮事件
+            const pcRefreshBtn = document.getElementById('pc-refresh-challenges');
+            if (pcRefreshBtn) pcRefreshBtn.addEventListener('click', () => this.loadPromptChallengeList(true));
+            const pcRunBtn = document.getElementById('pc-run');
+            if (pcRunBtn) pcRunBtn.addEventListener('click', () => this.runPromptChallengeEvaluate());
+
+            pcPanel.style.display = 'block';
+            if (pcBtn) {
+                pcBtn.style.color = '#1890ff';
+                pcBtn.style.borderBottomColor = '#1890ff';
+            }
+            // 首次进入自动拉取题单
+            this.loadPromptChallengeList(false);
         }
+    }
+
+    async loadPromptChallengeList(force = false) {
+        const select = document.getElementById('pc-challenge-select');
+        const errorEl = document.getElementById('pc-error');
+        if (!select) return;
+        if (errorEl) errorEl.style.display = 'none';
+
+        if (!force && Array.isArray(this.promptChallengeListCache) && this.promptChallengeListCache.length > 0) {
+            this.renderPromptChallengeOptions(select, this.promptChallengeListCache);
+            this.updatePromptChallengePreview();
+            return;
+        }
+
+        select.innerHTML = `<option value="">（加载中...）</option>`;
+        try {
+            const list = await this.apiService.promptChallengeList();
+            this.promptChallengeListCache = Array.isArray(list) ? list : [];
+            this.renderPromptChallengeOptions(select, this.promptChallengeListCache);
+            this.updatePromptChallengePreview();
+        } catch (e) {
+            const msg = e && e.message ? e.message : '加载失败';
+            select.innerHTML = `<option value="">（加载失败）</option>`;
+            if (errorEl) {
+                errorEl.textContent = `题单加载失败：${msg}`;
+                errorEl.style.display = 'block';
+            }
+        }
+    }
+
+    renderPromptChallengeOptions(selectEl, list) {
+        const savedId = localStorage.getItem('pc_challenge_id') || '';
+        const opts = ['<option value="">请选择挑战题</option>'];
+        for (const ch of (list || [])) {
+            const id = String(ch.id || '');
+            const name = String(ch.name || id);
+            const cnt = Number(ch.case_count || 0);
+            opts.push(`<option value="${id}" ${savedId === id ? 'selected' : ''}>${name}（${cnt}）</option>`);
+        }
+        selectEl.innerHTML = opts.join('');
+        // 如果没有 saved，默认选第一个可用
+        const cur = selectEl.value;
+        if (!cur) {
+            const first = (list || []).find(x => x && x.id);
+            if (first) selectEl.value = String(first.id);
+        }
+        // 绑定变更保存
+        selectEl.addEventListener('change', () => {
+            localStorage.setItem('pc_challenge_id', String(selectEl.value || ''));
+            this.updatePromptChallengePreview();
+        });
+    }
+
+    updatePromptChallengePreview() {
+        const preview = document.getElementById('pc-challenge-preview');
+        const metaEl = document.getElementById('pc-challenge-meta');
+        const descEl = document.getElementById('pc-challenge-desc');
+        const sinEl = document.getElementById('pc-sample-input');
+        const soutEl = document.getElementById('pc-sample-output');
+        const select = document.getElementById('pc-challenge-select');
+        if (!preview || !descEl || !sinEl || !soutEl || !select) return;
+
+        const cid = String(select.value || '').trim();
+        const list = Array.isArray(this.promptChallengeListCache) ? this.promptChallengeListCache : [];
+        const ch = list.find(x => x && String(x.id || '') === cid);
+        if (!ch) {
+            preview.style.display = 'none';
+            return;
+        }
+        const name = String(ch.name || ch.id || '');
+        const cnt = Number(ch.case_count || 0);
+        const type = String(ch.type || '');
+        const desc = String(ch.description || '').trim();
+        const sampleIn = String(ch.sample_input || '');
+        const sampleOut = String(ch.sample_output || '');
+
+        if (metaEl) metaEl.textContent = `${name}${type ? ` · ${type}` : ''}${Number.isFinite(cnt) ? ` · ${cnt} cases` : ''}`;
+        descEl.textContent = desc || '（暂无说明）';
+        sinEl.textContent = sampleIn || '（暂无样例）';
+        soutEl.textContent = sampleOut || '（暂无样例）';
+        preview.style.display = 'block';
+    }
+
+    async runPromptChallengeEvaluate() {
+        const errorEl = document.getElementById('pc-error');
+        const summaryEl = document.getElementById('pc-summary');
+        const detailsEl = document.getElementById('pc-details');
+        const btn = document.getElementById('pc-run');
+
+        const challengeSel = document.getElementById('pc-challenge-select');
+        const promptEl = document.getElementById('pc-prompt');
+        const modeEl = document.getElementById('pc-mode');
+        const modelEl = document.getElementById('pc-model');
+        const maxCasesEl = document.getElementById('pc-max-cases');
+
+        if (errorEl) errorEl.style.display = 'none';
+        if (summaryEl) summaryEl.style.display = 'none';
+        if (detailsEl) detailsEl.innerHTML = `<div style="padding: 18px; text-align:center; color:#999;">评测中...</div>`;
+
+        const challengeId = challengeSel ? String(challengeSel.value || '').trim() : '';
+        const prompt = promptEl ? String(promptEl.value || '') : '';
+        const mode = modeEl ? String(modeEl.value || 'normal') : 'normal';
+
+        if (!challengeId) {
+            if (errorEl) { errorEl.textContent = '请先选择挑战题'; errorEl.style.display = 'block'; }
+            return;
+        }
+        if (!prompt.trim()) {
+            if (errorEl) { errorEl.textContent = '请填写 Prompt'; errorEl.style.display = 'block'; }
+            return;
+        }
+
+        // 保存输入（本地）
+        localStorage.setItem('pc_prompt', prompt);
+        localStorage.setItem('pc_mode', mode);
+        if (modelEl) localStorage.setItem('pc_model', String(modelEl.value || ''));
+        localStorage.setItem('pc_challenge_id', challengeId);
+        if (maxCasesEl) localStorage.setItem('pc_max_cases', String(maxCasesEl.value || ''));
+
+        const payload = {
+            // Java 后端为表单参数（camelCase）；ApiService 也兼容 snake_case，但这里统一用 camelCase 更清晰
+            challengeId,
+            prompt,
+            mode,
+            model: modelEl ? String(modelEl.value || '').trim() || null : null,
+            maxCases: (maxCasesEl && String(maxCasesEl.value || '').trim()) ? Number(maxCasesEl.value) : null,
+            debug: true
+        };
+        // 记录本次请求（用于页面 log 展示，注意脱敏）
+        this.lastPromptChallengePayload = payload;
+
+        const oldText = btn ? btn.textContent : '';
+        if (btn) { btn.disabled = true; btn.textContent = '评测中...'; }
+
+        try {
+            const res = await this.apiService.promptChallengeEvaluate(payload);
+            this.renderPromptChallengeResult(res);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '评测失败';
+            if (errorEl) { errorEl.textContent = msg; errorEl.style.display = 'block'; }
+            if (detailsEl) detailsEl.innerHTML = `<div style="padding: 18px; text-align:center; color:#ff4d4f;">失败：${msg}</div>`;
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = oldText || '开始评测'; }
+        }
+    }
+
+    renderPromptChallengeResult(res) {
+        const summaryEl = document.getElementById('pc-summary');
+        const detailsEl = document.getElementById('pc-details');
+        if (!summaryEl || !detailsEl) return;
+
+        const total = Number(res.total || 0);
+        const passed = Number(res.passed || 0);
+        const caseScore = Number(res.case_score || 0);
+        const q = res.quality || {};
+        const qCoeff = Number(res.quality_coeff || q.coeff || 1);
+        const finalScore = Number(res.final_score || 0);
+        const finalBeforeCopy = Number(res.final_score_before_copy || 0);
+        const copyPenalty = (res.copy_penalty != null) ? Number(res.copy_penalty) : 1;
+        const copyCheck = res.copy_check || null;
+        const tokens = Number(res.tokens || 0);
+
+        const dims = (q && q.dims) ? q.dims : {};
+        const _fmtDim = (k, v) => {
+            try {
+                if (k === 'chars') return String(parseInt(String(v), 10) || 0);
+                if (typeof v === 'number' && Number.isFinite(v)) return v.toFixed(3);
+                const fv = Number(v);
+                if (Number.isFinite(fv)) return fv.toFixed(3);
+                return String(v ?? '');
+            } catch (e) {
+                return String(v ?? '');
+            }
+        };
+        const dimRows = Object.keys(dims).map(k => `<div style="display:flex; gap:8px;"><span style="width:120px; color:#666;">${k}</span><span style="color:#111827; font-weight:700;">${this.escapeHtml(_fmtDim(k, dims[k]))}</span></div>`).join('');
+        const reasons = Array.isArray(q.reasons) ? q.reasons : [];
+
+        summaryEl.innerHTML = `
+            <div style="display:flex; gap:14px; flex-wrap:wrap; align-items:flex-start;">
+                <div style="min-width: 260px;">
+                    <div style="font-size: 12px; color:#666;">挑战</div>
+                    <div style="font-size: 14px; font-weight: 800; color:#111827;">${res.challenge_name || res.challenge_id || '-'}</div>
+                    ${copyCheck ? `
+                    <div style="margin-top: 8px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <div style="padding: 2px 8px; border-radius: 999px; border:1px solid ${copyCheck.is_copy ? '#ffccc7' : '#b7eb8f'}; background:#fff; font-size: 12px; font-weight: 800; color:${copyCheck.is_copy ? '#a8071a' : '#135200'};">
+                            ${copyCheck.is_copy ? '疑似复制题面' : '未发现复制'}
+                        </div>
+                        <div style="font-size: 12px; color:#999;">confidence=${(Number(copyCheck.confidence || 0)).toFixed(3)}</div>
+                        <div style="font-size: 12px; color:#999;">penalty=${Number.isFinite(copyPenalty) ? copyPenalty.toFixed(3) : '1.000'}</div>
+                    </div>` : ``}
+                    <div style="margin-top: 10px; display:flex; gap:10px; flex-wrap:wrap;">
+                        <div style="padding: 10px 12px; border:1px solid #f0f0f0; border-radius: 12px; background:#fff;">
+                            <div style="font-size: 12px; color:#666;">CaseScore</div>
+                            <div style="font-size: 18px; font-weight: 900; color:#111827;">${(caseScore * 100).toFixed(3)}%</div>
+                            <div style="font-size: 12px; color:#999;">${passed}/${total}</div>
+                        </div>
+                        <div style="padding: 10px 12px; border:1px solid #f0f0f0; border-radius: 12px; background:#fff;">
+                            <div style="font-size: 12px; color:#666;">QualityCoeff</div>
+                            <div style="font-size: 18px; font-weight: 900; color:#111827;">${qCoeff.toFixed(3)}</div>
+                            <div style="font-size: 12px; color:#999;">mode=${res.mode || '-'}</div>
+                        </div>
+                        <div style="padding: 10px 12px; border:1px solid #f0f0f0; border-radius: 12px; background:#fff;">
+                            <div style="font-size: 12px; color:#666;">Final</div>
+                            <div style="font-size: 18px; font-weight: 900; color:#111827;">${(finalScore * 100).toFixed(3)}%</div>
+                            <div style="font-size: 12px; color:#999;">beforeCopy=${(finalBeforeCopy * 100).toFixed(3)}% · tokens=${tokens}</div>
+                        </div>
+                    </div>
+                </div>
+                <div style="flex:1; min-width: 320px;">
+                    <div style="font-size: 12px; color:#666;">质量分项（启发式）</div>
+                    <div style="margin-top: 6px; display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; font-size: 12px;">
+                        ${dimRows || '<div style="color:#999;">（无）</div>'}
+                    </div>
+                    <div style="margin-top: 10px; font-size: 12px; color:#666;">
+                        <div style="font-weight: 800; color:#111827; margin-bottom: 6px;">建议</div>
+                        <ul style="margin:0; padding-left: 18px; color:#374151; line-height:1.6;">
+                            ${reasons.map(x => `<li>${String(x)}</li>`).join('')}
+                        </ul>
+                    </div>
+                    ${copyCheck && Array.isArray(copyCheck.reasons) && copyCheck.reasons.length ? `
+                    <div style="margin-top: 10px; font-size: 12px; color:#666;">
+                        <div style="font-weight: 800; color:#111827; margin-bottom: 6px;">复制检测原因</div>
+                        <ul style="margin:0; padding-left: 18px; color:#374151; line-height:1.6;">
+                            ${copyCheck.reasons.map(x => `<li>${String(x)}</li>`).join('')}
+                        </ul>
+                    </div>` : ``}
+                </div>
+            </div>
+
+            <details style="margin-top: 12px;">
+                <summary style="cursor:pointer; font-size: 12px; color:#666;">本次请求（log，api_key 已脱敏）</summary>
+                <pre style="margin:8px 0 0 0; white-space:pre-wrap; word-break:break-word; background:#0b1020; color:#e6edf3; padding: 10px; border-radius: 10px; max-height: 260px; overflow:auto;">${this.escapeHtml(JSON.stringify(this.maskPromptChallengePayload(this.lastPromptChallengePayload), null, 2))}</pre>
+            </details>
+            <details style="margin-top: 10px;">
+                <summary style="cursor:pointer; font-size: 12px; color:#666;">原始返回 JSON（log）</summary>
+                <pre style="margin:8px 0 0 0; white-space:pre-wrap; word-break:break-word; background:#0b1020; color:#e6edf3; padding: 10px; border-radius: 10px; max-height: 320px; overflow:auto;">${this.escapeHtml(JSON.stringify(res || {}, null, 2))}</pre>
+            </details>
+        `;
+        summaryEl.style.display = 'block';
+
+        const rows = (res.details || []).map((d, i) => {
+            const ok = !!d.pass;
+            const bg = ok ? '#f6ffed' : '#fff2f0';
+            const bd = ok ? '#b7eb8f' : '#ffccc7';
+            const t = (d && (d.tokens ?? d.token ?? d.used_tokens)) != null ? Number(d.tokens ?? d.token ?? d.used_tokens) : null;
+            return `
+                <div style="border-top:1px solid #f0f0f0; padding: 12px; background:${bg};">
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <div style="font-weight: 900; color:#111827;">Case ${d.case || (i + 1)}</div>
+                        <div style="padding: 2px 8px; border-radius: 999px; border:1px solid ${bd}; background:#fff; font-size: 12px; font-weight: 800; color:${ok ? '#135200' : '#a8071a'};">
+                            ${ok ? 'PASS' : 'FAIL'}
+                        </div>
+                        ${t != null && Number.isFinite(t) ? `<div style="font-size: 12px; color:#999;">tokens=${t}</div>` : ``}
+                    </div>
+                    <div style="margin-top: 8px; display:grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items:start;">
+                        <div>
+                            <div style="font-size: 12px; color:#666; margin-bottom: 6px;">input</div>
+                            <pre style="margin:0; white-space:pre-wrap; word-break:break-word; background:#0b1020; color:#e6edf3; padding: 10px; border-radius: 10px; max-height: 160px; overflow:auto;">${this.escapeHtml(String(d.input || ''))}</pre>
+                        </div>
+                        <div>
+                            <div style="font-size: 12px; color:#666; margin-bottom: 6px;">expected / prediction</div>
+                            <div style="display:flex; gap:10px;">
+                                <pre style="flex:1; margin:0; white-space:pre-wrap; word-break:break-word; background:#111827; color:#f9fafb; padding: 10px; border-radius: 10px; max-height: 160px; overflow:auto;">${this.escapeHtml(String(d.expected || ''))}</pre>
+                                <pre style="flex:1; margin:0; white-space:pre-wrap; word-break:break-word; background:#111827; color:#f9fafb; padding: 10px; border-radius: 10px; max-height: 160px; overflow:auto;">${this.escapeHtml(String(d.prediction || ''))}</pre>
+                            </div>
+                        </div>
+                    </div>
+                    <details style="margin-top: 10px;">
+                        <summary style="cursor:pointer; font-size: 12px; color:#666;">raw_output（展开）</summary>
+                        <pre style="margin:8px 0 0 0; white-space:pre-wrap; word-break:break-word; background:#0b1020; color:#e6edf3; padding: 10px; border-radius: 10px; max-height: 200px; overflow:auto;">${this.escapeHtml(String(d.raw_output || ''))}</pre>
+                    </details>
+                </div>
+            `;
+        }).join('');
+
+        detailsEl.innerHTML = rows ? `<div style="border-radius: 12px; overflow:hidden;">${rows}</div>` : `<div style="padding: 18px; text-align:center; color:#999;">（无明细）</div>`;
+    }
+
+    escapeHtml(s) {
+        return String(s || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    maskPromptChallengePayload(payload) {
+        const p = payload ? JSON.parse(JSON.stringify(payload)) : {};
+        // api_key 不再由前端传参；无需脱敏
+        return p;
     }
 
     // ====== 知识点管理（tracker_tag）======

@@ -6,3 +6,11 @@ main.exe
 *.exe
 *.o
 *.out
+
+# local secrets (do NOT commit)
+.env
+.env.*
+prompt_challenge_demo/.env.local
+prompt_challenge_demo/.env
+prompt_challenge_demo/.secrets.json
+prompt_challenge_demo/local_config.json
