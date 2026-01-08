@@ -2273,7 +2273,7 @@ export class AdminView {
         const prettyDate = ymd ? ymd.replaceAll('-', '.') : 'YYYY.MM.DD';
         const dailyLink = 'https://www.nowcoder.com/problem/tracker';
         const qLink = String(questionLink || '').trim() || 'https://www.nowcoder.com/practice/{questionUuid}?channelPut=w252acm';
-        return `【每日一题讲解】${safeTitle} {${prettyDate}}\n每日打卡链接：${dailyLink}\n题目链接：${qLink}`;
+        return `【每日一题讲解】${safeTitle} ${prettyDate}\n每日打卡链接：${dailyLink}\n题目链接：${qLink}`;
     }
 
     async copyToClipboard(text) {
