@@ -50,6 +50,11 @@ export class AppState {
         this.adminCheckedUserId = null; // 已检查过管理员状态的用户ID（用于缓存）
         this.adminCheckPromise = null; // 正在进行的管理员检查Promise（避免并发请求）
 
+        // Dify 管理员（AI 助手权限）
+        this.isDifyAdmin = false;
+        this.difyAdminCheckedUserId = null;
+        this.difyAdminCheckPromise = null;
+
         // Prompt 测试资格（后端 gate）
         this.isPromptTester = false;
         this.promptTesterCheckedUserId = null;
@@ -139,6 +144,10 @@ export class AppState {
             this.isPromptTester = false;
             this.promptTesterCheckedUserId = null;
             this.promptTesterCheckPromise = null;
+
+            this.isDifyAdmin = false;
+            this.difyAdminCheckedUserId = null;
+            this.difyAdminCheckPromise = null;
         }
     }
     
@@ -235,6 +244,51 @@ export class AppState {
         })();
 
         return await this.promptTesterCheckPromise;
+    }
+
+    async checkDifyAdminStatus(apiService) {
+        if (!this.loggedInUserId) {
+            this.isDifyAdmin = false;
+            return false;
+        }
+
+        // 管理员默认放行（避免超级管理员被误挡）
+        if (this.isAdmin === true) {
+            this.isDifyAdmin = true;
+            this.difyAdminCheckedUserId = this.loggedInUserId;
+            return true;
+        }
+
+        if (this.difyAdminCheckedUserId === this.loggedInUserId) {
+            return this.isDifyAdmin;
+        }
+
+        if (this.difyAdminCheckPromise) {
+            return await this.difyAdminCheckPromise;
+        }
+
+        this.difyAdminCheckPromise = (async () => {
+            try {
+                const ok = await apiService.checkDifyAdmin();
+                this.isDifyAdmin = ok === true;
+                this.difyAdminCheckedUserId = this.loggedInUserId;
+                console.log(`[AppState] Dify 管理员判定结果 (isDifyAdmin):`, this.isDifyAdmin, `(用户ID: ${this.loggedInUserId})`);
+                return this.isDifyAdmin;
+            } catch (error) {
+                console.error('[AppState] 检查 Dify 管理员状态失败:', error);
+                this.isDifyAdmin = false;
+                this.difyAdminCheckedUserId = this.loggedInUserId;
+                return false;
+            } finally {
+                this.difyAdminCheckPromise = null;
+            }
+        })();
+
+        return await this.difyAdminCheckPromise;
+    }
+
+    canAccessDify() {
+        return this.isAdmin === true || this.isDifyAdmin === true;
     }
 
     canAccessPrompt() {

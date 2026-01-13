@@ -25,6 +25,7 @@ import { AdminView } from './views/AdminView.js';
 import { PromptView } from './views/PromptView.js';
 import { OutputDemoView } from './views/learn/OutputDemoView.js';
 import { DigitDPDemoView } from './views/learn/DigitDPDemoView.js';
+import { DifyView } from './views/DifyView.js';
 import { AchievementNotifier } from './services/AchievementNotifier.js';
 
 export class NowcoderTracker {
@@ -106,7 +107,9 @@ export class NowcoderTracker {
             // admin container
             adminContainer: document.getElementById('admin-container'),
             // prompt container
-            promptContainer: document.getElementById('prompt-container')
+            promptContainer: document.getElementById('prompt-container'),
+            // dify container
+            difyContainer: document.getElementById('dify-container')
         };
     }
     
@@ -125,6 +128,7 @@ export class NowcoderTracker {
             profile: new ProfileView(this.elements, this.state, this.apiService),
             admin: new AdminView(this.elements, this.state, this.apiService),
             prompt: new PromptView(this.elements, this.state, this.apiService),
+            dify: new DifyView(this.elements, this.state, this.apiService),
             // 学习 Demo（不属于主 tab，但需要在全局初始化以订阅事件）
             outputDemo: new OutputDemoView(this.elements, this.state, this.apiService),
             digitDpDemo: new DigitDPDemoView(this.elements, this.state, this.apiService)
@@ -437,6 +441,8 @@ export class NowcoderTracker {
             this.updateAdminTabVisibility();
             // 显示/隐藏 Prompt 页签（当前与管理员相同：仅 admin 可见）
             this.updatePromptTabVisibility();
+            // 显示/隐藏 Dify 页签（基于配置）
+            this.updateDifyTabVisibility();
 
             // 显示/隐藏“清题库缓存”按钮（仅管理员）
             const cacheBtn = document.getElementById('contest-cache-clear-btn');
@@ -506,6 +512,7 @@ export class NowcoderTracker {
             // 初始化时更新管理员页签可见性（detectAndSetLoggedInUser 已经检查了管理员状态）
             this.updateAdminTabVisibility();
             this.updatePromptTabVisibility();
+            this.updateDifyTabVisibility();
             const cacheBtn = document.getElementById('contest-cache-clear-btn');
             if (cacheBtn) cacheBtn.style.display = this.state.isAdmin ? 'inline-block' : 'none';
         } catch (_) { /* ignore login bootstrap errors */ }
@@ -541,6 +548,15 @@ export class NowcoderTracker {
     }
     
     switchMainTab(tabName, options = {}) {
+        const normalizedPre = this.normalizeTabName(tabName);
+        // AI 助手权限 gate：无权限则不允许进入 dify
+        if (normalizedPre === 'dify') {
+            const ok = (this.state && this.state.canAccessDify) ? this.state.canAccessDify() : (this.state && this.state.isAdmin === true);
+            if (!ok) {
+                alert('无权限访问 AI 助手（需要 Dify 管理员权限）');
+                tabName = 'daily';
+            }
+        }
         // 更新导航栏active状态
         this.updateNavActiveState(tabName);
         // 将当前标签写入哈希，保持可分享/可返回
@@ -684,6 +700,9 @@ export class NowcoderTracker {
             case 'prompt':
                 this.views.prompt.render();
                 break;
+            case 'dify':
+                this.views.dify.render();
+                break;
         }
         
         // 发布事件
@@ -797,7 +816,7 @@ export class NowcoderTracker {
 
     normalizeTabName(name) {
         const key = String(name || '').toLowerCase();
-        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','battle','activity','team','profile','faq','changelog','admin','prompt']);
+        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','battle','activity','team','profile','faq','changelog','admin','prompt','dify']);
         if (key.startsWith('team/')) return 'team';
         if (key.startsWith('invitet') || key.startsWith('inviteTeam'.toLowerCase())) return 'team';
         if (allowed.has(key)) return key;
@@ -805,6 +824,30 @@ export class NowcoderTracker {
         if (key === 'skills' || key === 'skill' || key === 'skilltree') return 'skill-tree';
         if (key === 'contest' || key === 'practice' || key === 'interview') return 'problems';
         return 'daily';
+    }
+
+    /**
+     * 更新 Dify 页签的显示/隐藏状态
+     */
+    updateDifyTabVisibility() {
+        const difyNavItem = document.getElementById('dify-nav-item');
+        const difyTabBtn = document.getElementById('dify-tab-btn');
+        let enabled = false;
+        try {
+            const config = JSON.parse(localStorage.getItem('tracker_dify_config') || '{}');
+            enabled = !!config.enabled;
+        } catch (_) {}
+
+        // 仅当配置了 enabled=true 且 当前用户具备 AI 助手权限（Dify 管理员）时显示
+        const shouldShow = enabled && (this.state.canAccessDify ? this.state.canAccessDify() : this.state.isAdmin === true);
+
+        if (shouldShow) {
+            if (difyNavItem) difyNavItem.style.display = '';
+            if (difyTabBtn) difyTabBtn.style.display = '';
+        } else {
+            if (difyNavItem) difyNavItem.style.display = 'none';
+            if (difyTabBtn) difyTabBtn.style.display = 'none';
+        }
     }
 
     /**
@@ -870,6 +913,7 @@ export class NowcoderTracker {
                     await this.state.checkAdminStatus(this.apiService);
                     // 注意：Prompt gate 本身也会放行管理员，但这里仍做一次检查以支持非管理员白名单用户
                     await this.state.checkPromptTestAccessStatus(this.apiService);
+                    await this.state.checkDifyAdminStatus(this.apiService);
                     eventBus.emit(EVENTS.USER_LOGIN, { uid, user: d.user || null, ...d });
                 }
             } else {
@@ -877,6 +921,7 @@ export class NowcoderTracker {
                 this.state.setLoggedInUser(null, null);
                 this.state.isAdmin = false;
                 this.state.isPromptTester = false;
+                this.state.isDifyAdmin = false;
             }
         } catch (_) {
             // 忽略错误，不影响其它页面加载
@@ -1107,7 +1152,7 @@ export class NowcoderTracker {
         });
         
         // 根据tabName映射到导航栏项
-        // 导航栏顺序：首页(0), 题库(1), 排行榜(2), 技能树(3), 成就(4), 对战(5), 团队(6), 竞赛(7), 活动(8), 我的(9), 管理员(10)
+        // 导航栏顺序：首页(0), 题库(1), 排行榜(2), 技能树(3), 成就(4), 对战(5), 团队(6), 竞赛(7), 活动(8), 我的(9), AI(10), 管理员(11)
         const navMap = {
             'daily': 0,         // 首页
             'problems': 1,      // 题库
@@ -1117,7 +1162,8 @@ export class NowcoderTracker {
             'battle': 5,        // 对战
             'team': 6,          // 团队
             'activity': 8,      // 活动（在竞赛后面）
-            'profile': 9        // 我的
+            'profile': 9,       // 我的
+            'dify': 10          // AI
         };
         
         const navIndex = navMap[tabName];

@@ -63,6 +63,370 @@ export class ApiService {
         return body.toString();
     }
 
+    // ==================== Admin tools (browser direct) ====================
+    /**
+     * 管理员工具：调用 QMS 模拟录题接口（直连 questionbank.nowcoder.com）
+     * 注意：该接口是否可用取决于：
+     * - 当前浏览器是否已登录且具备录题权限（cookie）
+     * - CORS 是否允许在当前域名下读取响应
+     *
+     * @param {object} payload request body（JSON）
+     * @returns {Promise<{ok:boolean,status:number,text:string,json:any|null}>}
+     */
+    async adminQmsDraftAdd(payload) {
+        const ts = Date.now();
+        // 本地（qsmcgogo/localhost）优先走同源反代 /__qms/，避免 CORS；
+        // 部署到 www 时走直连 questionbank（要求：浏览器已登录 questionbank 且 CORS+credentials 放行 www）
+        let url = `https://questionbank.nowcoder.com/qms/question/draft/add?_=${encodeURIComponent(ts)}`;
+        try {
+            const h = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '';
+            if (h && h !== 'www.nowcoder.com') {
+                url = `/__qms/question/draft/add?_=${encodeURIComponent(ts)}`;
+            }
+        } catch (_) {}
+        try {
+            // 前端兜底：允许 AdminView 在 payload 里塞入 __tracker_extra_headers（不影响上游，因为我们不把它序列化到 body）
+            const extraHeaders = (payload && payload.__tracker_extra_headers && typeof payload.__tracker_extra_headers === 'object')
+                ? payload.__tracker_extra_headers
+                : {};
+            const autoHeaders = this._buildQmsAutoHeaders(extraHeaders);
+            const bodyPayload = { ...(payload || {}) };
+            delete bodyPayload.__tracker_extra_headers;
+            const res = await fetch(url, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json, text/plain, */*',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...autoHeaders
+                },
+                body: JSON.stringify(bodyPayload)
+            });
+            const text = await res.text().catch(() => '');
+            let json = null;
+            try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
+            return { ok: !!res.ok, status: res.status, text, json };
+        } catch (e) {
+            // CORS / network failure usually becomes TypeError: Failed to fetch
+            const msg = e && e.message ? e.message : 'Failed to fetch';
+            throw new Error(`QMS 调用失败（可能是 CORS 或未登录/无权限）：${msg}`);
+        }
+    }
+
+    /**
+     * 管理员工具：调用 QMS draft/update（更新草稿快照）
+     * @param {object} payload request body（JSON，必须包含 id/qid）
+     * @returns {Promise<{ok:boolean,status:number,text:string,json:any|null}>}
+     */
+    async adminQmsDraftUpdate(payload) {
+        const ts = Date.now();
+        let url = `https://questionbank.nowcoder.com/qms/question/draft/update?_=${encodeURIComponent(ts)}`;
+        try {
+            const h = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '';
+            if (h && h !== 'www.nowcoder.com') {
+                url = `/__qms/question/draft/update?_=${encodeURIComponent(ts)}`;
+            }
+        } catch (_) {}
+        try {
+            const extraHeaders = (payload && payload.__tracker_extra_headers && typeof payload.__tracker_extra_headers === 'object')
+                ? payload.__tracker_extra_headers
+                : {};
+            const autoHeaders = this._buildQmsAutoHeaders(extraHeaders);
+            const bodyPayload = { ...(payload || {}) };
+            delete bodyPayload.__tracker_extra_headers;
+            const res = await fetch(url, {
+                method: 'POST',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json, text/plain, */*',
+                    'X-Requested-With': 'XMLHttpRequest',
+                    ...autoHeaders
+                },
+                body: JSON.stringify(bodyPayload)
+            });
+            const text = await res.text().catch(() => '');
+            let json = null;
+            try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
+            return { ok: !!res.ok, status: res.status, text, json };
+        } catch (e) {
+            const msg = e && e.message ? e.message : 'Failed to fetch';
+            throw new Error(`QMS Update 调用失败（可能是 CORS 或未登录/无权限）：${msg}`);
+        }
+    }
+
+    /**
+     * 管理员工具：调用 QMS /question（最终保存/提交题目主体）
+     * @param {object} payload request body（JSON，通常包含 id/uuid 等）
+     * @returns {Promise<{ok:boolean,status:number,text:string,json:any|null,url?:string,tried?:Array}>}
+     */
+    async adminQmsQuestionUpsert(payload) {
+        const extraHeaders = (payload && payload.__tracker_extra_headers && typeof payload.__tracker_extra_headers === 'object')
+            ? payload.__tracker_extra_headers
+            : {};
+        const bodyPayload = { ...(payload || {}) };
+        delete bodyPayload.__tracker_extra_headers;
+        const urls = this._qmsApiUrlCandidates('question');
+        const init = {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...this._buildQmsAutoHeaders(extraHeaders)
+            },
+            body: JSON.stringify(bodyPayload)
+        };
+        const out = await this._fetchFirstOkJson(urls, init, 'question');
+        return { ok: out.ok, status: out.status, text: out.text, json: out.json, url: out.url, tried: out.tried || [] };
+    }
+
+    /**
+     * 审题：拉取下一题/题目快照（中台接口：/qms/review/next-question）
+     * @param {object} payload {curQid: [qid], scene: 1}
+     */
+    async adminQmsReviewNextQuestion(payload) {
+        const extraHeaders = (payload && payload.__tracker_extra_headers && typeof payload.__tracker_extra_headers === 'object')
+            ? payload.__tracker_extra_headers
+            : {};
+        const bodyPayload = { ...(payload || {}) };
+        delete bodyPayload.__tracker_extra_headers;
+        const urls = this._qmsApiUrlCandidates('review/next-question');
+        const init = {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...this._buildQmsAutoHeaders(extraHeaders)
+            },
+            body: JSON.stringify(bodyPayload)
+        };
+        const out = await this._fetchFirstOkJson(urls, init, 'review/next-question');
+        return { ok: out.ok, status: out.status, text: out.text, json: out.json, url: out.url, tried: out.tried || [] };
+    }
+
+    /**
+     * 审题：确认（中台接口：/qms/review/confirm）
+     * @param {object} payload {question: {...}, type: 1}
+     */
+    async adminQmsReviewConfirm(payload) {
+        const extraHeaders = (payload && payload.__tracker_extra_headers && typeof payload.__tracker_extra_headers === 'object')
+            ? payload.__tracker_extra_headers
+            : {};
+        const bodyPayload = { ...(payload || {}) };
+        delete bodyPayload.__tracker_extra_headers;
+        const urls = this._qmsApiUrlCandidates('review/confirm');
+        const init = {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...this._buildQmsAutoHeaders(extraHeaders)
+            },
+            body: JSON.stringify(bodyPayload)
+        };
+        const out = await this._fetchFirstOkJson(urls, init, 'review/confirm');
+        return { ok: out.ok, status: out.status, text: out.text, json: out.json, url: out.url, tried: out.tried || [] };
+    }
+
+    /**
+     * 设置题目开放范围（中台接口：/qms/question/open-library/save）
+     * @param {object} payload {questionId, type, ids, openScopes}
+     */
+    async adminQmsQuestionOpenLibrarySave(payload) {
+        const extraHeaders = (payload && payload.__tracker_extra_headers && typeof payload.__tracker_extra_headers === 'object')
+            ? payload.__tracker_extra_headers
+            : {};
+        const bodyPayload = { ...(payload || {}) };
+        delete bodyPayload.__tracker_extra_headers;
+        const urls = this._qmsApiUrlCandidates('question/open-library/save');
+        const init = {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...this._buildQmsAutoHeaders(extraHeaders)
+            },
+            body: JSON.stringify(bodyPayload)
+        };
+        const out = await this._fetchFirstOkJson(urls, init, 'question/open-library/save');
+        return { ok: out.ok, status: out.status, text: out.text, json: out.json, url: out.url, tried: out.tried || [] };
+    }
+
+    _buildQmsAutoHeaders(extra = {}) {
+        const out = { ...(extra || {}) };
+        try {
+            const ls = (typeof window !== 'undefined' && window.localStorage) ? window.localStorage : null;
+            if (ls) {
+                const pick = (keys) => {
+                    for (const k of keys) {
+                        const v = ls.getItem(k);
+                        if (v && String(v).trim()) return String(v).trim();
+                    }
+                    return '';
+                };
+                // 常见 token/csrf 字段（猜测/兜底）
+                const csrf = pick(['csrfToken', 'CSRF_TOKEN', 'XSRF-TOKEN', 'xsrfToken', 'xcsrf', 'qms_csrf', 'qmsCsrf']);
+                const token = pick(['token', 'accessToken', 'ACCESS_TOKEN', 'qms_token', 'qmsToken', 'qb_token', 'qbToken']);
+                const client = pick(['clientId', 'CLIENT_ID', 'qms_client', 'qmsClientId', 'qb_client', 'qbClientId']);
+                const verify = pick(['clientVerify', 'CLIENT_VERIFY', 'qms_verify', 'qmsVerify', 'qb_verify', 'qbVerify']);
+
+                if (csrf) {
+                    out['x-csrf-token'] = csrf;
+                    out['X-CSRF-TOKEN'] = csrf;
+                }
+                if (token) {
+                    // 有的系统用 token header，有的用 Authorization
+                    out['token'] = token;
+                    if (!out['Authorization']) out['Authorization'] = `Bearer ${token}`;
+                }
+                if (client) out['x-client-id'] = client;
+                if (verify) out['x-client-verify'] = verify;
+            }
+        } catch (_) {}
+        return out;
+    }
+
+    _qmsApiUrl(pathWithQuery = '') {
+        const ts = Date.now();
+        const p = String(pathWithQuery || '').replace(/^\//, '');
+        let base = `https://questionbank.nowcoder.com/qms/${p}`;
+        try {
+            const h = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '';
+            if (h && h !== 'www.nowcoder.com') {
+                base = `/__qms/${p}`;
+            }
+        } catch (_) {}
+        if (!/[?&]_=\d+/.test(base)) {
+            base += (base.includes('?') ? '&' : '?') + `_=${encodeURIComponent(ts)}`;
+        }
+        return base;
+    }
+
+    _qmsApiUrlCandidates(pathWithQuery = '') {
+        const ts = Date.now();
+        const p = String(pathWithQuery || '').replace(/^\//, '');
+        const withTs = (u) => {
+            if (!/[?&]_=\d+/.test(u)) return u + (u.includes('?') ? '&' : '?') + `_=${encodeURIComponent(ts)}`;
+            return u;
+        };
+        let h = '';
+        try { h = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : ''; } catch (_) {}
+        // www 部署：优先直连 questionbank
+        if (!h || h === 'www.nowcoder.com') {
+            return [withTs(`https://questionbank.nowcoder.com/qms/${p}`)];
+        }
+        // 非 www（本地/qsmcgogo）：优先同源反代；若某些环境未配置 /__qms，则回退 /qms；
+        // 再兜底走 /__qb/qms（通过站点反代路径访问 qms），用于极端情况下 API 反代缺失。
+        // 注意：非同源环境直接访问 questionbank 往往触发 CORS，浏览器会 NetworkError（HTTP 0），因此默认不尝试直连。
+        const isOnQuestionbank = (h === 'questionbank.nowcoder.com');
+        return [
+            withTs(`/__qms/${p}`),
+            withTs(`/qms/${p}`),
+            withTs(`/__qb/qms/${p}`),
+            ...(isOnQuestionbank ? [withTs(`https://questionbank.nowcoder.com/qms/${p}`)] : [])
+        ];
+    }
+
+    async _fetchFirstOkJson(urls, fetchInit, tag = 'QMS') {
+        let last = null;
+        const tried = [];
+        for (const u of urls) {
+            try {
+                const res = await fetch(u, fetchInit);
+                const text = await res.text().catch(() => '');
+                let json = null;
+                try { json = text ? JSON.parse(text) : null; } catch (_) { json = null; }
+                const out = { ok: !!res.ok, status: res.status, text, json, url: u };
+                tried.push({ url: u, status: res.status });
+                // 若 http ok 或业务 code=0，则直接返回
+                if (out.ok || (out.json && (out.json.code === 0 || out.json.code === 200))) {
+                    out.tried = tried;
+                    return out;
+                }
+                last = out;
+            } catch (e) {
+                tried.push({ url: u, status: 0 });
+                last = { ok: false, status: 0, text: (e && e.message) ? String(e.message) : 'Failed to fetch', json: null, url: u };
+            }
+        }
+        if (last) {
+            last.tried = tried;
+            return last;
+        }
+        return { ok: false, status: 0, text: `${tag} failed`, json: null, url: '', tried };
+    }
+
+    async adminQmsTestcaseCredential(type = 0, extraHeaders = {}) {
+        // 线上观测存在两套路径：/qms/upload/credential 与 /qms/question/testcase/upload/credential
+        const urls = [
+            ...this._qmsApiUrlCandidates(`upload/credential?type=${encodeURIComponent(type)}`),
+            ...this._qmsApiUrlCandidates(`question/testcase/upload/credential?type=${encodeURIComponent(type)}`)
+        ];
+        const init = {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...this._buildQmsAutoHeaders(extraHeaders)
+            }
+        };
+        const out = await this._fetchFirstOkJson(urls, init, 'credential');
+        return { ok: out.ok, status: out.status, text: out.text, json: out.json, url: out.url };
+    }
+
+    async adminQmsTestcaseUploadAsync(payload, extraHeaders = {}) {
+        const urls = [
+            ...this._qmsApiUrlCandidates('question/testcase/upload/async'),
+            ...this._qmsApiUrlCandidates('upload/async')
+        ];
+        const init = {
+            method: 'POST',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...this._buildQmsAutoHeaders(extraHeaders)
+            },
+            body: JSON.stringify(payload || {})
+        };
+        const out = await this._fetchFirstOkJson(urls, init, 'async');
+        return { ok: out.ok, status: out.status, text: out.text, json: out.json, url: out.url };
+    }
+
+    async adminQmsTestcaseUploadStatus(taskId, extraHeaders = {}) {
+        // 观测到：credential 在 /qms/upload/credential；但 status 很可能仍在 /qms/question/testcase/upload/status
+        // 这里保留多路径兜底，同时把尝试过的 URL/状态返回给上层，便于快速定位真实接口。
+        const urls = [
+            // ✅ 已抓包确认：中台/题库轮询走该接口
+            ...this._qmsApiUrlCandidates(`async/task/status?taskId=${encodeURIComponent(taskId || '')}`),
+            ...this._qmsApiUrlCandidates(`question/testcase/upload/status?taskId=${encodeURIComponent(taskId || '')}`),
+            ...this._qmsApiUrlCandidates(`question/testcase/upload/status?taskId=${encodeURIComponent(taskId || '')}&type=0`),
+            ...this._qmsApiUrlCandidates(`upload/status?taskId=${encodeURIComponent(taskId || '')}`)
+        ];
+        const init = {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...this._buildQmsAutoHeaders(extraHeaders)
+            }
+        };
+        const out = await this._fetchFirstOkJson(urls, init, 'status');
+        return { ok: out.ok, status: out.status, text: out.text, json: out.json, url: out.url, tried: out.tried || [] };
+    }
+
     // 团队题单排行榜（一次返回累计/7日/今日）
     async teamTopicLeaderboard(teamId, topicId, page = 1, limit = 20) {
         const p = Math.max(1, Number(page) || 1);
@@ -2150,6 +2514,29 @@ export class ApiService {
             return false;
         } catch (error) {
             console.error('[ApiService] 检查管理员状态失败:', error);
+            return false;
+        }
+    }
+
+    /**
+     * 检查当前用户是否是 Dify 管理员（用于 AI 助手权限）
+     * @returns {Promise<boolean>}
+     */
+    async checkDifyAdmin() {
+        try {
+            const url = `${this.apiBase}/problem/tracker/dify/admin/check`;
+            const res = await fetch(url, {
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (data && (data.code === 0 || data.code === 200)) {
+                return (data.data && data.data.isAdmin) === true;
+            }
+            return false;
+        } catch (error) {
+            console.error('[ApiService] 检查 Dify 管理员状态失败:', error);
             return false;
         }
     }

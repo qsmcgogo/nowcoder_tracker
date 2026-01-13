@@ -658,7 +658,7 @@ export class PromptView {
                     <div style="padding: 12px; border-bottom:1px solid #f0f0f0; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
                         <div style="font-size: 13px; font-weight: 900; color:#111827;">提交 Prompt（AI 生成代码）</div>
                         <div style="flex:1;"></div>
-                        <button id="pcg-generate-btn" class="admin-btn" type="button">生成代码</button>
+                        <div style="font-size: 12px; color:#6b7280;">评测将绑定本次生成时的 Prompt（防止“改 Prompt 刷分”）</div>
                     </div>
 
                     <div style="padding: 12px;">
@@ -676,7 +676,7 @@ export class PromptView {
                             <pre id="pcg-code" style="margin-top: 8px; white-space:pre; overflow:auto; background:#0b1020; color:#e6edf3; padding: 10px; border-radius: 12px; max-height: 360px;">（尚未生成）</pre>
                             <div style="margin-top: 10px; display:flex; justify-content:flex-end; gap:10px; align-items:center;">
                                 <button id="pcg-copy-code" class="admin-btn modal-secondary" type="button" style="display:none;">复制代码</button>
-                                <button id="pcg-eval-btn" class="admin-btn modal-secondary" type="button" disabled>提交评测</button>
+                                <button id="pcg-run-btn" class="admin-btn" type="button">生成并提交评测</button>
                             </div>
                         </div>
                     </div>
@@ -801,8 +801,7 @@ export class PromptView {
         if (this.subTab !== 'code') return;
         const p = this.getCurrentCodeProblem();
         const sel = document.getElementById('pcg-problem-select');
-        const genBtn = document.getElementById('pcg-generate-btn');
-        const evalBtn = document.getElementById('pcg-eval-btn');
+        const runBtn = document.getElementById('pcg-run-btn');
         const promptEl = document.getElementById('pcg-prompt');
         const copyBtn = document.getElementById('pcg-copy-code');
 
@@ -827,13 +826,9 @@ export class PromptView {
                 localStorage.setItem(`prompt_code_prompt_${p.id}`, String(promptEl.value || ''));
             });
         }
-        if (genBtn && !genBtn._bound) {
-            genBtn._bound = true;
-            genBtn.addEventListener('click', () => this.runCodeGenerate());
-        }
-        if (evalBtn && !evalBtn._bound) {
-            evalBtn._bound = true;
-            evalBtn.addEventListener('click', () => this.runCodeEvaluate());
+        if (runBtn && !runBtn._bound) {
+            runBtn._bound = true;
+            runBtn.addEventListener('click', () => this.runCodeGenerateAndEvaluate());
         }
         if (copyBtn && !copyBtn._bound) {
             copyBtn._bound = true;
@@ -848,7 +843,228 @@ export class PromptView {
         }
     }
 
+    async runCodeGenerateAndEvaluate() {
+        // 合并：生成代码 + 立即提交评测（评测绑定生成时 Prompt 快照）
+        if (this.codegenRunning || this.evalRunning) return;
+        const p = this.getCurrentCodeProblem();
+        const errEl = document.getElementById('pcg-error');
+        const promptEl = document.getElementById('pcg-prompt');
+        const runBtn = document.getElementById('pcg-run-btn');
+        const codeEl = document.getElementById('pcg-code');
+        const metaEl = document.getElementById('pcg-code-meta');
+        const copyBtn = document.getElementById('pcg-copy-code');
+        const resEl = document.getElementById('pcg-result');
+
+        if (errEl) errEl.style.display = 'none';
+        if (resEl) { resEl.style.display = 'none'; resEl.textContent = ''; }
+
+        const userPrompt = String(promptEl ? promptEl.value : '').trim();
+        if (!userPrompt) {
+            if (errEl) { errEl.textContent = '请先填写 Prompt'; errEl.style.display = 'block'; }
+            return;
+        }
+        // 保存用户输入
+        localStorage.setItem(`prompt_code_prompt_${p.id}`, userPrompt);
+
+        this.codegenRunning = true;
+        this.evalRunning = true;
+        if (runBtn) { runBtn.disabled = true; runBtn.textContent = '生成中...'; }
+        if (codeEl) codeEl.textContent = '（生成中...）';
+        if (metaEl) metaEl.textContent = '';
+        if (copyBtn) copyBtn.style.display = 'none';
+
+        // ====== 1) 生成代码（并保存 Prompt 快照）======
+        const payload = {
+            problemId: p.id,
+            language: p.language,
+            problemJson: {
+                title: p.title,
+                description: p.description,
+                input_spec: p.inputSpec,
+                output_spec: p.outputSpec,
+                sample_input: p.sampleInput,
+                sample_output: p.sampleOutput
+            },
+            prompt: userPrompt,
+            model: localStorage.getItem('pc_model') || null,
+        };
+
+        let usedCode = '';
+        let usedLang = String(p.language || 'cpp');
+        try {
+            const r = await this.apiService.promptCodeGenerate(payload);
+            const code = String(r.code || '');
+            const lang = String(r.language || p.language || 'cpp');
+            const tokens = Number(r.tokens || 0);
+            if (!code) throw new Error('后端未返回 code（接口待接入）');
+            this.codegenCode = code;
+            this.codegenLang = lang;
+            this.codegenTokens = Number.isFinite(tokens) ? tokens : 0;
+            this.codegenMeta = r.meta || null;
+            usedCode = code;
+            usedLang = lang;
+            if (codeEl) codeEl.textContent = code;
+            if (metaEl) metaEl.textContent = `lang=${lang}${this.codegenTokens ? ` · tokens=${this.codegenTokens}` : ''}`;
+            if (copyBtn) copyBtn.style.display = '';
+        } catch (e) {
+            // 前端占位 demo：给一个可运行解（仅用于 UI 演示；后端接入后会覆盖）
+            const demoCode = [
+                '// Demo fallback (backend not connected yet)',
+                '// Read 10 integers and print them in reverse order.',
+                '#include <bits/stdc++.h>',
+                'using namespace std;',
+                'int main(){',
+                '    ios::sync_with_stdio(false);',
+                '    cin.tie(nullptr);',
+                '    vector<long long> a; a.reserve(10);',
+                '    long long x;',
+                '    while (cin >> x) {',
+                '        a.push_back(x);',
+                '        if ((int)a.size() >= 10) break;',
+                '    }',
+                '    for (int i = (int)a.size() - 1; i >= 0; i--) {',
+                '        if (i != (int)a.size() - 1) cout << " ";',
+                '        cout << a[i];',
+                '    }',
+                '    return 0;',
+                '}',
+                ''
+            ].join('\n');
+            this.codegenCode = demoCode;
+            this.codegenLang = 'cpp';
+            this.codegenTokens = 0;
+            usedCode = demoCode;
+            usedLang = 'cpp';
+            if (codeEl) codeEl.textContent = demoCode;
+            if (metaEl) metaEl.textContent = '使用前端占位 Demo 代码（后端接口未接入）';
+            if (copyBtn) copyBtn.style.display = '';
+            if (errEl) {
+                errEl.textContent = `后端生成接口不可用：${e?.message || 'unknown'}（已使用占位 Demo 代码）`;
+                errEl.style.display = 'block';
+            }
+        }
+
+        // 关键：绑定评测到“生成时 Prompt 快照 + 生成出来的 code”
+        this.codegenPromptSnapshot = userPrompt;
+        this.codegenPromptSnapshotAt = Date.now();
+        this.codegenCodeSnapshot = usedCode;
+        this.codegenLangSnapshot = usedLang;
+
+        // ====== 2) 评测（使用快照 prompt，避免用户修改 prompt 投机）======
+        try {
+            if (runBtn) runBtn.textContent = '评测中...';
+
+            const mode = 'normal';
+            const qid = String(p.qid || '').trim();
+            const promptSnap = String(this.codegenPromptSnapshot || '').trim();
+            if (!promptSnap) throw new Error('评测失败：未获取到生成时 Prompt 快照');
+
+            const quality = await this.apiService.promptQualityScore({ prompt: promptSnap, mode, debug: false });
+            const orig = await this.apiService.promptOriginalityCheck({ qid, prompt: promptSnap, debug: false });
+            this.lastPromptOnlyScoreData = { quality, originality: orig };
+
+            // ====== 同时模拟“编程题提交”链路：提交生成代码（绑定 code 快照）======
+            if (this.codegenCodeSnapshot) {
+                const uid = this.state?.loggedInUserId ? String(this.state.loggedInUserId) : '';
+                const accessToken = await this.apiService.judgeAccessToken();
+                this.lastJudgeTokenResp = { ok: true, accessToken: accessToken ? `${String(accessToken).slice(0, 6)}***${String(accessToken).slice(-6)}` : '' };
+                const judgePayload = {
+                    content: String(this.codegenCodeSnapshot),
+                    questionId: String(p.qid),
+                    language: "2",
+                    tagId: 0,
+                    appId: 9,
+                    userId: uid || "0",
+                    submitType: 1,
+                    remark: "{}",
+                    token: accessToken || ""
+                };
+                const submitResp = await this.apiService.judgeSubmit(judgePayload);
+                this.lastJudgeSubmitResp = submitResp;
+
+                const extractSubmitId = (r) => {
+                    try {
+                        const d = r && r.data;
+                        if (typeof d === 'number') return d;
+                        if (typeof d === 'string') return d;
+                        if (d && typeof d === 'object') {
+                            if (d.id != null) return d.id;
+                            if (d.submissionId != null) return d.submissionId;
+                        }
+                    } catch (e) { }
+                    return null;
+                };
+                const submitId = (submitResp && submitResp.code === 0) ? extractSubmitId(submitResp) : null;
+                if (submitId) {
+                    const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+                    const isDone = (statusResp) => {
+                        try {
+                            const d = statusResp && statusResp.data ? statusResp.data : {};
+                            const s = Number(d.status);
+                            const en = String(d.enJudgeReplyDesc || '');
+                            const enLower = en.toLowerCase();
+                            if (enLower.includes('waiting') || enLower.includes('judging') || enLower.includes('pending') || enLower.includes('running')) return false;
+                            const allCaseNum = d.allCaseNum != null ? Number(d.allCaseNum) : 0;
+                            if (allCaseNum > 0 && d.testCaseResults) {
+                                try {
+                                    const arr = typeof d.testCaseResults === 'string' ? JSON.parse(d.testCaseResults) : d.testCaseResults;
+                                    if (Array.isArray(arr) && arr.length >= allCaseNum) return true;
+                                } catch (_) { /* ignore */ }
+                            }
+                            if (Number.isFinite(s) && [4, 5, 6, 7, 8, 13].includes(s)) return true;
+                            if (en && enLower && !enLower.includes('waiting')) return true;
+                            return false;
+                        } catch (e) { return false; }
+                    };
+
+                    if (runBtn) runBtn.textContent = '等待评测中...';
+                    const params = {
+                        id: submitId,
+                        tagId: 0,
+                        appId: 9,
+                        userId: uid || "0",
+                        submitType: 1,
+                        remark: "{}",
+                        token: accessToken || ""
+                    };
+                    let last = null;
+                    const deadline = Date.now() + 90_000;
+                    while (Date.now() < deadline) {
+                        last = await this.apiService.judgeSubmitStatus(params);
+                        this.lastJudgeStatusResp = last;
+                        if (last && last.code != null && Number(last.code) !== 0) break;
+                        if (isDone(last)) break;
+                        await sleep(1000);
+                    }
+                } else if (submitResp && submitResp.code === 0) {
+                    this.lastJudgeStatusResp = { code: -1, msg: 'submit ok but missing id', data: submitResp.data };
+                }
+            }
+
+            this.showCodeEvalModal();
+        } catch (e) {
+            if (errEl) {
+                errEl.textContent = e?.message || '评测失败';
+                errEl.style.display = 'block';
+            }
+        } finally {
+            this.codegenRunning = false;
+            this.evalRunning = false;
+            if (runBtn) { runBtn.disabled = false; runBtn.textContent = '生成并提交评测'; }
+        }
+    }
+
+    // 兼容旧入口（历史代码可能仍在调用），统一走合并链路
     async runCodeGenerate() {
+        return await this.runCodeGenerateAndEvaluate();
+    }
+
+    // 兼容旧入口（历史代码可能仍在调用），统一走合并链路
+    async runCodeEvaluate() {
+        return await this.runCodeGenerateAndEvaluate();
+    }
+
+    async runCodeGenerate_DEPRECATED() {
         if (this.codegenRunning) return;
         const p = this.getCurrentCodeProblem();
         const errEl = document.getElementById('pcg-error');
@@ -954,7 +1170,7 @@ export class PromptView {
         }
     }
 
-    async runCodeEvaluate() {
+    async runCodeEvaluate_DEPRECATED() {
         if (this.evalRunning) return;
         const p = this.getCurrentCodeProblem();
         const errEl = document.getElementById('pcg-error');

@@ -8,7 +8,7 @@ export class AdminView {
         this.container = elements.adminContainer;
         this.apiService = apiService;
         this.state = state;
-        this.currentTab = 'clock'; // 'clock' | 'battle' | 'import' | 'yearReport' | 'tag' | 'contestDifficulty' | 'promptChallenge'
+        this.currentTab = 'clock'; // 'clock' | 'battle' | 'import' | 'yearReport' | 'tag' | 'contestDifficulty' | 'promptChallenge' | 'qmsDraft'
         this.clockPage = 1;
         this.battlePage = 1;
         this.battleSubTab = 'manage'; // 'manage' | 'histogram'
@@ -23,6 +23,8 @@ export class AdminView {
         this.adminYearReportLast = null;
         // Prompt Challenge demo
         this.promptChallengeListCache = null;
+        // QMS 录题测试：保留最近一次响应（便于排查）
+        this.qmsDraftLastResult = null;
     }
 
     /**
@@ -75,6 +77,12 @@ export class AdminView {
                     <button id="admin-tab-prompt-challenge" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
                         Prompt 挑战评测
                     </button>
+                    <button id="admin-tab-qms-draft" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
+                        QMS 录题测试
+                    </button>
+                    <button id="admin-tab-dify" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
+                        Dify 配置
+                    </button>
                 </div>
 
                 <!-- 每日一题管理 -->
@@ -111,6 +119,16 @@ export class AdminView {
                 <div id="admin-prompt-challenge-panel" class="admin-panel" style="display: none;">
                     ${this.renderPromptChallengePanel()}
                 </div>
+
+                <!-- QMS Draft Add 测试（管理员工具） -->
+                <div id="admin-qms-draft-panel" class="admin-panel" style="display: none;">
+                    ${this.renderQmsDraftPanel()}
+                </div>
+
+                <!-- Dify 配置 -->
+                <div id="admin-dify-panel" class="admin-panel" style="display: none;">
+                    ${this.renderDifyPanel()}
+                </div>
             </div>
         `;
 
@@ -121,6 +139,169 @@ export class AdminView {
         this.loadClockList();
         this.loadBattleList();
         this.loadTagList();
+    }
+
+    renderQmsDraftPanel() {
+        const host = (() => {
+            try { return (typeof window !== 'undefined' && window.location) ? window.location.hostname : ''; } catch (_) { return ''; }
+        })();
+        // 本地：走 /__qb/ 在同源下登录（cookie 写到当前域，配合 /__qms/ 直调接口）
+        // 线上：www 直接打开 questionbank
+        const qbLink = (host === 'www.nowcoder.com') ? 'https://questionbank.nowcoder.com/' : '/__qb/';
+        // 录题包 JSON：优先使用管理员导入的 JSON；未导入时使用示例模板
+        const imported = (() => {
+            try { return JSON.parse(localStorage.getItem('tracker_qms_problem_json') || ''); } catch (_) { return null; }
+        })();
+        const payloadAdd = this.buildQmsDraftAddPayload(imported);
+        const pretty = JSON.stringify(payloadAdd, null, 2);
+        const importedHint = imported ? `已导入录题 JSON：${(imported?.basic?.title || imported?.title || '')}` : '尚未导入录题 JSON：将使用默认示例';
+        const lastQid = (() => {
+            try { return localStorage.getItem('tracker_qms_last_qid') || ''; } catch (_) { return ''; }
+        })();
+        const savedHeaders = (() => {
+            try { return localStorage.getItem('admin_qms_draft_headers') || ''; } catch (_) { return ''; }
+        })();
+        const zipName = (this._qmsZipFile && this._qmsZipFile.name) ? this._qmsZipFile.name : '';
+        const sourceZipName = (this._qmsSourceZipFile && this._qmsSourceZipFile.name) ? this._qmsSourceZipFile.name : '';
+        return `
+            <div style="background:#fff; border:1px solid #e8e8e8; border-radius: 12px; padding: 16px;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div style="font-size: 16px; font-weight: 800; color:#333;">QMS 模拟录题接口测试</div>
+                    <div style="font-size: 12px; color:#999;">（仅管理员可见）</div>
+                    <div style="flex:1;"></div>
+                    <a id="admin-qms-open" class="admin-btn modal-secondary" style="padding: 9px 14px; text-decoration:none;" href="${qbLink}" target="_blank" rel="noopener noreferrer">打开 questionbank</a>
+                    <button id="admin-qms-oneclick" class="admin-btn" style="padding: 9px 14px; font-weight:900; background:#52c41a; color:#fff;" type="button">一键录题</button>
+                </div>
+
+                <div style="margin-top: 10px; font-size: 13px; color:#666; line-height: 1.65;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST https://questionbank.nowcoder.com/qms/question/draft/add</code><br/>
+                    使用前提：<b>同一浏览器</b>已登录 <b>questionbank</b>（与 www 不是同一套 cookie）。<br/>
+                    本地建议：先点“打开 questionbank”在当前域完成登录（走 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">/__qb/</code>），再回到这里点“发送请求”。<br/>
+                    说明：Tracker（部署在 www）直连会尝试携带 questionbank 的 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">cookie</code>（<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">credentials: include</code>），但能否<strong>读到返回值/qid</strong>还取决于：<br/>
+                    - questionbank 是否对 www 放行 <b>CORS + credentials</b><br/>
+                    - 浏览器是否允许第三方 Cookie（若提示 <b>Failed to fetch</b>，常见原因是 CORS 或第三方 Cookie 被拦）
+                </div>
+
+                <div style="margin-top: 12px; padding: 12px; border:1px solid #f0f0f0; border-radius: 12px; background: linear-gradient(180deg,#fbfdff,#ffffff);">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="font-size: 13px; font-weight: 800; color:#111827;">一键录题输入（录题包 JSON）</div>
+                        <div style="font-size: 12px; color:#999;">${importedHint}</div>
+                        <div style="flex:1;"></div>
+                        <input id="admin-qms-problem-json-file" type="file" accept=".json,application/json" style="display:none;" />
+                        <button id="admin-qms-problem-json-choose" class="admin-btn modal-secondary" style="padding: 7px 10px;" type="button">选择 JSON</button>
+                        <button id="admin-qms-problem-json-clear" class="admin-btn modal-secondary" style="padding: 7px 10px;" type="button">清空 JSON</button>
+                    </div>
+                    <div id="admin-qms-problem-json-msg" style="margin-top: 8px; font-size: 12px; color:#666;"></div>
+                    <pre id="admin-qms-problem-json-preview" style="margin-top: 8px; margin-bottom:0; background:#0b1020; color:#e6edf3; padding: 10px 12px; border-radius: 10px; overflow:auto; max-height: 220px;">${imported ? JSON.stringify(imported, null, 2) : '（未导入）'}</pre>
+                </div>
+
+                <div style="margin-top: 12px; padding: 12px; border:1px solid #f0f0f0; border-radius: 12px; background: linear-gradient(180deg,#fbfdff,#ffffff);">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="font-size: 13px; font-weight: 800; color:#111827;">一键录题包（source.zip）</div>
+                        <div style="font-size: 12px; color:#999;">结构：source.zip 内含 <b>problem.json</b> + <b>data.zip</b>（用例）</div>
+                        <div style="flex:1;"></div>
+                        <input id="admin-qms-source-zip-file" type="file" accept=".zip,application/zip" style="display:none;" />
+                        <button id="admin-qms-source-zip-choose" class="admin-btn modal-secondary" style="padding: 7px 10px;" type="button">选择 source.zip</button>
+                        <button id="admin-qms-source-zip-clear" class="admin-btn modal-secondary" style="padding: 7px 10px;" type="button">清空 source.zip</button>
+                    </div>
+                    <div id="admin-qms-source-zip-msg" style="margin-top: 8px; font-size: 12px; color:#666;">${sourceZipName ? `已选择：${sourceZipName}` : ''}</div>
+                </div>
+
+                <div style="margin-top: 12px; padding: 12px; border:1px solid #f0f0f0; border-radius: 12px; background: linear-gradient(180deg,#fbfdff,#ffffff);">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="font-size: 13px; font-weight: 800; color:#111827;">可选：用例压缩包（cases.zip）</div>
+                        <div style="font-size: 12px; color:#999;">${zipName ? `已选择：${zipName}` : '未选择：将跳过用例上传'}</div>
+                        <div style="flex:1;"></div>
+                        <input id="admin-qms-cases-zip-file" type="file" accept=".zip,application/zip" style="display:none;" />
+                        <button id="admin-qms-cases-zip-choose" class="admin-btn modal-secondary" style="padding: 7px 10px;" type="button">选择 ZIP</button>
+                        <button id="admin-qms-cases-zip-clear" class="admin-btn modal-secondary" style="padding: 7px 10px;" type="button">清空 ZIP</button>
+                    </div>
+                    <div id="admin-qms-cases-zip-msg" style="margin-top: 8px; font-size: 12px; color:#666;"></div>
+                </div>
+
+                <div id="admin-qms-draft-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div id="admin-qms-draft-qid2" style="margin-top: 6px; font-size: 12px; color:#666;">
+                    当前缓存 qid：<b>${lastQid ? lastQid : '（无）'}</b>
+                </div>
+                <div style="margin-top: 10px; font-size: 12px; color:#666;">
+                    可选：如果仍提示“客户端验证错误”，可以从题库页面 Network 里复制 <b>Request Headers</b>（Raw 文本或 JSON 都可）粘到下面。<br/>
+                    小技巧：只要成功一次，我们会把你填的 headers <b>自动保存</b>（localStorage）。之后即使输入框清空，也会自动使用已保存的内容。
+                </div>
+                <textarea id="admin-qms-draft-headers" rows="6" placeholder='支持两种格式：&#10;1) JSON：{"x-csrf-token":"...","x-client-verify":"..."}&#10;2) Raw：x-csrf-token: ...&#10;   x-client-verify: ...'
+                          style="width:100%; margin-top:6px; padding: 10px; border:1px solid #ddd; border-radius: 10px; font-size: 12px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;"></textarea>
+                <div style="margin-top: 6px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div id="admin-qms-draft-headers-hint" style="font-size: 12px; color:#999;">
+                        ${savedHeaders ? '已检测到本地保存的 headers：留空也可以直接发送。' : '尚未保存 headers：如遇“客户端验证错误”，请粘贴一次成功请求的 headers。'}
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-qms-draft-headers-clear" class="admin-btn modal-secondary" style="padding: 7px 10px;" type="button">清除已保存</button>
+                </div>
+
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 700; margin-bottom: 6px;">进度</div>
+                    <pre id="admin-qms-draft-result" style="margin:0; background:#111827; color:#f9fafb; padding: 12px; border-radius: 10px; overflow:auto; max-height: 260px;">（等待开始）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    renderDifyPanel() {
+        const config = (() => {
+            try { return JSON.parse(localStorage.getItem('tracker_dify_config') || '{}'); } catch (_) { return {}; }
+        })();
+        const url = config.url || '';
+        const enabled = config.enabled || false;
+
+        return `
+            <div style="background:#fff; border:1px solid #e8e8e8; border-radius: 12px; padding: 16px;">
+                <div style="font-size: 16px; font-weight: 800; color:#333; margin-bottom: 8px;">Dify 助手配置</div>
+                <div style="font-size: 13px; color:#666; margin-bottom: 16px; line-height: 1.6;">
+                    在这里配置 Dify Chatbot 的嵌入链接。配置后，将在主导航栏显示“AI 助手”入口。<br>
+                    嵌入代码示例：<code>http://dify.nowcoder.com/chatbot/oe5JwJTQVFiwYvn6</code><br>
+                    <span style="color:#ff9c6e;">⚠️ 注意：如果 Tracker 使用 HTTPS 访问，建议配置 <b>https://</b> 开头的链接，否则可能会被浏览器拦截导致白屏。</span>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display:block; font-size: 13px; font-weight: 600; margin-bottom: 6px;">Chatbot URL</label>
+                    <input id="admin-dify-url" type="text" value="${url}" placeholder="请输入 Dify Chatbot URL"
+                           style="width: 100%; max-width: 600px; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px;">
+                </div>
+
+                <div style="margin-bottom: 20px; display:flex; align-items:center; gap: 8px;">
+                    <input id="admin-dify-enabled" type="checkbox" ${enabled ? 'checked' : ''} style="width: 16px; height: 16px;">
+                    <label for="admin-dify-enabled" style="font-size: 14px; cursor: pointer;">启用 AI 助手页签</label>
+                </div>
+
+                <button id="admin-dify-save-btn" class="admin-btn" style="padding: 10px 24px; font-weight:700;">保存配置</button>
+                <span id="admin-dify-msg" style="margin-left: 12px; font-size: 13px;"></span>
+            </div>
+        `;
+    }
+
+    saveDifyConfig() {
+        const urlInput = document.getElementById('admin-dify-url');
+        const enabledInput = document.getElementById('admin-dify-enabled');
+        const msgEl = document.getElementById('admin-dify-msg');
+        
+        if (!urlInput || !enabledInput) return;
+
+        const config = {
+            url: urlInput.value.trim(),
+            enabled: enabledInput.checked
+        };
+
+        localStorage.setItem('tracker_dify_config', JSON.stringify(config));
+        
+        if (msgEl) {
+            msgEl.textContent = '✅ 保存成功';
+            msgEl.style.color = '#52c41a';
+            setTimeout(() => { msgEl.textContent = ''; }, 3000);
+        }
+        
+        // 尝试即时更新全局导航栏
+        if (window.app && typeof window.app.updateDifyTabVisibility === 'function') {
+            window.app.updateDifyTabVisibility();
+        }
     }
 
     renderPromptChallengePanel() {
@@ -598,10 +779,1190 @@ export class AdminView {
         `;
     }
 
+    async adminClearUserMirrors() {
+        const uidInput = document.getElementById('admin-clear-user-mirrors-uid');
+        const errorEl = document.getElementById('admin-clear-user-mirrors-error');
+        const resultEl = document.getElementById('admin-clear-user-mirrors-result');
+        const btn = document.getElementById('admin-clear-user-mirrors-btn');
+
+        if (!uidInput || !errorEl || !resultEl || !btn) return;
+        errorEl.style.display = 'none';
+
+        const uid = parseInt(String(uidInput.value || '').trim(), 10);
+        if (!uid || uid <= 0) {
+            errorEl.textContent = '请填写有效的 userId（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        localStorage.setItem('admin_clear_user_mirrors_uid', String(uid));
+
+        const ok = confirm(
+            `确认清理该用户的所有镜像？\n\nuserId=${uid}\n\n说明：只清理 Redis 镜像数据（镜像池/分桶/索引/队列），用于紧急处理异常刷镜像。`
+        );
+        if (!ok) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '清理中...';
+        resultEl.textContent = `请求中...\nuserId=${uid}\n`;
+
+        try {
+            const data = await this.apiService.adminClearUserMirrors(uid);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            alert(`清理完成：total=${data?.total ?? '-'}，removed=${data?.removed ?? '-'}，missing=${data?.missing ?? '-'}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '清理失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '执行清理';
+        }
+    }
+
     /**
-     * 绑定事件
+     * 切换标签页
      */
+    switchTab(tab) {
+        this.currentTab = tab;
+        const clockPanel = document.getElementById('admin-clock-panel');
+        const battlePanel = document.getElementById('admin-battle-panel');
+        const tagPanel = document.getElementById('admin-tag-panel');
+        const importPanel = document.getElementById('admin-import-panel');
+        const yearReportPanel = document.getElementById('admin-year-report-panel');
+        const contestDifficultyPanel = document.getElementById('admin-contest-difficulty-panel');
+        const pcPanel = document.getElementById('admin-prompt-challenge-panel');
+        const qmsPanel = document.getElementById('admin-qms-draft-panel');
+        const clockBtn = document.getElementById('admin-tab-clock');
+        const battleBtn = document.getElementById('admin-tab-battle');
+        const tagBtn = document.getElementById('admin-tab-tag');
+        const importBtn = document.getElementById('admin-tab-import');
+        const yearReportBtn = document.getElementById('admin-tab-year-report');
+        const contestDifficultyBtn = document.getElementById('admin-tab-contest-difficulty');
+        const pcBtn = document.getElementById('admin-tab-prompt-challenge');
+        const qmsBtn = document.getElementById('admin-tab-qms-draft');
+        const difyBtn = document.getElementById('admin-tab-dify');
+
+        // hide all
+        clockPanel.style.display = 'none';
+        battlePanel.style.display = 'none';
+        if (tagPanel) tagPanel.style.display = 'none';
+        if (importPanel) importPanel.style.display = 'none';
+        if (yearReportPanel) yearReportPanel.style.display = 'none';
+        if (contestDifficultyPanel) contestDifficultyPanel.style.display = 'none';
+        if (pcPanel) pcPanel.style.display = 'none';
+        if (qmsPanel) qmsPanel.style.display = 'none';
+        const difyPanel = document.getElementById('admin-dify-panel');
+        if (difyPanel) difyPanel.style.display = 'none';
+
+        // reset btn styles
+        clockBtn.style.color = '#666';
+        clockBtn.style.borderBottomColor = 'transparent';
+        battleBtn.style.color = '#666';
+        battleBtn.style.borderBottomColor = 'transparent';
+        if (tagBtn) {
+            tagBtn.style.color = '#666';
+            tagBtn.style.borderBottomColor = 'transparent';
+        }
+        if (importBtn) {
+            importBtn.style.color = '#666';
+            importBtn.style.borderBottomColor = 'transparent';
+        }
+        if (yearReportBtn) {
+            yearReportBtn.style.color = '#666';
+            yearReportBtn.style.borderBottomColor = 'transparent';
+        }
+        if (contestDifficultyBtn) {
+            contestDifficultyBtn.style.color = '#666';
+            contestDifficultyBtn.style.borderBottomColor = 'transparent';
+        }
+        if (pcBtn) {
+            pcBtn.style.color = '#666';
+            pcBtn.style.borderBottomColor = 'transparent';
+        }
+        if (qmsBtn) {
+            qmsBtn.style.color = '#666';
+            qmsBtn.style.borderBottomColor = 'transparent';
+        }
+        if (difyBtn) {
+            difyBtn.style.color = '#666';
+            difyBtn.style.borderBottomColor = 'transparent';
+        }
+
+        if (tab === 'clock') {
+            clockPanel.style.display = 'block';
+            clockBtn.style.color = '#1890ff';
+            clockBtn.style.borderBottomColor = '#1890ff';
+        } else if (tab === 'battle') {
+            battlePanel.style.display = 'block';
+            battleBtn.style.color = '#1890ff';
+            battleBtn.style.borderBottomColor = '#1890ff';
+            // 切到对战面板时，确保二级页签状态正确；若在 histogram 则拉取数据
+            try { this.setBattleSubTab(this.battleSubTab || 'manage'); } catch (_) {}
+        } else if (tab === 'tag' && tagPanel) {
+            tagPanel.style.display = 'block';
+            if (tagBtn) {
+                tagBtn.style.color = '#1890ff';
+                tagBtn.style.borderBottomColor = '#1890ff';
+            }
+            this.loadTagList(this.tagPage || 1);
+        } else if (tab === 'import' && importPanel) {
+            importPanel.style.display = 'block';
+            if (importBtn) {
+                importBtn.style.color = '#1890ff';
+                importBtn.style.borderBottomColor = '#1890ff';
+            }
+        } else if (tab === 'yearReport' && yearReportPanel) {
+            yearReportPanel.style.display = 'block';
+            if (yearReportBtn) {
+                yearReportBtn.style.color = '#1890ff';
+                yearReportBtn.style.borderBottomColor = '#1890ff';
+            }
+        } else if (tab === 'contestDifficulty' && contestDifficultyPanel) {
+            // 强制渲染：避免某些环境下初次渲染丢失/被清空导致 tab 内容为空
+            contestDifficultyPanel.innerHTML = this.renderContestDifficultyPanel();
+            // 重新绑定按钮事件（因为 innerHTML 重新注入会丢失事件）
+            const contestPreviewBtn = document.getElementById('admin-contest-difficulty-preview-btn');
+            const contestSubmitBtn = document.getElementById('admin-contest-difficulty-submit-btn');
+            if (contestPreviewBtn) contestPreviewBtn.addEventListener('click', () => this.handleContestDifficultyPreview());
+            if (contestSubmitBtn) contestSubmitBtn.addEventListener('click', () => this.handleContestDifficultySubmit());
+
+            contestDifficultyPanel.style.display = 'block';
+            if (contestDifficultyBtn) {
+                contestDifficultyBtn.style.color = '#1890ff';
+                contestDifficultyBtn.style.borderBottomColor = '#1890ff';
+            }
+        } else if (tab === 'promptChallenge' && pcPanel) {
+            // 强制渲染：避免之前 tab 的 innerHTML 覆盖影响
+            pcPanel.innerHTML = this.renderPromptChallengePanel();
+            // 重新绑定按钮事件
+            const pcRefreshBtn = document.getElementById('pc-refresh-challenges');
+            if (pcRefreshBtn) pcRefreshBtn.addEventListener('click', () => this.loadPromptChallengeList(true));
+            const pcRunBtn = document.getElementById('pc-run');
+            if (pcRunBtn) pcRunBtn.addEventListener('click', () => this.runPromptChallengeEvaluate());
+
+            pcPanel.style.display = 'block';
+            if (pcBtn) {
+                pcBtn.style.color = '#1890ff';
+                pcBtn.style.borderBottomColor = '#1890ff';
+            }
+            // 首次进入自动拉取题单
+            this.loadPromptChallengeList(false);
+        } else if (tab === 'qmsDraft' && qmsPanel) {
+            qmsPanel.innerHTML = this.renderQmsDraftPanel();
+            const qmsOneBtn = document.getElementById('admin-qms-oneclick');
+            if (qmsOneBtn) qmsOneBtn.addEventListener('click', () => this.adminQmsOneClick());
+            // 录题 JSON 导入/清空
+            const fileInput = document.getElementById('admin-qms-problem-json-file');
+            const chooseBtn = document.getElementById('admin-qms-problem-json-choose');
+            const clearBtn = document.getElementById('admin-qms-problem-json-clear');
+            const msgEl = document.getElementById('admin-qms-problem-json-msg');
+            const previewEl = document.getElementById('admin-qms-problem-json-preview');
+            const refreshPayloadPreview = () => {};
+            if (chooseBtn && fileInput) {
+                chooseBtn.addEventListener('click', () => fileInput.click());
+                fileInput.addEventListener('change', async () => {
+                    const f = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+                    if (!f) return;
+                    try {
+                        const text = await f.text();
+                        const obj = JSON.parse(text);
+                        // minimal validation
+                        const title = obj?.basic?.title || obj?.title;
+                        const content = obj?.statement?.content || obj?.content;
+                        if (!title || !content) throw new Error('缺少必要字段：basic.title 与 statement.content（或 title/content）');
+                        localStorage.setItem('tracker_qms_problem_json', JSON.stringify(obj));
+                        if (msgEl) { msgEl.textContent = `✅ 已导入：${title}`; msgEl.style.color = '#52c41a'; }
+                        if (previewEl) previewEl.textContent = JSON.stringify(obj, null, 2);
+                        refreshPayloadPreview();
+                    } catch (e) {
+                        const m = e && e.message ? e.message : '导入失败';
+                        if (msgEl) { msgEl.textContent = `❌ 导入失败：${m}`; msgEl.style.color = '#ff4d4f'; }
+                    } finally {
+                        // allow selecting the same file again
+                        fileInput.value = '';
+                    }
+                });
+            }
+            if (clearBtn) {
+                clearBtn.addEventListener('click', () => {
+                    try { localStorage.removeItem('tracker_qms_problem_json'); } catch (_) {}
+                    if (msgEl) { msgEl.textContent = '已清空录题 JSON（回退到默认示例）'; msgEl.style.color = '#999'; }
+                    if (previewEl) previewEl.textContent = '（未导入）';
+                    refreshPayloadPreview();
+                });
+            }
+
+            // source.zip 导入/清空：source.zip 内含 problem.json + data.zip
+            const srcZipInput = document.getElementById('admin-qms-source-zip-file');
+            const srcZipChooseBtn = document.getElementById('admin-qms-source-zip-choose');
+            const srcZipClearBtn = document.getElementById('admin-qms-source-zip-clear');
+            const srcZipMsgEl = document.getElementById('admin-qms-source-zip-msg');
+            if (srcZipChooseBtn && srcZipInput) {
+                srcZipChooseBtn.addEventListener('click', () => srcZipInput.click());
+                srcZipInput.addEventListener('change', async () => {
+                    const f = srcZipInput.files && srcZipInput.files[0] ? srcZipInput.files[0] : null;
+                    if (!f) return;
+                    if (srcZipMsgEl) { srcZipMsgEl.textContent = `解析中：${f.name}...`; srcZipMsgEl.style.color = '#999'; }
+                    try {
+                        const r = await this.adminQmsParseSourceZip(f);
+                        const parts = [];
+                        if (r.problemTitle) parts.push(`JSON：${r.problemTitle}`);
+                        if (r.dataZipName) parts.push(`data.zip：${r.dataZipName}（${Math.round((r.dataZipSize || 0) / 1024)} KB）`);
+                        if (srcZipMsgEl) { srcZipMsgEl.textContent = `✅ source.zip 解析完成：` + (parts.join('；') || '（未找到有效内容）'); srcZipMsgEl.style.color = '#52c41a'; }
+                        // 同步刷新 JSON 预览与 payload 预览
+                        try {
+                            const imported2 = (() => {
+                                try { return JSON.parse(localStorage.getItem('tracker_qms_problem_json') || ''); } catch (_) { return null; }
+                            })();
+                            if (previewEl) previewEl.textContent = imported2 ? JSON.stringify(imported2, null, 2) : '（未导入）';
+                            if (msgEl && imported2) {
+                                const title2 = imported2?.basic?.title || imported2?.title || '';
+                                msgEl.textContent = title2 ? `✅ 已导入：${title2}` : '✅ 已导入 JSON';
+                                msgEl.style.color = '#52c41a';
+                            }
+                            // 若 data.zip 注入成功，也同步提示到 cases.zip 区块
+                            const zipMsgEl2 = document.getElementById('admin-qms-cases-zip-msg');
+                            if (zipMsgEl2 && this._qmsZipFile) {
+                                zipMsgEl2.textContent = `✅ 已选择 ZIP：${this._qmsZipFile.name}（${Math.round((this._qmsZipFile.size || 0) / 1024)} KB）（来自 source.zip）`;
+                                zipMsgEl2.style.color = '#52c41a';
+                            }
+                        } catch (_) {}
+                        refreshPayloadPreview();
+                    } catch (e) {
+                        const m = e && e.message ? e.message : '解析失败';
+                        if (srcZipMsgEl) { srcZipMsgEl.textContent = `❌ source.zip 解析失败：${m}`; srcZipMsgEl.style.color = '#ff4d4f'; }
+                    } finally {
+                        srcZipInput.value = '';
+                    }
+                });
+            }
+            if (srcZipClearBtn) {
+                srcZipClearBtn.addEventListener('click', () => {
+                    this._qmsSourceZipFile = null;
+                    // 同时清空从 source.zip 注入的 JSON/用例（避免误用旧内容）
+                    try { localStorage.removeItem('tracker_qms_problem_json'); } catch (_) {}
+                    this._qmsZipFile = null;
+                    if (srcZipMsgEl) { srcZipMsgEl.textContent = '已清空 source.zip'; srcZipMsgEl.style.color = '#999'; }
+                    if (msgEl) { msgEl.textContent = '已清空录题 JSON（回退到默认示例）'; msgEl.style.color = '#999'; }
+                    if (previewEl) previewEl.textContent = '（未导入）';
+                    const zipMsgEl2 = document.getElementById('admin-qms-cases-zip-msg');
+                    if (zipMsgEl2) { zipMsgEl2.textContent = '已清空 ZIP（将跳过用例上传）'; zipMsgEl2.style.color = '#999'; }
+                    refreshPayloadPreview();
+                });
+            }
+
+            // 用例 ZIP 导入/清空（仅保存在内存里，不落 localStorage）
+            const zipInput = document.getElementById('admin-qms-cases-zip-file');
+            const zipChooseBtn = document.getElementById('admin-qms-cases-zip-choose');
+            const zipClearBtn = document.getElementById('admin-qms-cases-zip-clear');
+            const zipMsgEl = document.getElementById('admin-qms-cases-zip-msg');
+            if (zipChooseBtn && zipInput) {
+                zipChooseBtn.addEventListener('click', () => zipInput.click());
+                zipInput.addEventListener('change', () => {
+                    const f = zipInput.files && zipInput.files[0] ? zipInput.files[0] : null;
+                    if (!f) return;
+                    this._qmsZipFile = f;
+                    if (zipMsgEl) { zipMsgEl.textContent = `✅ 已选择 ZIP：${f.name}（${Math.round((f.size || 0) / 1024)} KB）`; zipMsgEl.style.color = '#52c41a'; }
+                    zipInput.value = '';
+                });
+            }
+            if (zipClearBtn) {
+                zipClearBtn.addEventListener('click', () => {
+                    this._qmsZipFile = null;
+                    if (zipMsgEl) { zipMsgEl.textContent = '已清空 ZIP（将跳过用例上传）'; zipMsgEl.style.color = '#999'; }
+                });
+            }
+            qmsPanel.style.display = 'block';
+            if (qmsBtn) {
+                qmsBtn.style.color = '#1890ff';
+                qmsBtn.style.borderBottomColor = '#1890ff';
+            }
+        } else if (tab === 'dify' && difyPanel) {
+            difyPanel.innerHTML = this.renderDifyPanel();
+            const saveBtn = document.getElementById('admin-dify-save-btn');
+            if (saveBtn) saveBtn.addEventListener('click', () => this.saveDifyConfig());
+            
+            difyPanel.style.display = 'block';
+            if (difyBtn) {
+                difyBtn.style.color = '#1890ff';
+                difyBtn.style.borderBottomColor = '#1890ff';
+            }
+        }
+    }
+
+    async adminQmsDraftAdd() {
+        const btn = document.getElementById('admin-qms-draft-send');
+        const errEl = document.getElementById('admin-qms-draft-error');
+        const qidEl = document.getElementById('admin-qms-draft-qid');
+        const payloadEl = document.getElementById('admin-qms-draft-payload');
+        const headersEl = document.getElementById('admin-qms-draft-headers');
+        const resultEl = document.getElementById('admin-qms-draft-result');
+        if (!btn || !errEl || !payloadEl || !resultEl) return;
+
+        errEl.style.display = 'none';
+        if (qidEl) { qidEl.style.display = 'none'; qidEl.textContent = ''; }
+
+        // payload 由录题 JSON 映射生成（页面上 pre 仅用于展示）
+        const imported = (() => {
+            try { return JSON.parse(localStorage.getItem('tracker_qms_problem_json') || ''); } catch (_) { return null; }
+        })();
+        const payload = this.buildQmsDraftAddPayload(imported);
+
+        let extraHeaders = {};
+        let rawHeaders = headersEl ? String(headersEl.value || '').trim() : '';
+        // 若用户没填，则尝试使用上次保存的 headers（避免每次复制）
+        if (!rawHeaders) {
+            try { rawHeaders = (localStorage.getItem('admin_qms_draft_headers') || '').trim(); } catch (_) {}
+        }
+        if (rawHeaders) {
+            try {
+                // 先尝试 JSON；失败则按 Raw headers 解析（Key: Value 每行）
+                if (rawHeaders.startsWith('{')) {
+                    const obj = JSON.parse(rawHeaders);
+                    if (obj && typeof obj === 'object') extraHeaders = obj;
+                } else {
+                    extraHeaders = this.parseRawHeaders(rawHeaders);
+                }
+            } catch (e) {
+                errEl.textContent = '自定义 Headers 解析失败：支持 JSON 或每行 "Key: Value" 的 Raw 文本';
+                errEl.style.display = 'block';
+                return;
+            }
+        }
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '发送中...';
+        resultEl.textContent = '请求中...';
+
+        try {
+            // 注：ApiService 内部会自动从 localStorage 取一些可能的 token/csrf/verify 头；
+            // 这里的 extraHeaders 用于人工兜底覆盖。
+            const resp = await this.apiService.adminQmsDraftAdd({ ...payload, __tracker_extra_headers: extraHeaders });
+            this.qmsDraftLastResult = resp;
+
+            const raw = resp.text || (resp.json ? JSON.stringify(resp.json, null, 2) : '');
+            resultEl.textContent = `HTTP ${resp.status}\n\n` + (raw || '（空响应）');
+
+            // Extract qid in a tolerant way
+            const j = resp.json;
+            const cand = (() => {
+                // most common: data is ["11610849"]
+                if (j && Array.isArray(j.data) && j.data.length > 0) return String(j.data[0]);
+                if (j && j.data && Array.isArray(j.data.data) && j.data.data.length > 0) return String(j.data.data[0]);
+                return [
+                    j && j.qid,
+                    j && j.data && j.data.qid,
+                    j && j.data && j.data.questionId,
+                    j && j.data && j.data.id
+                ].find(v => v !== undefined && v !== null && String(v) !== '');
+            })();
+            if (qidEl) {
+                if (cand != null) {
+                    qidEl.textContent = `✅ 解析到 qid：${cand}`;
+                    try { localStorage.setItem('tracker_qms_last_qid', String(cand)); } catch (_) {}
+                    // 即时刷新面板上的“当前缓存 qid”与 update payload 预览
+                    try {
+                        const qid2 = document.getElementById('admin-qms-draft-qid2');
+                        if (qid2) qid2.innerHTML = `当前缓存 qid：<b>${String(cand)}</b>`;
+                        const imported = (() => {
+                            try { return JSON.parse(localStorage.getItem('tracker_qms_problem_json') || ''); } catch (_) { return null; }
+                        })();
+                        const upd = this.buildQmsDraftUpdatePayload(imported, String(cand));
+                        const updEl = document.getElementById('admin-qms-draft-update-payload');
+                        if (updEl) updEl.textContent = JSON.stringify(upd, null, 2);
+                    } catch (_) {}
+                } else {
+                    const m = (j && (j.message || j.msg)) ? String(j.message || j.msg) : '';
+                    if (String(cand) === '' && m.includes('客户端验证')) {
+                        qidEl.textContent = '⚠️ 客户端验证错误：题库页面通常会带额外的校验 header（csrf/verify）。你可以从 Network 复制 Request Headers 粘到上面的框里再试。';
+                    } else {
+                        qidEl.textContent = '⚠️ 未解析到 qid：请看“响应（原样）”里字段名，并告诉我我再适配';
+                    }
+                }
+                qidEl.style.display = 'block';
+            }
+
+            // 如果业务 code=0，视为成功：保存 headers（只要存在 rawHeaders）
+            try {
+                const okBiz = resp && resp.json && (resp.json.code === 0 || resp.json.code === 200);
+                if (okBiz && rawHeaders) {
+                    localStorage.setItem('admin_qms_draft_headers', rawHeaders);
+                    const hint = document.getElementById('admin-qms-draft-headers-hint');
+                    if (hint) hint.textContent = '已保存 headers：留空也可以直接发送。';
+                }
+            } catch (_) {}
+        } catch (e) {
+            const msg = e && e.message ? e.message : '发送失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '发送请求';
+        }
+    }
+
+    async adminQmsDraftUpdate() {
+        const btn = document.getElementById('admin-qms-draft-update');
+        const errEl = document.getElementById('admin-qms-draft-error');
+        const qidEl = document.getElementById('admin-qms-draft-qid');
+        const headersEl = document.getElementById('admin-qms-draft-headers');
+        const resultEl = document.getElementById('admin-qms-draft-result');
+        if (!btn || !errEl || !resultEl) return;
+
+        errEl.style.display = 'none';
+        if (qidEl) { qidEl.style.display = 'none'; qidEl.textContent = ''; }
+
+        const imported = (() => { try { return JSON.parse(localStorage.getItem('tracker_qms_problem_json') || ''); } catch (_) { return null; } })();
+        const qid = (() => { try { return localStorage.getItem('tracker_qms_last_qid') || ''; } catch (_) { return ''; } })();
+        if (!qid) {
+            errEl.textContent = '请先创建草稿(add) 获取 qid，再进行 update';
+            errEl.style.display = 'block';
+            return;
+        }
+        const payload = this.buildQmsDraftUpdatePayload(imported, qid);
+
+        let extraHeaders = {};
+        let rawHeaders = headersEl ? String(headersEl.value || '').trim() : '';
+        if (!rawHeaders) {
+            try { rawHeaders = (localStorage.getItem('admin_qms_draft_headers') || '').trim(); } catch (_) {}
+        }
+        if (rawHeaders) {
+            try {
+                if (rawHeaders.startsWith('{')) {
+                    const obj = JSON.parse(rawHeaders);
+                    if (obj && typeof obj === 'object') extraHeaders = obj;
+                } else {
+                    extraHeaders = this.parseRawHeaders(rawHeaders);
+                }
+            } catch (_) {}
+        }
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '更新中...';
+        resultEl.textContent = '请求中...';
+
+        try {
+            const resp = await this.apiService.adminQmsDraftUpdate({ ...payload, __tracker_extra_headers: extraHeaders });
+            const raw = resp.text || (resp.json ? JSON.stringify(resp.json, null, 2) : '');
+            resultEl.textContent = `HTTP ${resp.status}\n\n` + (raw || '（空响应）');
+            // 成功时缓存 headers
+            try {
+                const okBiz = resp && resp.json && (resp.json.code === 0 || resp.json.code === 200);
+                if (okBiz && rawHeaders) localStorage.setItem('admin_qms_draft_headers', rawHeaders);
+            } catch (_) {}
+        } catch (e) {
+            const msg = e && e.message ? e.message : '更新失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '更新草稿(update)';
+        }
+    }
+
+    async adminQmsOneClick() {
+        const btn = document.getElementById('admin-qms-oneclick');
+        const errEl = document.getElementById('admin-qms-draft-error');
+        const resultEl = document.getElementById('admin-qms-draft-result');
+        const headersEl = document.getElementById('admin-qms-draft-headers');
+        if (!btn || !errEl || !resultEl) return;
+        errEl.style.display = 'none';
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '执行中...';
+        const log = (s) => { resultEl.textContent = String(s || ''); };
+        const step = (n, total, msg) => log(`进度：(${n}/${total}) ${msg}`);
+        log('进度：准备开始...');
+
+        // 复用 headers 解析/缓存逻辑：add -> update -> (zip) -> question -> review confirm -> open library
+        try {
+            // 解析 headers（若用户清空输入框，则回退使用已保存）
+            let rawHeaders = headersEl ? String(headersEl.value || '').trim() : '';
+            if (!rawHeaders) {
+                try { rawHeaders = (localStorage.getItem('admin_qms_draft_headers') || '').trim(); } catch (_) {}
+            }
+            let extraHeaders = {};
+            try {
+                if (rawHeaders) {
+                    if (rawHeaders.startsWith('{')) extraHeaders = JSON.parse(rawHeaders) || {};
+                    else extraHeaders = this.parseRawHeaders(rawHeaders);
+                }
+            } catch (_) { extraHeaders = {}; }
+
+            // 当前导入的录题 JSON
+            const imported = (() => { try { return JSON.parse(localStorage.getItem('tracker_qms_problem_json') || ''); } catch (_) { return null; } })();
+
+            // 1) add（拿 qid）
+            step(1, 6, '创建草稿（add）');
+            {
+                const payload = this.buildQmsDraftAddPayload(imported);
+                const resp = await this.apiService.adminQmsDraftAdd({ ...payload, __tracker_extra_headers: extraHeaders });
+                const j = resp && resp.json ? resp.json : null;
+                const qid = (j && Array.isArray(j.data) && j.data.length > 0) ? String(j.data[0]) : '';
+                if (!resp.ok || !qid) throw new Error(`add 失败：HTTP ${resp.status}`);
+                try { localStorage.setItem('tracker_qms_last_qid', qid); } catch (_) {}
+                const qid2 = document.getElementById('admin-qms-draft-qid2');
+                if (qid2) qid2.innerHTML = `当前缓存 qid：<b>${qid}</b>`;
+                // 成功缓存 headers
+                try { if (rawHeaders) localStorage.setItem('admin_qms_draft_headers', rawHeaders); } catch (_) {}
+            }
+
+            const qid = (() => { try { return localStorage.getItem('tracker_qms_last_qid') || ''; } catch (_) { return ''; } })();
+            if (!qid) throw new Error('qid 丢失：add 未产出 qid');
+
+            // 2) update（写入样例/IO 等）
+            step(2, 6, '更新草稿（update）');
+            {
+                const payload = this.buildQmsDraftUpdatePayload(imported, qid);
+                const resp = await this.apiService.adminQmsDraftUpdate({ ...payload, __tracker_extra_headers: extraHeaders });
+                if (!resp.ok) throw new Error(`update 失败：HTTP ${resp.status}`);
+            }
+
+            // 3) upload cases（可选）
+            if (this._qmsZipFile) {
+                step(3, 6, `上传用例（${this._qmsZipFile.name}）`);
+                await this.adminQmsUploadCasesZipAndUpdate();
+            } else {
+                step(3, 6, '上传用例（未选择，跳过）');
+            }
+
+            // 4) question（最终提交）
+            step(4, 6, '最终提交（question）');
+            {
+                const payload = this.buildQmsQuestionPayload(imported, qid);
+                const resp = await this.apiService.adminQmsQuestionUpsert({ ...payload, __tracker_extra_headers: extraHeaders });
+                if (!resp.ok) throw new Error(`question 失败：HTTP ${resp.status}`);
+            }
+
+            // 5) review confirm（审题）
+            step(5, 6, '审题确认（review/confirm）');
+            {
+                const nextResp = await this.apiService.adminQmsReviewNextQuestion({ curQid: [String(qid)], scene: 1, __tracker_extra_headers: extraHeaders });
+                const snap = nextResp && nextResp.json && nextResp.json.data ? nextResp.json.data : null;
+                if (!nextResp.ok || !snap || !snap.id) throw new Error(`next-question 失败：HTTP ${nextResp.status}`);
+                const question = this._normalizeReviewQuestionFromSnapshot(snap);
+                const confirmResp = await this.apiService.adminQmsReviewConfirm({ question, type: 1, __tracker_extra_headers: extraHeaders });
+                if (!confirmResp.ok) throw new Error(`review/confirm 失败：HTTP ${confirmResp.status}`);
+            }
+
+            // 6) open-library/save（开放范围）
+            step(6, 6, '设置开放范围（open-library/save）');
+            {
+                // 只保留必要功能：这里用本地默认/缓存配置，不再暴露复杂 UI
+                let type = 1;
+                let ids = ['391696'];
+                let scopes = [1, 3];
+                try {
+                    const t = Number(localStorage.getItem('tracker_qms_open_library_type') || 1) || 1;
+                    const idsStr = String(localStorage.getItem('tracker_qms_open_library_ids') || '391696');
+                    const scopesStr = String(localStorage.getItem('tracker_qms_open_library_scopes') || '1,3');
+                    type = t;
+                    ids = idsStr.split(',').map(s => s.trim()).filter(Boolean);
+                    scopes = scopesStr.split(',').map(s => s.trim()).filter(Boolean).map(x => Number(x)).filter(x => Number.isFinite(x));
+                    if (!ids.length) ids = ['391696'];
+                    if (!scopes.length) scopes = [1, 3];
+                } catch (_) {}
+                const resp = await this.apiService.adminQmsQuestionOpenLibrarySave({ questionId: String(qid), type, ids, openScopes: scopes, __tracker_extra_headers: extraHeaders });
+                if (!resp.ok) throw new Error(`open-library/save 失败：HTTP ${resp.status}`);
+            }
+
+            log('✅ 一键录题完成（已提交 + 已审题 + 已设置开放范围）');
+        } catch (e) {
+            const msg = e && e.message ? e.message : '一键录题失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            log(`❌ 失败：${msg}`);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '一键录题';
+        }
+    }
+
+    async adminQmsUploadZipOnly() {
+        const btn = document.getElementById('admin-qms-upload-zip');
+        const errEl = document.getElementById('admin-qms-draft-error');
+        const resultEl = document.getElementById('admin-qms-draft-result');
+        if (!btn || !errEl || !resultEl) return;
+        errEl.style.display = 'none';
+
+        if (!this._qmsZipFile) {
+            errEl.textContent = '请先选择 ZIP（cases.zip）';
+            errEl.style.display = 'block';
+            return;
+        }
+        const qid = (() => { try { return localStorage.getItem('tracker_qms_last_qid') || ''; } catch (_) { return ''; } })();
+        if (!qid) {
+            errEl.textContent = '请先创建草稿(add) 获取 qid，再上传 ZIP';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        const old = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '上传中...';
+        resultEl.textContent = `仅上传 ZIP：${this._qmsZipFile.name}\n`;
+        try {
+            await this.adminQmsUploadCasesZipAndUpdate();
+            resultEl.textContent += '\n✅ ZIP 上传并回填完成\n';
+        } catch (e) {
+            const msg = e && e.message ? e.message : '上传失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent += `\n❌ 上传失败：${msg}\n`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = old || '仅上传 ZIP';
+        }
+    }
+
+    // ===== Step3: upload cases.zip -> async -> status -> draft/update =====
+    async adminQmsUploadCasesZipAndUpdate() {
+        const errEl = document.getElementById('admin-qms-draft-error');
+        const resultEl = document.getElementById('admin-qms-draft-result');
+        if (!errEl || !resultEl) return;
+        errEl.style.display = 'none';
+
+        const zip = this._qmsZipFile;
+        if (!zip) return;
+
+        const imported = (() => { try { return JSON.parse(localStorage.getItem('tracker_qms_problem_json') || ''); } catch (_) { return null; } })();
+        const qid = (() => { try { return localStorage.getItem('tracker_qms_last_qid') || ''; } catch (_) { return ''; } })();
+        if (!qid) throw new Error('缺少 qid：请先执行 add');
+
+        // headers：沿用已保存的“客户端验证 headers”（重点是 Authorization）
+        const headersEl = document.getElementById('admin-qms-draft-headers');
+        let rawHeaders = headersEl ? String(headersEl.value || '').trim() : '';
+        if (!rawHeaders) {
+            try { rawHeaders = (localStorage.getItem('admin_qms_draft_headers') || '').trim(); } catch (_) {}
+        }
+        let extraHeaders = {};
+        try {
+            if (rawHeaders) {
+                if (rawHeaders.startsWith('{')) extraHeaders = JSON.parse(rawHeaders) || {};
+                else extraHeaders = this.parseRawHeaders(rawHeaders);
+            }
+        } catch (_) { extraHeaders = {}; }
+
+        // 1) credential
+        resultEl.textContent = '用例上传：获取 credential...';
+        const credResp = await this.apiService.adminQmsTestcaseCredential(0, extraHeaders);
+        const credJson = credResp && credResp.json ? credResp.json : null;
+        const credData = credJson && credJson.data ? credJson.data : null;
+        if (!credResp.ok || !credData || !credData.accessKeyId) {
+            const u = credResp && credResp.url ? ` url=${credResp.url}` : '';
+            throw new Error(`credential 失败：HTTP ${credResp.status}${u} ${credResp.text || ''}`);
+        }
+
+        // 2) upload zip to OSS via OSS SDK (browser)
+        const oss = await this.ensureAliyunOssSdk();
+        const bucket = String(credData.bucket || '').trim();
+        // credData.endpoints 观测到形态： "https://nowcoder.oss-accelerate.aliyuncs.com"
+        // ali-oss SDK 会自动把 bucket 前缀拼到 endpoint host 前面，因此这里必须去掉协议 + 去掉可能重复的 bucket 前缀，
+        // 否则会变成 nowcoder.nowcoder.oss-accelerate.aliyuncs.com 导致签名/跨域失败。
+        const endpointHost = (() => {
+            let ep = String(credData.endpoints || '').trim();
+            ep = ep.replace(/^https?:\/\//i, '');
+            ep = ep.replace(/\/+$/g, '');
+            if (bucket && ep.toLowerCase().startsWith((bucket + '.').toLowerCase())) {
+                ep = ep.slice(bucket.length + 1);
+            }
+            return ep;
+        })();
+        const path = String(credData.path || 'front_upload').replace(/^\//, '').replace(/\/$/, '');
+        const rand = Math.random().toString(36).slice(2, 14).toUpperCase();
+        const objectKey = `${path}/${Date.now()}_${rand}.zip`;
+        const uploadUrl = `https://uploadfiles.nowcoder.com/${objectKey}`;
+
+        resultEl.textContent = `用例上传：上传 zip 到 OSS...\nendpoint=${endpointHost}\nbucket=${bucket}\nobjectKey=${objectKey}\n`;
+        const client = new oss({
+            accessKeyId: credData.accessKeyId,
+            accessKeySecret: credData.accessKeySecret,
+            stsToken: credData.securityToken,
+            bucket,
+            endpoint: endpointHost,
+            secure: true
+        });
+        // put(file) 走 PUT + 签名 + x-oss-security-token
+        await client.put(objectKey, zip, { headers: { 'Content-Type': 'application/zip' } });
+
+        // 3) async (notify backend)
+        resultEl.textContent = `用例上传：触发 async...\ndataFileUrl=${uploadUrl}\n`;
+        const setting = {
+            autoDeleteSpace: !!(imported?.coding?.setting?.autoDeleteSpace),
+            deleteBlankLine: !!(imported?.coding?.setting?.deleteBlankLine),
+            noSamples: !!(imported?.coding?.noSamples),
+            floatAccuracyDigit: Number(imported?.coding?.floatAccuracyDigit || 0)
+        };
+        const asyncPayload = {
+            dataFileUrl: uploadUrl,
+            type: Number(imported?.basic?.type || imported?.type || 10),
+            cases: [],
+            setting
+        };
+        const asyncResp = await this.apiService.adminQmsTestcaseUploadAsync(asyncPayload, extraHeaders);
+        const asyncJson = asyncResp && asyncResp.json ? asyncResp.json : null;
+        const taskId = asyncJson && asyncJson.data ? String(asyncJson.data) : '';
+        if (!asyncResp.ok || !taskId) {
+            const u = asyncResp && asyncResp.url ? ` url=${asyncResp.url}` : '';
+            throw new Error(`async 失败：HTTP ${asyncResp.status}${u} ${asyncResp.text || ''}`);
+        }
+
+        // 4) status polling
+        resultEl.textContent = `用例上传：轮询 status...\ntaskId=${taskId}\n`;
+        let finalResult = null;
+        for (let i = 0; i < 60; i++) {
+            const st = await this.apiService.adminQmsTestcaseUploadStatus(taskId, extraHeaders);
+            const sj = st && st.json ? st.json : null;
+            const d = sj && sj.data ? sj.data : null;
+            const status = d && d.status != null ? Number(d.status) : -1;
+            const msg = d && d.message ? String(d.message) : '';
+            const prog = d && d.progress != null ? Number(d.progress) : 0;
+            const tried = Array.isArray(st?.tried) && st.tried.length
+                ? ('\ntried:\n' + st.tried.map(x => `- ${x.status} ${x.url}`).join('\n') + '\n')
+                : '';
+            resultEl.textContent = `用例上传：轮询 status...\ntaskId=${taskId}\nstatus=${status} progress=${prog}\n${msg}\n${tried}`;
+            if (status === 2 && d && d.result) { finalResult = d.result; break; }
+            await new Promise(r => setTimeout(r, 1000));
+        }
+        if (!finalResult) throw new Error('status 轮询超时/未成功');
+
+        // 5) draft/update 回填（dataFileUrl/caseCount/checker）
+        const finalDataFileUrl = String(finalResult.dataFileUrl || '').trim();
+        const caseCount = Number(finalResult.caseCount || 0);
+        const checker = String(finalResult.codingCheckerFileName || finalResult.checkerFileName || '').trim();
+        // 缓存回填信息，便于后续 /qms/question 自动组装
+        try {
+            if (finalDataFileUrl) localStorage.setItem('tracker_qms_last_dataFileUrl', finalDataFileUrl);
+            if (!Number.isNaN(caseCount)) localStorage.setItem('tracker_qms_last_caseCount', String(caseCount));
+            if (checker) localStorage.setItem('tracker_qms_last_checker', checker);
+        } catch (_) {}
+        resultEl.textContent = `用例上传成功：回填 draft/update...\nfinalDataFileUrl=${finalDataFileUrl}\ncaseCount=${caseCount}\n`;
+
+        const updPayload = this.buildQmsDraftUpdatePayload(imported, qid, {
+            dataFileUrl: finalDataFileUrl,
+            caseCount,
+            codingCheckerFileName: checker
+        });
+        const updResp = await this.apiService.adminQmsDraftUpdate({ ...updPayload, __tracker_extra_headers: extraHeaders });
+        resultEl.textContent = `draft/update 回填结果：HTTP ${updResp.status}\n\n${updResp.text || ''}`;
+    }
+
+    async ensureAliyunOssSdk() {
+        if (typeof window !== 'undefined' && window.OSS) return window.OSS;
+        const src = 'https://static.nowcoder.com/lib/aliyun-oss-sdk-6.17.0.min.js';
+        await new Promise((resolve, reject) => {
+            const existing = document.querySelector(`script[src="${src}"]`);
+            if (existing) {
+                existing.addEventListener('load', () => resolve());
+                existing.addEventListener('error', () => reject(new Error('OSS SDK load error')));
+                // if already loaded
+                if (window.OSS) resolve();
+                return;
+            }
+            const s = document.createElement('script');
+            s.src = src;
+            s.async = true;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error('OSS SDK load error'));
+            document.head.appendChild(s);
+        });
+        if (!window.OSS) throw new Error('OSS SDK 未加载');
+        return window.OSS;
+    }
+
+    async ensureJsZip() {
+        if (typeof window !== 'undefined' && window.JSZip) return window.JSZip;
+        // CDN：jszip（UMD，挂到 window.JSZip）。不同环境可能对某些域名不可达，因此做多候选兜底。
+        const candidates = [
+            'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js',
+            'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+            'https://unpkg.com/jszip@3.10.1/dist/jszip.min.js'
+        ];
+
+        const loadOne = (src) => new Promise((resolve, reject) => {
+            const existing = document.querySelector(`script[src="${src}"]`);
+            if (existing) {
+                existing.addEventListener('load', () => resolve());
+                existing.addEventListener('error', () => reject(new Error(`JSZip load error: ${src}`)));
+                if (window.JSZip) resolve();
+                return;
+            }
+            const s = document.createElement('script');
+            s.src = src;
+            s.async = true;
+            s.onload = () => resolve();
+            s.onerror = () => reject(new Error(`JSZip load error: ${src}`));
+            document.head.appendChild(s);
+        });
+
+        let lastErr = null;
+        for (const src of candidates) {
+            try {
+                await loadOne(src);
+                if (window.JSZip) return window.JSZip;
+            } catch (e) {
+                lastErr = e;
+            }
+        }
+        const msg = lastErr && lastErr.message ? lastErr.message : 'JSZip load error';
+        throw new Error(msg);
+    }
+
+    async adminQmsParseSourceZip(file) {
+        const JSZip = await this.ensureJsZip();
+        this._qmsSourceZipFile = file || null;
+        const buf = await (file && file.arrayBuffer ? file.arrayBuffer() : Promise.reject(new Error('无法读取文件')));
+        const zip = await JSZip.loadAsync(buf);
+
+        // 寻找 problem.json（优先固定名，其次任意 .json）
+        const entries = Object.keys(zip.files || {});
+        const pickBy = (re) => entries.find(name => re.test(String(name || '')));
+        const jsonName = pickBy(/(^|\/)problem\.json$/i) || pickBy(/\.json$/i) || '';
+        const dataZipName = pickBy(/(^|\/)data\.zip$/i) || pickBy(/(^|\/)cases\.zip$/i) || '';
+
+        let problemTitle = '';
+        if (jsonName) {
+            const jsonText = await zip.file(jsonName).async('string');
+            const obj = JSON.parse(jsonText);
+            // minimal validation
+            const title = obj?.basic?.title || obj?.title;
+            const content = obj?.statement?.content || obj?.content;
+            if (!title || !content) throw new Error('problem.json 缺少必要字段：basic.title 与 statement.content（或 title/content）');
+            try { localStorage.setItem('tracker_qms_problem_json', JSON.stringify(obj)); } catch (_) {}
+            problemTitle = String(title || '');
+        }
+
+        let dataZipFile = null;
+        let dataZipSize = 0;
+        if (dataZipName) {
+            const blob = await zip.file(dataZipName).async('blob');
+            dataZipSize = blob && blob.size ? blob.size : 0;
+            // 注入到现有链路：作为 cases.zip 上传
+            try {
+                dataZipFile = new File([blob], 'data.zip', { type: 'application/zip' });
+            } catch (_) {
+                // 兼容旧浏览器：退化为 Blob + name
+                dataZipFile = blob;
+                dataZipFile.name = 'data.zip';
+            }
+            this._qmsZipFile = dataZipFile;
+        }
+
+        return {
+            jsonName,
+            problemTitle,
+            dataZipName,
+            dataZipSize
+        };
+    }
+
+    // ===== Step4? (实验)：直接调用 /qms/question =====
+    adminQmsQuestionSaveBody() {
+        const ta = document.getElementById('admin-qms-question-body');
+        const errEl = document.getElementById('admin-qms-draft-error');
+        if (!ta) return;
+        const s = String(ta.value || '').trim();
+        try { localStorage.setItem('tracker_qms_question_body', s); } catch (_) {}
+        if (errEl) { errEl.textContent = s ? '✅ 已保存 question request（localStorage）' : '已清空保存的 question request'; errEl.style.display = 'block'; errEl.style.color = s ? '#52c41a' : '#999'; }
+    }
+
+    adminQmsQuestionClearBody() {
+        const ta = document.getElementById('admin-qms-question-body');
+        const errEl = document.getElementById('admin-qms-draft-error');
+        if (ta) ta.value = '';
+        try { localStorage.removeItem('tracker_qms_question_body'); } catch (_) {}
+        if (errEl) { errEl.textContent = '已清空 question request'; errEl.style.display = 'block'; errEl.style.color = '#999'; }
+    }
+
+    async adminQmsQuestionUpsert() {
+        const btn = document.getElementById('admin-qms-question-send-btn');
+        const errEl = document.getElementById('admin-qms-draft-error');
+        const resultEl = document.getElementById('admin-qms-draft-result');
+        const headersEl = document.getElementById('admin-qms-draft-headers');
+        const bodyEl = document.getElementById('admin-qms-question-body');
+        if (!btn || !errEl || !resultEl || !bodyEl) return;
+        errEl.style.display = 'none';
+        errEl.style.color = '#ff4d4f';
+
+        const raw = String(bodyEl.value || '').trim();
+        if (!raw) {
+            errEl.textContent = '请先在“最终提交（question 接口请求体）”里粘贴 request JSON';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        let body = null;
+        try { body = JSON.parse(raw); } catch (e) {
+            errEl.textContent = 'question request 不是合法 JSON：请直接粘贴 Network 里 Request 的 JSON';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        // headers：沿用已保存的“客户端验证 headers”（重点是 Authorization）
+        let rawHeaders = headersEl ? String(headersEl.value || '').trim() : '';
+        if (!rawHeaders) {
+            try { rawHeaders = (localStorage.getItem('admin_qms_draft_headers') || '').trim(); } catch (_) {}
+        }
+        let extraHeaders = {};
+        try {
+            if (rawHeaders) {
+                if (rawHeaders.startsWith('{')) extraHeaders = JSON.parse(rawHeaders) || {};
+                else extraHeaders = this.parseRawHeaders(rawHeaders);
+            }
+        } catch (_) { extraHeaders = {}; }
+
+        const old = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '调用中...';
+        resultEl.textContent = '调用 /qms/question...\n';
+        try {
+            const resp = await this.apiService.adminQmsQuestionUpsert({ ...(body || {}), __tracker_extra_headers: extraHeaders });
+            resultEl.textContent = `question 结果：HTTP ${resp.status}\nurl=${resp.url || ''}\n\n${resp.text || ''}`;
+            if (resp.ok && resp.json && (resp.json.code === 0 || resp.json.code === 200)) {
+                try { localStorage.setItem('tracker_qms_question_body', JSON.stringify(body, null, 2)); } catch (_) {}
+            }
+        } catch (e) {
+            const msg = e && e.message ? e.message : 'question 调用失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent += `\n❌ question 调用失败：${msg}\n`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = old || '调用 question';
+        }
+    }
+
+    async adminQmsQuestionAuto() {
+        const btn = document.getElementById('admin-qms-question-auto-btn');
+        const errEl = document.getElementById('admin-qms-draft-error');
+        const resultEl = document.getElementById('admin-qms-draft-result');
+        const headersEl = document.getElementById('admin-qms-draft-headers');
+        if (!btn || !errEl || !resultEl) return;
+        errEl.style.display = 'none';
+        errEl.style.color = '#ff4d4f';
+
+        const imported = (() => { try { return JSON.parse(localStorage.getItem('tracker_qms_problem_json') || ''); } catch (_) { return null; } })();
+        const qid = (() => { try { return localStorage.getItem('tracker_qms_last_qid') || ''; } catch (_) { return ''; } })();
+        if (!qid) {
+            errEl.textContent = '缺少 qid：请先创建草稿(add)';
+            errEl.style.display = 'block';
+            return;
+        }
+        const payload = this.buildQmsQuestionPayload(imported, qid);
+
+        // headers：沿用已保存的“客户端验证 headers”（重点是 Authorization）
+        let rawHeaders = headersEl ? String(headersEl.value || '').trim() : '';
+        if (!rawHeaders) {
+            try { rawHeaders = (localStorage.getItem('admin_qms_draft_headers') || '').trim(); } catch (_) {}
+        }
+        let extraHeaders = {};
+        try {
+            if (rawHeaders) {
+                if (rawHeaders.startsWith('{')) extraHeaders = JSON.parse(rawHeaders) || {};
+                else extraHeaders = this.parseRawHeaders(rawHeaders);
+            }
+        } catch (_) { extraHeaders = {}; }
+
+        const old = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '提交中...';
+        resultEl.textContent = '最终提交 /qms/question...\n';
+        try {
+            const resp = await this.apiService.adminQmsQuestionUpsert({ ...payload, __tracker_extra_headers: extraHeaders });
+            resultEl.textContent = `question(auto) 结果：HTTP ${resp.status}\nurl=${resp.url || ''}\n\n${resp.text || ''}`;
+            // 成功后刷新预览（可能需要把返回 id 再写回）
+            try {
+                const okBiz = resp && resp.json && (resp.json.code === 0 || resp.json.code === 200);
+                if (okBiz && resp.json && resp.json.data) {
+                    const id = String(resp.json.data);
+                    localStorage.setItem('tracker_qms_last_qid', id);
+                    const qid2 = document.getElementById('admin-qms-draft-qid2');
+                    if (qid2) qid2.innerHTML = `当前缓存 qid：<b>${id}</b>`;
+                }
+            } catch (_) {}
+        } catch (e) {
+            const msg = e && e.message ? e.message : 'question(auto) 调用失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent += `\n❌ ${msg}\n`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = old || '最终提交(question)';
+        }
+    }
+
+    _normalizeReviewQuestionFromSnapshot(q) {
+        const src = (q && typeof q === 'object') ? q : {};
+        const out = { ...src };
+
+        // 你确认：isEditStatus/hasQuestionChange 填 false 即可
+        out.isEditStatus = false;
+        out.hasQuestionChange = false;
+
+        // 标准程序（可先空着试）：建议用 [] 而不是 null/缺省
+        if (!Array.isArray(out.codingStandardSubmissionIds)) out.codingStandardSubmissionIds = [];
+
+        // skills/previewSkills：next-question 可能返回对象数组；confirm 侧更常见是 id 数组。这里做一次归一化。
+        const toIdArray = (arr) => {
+            if (!Array.isArray(arr)) return arr;
+            if (arr.length === 0) return arr;
+            if (typeof arr[0] === 'string' || typeof arr[0] === 'number') return arr.map(x => String(x));
+            return arr
+                .map(x => (x && (x.id != null)) ? String(x.id) : '')
+                .filter(Boolean);
+        };
+        out.skills = toIdArray(out.skills);
+        out.previewSkills = toIdArray(out.previewSkills);
+
+        return out;
+    }
+
+    async adminQmsReviewConfirm() {
+        const btn = document.getElementById('admin-qms-review-confirm-btn');
+        const errEl = document.getElementById('admin-qms-draft-error');
+        const resultEl = document.getElementById('admin-qms-draft-result');
+        const headersEl = document.getElementById('admin-qms-draft-headers');
+        if (!btn || !errEl || !resultEl) return;
+        errEl.style.display = 'none';
+        errEl.style.color = '#ff4d4f';
+
+        const qid = (() => { try { return localStorage.getItem('tracker_qms_last_qid') || ''; } catch (_) { return ''; } })();
+        if (!qid) {
+            errEl.textContent = '缺少 qid：请先完成录题（至少创建草稿/最终提交）';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        // headers：沿用已保存的“客户端验证 headers”
+        let rawHeaders = headersEl ? String(headersEl.value || '').trim() : '';
+        if (!rawHeaders) {
+            try { rawHeaders = (localStorage.getItem('admin_qms_draft_headers') || '').trim(); } catch (_) {}
+        }
+        let extraHeaders = {};
+        try {
+            if (rawHeaders) {
+                if (rawHeaders.startsWith('{')) extraHeaders = JSON.parse(rawHeaders) || {};
+                else extraHeaders = this.parseRawHeaders(rawHeaders);
+            }
+        } catch (_) { extraHeaders = {}; }
+
+        const old = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '审题中...';
+        resultEl.textContent = '审题(confirm)：\n';
+        try {
+            // 1) next-question：拿到完整 question 快照
+            resultEl.textContent += `\n[1/2] review/next-question... qid=${qid}\n`;
+            const nextResp = await this.apiService.adminQmsReviewNextQuestion({ curQid: [String(qid)], scene: 1, __tracker_extra_headers: extraHeaders });
+            const nextJson = nextResp && nextResp.json ? nextResp.json : null;
+            const snap = nextJson && nextJson.data ? nextJson.data : null;
+            if (!nextResp.ok || !snap || !snap.id) {
+                throw new Error(`next-question 失败：HTTP ${nextResp.status} url=${nextResp.url || ''}`);
+            }
+
+            // 2) confirm：按你粘贴的格式 {question:{...}, type:1}
+            const question = this._normalizeReviewQuestionFromSnapshot(snap);
+            const payload = { question, type: 1 };
+            resultEl.textContent += `\n[2/2] review/confirm...\n`;
+            const confirmResp = await this.apiService.adminQmsReviewConfirm({ ...payload, __tracker_extra_headers: extraHeaders });
+            resultEl.textContent += `\nconfirm 结果：HTTP ${confirmResp.status}\nurl=${confirmResp.url || ''}\n\n${confirmResp.text || ''}\n`;
+        } catch (e) {
+            const msg = e && e.message ? e.message : '审题失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent += `\n❌ ${msg}\n`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = old || '审题(confirm)';
+        }
+    }
+
+    async adminQmsOpenLibrarySave() {
+        const btn = document.getElementById('admin-qms-open-library-save-btn');
+        const errEl = document.getElementById('admin-qms-draft-error');
+        const resultEl = document.getElementById('admin-qms-draft-result');
+        const headersEl = document.getElementById('admin-qms-draft-headers');
+        if (!btn || !errEl || !resultEl) return;
+        errEl.style.display = 'none';
+        errEl.style.color = '#ff4d4f';
+
+        const qid = (() => { try { return localStorage.getItem('tracker_qms_last_qid') || ''; } catch (_) { return ''; } })();
+        if (!qid) {
+            errEl.textContent = '缺少 qid：请先完成录题（至少创建草稿/最终提交）';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        const typeEl = document.getElementById('admin-qms-open-library-type');
+        const idsEl = document.getElementById('admin-qms-open-library-ids');
+        const scopesEl = document.getElementById('admin-qms-open-library-scopes');
+        const type = Number(typeEl ? typeEl.value : 1) || 1;
+        const ids = String(idsEl ? idsEl.value : '').split(',').map(s => s.trim()).filter(Boolean);
+        const openScopes = String(scopesEl ? scopesEl.value : '').split(',').map(s => s.trim()).filter(Boolean).map(x => Number(x)).filter(x => Number.isFinite(x));
+        if (!ids.length) {
+            errEl.textContent = 'ids 不能为空（例如：391696）';
+            errEl.style.display = 'block';
+            return;
+        }
+        if (!openScopes.length) {
+            errEl.textContent = 'openScopes 不能为空（例如：1,3）';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        // headers：沿用已保存的“客户端验证 headers”
+        let rawHeaders = headersEl ? String(headersEl.value || '').trim() : '';
+        if (!rawHeaders) {
+            try { rawHeaders = (localStorage.getItem('admin_qms_draft_headers') || '').trim(); } catch (_) {}
+        }
+        let extraHeaders = {};
+        try {
+            if (rawHeaders) {
+                if (rawHeaders.startsWith('{')) extraHeaders = JSON.parse(rawHeaders) || {};
+                else extraHeaders = this.parseRawHeaders(rawHeaders);
+            }
+        } catch (_) { extraHeaders = {}; }
+
+        // 保存输入便于复用
+        try {
+            localStorage.setItem('tracker_qms_open_library_type', String(type));
+            localStorage.setItem('tracker_qms_open_library_ids', ids.join(','));
+            localStorage.setItem('tracker_qms_open_library_scopes', openScopes.join(','));
+        } catch (_) {}
+
+        const payload = { questionId: String(qid), type, ids, openScopes };
+
+        const old = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '保存中...';
+        resultEl.textContent = `open-library/save...\n\n${JSON.stringify(payload, null, 2)}\n`;
+        try {
+            const resp = await this.apiService.adminQmsQuestionOpenLibrarySave({ ...payload, __tracker_extra_headers: extraHeaders });
+            resultEl.textContent = `open-library/save 结果：HTTP ${resp.status}\nurl=${resp.url || ''}\n\n${resp.text || ''}`;
+        } catch (e) {
+            const msg = e && e.message ? e.message : '保存开放范围失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent += `\n❌ ${msg}\n`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = old || '保存开放范围';
+        }
+    }
+
     bindEvents() {
+        // 保留原 bindEvents 内容
+        // （此方法很长，这里只在末尾追加按钮事件绑定）
+        // 由于文件结构原因，清除按钮事件绑定放在 render 后通用绑定里更稳。
+        // ---- existing code below ----
         // 标签页切换
         document.getElementById('admin-tab-clock').addEventListener('click', () => {
             this.switchTab('clock');
@@ -628,6 +1989,18 @@ export class AdminView {
         if (pcTabBtn) {
             pcTabBtn.addEventListener('click', () => {
                 this.switchTab('promptChallenge');
+            });
+        }
+        const qmsTabBtn = document.getElementById('admin-tab-qms-draft');
+        if (qmsTabBtn) {
+            qmsTabBtn.addEventListener('click', () => {
+                this.switchTab('qmsDraft');
+            });
+        }
+        const difyTabBtn = document.getElementById('admin-tab-dify');
+        if (difyTabBtn) {
+            difyTabBtn.addEventListener('click', () => {
+                this.switchTab('dify');
             });
         }
 
@@ -710,166 +2083,300 @@ export class AdminView {
         if (pcRefreshBtn) pcRefreshBtn.addEventListener('click', () => this.loadPromptChallengeList(true));
         const pcRunBtn = document.getElementById('pc-run');
         if (pcRunBtn) pcRunBtn.addEventListener('click', () => this.runPromptChallengeEvaluate());
-    }
 
-    async adminClearUserMirrors() {
-        const uidInput = document.getElementById('admin-clear-user-mirrors-uid');
-        const errorEl = document.getElementById('admin-clear-user-mirrors-error');
-        const resultEl = document.getElementById('admin-clear-user-mirrors-result');
-        const btn = document.getElementById('admin-clear-user-mirrors-btn');
-
-        if (!uidInput || !errorEl || !resultEl || !btn) return;
-        errorEl.style.display = 'none';
-
-        const uid = parseInt(String(uidInput.value || '').trim(), 10);
-        if (!uid || uid <= 0) {
-            errorEl.textContent = '请填写有效的 userId（正整数）';
-            errorEl.style.display = 'block';
-            return;
-        }
-
-        localStorage.setItem('admin_clear_user_mirrors_uid', String(uid));
-
-        const ok = confirm(
-            `确认清理该用户的所有镜像？\n\nuserId=${uid}\n\n说明：只清理 Redis 镜像数据（镜像池/分桶/索引/队列），用于紧急处理异常刷镜像。`
-        );
-        if (!ok) return;
-
-        const oldText = btn.textContent;
-        btn.disabled = true;
-        btn.textContent = '清理中...';
-        resultEl.textContent = `请求中...\nuserId=${uid}\n`;
-
-        try {
-            const data = await this.apiService.adminClearUserMirrors(uid);
-            resultEl.textContent = JSON.stringify(data, null, 2);
-            alert(`清理完成：total=${data?.total ?? '-'}，removed=${data?.removed ?? '-'}，missing=${data?.missing ?? '-'}`);
-        } catch (e) {
-            const msg = e && e.message ? e.message : '清理失败';
-            errorEl.textContent = msg;
-            errorEl.style.display = 'block';
-            resultEl.textContent = `失败：${msg}`;
-        } finally {
-            btn.disabled = false;
-            btn.textContent = oldText || '执行清理';
+        // QMS 录题测试
+        const qmsSendBtn = document.getElementById('admin-qms-draft-send');
+        if (qmsSendBtn) qmsSendBtn.addEventListener('click', () => this.adminQmsDraftAdd());
+        const qmsClearBtn = document.getElementById('admin-qms-draft-headers-clear');
+        if (qmsClearBtn) {
+            qmsClearBtn.addEventListener('click', () => {
+                try { localStorage.removeItem('admin_qms_draft_headers'); } catch (_) {}
+                const hint = document.getElementById('admin-qms-draft-headers-hint');
+                if (hint) hint.textContent = '已清除保存的 headers。若再次出现“客户端验证错误”，请粘贴一次成功请求的 headers。';
+                const ta = document.getElementById('admin-qms-draft-headers');
+                if (ta) ta.value = '';
+                alert('已清除本地保存的 headers');
+            });
         }
     }
 
-    /**
-     * 切换标签页
-     */
-    switchTab(tab) {
-        this.currentTab = tab;
-        const clockPanel = document.getElementById('admin-clock-panel');
-        const battlePanel = document.getElementById('admin-battle-panel');
-        const tagPanel = document.getElementById('admin-tag-panel');
-        const importPanel = document.getElementById('admin-import-panel');
-        const yearReportPanel = document.getElementById('admin-year-report-panel');
-        const contestDifficultyPanel = document.getElementById('admin-contest-difficulty-panel');
-        const pcPanel = document.getElementById('admin-prompt-challenge-panel');
-        const clockBtn = document.getElementById('admin-tab-clock');
-        const battleBtn = document.getElementById('admin-tab-battle');
-        const tagBtn = document.getElementById('admin-tab-tag');
-        const importBtn = document.getElementById('admin-tab-import');
-        const yearReportBtn = document.getElementById('admin-tab-year-report');
-        const contestDifficultyBtn = document.getElementById('admin-tab-contest-difficulty');
-        const pcBtn = document.getElementById('admin-tab-prompt-challenge');
+    parseRawHeaders(text) {
+        const out = {};
+        const lines = String(text || '')
+            .replace(/\r\n/g, '\n')
+            .split('\n')
+            .map(s => s.trim())
+            .filter(Boolean);
 
-        // hide all
-        clockPanel.style.display = 'none';
-        battlePanel.style.display = 'none';
-        if (tagPanel) tagPanel.style.display = 'none';
-        if (importPanel) importPanel.style.display = 'none';
-        if (yearReportPanel) yearReportPanel.style.display = 'none';
-        if (contestDifficultyPanel) contestDifficultyPanel.style.display = 'none';
-        if (pcPanel) pcPanel.style.display = 'none';
+        for (const line of lines) {
+            // 忽略类似 "POST https://..." / "HTTP/1.1 200" 这类
+            if (/^(GET|POST|PUT|DELETE|OPTIONS|PATCH)\s+/i.test(line)) continue;
+            if (/^HTTP\/\d/i.test(line)) continue;
 
-        // reset btn styles
-        clockBtn.style.color = '#666';
-        clockBtn.style.borderBottomColor = 'transparent';
-        battleBtn.style.color = '#666';
-        battleBtn.style.borderBottomColor = 'transparent';
-        if (tagBtn) {
-            tagBtn.style.color = '#666';
-            tagBtn.style.borderBottomColor = 'transparent';
+            const idx = line.indexOf(':');
+            if (idx <= 0) continue;
+            const k = line.slice(0, idx).trim();
+            const v = line.slice(idx + 1).trim();
+            if (!k) continue;
+            // 过滤一些不应手动注入/无意义的头
+            const lk = k.toLowerCase();
+            if (lk === 'content-length' || lk === 'host') continue;
+            if (lk === 'cookie') continue; // cookie 由浏览器/credentials 管理
+            out[k] = v;
         }
-        if (importBtn) {
-            importBtn.style.color = '#666';
-            importBtn.style.borderBottomColor = 'transparent';
-        }
-        if (yearReportBtn) {
-            yearReportBtn.style.color = '#666';
-            yearReportBtn.style.borderBottomColor = 'transparent';
-        }
-        if (contestDifficultyBtn) {
-            contestDifficultyBtn.style.color = '#666';
-            contestDifficultyBtn.style.borderBottomColor = 'transparent';
-        }
-        if (pcBtn) {
-            pcBtn.style.color = '#666';
-            pcBtn.style.borderBottomColor = 'transparent';
-        }
+        return out;
+    }
 
-        if (tab === 'clock') {
-            clockPanel.style.display = 'block';
-            clockBtn.style.color = '#1890ff';
-            clockBtn.style.borderBottomColor = '#1890ff';
-        } else if (tab === 'battle') {
-            battlePanel.style.display = 'block';
-            battleBtn.style.color = '#1890ff';
-            battleBtn.style.borderBottomColor = '#1890ff';
-            // 切到对战面板时，确保二级页签状态正确；若在 histogram 则拉取数据
-            try { this.setBattleSubTab(this.battleSubTab || 'manage'); } catch (_) {}
-        } else if (tab === 'tag' && tagPanel) {
-            tagPanel.style.display = 'block';
-            if (tagBtn) {
-                tagBtn.style.color = '#1890ff';
-                tagBtn.style.borderBottomColor = '#1890ff';
-            }
-            this.loadTagList(this.tagPage || 1);
-        } else if (tab === 'import' && importPanel) {
-            importPanel.style.display = 'block';
-            if (importBtn) {
-                importBtn.style.color = '#1890ff';
-                importBtn.style.borderBottomColor = '#1890ff';
-            }
-        } else if (tab === 'yearReport' && yearReportPanel) {
-            yearReportPanel.style.display = 'block';
-            if (yearReportBtn) {
-                yearReportBtn.style.color = '#1890ff';
-                yearReportBtn.style.borderBottomColor = '#1890ff';
-            }
-        } else if (tab === 'contestDifficulty' && contestDifficultyPanel) {
-            // 强制渲染：避免某些环境下初次渲染丢失/被清空导致 tab 内容为空
-            contestDifficultyPanel.innerHTML = this.renderContestDifficultyPanel();
-            // 重新绑定按钮事件（因为 innerHTML 重新注入会丢失事件）
-            const contestPreviewBtn = document.getElementById('admin-contest-difficulty-preview-btn');
-            const contestSubmitBtn = document.getElementById('admin-contest-difficulty-submit-btn');
-            if (contestPreviewBtn) contestPreviewBtn.addEventListener('click', () => this.handleContestDifficultyPreview());
-            if (contestSubmitBtn) contestSubmitBtn.addEventListener('click', () => this.handleContestDifficultySubmit());
+    // ===== LaTeX $$...$$ -> nowcoder equation img =====
+    _nowcoderEquationImg(latex) {
+        const tex = encodeURIComponent(String(latex ?? ''));
+        return `<img src="https://www.nowcoder.com/equation?tex=${tex}" alt="latex" />`;
+    }
 
-            contestDifficultyPanel.style.display = 'block';
-            if (contestDifficultyBtn) {
-                contestDifficultyBtn.style.color = '#1890ff';
-                contestDifficultyBtn.style.borderBottomColor = '#1890ff';
-            }
-        } else if (tab === 'promptChallenge' && pcPanel) {
-            // 强制渲染：避免之前 tab 的 innerHTML 覆盖影响
-            pcPanel.innerHTML = this.renderPromptChallengePanel();
-            // 重新绑定按钮事件
-            const pcRefreshBtn = document.getElementById('pc-refresh-challenges');
-            if (pcRefreshBtn) pcRefreshBtn.addEventListener('click', () => this.loadPromptChallengeList(true));
-            const pcRunBtn = document.getElementById('pc-run');
-            if (pcRunBtn) pcRunBtn.addEventListener('click', () => this.runPromptChallengeEvaluate());
+    _replaceDoubleDollarLatexToImg(input) {
+        const s = String(input ?? '');
+        // 仅处理 $$...$$（双美元），支持跨行；非贪婪匹配
+        return s.replace(/\$\$([\s\S]+?)\$\$/g, (_, expr) => this._nowcoderEquationImg(expr));
+    }
 
-            pcPanel.style.display = 'block';
-            if (pcBtn) {
-                pcBtn.style.color = '#1890ff';
-                pcBtn.style.borderBottomColor = '#1890ff';
-            }
-            // 首次进入自动拉取题单
-            this.loadPromptChallengeList(false);
+    _replaceSingleDollarLatexToImg(input) {
+        const s = String(input ?? '');
+        // 处理 $...$（单美元，行内公式）
+        // 约束：
+        // - 不匹配 $$...$$（由上一步处理）
+        // - 不跨行（更贴近行内公式语义）
+        // - 支持转义 \$（不替换）
+        //
+        // 说明：这是一个“够用”的启发式实现（题面里通常不会出现货币 $100$ 这种写法）。
+        return s.replace(/(^|[^\\])\$(?!\$)([^\n$]+?)\$(?!\$)/g, (_, pre, expr) => {
+            return `${pre}${this._nowcoderEquationImg(expr)}`;
+        });
+    }
+
+    _replaceParenLatexToImg(input) {
+        const s = String(input ?? '');
+        // 兼容 \( ... \) 与 \[ ... \]
+        const a = s.replace(/\\\(([\s\S]+?)\\\)/g, (_, expr) => this._nowcoderEquationImg(expr));
+        return a.replace(/\\\[([\s\S]+?)\\\]/g, (_, expr) => this._nowcoderEquationImg(expr));
+    }
+
+    _replaceMarkdownBoldToStrong(input) {
+        const s = String(input ?? '');
+        // 处理 **...**（markdown 加粗）
+        // - 不跨行（题面里加粗通常是行内）
+        // - 支持转义 \*\*（不替换）
+        // - 非贪婪
+        return s.replace(/(^|[^\\])\*\*([^\n*][^\n]*?)\*\*/g, (_, pre, text) => {
+            return `${pre}<strong>${text}</strong>`;
+        });
+    }
+
+    _normalizeQmsNewlinesPlain(input) {
+        // 纯文本字段：把 \n\n 变成 \n\n\n\t（你验证过中台能正确分段）
+        // 注意：JSON parse 后这里拿到的是“真实换行符”，JSON stringify 预览会显示成 \\n。
+        let s = String(input ?? '');
+        s = s.replace(/\r\n/g, '\n');
+        s = s.replace(/\n\n/g, '\n\n\n\t');
+        return s;
+    }
+
+    _normalizeQmsNewlinesHtml(input) {
+        // 富文本字段：中台对“纯换行符”不稳定，按你抓包的成功形态转换为 <div> 分段。
+        // 若已包含明显的 HTML 标签，则不做 div 分段（避免二次包裹）。
+        let s = String(input ?? '');
+        s = s.replace(/\r\n/g, '\n');
+        if (/<\s*(div|p|br|span|img|ul|ol|li|pre|code|table|tr|td|th)\b/i.test(s)) return s;
+        if (!s.trim()) return s;
+
+        // 以空行分段；段内的单换行用 <br/> 保留
+        const parts = s.split(/\n\s*\n/g).map(x => String(x || '').trim()).filter(Boolean);
+        const blocks = parts.map(p => {
+            const inner = p.replace(/\n/g, '<br/>\n\t');
+            return `<div>\n\t${inner}\n</div>`;
+        });
+        return blocks.join('\n');
+    }
+
+    _normalizeQmsRichText(input, mode = 'html') {
+        // mode:
+        // - html: 题面/解析/IO/说明等富文本（用 <div> 分段）
+        // - plain: 样例输入输出/ttsText 等纯文本（用 \n\n -> \n\n\n\t）
+        const s0 = this._replaceMarkdownBoldToStrong(input);
+        const s1 = (mode === 'plain') ? this._normalizeQmsNewlinesPlain(s0) : this._normalizeQmsNewlinesHtml(s0);
+        const a = this._replaceDoubleDollarLatexToImg(s1);
+        const b = this._replaceParenLatexToImg(a);
+        return this._replaceSingleDollarLatexToImg(b);
+    }
+
+    buildQmsDraftAddPayload(problemJson) {
+        // 如果未导入，则回退到一个可用的默认示例（便于快速验证链路）
+        const fallback = {
+            type: 10,
+            title: 'test0112',
+            timeLimit: 1,
+            memoryLimit: 256,
+            content: '0112',
+            analysis: '',
+            difficulty: 4,
+            defaultScore: null,
+            customSimilar: null,
+            remark: '',
+            openScopes: [],
+            skills: ['584'],
+            codingSupportLang: ['1','2','3','4','5','8','9','10','11','13','16','17','19','20','21','24','25','27','28','29','30','31'],
+            codingHint: '',
+            codingCheckerFileName: '',
+            floatAccuracyDigit: 0,
+            noSamples: false,
+            codingSamples: [],
+            dataFileUrl: '',
+            codingStandardSubmissionIds: [],
+            codingTemplates: [],
+            codingSetting: { deleteBlankLine: true, autoDeleteSpace: true, advanceCode: false, enablePreCode: false },
+            codingDesc: { inputDesc: 'in', outputDesc: '' },
+            previewSkills: ['584'],
+            caseCount: null,
+            aiDigitalHumanResource: { ttsText: '0112' }
+        };
+
+        if (!problemJson || typeof problemJson !== 'object') return fallback;
+
+        const basic = problemJson.basic || {};
+        const statement = problemJson.statement || {};
+        const io = problemJson.io || {};
+        const coding = problemJson.coding || {};
+
+        const title = basic.title || problemJson.title || fallback.title;
+        const type = (basic.type != null ? basic.type : problemJson.type) ?? fallback.type;
+        const difficulty = (basic.difficulty != null ? basic.difficulty : problemJson.difficulty) ?? fallback.difficulty;
+        const timeLimit = (basic.timeLimitSec != null ? basic.timeLimitSec : problemJson.timeLimitSec) ?? fallback.timeLimit;
+        const memoryLimit = (basic.memoryLimitMB != null ? basic.memoryLimitMB : problemJson.memoryLimitMB) ?? fallback.memoryLimit;
+        const content = this._normalizeQmsRichText((statement.content != null ? statement.content : problemJson.content) ?? fallback.content, 'html');
+        const analysis = this._normalizeQmsRichText((statement.analysis != null ? statement.analysis : problemJson.analysis) ?? '', 'html');
+        const remark = this._normalizeQmsRichText((statement.remark != null ? statement.remark : problemJson.remark) ?? '', 'html');
+        const openScopes = Array.isArray(basic.openScopes) ? basic.openScopes : (Array.isArray(problemJson.openScopes) ? problemJson.openScopes : []);
+        const skills = Array.isArray(basic.skills) ? basic.skills : (Array.isArray(problemJson.skills) ? problemJson.skills : fallback.skills);
+
+        const supportLang = Array.isArray(coding.supportLang) ? coding.supportLang : (Array.isArray(problemJson.codingSupportLang) ? problemJson.codingSupportLang : fallback.codingSupportLang);
+        const setting = coding.setting && typeof coding.setting === 'object' ? coding.setting : fallback.codingSetting;
+        const noSamples = (coding.noSamples != null ? !!coding.noSamples : (problemJson.noSamples != null ? !!problemJson.noSamples : fallback.noSamples));
+        const floatAccuracyDigit = (coding.floatAccuracyDigit != null ? coding.floatAccuracyDigit : problemJson.floatAccuracyDigit) ?? fallback.floatAccuracyDigit;
+        const checkerFileName = (coding.checkerFileName != null ? coding.checkerFileName : problemJson.codingCheckerFileName) ?? '';
+        const codingHint = (coding.hint != null ? coding.hint : problemJson.codingHint) ?? '';
+        const codingStandardSubmissionIds = Array.isArray(coding.standardSubmissionIds)
+            ? coding.standardSubmissionIds
+            : (Array.isArray(problemJson.codingStandardSubmissionIds) ? problemJson.codingStandardSubmissionIds : []);
+        const codingTemplates = Array.isArray(coding.templates)
+            ? coding.templates
+            : (Array.isArray(problemJson.codingTemplates) ? problemJson.codingTemplates : []);
+
+        // QMS draft/add body（按你提供的格式组装；其它字段后续可扩展）
+        return {
+            type,
+            title,
+            timeLimit,
+            memoryLimit,
+            content,
+            analysis,
+            difficulty,
+            defaultScore: null,
+            customSimilar: null,
+            remark,
+            openScopes,
+            skills,
+            codingSupportLang: supportLang,
+            codingHint: String(codingHint || ''),
+            codingCheckerFileName: checkerFileName,
+            floatAccuracyDigit,
+            noSamples,
+            codingSamples: [],
+            dataFileUrl: '',
+            codingStandardSubmissionIds,
+            codingTemplates,
+            codingSetting: {
+                deleteBlankLine: !!setting.deleteBlankLine,
+                autoDeleteSpace: !!setting.autoDeleteSpace,
+                advanceCode: !!setting.advanceCode,
+                enablePreCode: !!setting.enablePreCode
+            },
+            codingDesc: {
+                inputDesc: this._normalizeQmsRichText(io.inputDesc || fallback.codingDesc.inputDesc, 'html'),
+                outputDesc: this._normalizeQmsRichText(io.outputDesc || fallback.codingDesc.outputDesc, 'html')
+            },
+            previewSkills: Array.isArray(problemJson.previewSkills) ? problemJson.previewSkills : (Array.isArray(skills) ? skills : fallback.previewSkills),
+            caseCount: null,
+            aiDigitalHumanResource: { ttsText: this._normalizeQmsRichText(String(problemJson?.aiDigitalHumanResource?.ttsText || content || '').slice(0, 200), 'plain') }
+        };
+    }
+
+    buildQmsDraftUpdatePayload(problemJson, qid, overrides = null) {
+        // update 基于 add 的 payload，再补充 id 与样例/IO 等“草稿快照”字段
+        const base = this.buildQmsDraftAddPayload(problemJson);
+        const id = (qid != null && String(qid).trim()) ? String(qid).trim() : (problemJson && (problemJson.id || problemJson.qid) ? String(problemJson.id || problemJson.qid) : '');
+
+        const samples = Array.isArray(problemJson?.samples) ? problemJson.samples : [];
+        const codingSamples = samples.map((s, idx) => ({
+            index: idx + 1,
+            input: this._normalizeQmsRichText(String(s?.input ?? ''), 'plain'),
+            output: this._normalizeQmsRichText(String(s?.output ?? ''), 'plain'),
+            note: this._normalizeQmsRichText(String(s?.explain ?? s?.note ?? ''), 'html')
+        }));
+
+        const io = problemJson?.io || {};
+
+        const merged = {
+            ...base,
+            id,
+            // update 常见字段：样例与 io 描述
+            codingSamples,
+            codingDesc: {
+                inputDesc: this._normalizeQmsRichText(String(io.inputDesc ?? base.codingDesc?.inputDesc ?? ''), 'html'),
+                outputDesc: this._normalizeQmsRichText(String(io.outputDesc ?? base.codingDesc?.outputDesc ?? ''), 'html')
+            },
+            previewSkills: Array.isArray(problemJson?.basic?.skills) ? problemJson.basic.skills : base.previewSkills,
+            caseCount: (problemJson?.cases && typeof problemJson.cases === 'object' && problemJson.cases.caseCount != null)
+                ? Number(problemJson.cases.caseCount)
+                : (problemJson?.caseCount != null ? Number(problemJson.caseCount) : 0)
+        };
+
+        // 回填/覆盖字段（用于上传用例后写入 dataFileUrl/caseCount/checker 等）
+        if (overrides && typeof overrides === 'object') {
+            if (overrides.dataFileUrl != null) merged.dataFileUrl = String(overrides.dataFileUrl);
+            if (overrides.caseCount != null) merged.caseCount = Number(overrides.caseCount);
+            if (overrides.codingCheckerFileName != null) merged.codingCheckerFileName = String(overrides.codingCheckerFileName);
         }
+        return merged;
+    }
+
+    buildQmsQuestionPayload(problemJson, qid) {
+        // /qms/question：新增/修改题目。根据抓包观测，uuid 在“新增”时可缺省，响应只回 id。
+        const base = this.buildQmsDraftUpdatePayload(problemJson, qid, (() => {
+            // 若刚完成用例回填，则从本地缓存兜底带上 dataFileUrl/caseCount/checker（避免用户没点 update 预览也能提交）
+            try {
+                const dataFileUrl = localStorage.getItem('tracker_qms_last_dataFileUrl') || '';
+                const caseCount = localStorage.getItem('tracker_qms_last_caseCount') || '';
+                const checker = localStorage.getItem('tracker_qms_last_checker') || '';
+                const o = {};
+                if (dataFileUrl) o.dataFileUrl = dataFileUrl;
+                if (caseCount) o.caseCount = Number(caseCount);
+                if (checker) o.codingCheckerFileName = checker;
+                return o;
+            } catch (_) { return null; }
+        })());
+
+        const tags = Array.isArray(problemJson?.tags) ? problemJson.tags : (Array.isArray(problemJson?.basic?.tags) ? problemJson.basic.tags : []);
+        const verifiedLang = Array.isArray(problemJson?.verifiedLang)
+            ? problemJson.verifiedLang
+            : (Array.isArray(problemJson?.coding?.verifiedLang) ? problemJson.coding.verifiedLang : []);
+        const hasQuestionChange = (problemJson?.hasQuestionChange != null) ? !!problemJson.hasQuestionChange : false;
+
+        // openScopes: 题库抓包里是 []；我们的 add payload 已有 openScopes 字段
+        return {
+            ...base,
+            tags,
+            verifiedLang,
+            hasQuestionChange
+        };
     }
 
     async loadPromptChallengeList(force = false) {

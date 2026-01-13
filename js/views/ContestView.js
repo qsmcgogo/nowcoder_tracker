@@ -172,11 +172,12 @@ export class ContestView {
             const needCharge = contest.needCharge === true;
             const purchased = contest.purchased === true;
             const canAccess = contest.canAccess != null ? contest.canAccess === true : (!needCharge || purchased);
+            const cUrl = (contest.contestUrl != null ? contest.contestUrl : (contest.url != null ? contest.url : ''));
             return ({
             // 兼容后端字段：有的接口返回 contestId/contestName/contestUrl，有的返回 id/contestName/contestUrl 或 id/name/url
             id: cid,
             name: (contest.contestName != null ? contest.contestName : (contest.name != null ? contest.name : '')),
-            url: (contest.contestUrl != null ? contest.contestUrl : (contest.url != null ? contest.url : '')),
+            url: cUrl,
             needCharge,
             purchased,
             canAccess,
@@ -194,7 +195,7 @@ export class ContestView {
                 }
                 // question level canAccess（后端会补齐）；若缺省则沿用比赛级
                 const pCanAccess = (p.canAccess != null) ? (p.canAccess === true) : canAccess;
-                return { ...p, contestId: cid, needCharge, purchased, canAccess: pCanAccess, difficultyScore: score };
+                return { ...p, contestId: cid, contestUrl: cUrl, needCharge, purchased, canAccess: pCanAccess, difficultyScore: score };
             })
         });
         });
@@ -239,13 +240,21 @@ export class ContestView {
                 <tr>
                     <td>
                         ${contest.needCharge && !contest.canAccess
-                            ? `<span class="contest-link contest-locked js-paywall-buy"
-                                    data-contest-id="${this.escapeHtml(String(contest.id))}"
-                                    data-buy-url="${this.escapeHtml(this.buildBuyUrl(contest.id))}"
-                                    title="需购买后访问"
-                                    style="color:#9ca3af; cursor:pointer; font-weight:700;">
-                                    ${this.escapeHtml(contest.name)} 🔒
-                               </span>`
+                            ? (String(this.state.activeContestTab) === '21'
+                                ? `<span class="contest-link contest-locked js-paywall-go-contest"
+                                        data-contest-id="${this.escapeHtml(String(contest.id))}"
+                                        data-contest-url="${this.escapeHtml(contestUrl)}"
+                                        title="付费内容未购买：点击进入比赛页"
+                                        style="color:#9ca3af; cursor:pointer; font-weight:700;">
+                                        ${this.escapeHtml(contest.name)} 🔒
+                                   </span>`
+                                : `<span class="contest-link contest-locked js-paywall-buy"
+                                        data-contest-id="${this.escapeHtml(String(contest.id))}"
+                                        data-buy-url="${this.escapeHtml(this.buildBuyUrl(contest.id))}"
+                                        title="需购买后访问"
+                                        style="color:#9ca3af; cursor:pointer; font-weight:700;">
+                                        ${this.escapeHtml(contest.name)} 🔒
+                                   </span>`)
                             : `<a href="${contestUrl}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(contest.name)}</a>`}
                     </td>
                     ${problemsHtml}
@@ -273,9 +282,23 @@ export class ContestView {
     }
 
     bindPaywallHandlers() {
-        // 题目/比赛入口的“需购买”交互：点击引导到购买页
-        const els = document.querySelectorAll('#contests-view .js-paywall-buy, #course-view .js-paywall-buy');
-        els.forEach(el => {
+        // 题目/比赛入口的“需购买”交互
+        // - 默认：点击引导到购买页
+        // - 寒假营（tab=21）：未购买点击直接跳转比赛页（contest url）
+        const goContestEls = document.querySelectorAll('#contests-view .js-paywall-go-contest, #course-view .js-paywall-go-contest');
+        goContestEls.forEach(el => {
+            if (el.dataset._bound === '1') return;
+            el.dataset._bound = '1';
+            el.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                const contestUrl = el.getAttribute('data-contest-url') || '';
+                if (contestUrl) window.open(contestUrl, '_blank', 'noopener,noreferrer');
+            });
+        });
+
+        const buyEls = document.querySelectorAll('#contests-view .js-paywall-buy, #course-view .js-paywall-buy');
+        buyEls.forEach(el => {
             if (el.dataset._bound === '1') return;
             el.dataset._bound = '1';
             el.addEventListener('click', (e) => {
@@ -312,19 +335,31 @@ export class ContestView {
         let titleHtml;
         const isLocked = (problem.needCharge === true) && (problem.canAccess === false);
         const buyUrl = isLocked ? this.buildBuyUrl(problem.contestId) : '';
+        const isWinterCampTab = String(this.state.activeContestTab) === '21';
+        // 若入口URL带 channelPut，则竞赛加后缀"a"
+        const cpContest = this.state.channelPut ? (this.state.channelPut + 'a') : undefined;
+        const contestUrlForLocked = (problem && problem.contestUrl) ? helpers.buildUrlWithChannelPut(problem.contestUrl, cpContest) : '';
         
         if (isXCPC) {
             // For XCPC: only show difficulty circle and clickable letter, no title
             if (finalUrl && !isLocked) {
                 titleHtml = `<a class="problem-link" href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="${problem.title || 'N/A'}">${letter || ''}</a>`;
             } else if (isLocked) {
-                titleHtml = `<span class="problem-link problem-locked js-paywall-buy"
+                titleHtml = isWinterCampTab && contestUrlForLocked
+                    ? `<span class="problem-link problem-locked js-paywall-go-contest"
+                                data-contest-id="${this.escapeHtml(String(problem.contestId))}"
+                                data-contest-url="${this.escapeHtml(contestUrlForLocked)}"
+                                title="付费内容未购买：点击进入比赛页"
+                                style="color:#9ca3af; cursor:pointer; font-weight:800;">
+                                ${letter || ''} 🔒
+                           </span>`
+                    : `<span class="problem-link problem-locked js-paywall-buy"
                                 data-contest-id="${this.escapeHtml(String(problem.contestId))}"
                                 data-buy-url="${this.escapeHtml(buyUrl)}"
                                 title="需购买后访问"
                                 style="color:#9ca3af; cursor:pointer; font-weight:800;">
                                 ${letter || ''} 🔒
-                             </span>`;
+                           </span>`;
             } else {
                 titleHtml = `<span title="${problem.title || 'N/A'}">${letter || ''}</span>`;
             }
@@ -337,13 +372,21 @@ export class ContestView {
             if (finalUrl && !isLocked) {
                 titleHtml = `<a class="problem-link" href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="${problem.title}">${truncatedTitle}</a>`;
             } else if (isLocked) {
-                titleHtml = `<span class="problem-link problem-locked js-paywall-buy"
+                titleHtml = isWinterCampTab && contestUrlForLocked
+                    ? `<span class="problem-link problem-locked js-paywall-go-contest"
+                                data-contest-id="${this.escapeHtml(String(problem.contestId))}"
+                                data-contest-url="${this.escapeHtml(contestUrlForLocked)}"
+                                title="付费内容未购买：点击进入比赛页"
+                                style="color:#9ca3af; cursor:pointer; font-weight:700;">
+                                ${this.escapeHtml(truncatedTitle)} 🔒
+                           </span>`
+                    : `<span class="problem-link problem-locked js-paywall-buy"
                                 data-contest-id="${this.escapeHtml(String(problem.contestId))}"
                                 data-buy-url="${this.escapeHtml(buyUrl)}"
                                 title="需购买后访问"
                                 style="color:#9ca3af; cursor:pointer; font-weight:700;">
                                 ${this.escapeHtml(truncatedTitle)} 🔒
-                             </span>`;
+                           </span>`;
             } else {
                 titleHtml = `<span title="${problem.title || 'N/A'}">${truncatedTitle}</span>`;
             }
@@ -625,13 +668,21 @@ export class ContestView {
                         finalHtml += '<tr>';
                         finalHtml += `<td class="knowledge-point-cell course-contest-cell" data-contest-id="${contestIdAttr}">
                             ${contest.needCharge && !contest.canAccess
-                                ? `<span class="contest-link contest-locked js-paywall-buy"
-                                        data-contest-id="${this.escapeHtml(String(contest.id))}"
-                                        data-buy-url="${this.escapeHtml(this.buildBuyUrl(contest.id))}"
-                                        title="需购买后访问"
-                                        style="color:#9ca3af; cursor:pointer; font-weight:700;">
-                                        ${this.escapeHtml(contest.name)} 🔒
-                                   </span>`
+                                ? (String(this.state.activeContestTab) === '21'
+                                    ? `<span class="contest-link contest-locked js-paywall-go-contest"
+                                            data-contest-id="${this.escapeHtml(String(contest.id))}"
+                                            data-contest-url="${this.escapeHtml(contestUrl)}"
+                                            title="付费内容未购买：点击进入比赛页"
+                                            style="color:#9ca3af; cursor:pointer; font-weight:700;">
+                                            ${this.escapeHtml(contest.name)} 🔒
+                                       </span>`
+                                    : `<span class="contest-link contest-locked js-paywall-buy"
+                                            data-contest-id="${this.escapeHtml(String(contest.id))}"
+                                            data-buy-url="${this.escapeHtml(this.buildBuyUrl(contest.id))}"
+                                            title="需购买后访问"
+                                            style="color:#9ca3af; cursor:pointer; font-weight:700;">
+                                            ${this.escapeHtml(contest.name)} 🔒
+                                       </span>`)
                                 : `<a href="${contestUrl}" target="_blank" rel="noopener noreferrer">${this.escapeHtml(contest.name)}</a>`}
                         </td>`;
                         isFirstRow = false;
@@ -682,6 +733,9 @@ export class ContestView {
         let finalUrl = helpers.buildUrlWithChannelPut(problem.url || problem.questionUrl, cp);
         const isLocked = (problem.needCharge === true) && (problem.canAccess === false);
         const buyUrl = isLocked ? this.buildBuyUrl(problem.contestId) : '';
+        const isWinterCampTab = String(this.state.activeContestTab) === '21';
+        const cpContest = this.state.channelPut ? (this.state.channelPut + 'a') : undefined;
+        const contestUrlForLocked = (problem && problem.contestUrl) ? helpers.buildUrlWithChannelPut(problem.contestUrl, cpContest) : '';
         
         // 题目名字省略处理
         const truncatedTitle = problem.title && problem.title.length > 20 ? 
@@ -692,7 +746,15 @@ export class ContestView {
         if (finalUrl && !isLocked) {
             titleHtml = `<a class="problem-link" href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="${problem.title}">${truncatedTitle}</a>`;
         } else if (isLocked) {
-            titleHtml = `<span class="problem-link problem-locked js-paywall-buy"
+            titleHtml = isWinterCampTab && contestUrlForLocked
+                ? `<span class="problem-link problem-locked js-paywall-go-contest"
+                                data-contest-id="${this.escapeHtml(String(problem.contestId))}"
+                                data-contest-url="${this.escapeHtml(contestUrlForLocked)}"
+                                title="付费内容未购买：点击进入比赛页"
+                                style="color:#9ca3af; cursor:pointer; font-weight:700;">
+                                ${this.escapeHtml(truncatedTitle)} 🔒
+                           </span>`
+                : `<span class="problem-link problem-locked js-paywall-buy"
                             data-contest-id="${this.escapeHtml(String(problem.contestId))}"
                             data-buy-url="${this.escapeHtml(buyUrl)}"
                             title="需购买后访问"

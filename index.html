@@ -45,6 +45,9 @@
                     <li class="tracker-nav-item">
                         <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'profile\']').click();">我的</a>
                     </li>
+                    <li class="tracker-nav-item dify-nav-item" id="dify-nav-item" style="display: none;">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'dify\']').click();">🤖 AI 助手</a>
+                    </li>
                     <li class="tracker-nav-item admin-nav-item" id="admin-nav-item" style="display: none;">
                         <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'admin\']').click();">⚙️ 管理员</a>
                     </li>
@@ -81,6 +84,7 @@
                 <button class="tab-btn" data-tab="profile">我的</button>
                 <button class="tab-btn" data-tab="faq">常见问题</button>
                 <button class="tab-btn" data-tab="changelog">版本更新</button>
+                <button class="tab-btn dify-tab-btn" data-tab="dify" id="dify-tab-btn" style="display: none;">🤖 AI 助手</button>
                 <button class="tab-btn admin-tab-btn" data-tab="admin" id="admin-tab-btn" style="display: none;">⚙️ 管理员</button>
                 <button class="tab-btn prompt-tab-btn" data-tab="prompt" id="prompt-tab-btn" style="display: none;">🧪 Prompt</button>
             </nav>
@@ -668,6 +672,11 @@
             <!-- Profile Tab -->
             <section id="profile" class="tab-content">
                <!-- Profile content will be rendered here by ProfileView.js -->
+            </section>
+
+            <!-- AI Assistant Tab -->
+            <section id="dify" class="tab-content">
+                <div id="dify-container"></div>
             </section>
 
             <!-- 管理员 -->
