@@ -9,6 +9,44 @@ export class ApiService {
         this.apiBase = apiBase;
     }
 
+    _parseRawHeaders(text) {
+        const out = {};
+        const s = String(text || '');
+        const lines = s.split(/\r?\n/);
+        for (const line of lines) {
+            const t = line.trim();
+            if (!t) continue;
+            const idx = t.indexOf(':');
+            if (idx <= 0) continue;
+            const k = t.slice(0, idx).trim();
+            const v = t.slice(idx + 1).trim();
+            if (!k || !v) continue;
+            out[k] = v;
+        }
+        return out;
+    }
+
+    /**
+     * 从 localStorage 读取并解析管理员保存的 QMS Request Headers（用于绕过“客户端验证错误”）
+     * 支持两种格式：
+     * - JSON：{"x-csrf-token":"...","x-client-verify":"..."}
+     * - Raw：x-csrf-token: ...
+     *        x-client-verify: ...
+     */
+    loadTrackerSavedQmsHeaders() {
+        try {
+            const raw = String(localStorage.getItem('admin_qms_draft_headers') || '').trim();
+            if (!raw) return {};
+            if (raw.startsWith('{')) {
+                const j = JSON.parse(raw);
+                return (j && typeof j === 'object') ? j : {};
+            }
+            return this._parseRawHeaders(raw);
+        } catch (_) {
+            return {};
+        }
+    }
+
     _shouldPreferDirectNowcoderHost() {
         try {
             const h = (typeof window !== 'undefined' && window.location && window.location.hostname) ? window.location.hostname : '';
@@ -2899,6 +2937,25 @@ export class ApiService {
             return data.data?.chapters || [];
         }
         throw new Error((data && data.msg) || '获取章节进度失败');
+    }
+
+    /**
+     * 获取当前用户单章节“每个知识点”的进度（必要时会自动重算过期知识点）
+     * GET /problem/tracker/skill-tree/chapter-node-progress?chapterKey=xxx
+     * @param {string} chapterKey 例如：chapter1 / interlude_dawn / boss_dream
+     * @returns {Promise<{chapterKey:string,displayName?:string,nodeProgress:Object,refreshed?:boolean}>}
+     */
+    async fetchChapterNodeProgress(chapterKey) {
+        const key = String(chapterKey || '').trim();
+        if (!key) throw new Error('chapterKey不能为空');
+        const url = `${this.apiBase}/problem/tracker/skill-tree/chapter-node-progress?chapterKey=${encodeURIComponent(key)}&_=${Date.now()}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || {};
+        }
+        throw new Error((data && (data.msg || data.message)) || '获取章节知识点进度失败');
     }
 
     // ==================== Tracker 知识点后台管理（tracker_tag） ====================

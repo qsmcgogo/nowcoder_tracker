@@ -2861,6 +2861,23 @@ body .problems-table tbody tr td.status-none {
     background-color: var(--primary-color-light);
     border-color: #16a34a;
 }
+.skill-node--no-questions {
+    background-color: #f8f9fa;
+    border-color: #e5e7eb;
+    color: #6b7280;
+}
+.skill-node--no-questions:hover {
+    transform: none;
+    box-shadow: none;
+    border-color: #e5e7eb;
+}
+.skill-node--no-questions .skill-node__title {
+    color: #6b7280;
+}
+.skill-node--no-questions .skill-node__progress-text {
+    color: #9ca3af;
+    font-size: 0.72rem;
+}
 .skill-node--locked {
     background-color: #f8f9fa;
     color: #adb5bd;

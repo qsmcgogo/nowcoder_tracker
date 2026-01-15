@@ -4301,15 +4301,42 @@ export class AdminView {
             }
 
             try {
+                let ret = null;
                 if (isEdit) {
                     // 编辑时使用按日期更新的接口，支持修改日期
-                    await this.apiService.adminClockQuestionUpdate(date, questionId || null, problemId || null, '');
+                    ret = await this.apiService.adminClockQuestionUpdate(date, questionId || null, problemId || null, '');
                 } else {
-                    await this.apiService.adminClockQuestionAdd(date, questionId || null, problemId || null, '');
+                    ret = await this.apiService.adminClockQuestionAdd(date, questionId || null, problemId || null, '');
+                }
+                // 自动题目公开（best-effort，不影响主流程）
+                let pubMsg = '';
+                try {
+                    const finalQid = ret && (ret.questionId || ret.qid) ? String(ret.questionId || ret.qid) : '';
+                    if (finalQid) {
+                        const extra = (this.apiService && typeof this.apiService.loadTrackerSavedQmsHeaders === 'function')
+                            ? this.apiService.loadTrackerSavedQmsHeaders()
+                            : {};
+                        if (!extra || Object.keys(extra).length === 0) {
+                            pubMsg = '；题目公开：跳过（未配置 QMS headers）';
+                        } else {
+                            const r = await this.apiService.adminQmsQuestionOpenLibrarySave({
+                                questionId: finalQid,
+                                type: 2,
+                                ids: ['400'],
+                                __tracker_extra_headers: extra
+                            });
+                            pubMsg = r && r.ok ? '；题目公开：成功' : `；题目公开：失败（HTTP ${r?.status || 'unknown'}）`;
+                        }
+                    } else {
+                        pubMsg = '；题目公开：跳过（未拿到 questionId）';
+                    }
+                } catch (e) {
+                    const m = e && e.message ? e.message : 'unknown';
+                    pubMsg = `；题目公开：失败（${m}）`;
                 }
                 modal.remove();
                 this.loadClockList(this.clockPage);
-                alert(isEdit ? '更新成功' : '添加成功');
+                alert((isEdit ? '更新成功' : '添加成功') + pubMsg);
             } catch (error) {
                 errorEl.textContent = error.message || '操作失败';
                 errorEl.style.display = 'block';

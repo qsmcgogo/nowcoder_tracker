@@ -1038,9 +1038,25 @@ export class SkillTreeView {
             const stageNodeIds = stage.columns.flatMap(c => c.nodeIds);
             const stageTagIds = stageNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
 
-            // 调用API获取进度
-            const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, stageTagIds);
-            this.currentStageProgress = progressData; // 格式为 { nodeProgress: { ... } }
+            // 调用“每章知识点进度”接口（必要时自动重算过期知识点）；失败再回退旧接口
+            let progressData = null;
+            const chapterKey =
+                stageId === 'stage-1' ? 'chapter1'
+                : stageId === 'stage-2' ? 'chapter2'
+                : stageId === 'stage-3' ? 'chapter3'
+                : stageId === 'stage-4' ? 'chapter4'
+                : stageId === 'stage-5' ? 'chapter5'
+                : '';
+            if (chapterKey && this.state.isLoggedIn() && this.apiService && typeof this.apiService.fetchChapterNodeProgress === 'function') {
+                try {
+                    progressData = await this.apiService.fetchChapterNodeProgress(chapterKey);
+                } catch (_) {
+                    progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, stageTagIds);
+                }
+            } else {
+                progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, stageTagIds);
+            }
+            this.currentStageProgress = progressData || { nodeProgress: {} }; // 格式为 { nodeProgress: { ... }, nodeHasQuestions? }
 
             // The node states are now calculated based on progress percentage
             const nodeStates = this.calculateNodeStates(tree.nodes);
@@ -1274,10 +1290,9 @@ export class SkillTreeView {
         const nodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
         // 预取进度
         try {
-            const tagIds = nodeIds.map(id => nodeIdToTagId[id]).filter(Boolean);
-            if (tagIds.length) {
-                const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, tagIds);
-                this.currentStageProgress = progressData || { nodeProgress: {} };
+            if (this.state.isLoggedIn() && this.apiService && typeof this.apiService.fetchChapterNodeProgress === 'function') {
+                const d = await this.apiService.fetchChapterNodeProgress('interlude_dawn');
+                this.currentStageProgress = d || { nodeProgress: {} };
             }
         } catch (_) { /* ignore progress fetch error */ }
 
@@ -1352,14 +1367,13 @@ export class SkillTreeView {
         
         // 预取进度
         try {
-            const tagIds = nodeIds.map(id => nodeIdToTagId[id]).filter(Boolean);
-            if (tagIds.length && this.state.isLoggedIn()) {
-                const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, tagIds);
-                this.currentStageProgress = progressData || { nodeProgress: {} };
+            if (this.state.isLoggedIn() && this.apiService && typeof this.apiService.fetchChapterNodeProgress === 'function') {
+                const d = await this.apiService.fetchChapterNodeProgress('boss_dream');
+                this.currentStageProgress = d || { nodeProgress: {} };
             } else {
                 this.currentStageProgress = { nodeProgress: {} };
             }
-        } catch (_) { 
+        } catch (_) {
             this.currentStageProgress = { nodeProgress: {} };
         }
 
@@ -2020,10 +2034,9 @@ export class SkillTreeView {
         const nodeIds = ['geometry', 'game-theory', 'simulation-advanced', 'construction-advanced', 'greedy-priority-queue'];
         // 预取进度
         try {
-            const tagIds = nodeIds.map(id => nodeIdToTagId[id]).filter(Boolean);
-            if (tagIds.length) {
-                const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, tagIds);
-                this.currentStageProgress = progressData || { nodeProgress: {} };
+            if (this.state.isLoggedIn() && this.apiService && typeof this.apiService.fetchChapterNodeProgress === 'function') {
+                const d = await this.apiService.fetchChapterNodeProgress('interlude_2_5');
+                this.currentStageProgress = d || { nodeProgress: {} };
             }
         } catch (_) { /* ignore progress fetch error */ }
 
@@ -2097,10 +2110,9 @@ export class SkillTreeView {
         const nodeIds = ['construction-advanced-35', 'simulation-advanced-35', 'discretization', 'offline-processing', 'analytic-geometry'];
         // 预取进度
         try {
-            const tagIds = nodeIds.map(id => nodeIdToTagId[id]).filter(Boolean);
-            if (tagIds.length) {
-                const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, tagIds);
-                this.currentStageProgress = progressData || { nodeProgress: {} };
+            if (this.state.isLoggedIn() && this.apiService && typeof this.apiService.fetchChapterNodeProgress === 'function') {
+                const d = await this.apiService.fetchChapterNodeProgress('interlude_3_5');
+                this.currentStageProgress = d || { nodeProgress: {} };
             }
         } catch (_) { /* ignore progress fetch error */ }
 
@@ -2509,7 +2521,16 @@ export class SkillTreeView {
                 this.teardownSummarySvg && this.teardownSummarySvg();
                 this.selectedStageId = card.dataset.stageId;
                 this.currentView = 'detail';
-                this.render();
+                // renderDetailView 是 async，必须等 DOM 渲染完成后再刷新进度（否则可能看起来“没走新接口”）
+                (async () => {
+                    try {
+                        await this.renderDetailView(this.selectedStageId);
+                    } catch (_) {
+                        // fallback
+                        this.render();
+                    }
+                    await this.updateCurrentPageNodeProgress().catch(() => {});
+                })();
             });
         });
 
@@ -2519,7 +2540,10 @@ export class SkillTreeView {
             mini1.addEventListener('click', () => {
                 this.clearLines();
                 this.teardownSummarySvg && this.teardownSummarySvg();
-                this.renderInterludeDetail();
+                (async () => {
+                    await this.renderInterludeDetail();
+                    await this.updateCurrentPageNodeProgress().catch(() => {});
+                })();
             });
         }
         // 间章2.5：含苞（迷你卡）点击进入：自定义迷你详情
@@ -2528,7 +2552,10 @@ export class SkillTreeView {
             mini25.addEventListener('click', () => {
                 this.clearLines();
                 this.teardownSummarySvg && this.teardownSummarySvg();
-                this.renderInterlude25Detail();
+                (async () => {
+                    await this.renderInterlude25Detail();
+                    await this.updateCurrentPageNodeProgress().catch(() => {});
+                })();
             });
         }
         // 间章3：惊鸿（迷你卡）点击进入：自定义迷你详情
@@ -2537,7 +2564,10 @@ export class SkillTreeView {
             mini3.addEventListener('click', () => {
                 this.clearLines();
                 this.teardownSummarySvg && this.teardownSummarySvg();
-                this.renderInterlude35Detail();
+                (async () => {
+                    await this.renderInterlude35Detail();
+                    await this.updateCurrentPageNodeProgress().catch(() => {});
+                })();
             });
         }
         
@@ -2551,7 +2581,10 @@ export class SkillTreeView {
                 }
                 this.clearLines();
                 this.teardownSummarySvg && this.teardownSummarySvg();
-                this.renderBossDreamDetail();
+                (async () => {
+                    await this.renderBossDreamDetail();
+                    await this.updateCurrentPageNodeProgress().catch(() => {});
+                })();
             });
         }
     }
@@ -2867,7 +2900,48 @@ export class SkillTreeView {
                             if (!saved) return;
                             try {
                                 await this.apiService.batchReplaceSkillTree(tagId, saved);
-                                alert('已保存');
+                                // 自动题目公开（best-effort，不影响保存）
+                                let pubMsg = '';
+                                try {
+                                    const qids = Array.from(new Set((saved || []).map(x => String(x && (x.questionId ?? x.qid ?? x.questionid) || '').trim()).filter(Boolean)));
+                                    const extra = (this.apiService && typeof this.apiService.loadTrackerSavedQmsHeaders === 'function')
+                                        ? this.apiService.loadTrackerSavedQmsHeaders()
+                                        : {};
+                                    if (!qids.length) {
+                                        pubMsg = '（题目公开：跳过，未发现 questionId）';
+                                    } else if (!extra || Object.keys(extra).length === 0) {
+                                        pubMsg = '（题目公开：跳过，未配置 QMS headers）';
+                                    } else {
+                                    // 小并发，避免一次性打爆接口
+                                    const limit = 5;
+                                    let ok = 0, fail = 0;
+                                    const worker = async (qid) => {
+                                        const r = await this.apiService.adminQmsQuestionOpenLibrarySave({
+                                            questionId: qid,
+                                            type: 2,
+                                            ids: ['400'],
+                                            __tracker_extra_headers: extra
+                                        });
+                                        if (!r || !r.ok) throw new Error(`HTTP ${r?.status || 'unknown'}`);
+                                    };
+                                    const active = new Set();
+                                    const runOne = async (qid) => {
+                                        try { await worker(qid); ok++; } catch (_) { fail++; }
+                                    };
+                                    for (const qid of qids) {
+                                        const p = runOne(qid);
+                                        active.add(p);
+                                        p.finally(() => active.delete(p));
+                                        if (active.size >= limit) await Promise.race(active);
+                                    }
+                                    await Promise.allSettled(Array.from(active));
+                                    pubMsg = `（题目公开：成功${ok} 失败${fail}）`;
+                                    }
+                                } catch (e) {
+                                    const m = e && e.message ? e.message : 'unknown';
+                                    pubMsg = `（题目公开：失败 ${m}）`;
+                                }
+                                alert('已保存' + pubMsg);
                                 const fresh = await this.apiService.fetchTagInfo(tagId);
                                 this.showPanelContent(staticNodeData, fresh, false);
                             } catch (e) {
@@ -2984,7 +3058,47 @@ export class SkillTreeView {
                         if (!saved) return;
                         try {
                             await this.apiService.batchReplaceSkillTree(tagId, saved);
-                            alert('已保存');
+                            // 自动题目公开（best-effort，不影响保存）
+                            let pubMsg = '';
+                            try {
+                                const qids = Array.from(new Set((saved || []).map(x => String(x && (x.questionId ?? x.qid ?? x.questionid) || '').trim()).filter(Boolean)));
+                                const extra = (this.apiService && typeof this.apiService.loadTrackerSavedQmsHeaders === 'function')
+                                    ? this.apiService.loadTrackerSavedQmsHeaders()
+                                    : {};
+                                if (!qids.length) {
+                                    pubMsg = '（题目公开：跳过，未发现 questionId）';
+                                } else if (!extra || Object.keys(extra).length === 0) {
+                                    pubMsg = '（题目公开：跳过，未配置 QMS headers）';
+                                } else {
+                                    const limit = 5;
+                                    let ok = 0, fail = 0;
+                                    const worker = async (qid) => {
+                                        const r = await this.apiService.adminQmsQuestionOpenLibrarySave({
+                                            questionId: qid,
+                                            type: 2,
+                                            ids: ['400'],
+                                            __tracker_extra_headers: extra
+                                        });
+                                        if (!r || !r.ok) throw new Error(`HTTP ${r?.status || 'unknown'}`);
+                                    };
+                                    const active = new Set();
+                                    const runOne = async (qid) => {
+                                        try { await worker(qid); ok++; } catch (_) { fail++; }
+                                    };
+                                    for (const qid of qids) {
+                                        const p = runOne(qid);
+                                        active.add(p);
+                                        p.finally(() => active.delete(p));
+                                        if (active.size >= limit) await Promise.race(active);
+                                    }
+                                    await Promise.allSettled(Array.from(active));
+                                    pubMsg = `（题目公开：成功${ok} 失败${fail}）`;
+                                }
+                            } catch (e) {
+                                const m = e && e.message ? e.message : 'unknown';
+                                pubMsg = `（题目公开：失败 ${m}）`;
+                            }
+                            alert('已保存' + pubMsg);
                             const fresh = await this.apiService.fetchTagInfo(tagId);
                             this.showPanelContent(staticNodeData, fresh, false);
                         } catch (e) {
@@ -3062,11 +3176,20 @@ export class SkillTreeView {
             const tree = this.skillTrees['newbie-130'];
             let stageNodeIds = [];
             let stageTagIds = [];
+            let chapterKey = '';
 
             // 检查是否是Boss章节详情页
             const bossDreamDetail = this.container.querySelector('.boss-dream-detail');
             if (bossDreamDetail) {
-                // Boss章节：需要重新渲染整个页面以更新进度和风格
+                chapterKey = 'boss_dream';
+                // Boss章节：需要重新渲染整个页面以更新进度和风格（先刷新进度缓存）
+                try {
+                    if (this.apiService && typeof this.apiService.fetchChapterNodeProgress === 'function') {
+                        const d = await this.apiService.fetchChapterNodeProgress(chapterKey);
+                        if (!this.currentStageProgress.nodeProgress) this.currentStageProgress.nodeProgress = {};
+                        Object.assign(this.currentStageProgress.nodeProgress, d && d.nodeProgress ? d.nodeProgress : {});
+                    }
+                } catch (_) {}
                 await this.renderBossDreamDetail();
                 return;
             }
@@ -3078,15 +3201,19 @@ export class SkillTreeView {
                 const ribbon = this.container.querySelector('.interlude-ribbon');
                 if (ribbon && ribbon.textContent.includes('拂晓')) {
                     // 间章1.5：拂晓
+                    chapterKey = 'interlude_dawn';
                     stageNodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
                 } else if (ribbon && ribbon.textContent.includes('含苞')) {
                     // 间章2.5：含苞
+                    chapterKey = 'interlude_2_5';
                     stageNodeIds = ['geometry', 'game-theory', 'simulation-advanced', 'construction-advanced', 'greedy-priority-queue'];
                 } else if (ribbon && ribbon.textContent.includes('惊鸿')) {
                     // 间章3.5：惊鸿
+                    chapterKey = 'interlude_3_5';
                     stageNodeIds = ['construction-advanced-35', 'simulation-advanced-35', 'discretization', 'offline-processing', 'analytic-geometry'];
                 } else {
                     // 默认使用间章1.5
+                    chapterKey = 'interlude_dawn';
                     stageNodeIds = ['builtin-func', 'lang-feature', 'simulation-enum', 'construction', 'greedy-sort'];
                 }
                 stageTagIds = stageNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
@@ -3097,6 +3224,11 @@ export class SkillTreeView {
 
                 stageNodeIds = stage.columns.flatMap(c => c.nodeIds);
                 stageTagIds = stageNodeIds.map(nodeId => nodeIdToTagId[nodeId]).filter(Boolean);
+                if (this.selectedStageId === 'stage-1') chapterKey = 'chapter1';
+                else if (this.selectedStageId === 'stage-2') chapterKey = 'chapter2';
+                else if (this.selectedStageId === 'stage-3') chapterKey = 'chapter3';
+                else if (this.selectedStageId === 'stage-4') chapterKey = 'chapter4';
+                else if (this.selectedStageId === 'stage-5') chapterKey = 'chapter5';
             } else {
                 // 不在详情视图，不需要更新
                 return;
@@ -3104,14 +3236,28 @@ export class SkillTreeView {
 
             if (stageTagIds.length === 0) return;
 
-            // 调用API获取最新进度
-            const progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, stageTagIds);
+            // 优先调用“每章知识点进度”接口（必要时自动重算过期知识点）
+            let progressData = null;
+            if (chapterKey && this.apiService && typeof this.apiService.fetchChapterNodeProgress === 'function') {
+                try {
+                    progressData = await this.apiService.fetchChapterNodeProgress(chapterKey);
+                } catch (e) {
+                    // 回退旧接口，避免线上因为新接口异常导致进度不更新
+                    progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, stageTagIds);
+                }
+            } else {
+                // 兼容回退
+                progressData = await this.apiService.fetchSkillTreeProgress(this.state.loggedInUserId, stageTagIds);
+            }
             
             // 更新内存中的进度
             if (!this.currentStageProgress.nodeProgress) {
                 this.currentStageProgress.nodeProgress = {};
             }
             Object.assign(this.currentStageProgress.nodeProgress, progressData.nodeProgress || {});
+            const nodeHasQuestions = (progressData && progressData.nodeHasQuestions && typeof progressData.nodeHasQuestions === 'object')
+                ? progressData.nodeHasQuestions
+                : null;
 
             // 更新页面上所有知识点节点的进度显示
             stageNodeIds.forEach(nodeId => {
@@ -3125,28 +3271,34 @@ export class SkillTreeView {
                 }
                 if (!nodeEl) return;
 
-                // 获取最新进度
-                const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
-                const progress = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
-
-                // 更新进度文本
+                // 获取最新进度（注意：无题目时后端会返回 null，不应渲染为 0%）
+                const rawVal = this.currentStageProgress.nodeProgress[tagId];
+                const hasQ = nodeHasQuestions ? (nodeHasQuestions[String(tagId)] !== false) : (rawVal !== null);
                 const progressTextEl = nodeEl.querySelector('.skill-node__progress-text');
-                if (progressTextEl) {
-                    progressTextEl.textContent = `${progress}%`;
-                }
 
-                // 更新背景样式
-                if (progress > 0 && progress < 100) {
-                    nodeEl.style.background = `linear-gradient(to right, var(--primary-color-light) ${progress}%, #fff ${progress}%)`;
-                } else {
-                    nodeEl.style.background = progress >= 100 ? 'var(--primary-color-light)' : '#fff';
-                }
-
-                // 更新完成态样式
-                if (progress >= 100) {
-                    nodeEl.classList.add('skill-node--completed');
-                } else {
+                if (!hasQ || rawVal === null) {
+                    // 无题目：显示“暂无题目”，并灰化节点
+                    if (progressTextEl) progressTextEl.textContent = '暂无题目';
+                    nodeEl.classList.add('skill-node--no-questions');
                     nodeEl.classList.remove('skill-node--completed');
+                    // 不显示渐变填充
+                    nodeEl.style.background = '#f8f9fa';
+                } else {
+                    nodeEl.classList.remove('skill-node--no-questions');
+                    const rawNum = (typeof rawVal === 'number') ? rawVal : 0;
+                    const progress = rawNum <= 1 ? Math.round(rawNum * 100) : Math.round(rawNum);
+                    if (progressTextEl) progressTextEl.textContent = `${progress}%`;
+
+                    // 更新背景样式
+                    if (progress > 0 && progress < 100) {
+                        nodeEl.style.background = `linear-gradient(to right, var(--primary-color-light) ${progress}%, #fff ${progress}%)`;
+                    } else {
+                        nodeEl.style.background = progress >= 100 ? 'var(--primary-color-light)' : '#fff';
+                    }
+
+                    // 更新完成态样式
+                    if (progress >= 100) nodeEl.classList.add('skill-node--completed');
+                    else nodeEl.classList.remove('skill-node--completed');
                 }
             });
         } catch (error) {
