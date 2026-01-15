@@ -3487,6 +3487,45 @@ export class ApiService {
     }
 
     /**
+     * 管理员：一键重算并回填 acm_problem_open.accept_person（全站口径，按用户去重）
+     * POST /problem/tracker/admin/acm-problem-open/rebuild-accept-person
+     *
+     * @param {object} params
+     * @param {number} [params.offset=0]
+     * @param {number} [params.limit=0] - 0 表示处理到末尾
+     * @param {number} [params.pageSize=200] - 1~500
+     * @param {number} [params.batchSize=20] - 1~50
+     * @param {number} [params.sleepMs=0] - 0~3000
+     * @param {boolean} [params.dryRun=false] - true 不落库
+     */
+    async adminAcmProblemOpenRebuildAcceptPerson(params = {}) {
+        const url = `${this.apiBase}/problem/tracker/admin/acm-problem-open/rebuild-accept-person`;
+        const p = params || {};
+        const qs = new URLSearchParams();
+        const intOr0 = (x) => {
+            const v = parseInt(String(x ?? '0'), 10);
+            return Number.isFinite(v) ? v : 0;
+        };
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        qs.append('offset', String(Math.max(0, intOr0(p.offset))));
+        qs.append('limit', String(Math.max(0, intOr0(p.limit))));
+        qs.append('pageSize', String(clamp(intOr0(p.pageSize || 200), 1, 500)));
+        qs.append('batchSize', String(clamp(intOr0(p.batchSize || 20), 1, 50)));
+        qs.append('sleepMs', String(clamp(intOr0(p.sleepMs || 0), 0, 3000)));
+        qs.append('dryRun', String(!!p.dryRun));
+
+        const res = await fetch(`${url}?${qs.toString()}`, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '重算 accept_person 失败');
+    }
+
+    /**
      * 比赛题目难度一键更新
      * POST /problem/tracker/admin/acm-contest/rebuild-problem-difficulty
      * @param {number} contestId - 比赛ID（必填）

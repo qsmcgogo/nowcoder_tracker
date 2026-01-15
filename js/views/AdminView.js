@@ -730,6 +730,7 @@ export class AdminView {
         const savedDryRun = localStorage.getItem('tracker_import_dry_run') || 'false';
 
         return `
+            ${this.renderAcmProblemOpenRebuildAcceptPersonPanel()}
             <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
                 <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
                     批量将 Tracker 题目导入到 acm_problem_open
@@ -774,6 +775,108 @@ export class AdminView {
                 <div style="margin-top: 12px;">
                     <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">导入结果</div>
                     <pre id="admin-import-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 管理员工具：重算并回填 acm_problem_open.accept_person
+     */
+    renderAcmProblemOpenRebuildAcceptPersonPanel() {
+        const get = (k, defVal) => {
+            try {
+                const v = localStorage.getItem(k);
+                return (v == null || v === '') ? String(defVal) : String(v);
+            } catch (_) {
+                return String(defVal);
+            }
+        };
+        const getBool = (k, defVal) => {
+            try {
+                const v = localStorage.getItem(k);
+                if (v == null || v === '') return !!defVal;
+                return String(v) === 'true';
+            } catch (_) {
+                return !!defVal;
+            }
+        };
+        const offset = get('admin_acm_open_rebuild_offset', 0);
+        const limit = get('admin_acm_open_rebuild_limit', 0);
+        const pageSize = get('admin_acm_open_rebuild_page_size', 200);
+        const batchSize = get('admin_acm_open_rebuild_batch_size', 20);
+        const sleepMs = get('admin_acm_open_rebuild_sleep_ms', 0);
+        const dryRun = getBool('admin_acm_open_rebuild_dry_run', true);
+        const autoRun = getBool('admin_acm_open_rebuild_auto_run', false);
+        const segmentLimit = get('admin_acm_open_rebuild_segment_limit', 500);
+
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    acm_problem_open：重算通过人数（accept_person）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    兜底/回填/验数：按<b>全站口径</b>（主站 + ACM，按用户去重）重算，并写回 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">acm_problem_open.accept_person</code>。<br>
+                    后端接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/acm-problem-open/rebuild-accept-person</code>
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">offset:</label>
+                        <input id="admin-acm-open-rebuild-offset" type="number" min="0" value="${offset}"
+                               style="width: 140px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">limit:</label>
+                        <input id="admin-acm-open-rebuild-limit" type="number" min="0" value="${limit}"
+                               style="width: 140px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        <span style="font-size: 12px; color:#999;">0 表示处理到末尾</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">自动跑完:</label>
+                        <input id="admin-acm-open-rebuild-auto-run" type="checkbox" ${autoRun ? 'checked' : ''} />
+                        <span style="font-size: 12px; color:#999;">分段请求，避免单次 limit 太大</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">每段limit:</label>
+                        <input id="admin-acm-open-rebuild-seg-limit" type="number" min="1" value="${segmentLimit}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">pageSize:</label>
+                        <input id="admin-acm-open-rebuild-page-size" type="number" min="1" max="500" value="${pageSize}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">batchSize:</label>
+                        <input id="admin-acm-open-rebuild-batch-size" type="number" min="1" max="50" value="${batchSize}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">sleepMs:</label>
+                        <input id="admin-acm-open-rebuild-sleep-ms" type="number" min="0" max="3000" value="${sleepMs}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">dryRun:</label>
+                        <input id="admin-acm-open-rebuild-dry-run" type="checkbox" ${dryRun ? 'checked' : ''} />
+                        <span style="font-size: 12px; color:#999;">只统计不落库（推荐先勾选预演）</span>
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-acm-open-rebuild-run-btn"
+                            style="background:#fa541c; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        开始执行
+                    </button>
+                    <button id="admin-acm-open-rebuild-stop-btn"
+                            style="display:none;background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        停止
+                    </button>
+                </div>
+
+                <div id="admin-acm-open-rebuild-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">执行结果</div>
+                    <pre id="admin-acm-open-rebuild-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
                 </div>
             </div>
         `;
@@ -2048,6 +2151,12 @@ export class AdminView {
         if (previewBtn) previewBtn.addEventListener('click', () => this.previewImportIds());
         if (submitBtn) submitBtn.addEventListener('click', () => this.submitImportIds());
 
+        // acm_problem_open：重算 accept_person
+        const rebuildBtn = document.getElementById('admin-acm-open-rebuild-run-btn');
+        if (rebuildBtn) rebuildBtn.addEventListener('click', () => this.adminAcmOpenRebuildAcceptPerson());
+        const rebuildStopBtn = document.getElementById('admin-acm-open-rebuild-stop-btn');
+        if (rebuildStopBtn) rebuildStopBtn.addEventListener('click', () => { this._adminAcmOpenRebuildStop = true; });
+
         // 年度报告验数
         const yrBtn = document.getElementById('admin-year-report-fetch-btn');
         if (yrBtn) yrBtn.addEventListener('click', () => this.fetchAdminYearReport());
@@ -2097,6 +2206,143 @@ export class AdminView {
                 if (ta) ta.value = '';
                 alert('已清除本地保存的 headers');
             });
+        }
+    }
+
+    async adminAcmOpenRebuildAcceptPerson() {
+        const btn = document.getElementById('admin-acm-open-rebuild-run-btn');
+        const stopBtn = document.getElementById('admin-acm-open-rebuild-stop-btn');
+        const errEl = document.getElementById('admin-acm-open-rebuild-error');
+        const resultEl = document.getElementById('admin-acm-open-rebuild-result');
+        if (!btn || !errEl || !resultEl) return;
+        errEl.style.display = 'none';
+
+        const getNum = (id, defVal = 0) => {
+            const el = document.getElementById(id);
+            const v = parseInt(String(el ? el.value : defVal).trim(), 10);
+            return Number.isFinite(v) ? v : defVal;
+        };
+        const offset = Math.max(0, getNum('admin-acm-open-rebuild-offset', 0));
+        const limit = Math.max(0, getNum('admin-acm-open-rebuild-limit', 0));
+        const autoRunEl = document.getElementById('admin-acm-open-rebuild-auto-run');
+        const autoRun = !!(autoRunEl && autoRunEl.checked);
+        const segLimit = Math.max(1, getNum('admin-acm-open-rebuild-seg-limit', 500));
+        const pageSize = Math.max(1, Math.min(500, getNum('admin-acm-open-rebuild-page-size', 200)));
+        const batchSize = Math.max(1, Math.min(50, getNum('admin-acm-open-rebuild-batch-size', 20)));
+        const sleepMs = Math.max(0, Math.min(3000, getNum('admin-acm-open-rebuild-sleep-ms', 0)));
+        const dryRunEl = document.getElementById('admin-acm-open-rebuild-dry-run');
+        const dryRun = !!(dryRunEl && dryRunEl.checked);
+
+        // 保存参数便于复用
+        try {
+            localStorage.setItem('admin_acm_open_rebuild_offset', String(offset));
+            localStorage.setItem('admin_acm_open_rebuild_limit', String(limit));
+            localStorage.setItem('admin_acm_open_rebuild_page_size', String(pageSize));
+            localStorage.setItem('admin_acm_open_rebuild_batch_size', String(batchSize));
+            localStorage.setItem('admin_acm_open_rebuild_sleep_ms', String(sleepMs));
+            localStorage.setItem('admin_acm_open_rebuild_dry_run', String(dryRun));
+            localStorage.setItem('admin_acm_open_rebuild_auto_run', String(autoRun));
+            localStorage.setItem('admin_acm_open_rebuild_segment_limit', String(segLimit));
+        } catch (_) {}
+
+        if (!dryRun) {
+            const ok = confirm(
+                `确认要回填 acm_problem_open.accept_person 吗？\n\n` +
+                `offset=${offset}\nlimit=${limit}\npageSize=${pageSize}\nbatchSize=${batchSize}\nsleepMs=${sleepMs}\n\n` +
+                `注意：dryRun=false 会写库，建议先 dryRun=true 预演一小段。`
+            );
+            if (!ok) return;
+        }
+
+        if (autoRun && !dryRun) {
+            const ok2 = confirm(
+                `你开启了“自动跑完（分段）”。\n\n` +
+                `起始offset=${offset}\n每段limit=${segLimit}\npageSize=${pageSize}\nbatchSize=${batchSize}\nsleepMs=${sleepMs}\n\n` +
+                `这会多次发请求直到跑完（或你点“停止”）。确认继续？`
+            );
+            if (!ok2) return;
+        }
+
+        const old = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = autoRun ? (dryRun ? '分段预演中...' : '分段执行中...') : (dryRun ? '预演中...' : '执行中...');
+        this._adminAcmOpenRebuildStop = false;
+        if (stopBtn) stopBtn.style.display = 'inline-block';
+        resultEl.textContent = `请求中...\n` +
+            `offset=${offset}, limit=${limit}, pageSize=${pageSize}, batchSize=${batchSize}, sleepMs=${sleepMs}, dryRun=${dryRun}, autoRun=${autoRun}${autoRun ? `, segLimit=${segLimit}` : ''}\n`;
+
+        try {
+            if (!autoRun) {
+                const data = await this.apiService.adminAcmProblemOpenRebuildAcceptPerson({
+                    offset, limit, pageSize, batchSize, sleepMs, dryRun
+                });
+                resultEl.textContent = JSON.stringify(data, null, 2);
+                const updated = data && typeof data.updated === 'number' ? data.updated : (data?.updated ?? '-');
+                const processed = data && typeof data.processed === 'number' ? data.processed : (data?.processed ?? '-');
+                const failed = data && typeof data.failed === 'number' ? data.failed : (data?.failed ?? '-');
+                alert(`${dryRun ? '预演完成' : '执行完成'}：processed=${processed}，updated=${updated}，failed=${failed}`);
+            } else {
+                let curOffset = offset;
+                let round = 0;
+                let totalProcessed = 0;
+                let totalUpdated = 0;
+                let totalFailed = 0;
+                let total = null;
+                resultEl.textContent = `分段开始...\n起始offset=${curOffset}, 每段limit=${segLimit}\n`;
+
+                while (true) {
+                    if (this._adminAcmOpenRebuildStop) {
+                        resultEl.textContent += `\n已停止。\n当前offset=${curOffset}\n`;
+                        break;
+                    }
+                    round += 1;
+                    resultEl.textContent += `\n[${round}] 请求中... offset=${curOffset}, limit=${segLimit}\n`;
+
+                    const data = await this.apiService.adminAcmProblemOpenRebuildAcceptPerson({
+                        offset: curOffset, limit: segLimit, pageSize, batchSize, sleepMs, dryRun
+                    });
+                    if (total == null && data && typeof data.total === 'number') total = data.total;
+                    const processed = (data && typeof data.processed === 'number') ? data.processed : 0;
+                    const updated = (data && typeof data.updated === 'number') ? data.updated : 0;
+                    const failed = (data && typeof data.failed === 'number') ? data.failed : 0;
+                    const endExclusive = (data && typeof data.endExclusive === 'number') ? data.endExclusive : null;
+
+                    totalProcessed += processed;
+                    totalUpdated += updated;
+                    totalFailed += failed;
+
+                    resultEl.textContent += `结果：processed=${processed}, updated=${updated}, failed=${failed}` +
+                        (endExclusive != null ? `, endExclusive=${endExclusive}` : '') +
+                        (total != null ? `, total=${total}` : '') + `\n`;
+
+                    if (endExclusive == null) {
+                        resultEl.textContent += `未返回 endExclusive，停止分段。\n`;
+                        break;
+                    }
+                    if (processed <= 0) {
+                        resultEl.textContent += `processed=0，停止分段。\n`;
+                        break;
+                    }
+                    if (total != null && endExclusive >= total) {
+                        resultEl.textContent += `已到末尾（endExclusive>=total），完成。\n`;
+                        break;
+                    }
+                    curOffset = endExclusive;
+                }
+
+                try { localStorage.setItem('admin_acm_open_rebuild_offset', String(curOffset)); } catch (_) {}
+                alert(`${dryRun ? '分段预演完成' : '分段执行完成'}：processed=${totalProcessed}，updated=${totalUpdated}，failed=${totalFailed}`);
+            }
+        } catch (e) {
+            const msg = e && e.message ? e.message : '执行失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = old || '开始执行';
+            if (stopBtn) stopBtn.style.display = 'none';
+            this._adminAcmOpenRebuildStop = false;
         }
     }
 
