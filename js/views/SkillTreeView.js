@@ -810,8 +810,16 @@ export class SkillTreeView {
             // 第五章：踏浪凌云（占位展示，大卡）
             const stage4Obj = tree.stages.find(s => s.id === 'stage-4');
             const stage5Obj = tree.stages.find(s => s.id === 'stage-5');
+            // 第四章解锁条件：与 Boss「梦」和间章「惊鸿」一致
+            // 第三章平均进度 >= 70% 或 tracker 累计通过 100 题（管理员不受限制）
+            const stage4MeetProgress = stage3Avg >= 70;
+            const stage4MeetSolved = solvedCount >= 100;
+            const stage4IsLocked = isAdmin ? false : !(stage4MeetProgress || stage4MeetSolved);
+            const stage4LockReason = stage4IsLocked
+                ? `第三章平均进度达到70% <br>或<br>tracker累计通过100题：${solvedCount} / 100 <span class=\"dep-cross\">×</span>`
+                : '';
             const stage4CardHtml = stage4Obj ? `
-                <div class="skill-tree-card stage-4" data-stage-id="${stage4Obj.id}" style="opacity: 0.98;">
+                <div class="skill-tree-card stage-4 ${stage4IsLocked ? 'locked' : ''}" data-stage-id="${stage4Obj.id}" ${stage4IsLocked ? 'aria-disabled="true"' : ''} style="opacity: 0.98;">
                     <div class="stage-bg-pattern stage-bg-shadow">
                         <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
                             <defs>
@@ -832,6 +840,7 @@ export class SkillTreeView {
                     <div class="skill-tree-card__progress-bar">
                         <div class="skill-tree-card__progress-bar-inner" style="width: ${stage4Avg}%;"></div>
                     </div>
+                    ${stage4IsLocked ? `<div class="skill-tree-card__tooltip">${stage4LockReason}</div>` : ''}
                 </div>
             ` : '';
             const stage5CardHtml = stage5Obj ? `
