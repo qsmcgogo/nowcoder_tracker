@@ -15,6 +15,8 @@ export class RankingsView {
         this.apiService = apiService;
         
         this.rankingsPageSize = APP_CONFIG.RANKINGS_PAGE_SIZE;
+        // 技能树全站榜：用于显示 x/总题数
+        this.skillProblemTotal = 0;
         
         this.init();
     }
@@ -88,21 +90,46 @@ export class RankingsView {
         try {
             // const rankType = this.state.activeRankingsTab; // OLD: Using potentially stale state
             // This fetch is always for a specific page list, NOT for a specific user
-            const data = rankType === 'problem'
-                ? await this.apiService.fetchRankingsPage(rankType, page, this.rankingsPageSize)
-                : await this.apiService.fetchCheckinRankings(page, this.rankingsPageSize);
+            let data = null;
+            if (rankType === 'problem') {
+                data = await this.apiService.fetchRankingsPage(rankType, page, this.rankingsPageSize);
+            } else if (rankType === 'checkin') {
+                data = await this.apiService.fetchCheckinRankings(page, this.rankingsPageSize);
+            } else if (rankType === 'skill') {
+                data = await this.apiService.fetchSkillRankingsPage(page, this.rankingsPageSize);
+            } else {
+                data = await this.apiService.fetchRankingsPage('problem', page, this.rankingsPageSize);
+            }
 
-            if (data && data.ranks) {
-                this.state.rankingsTotalUsers = data.totalCount;
+            // 技能树接口返回 ranks: [{userId,acceptCount,rank,...}]，这里统一转为 {uid,count,place}
+            const normalizedRanks = (() => {
+                const list = Array.isArray(data?.ranks) ? data.ranks : [];
+                if (rankType !== 'skill') return list;
+                return list.map(r => ({
+                    uid: r.userId,
+                    name: r.name || '',
+                    headUrl: r.headUrl || '',
+                    count: Number(r.acceptCount ?? 0) || 0,
+                    place: Number(r.rank ?? 0) || 0
+                }));
+            })();
+
+            if (data && normalizedRanks) {
+                this.state.rankingsTotalUsers = Number(data.totalCount ?? data.totalCount ?? 0) || 0;
+                if (rankType === 'skill') {
+                    this.skillProblemTotal = Number(data.problemTotal ?? 0) || 0;
+                } else {
+                    this.skillProblemTotal = 0;
+                }
                 this.elements.rankingsTbody.innerHTML = '';
 
-                data.ranks.forEach(user => {
+                normalizedRanks.forEach(user => {
                     this.elements.rankingsTbody.innerHTML += this.generateRankingRowHtml(user);
                 });
                 
                 this.renderRankingsPagination();
                 
-                const userExistsInList = userIdToHighlight ? data.ranks.some(r => r.uid == userIdToHighlight) : false;
+                const userExistsInList = userIdToHighlight ? normalizedRanks.some(r => r.uid == userIdToHighlight) : false;
                 
                 if (userIdToHighlight) {
                     if (userExistsInList) {
@@ -111,15 +138,20 @@ export class RankingsView {
                     } else {
                         // This can happen if the user is unranked (place > 1w) but we landed on a page.
                         // We will fetch their specific data and append it.
-                        const userRankDataResponse = rankType === 'problem'
-                            ? await this.apiService.fetchUserData(userIdToHighlight)
-                            : await this.apiService.fetchCheckinRankings(1, 1, userIdToHighlight);
-                        if(userRankDataResponse && userRankDataResponse.ranks && userRankDataResponse.ranks.length > 0) {
-                            this.appendUserToRankings(userRankDataResponse.ranks[0]);
+                        if (rankType === 'skill') {
+                            // skill 的“查位置”接口与分页接口分离：这里不做 append，交由 handleUserStatusSearch 先跳页再高亮
                             this.elements.userRankDisplay.style.display = 'none';
-                            this.highlightSearchedUser();
                         } else {
-                            this.showRankSearchError('用户未找到');
+                            const userRankDataResponse = rankType === 'problem'
+                                ? await this.apiService.fetchUserData(userIdToHighlight)
+                                : await this.apiService.fetchCheckinRankings(1, 1, userIdToHighlight);
+                            if(userRankDataResponse && userRankDataResponse.ranks && userRankDataResponse.ranks.length > 0) {
+                                this.appendUserToRankings(userRankDataResponse.ranks[0]);
+                                this.elements.userRankDisplay.style.display = 'none';
+                                this.highlightSearchedUser();
+                            } else {
+                                this.showRankSearchError('用户未找到');
+                            }
                         }
                     }
                 }
@@ -156,7 +188,8 @@ export class RankingsView {
         const avatarUrl = user.headUrl && user.headUrl.startsWith('http')
             ? user.headUrl
             : `${APP_CONFIG.NOWCODER_UI_BASE}${user.headUrl || ''}`;
-        const profileUrl = helpers.buildUrlWithChannelPut(`/users/${user.uid}`, this.state.channelPut);
+        // 点击用户跳转到 Tracker 名片页（hash 路由）
+        const profileUrl = `#/profile?userId=${encodeURIComponent(String(user.uid))}`;
         
         // Use actualRank if provided, otherwise fall back to user.place
         let displayRank;
@@ -187,6 +220,10 @@ export class RankingsView {
         let statsHtml;
         if (rankType === 'checkin') {
             statsHtml = `<td>${count}</td><td>${consecutiveDays}</td>`;
+        } else if (rankType === 'skill') {
+            const denom = Number(this.skillProblemTotal || 0);
+            const cell = (denom > 0) ? `${count}/${denom}` : `${count}`;
+            statsHtml = `<td colspan="2">${cell}</td>`;
         } else {
             // 对于过题榜，让“过题数”一栏横跨两列以匹配表头结构
             statsHtml = `<td colspan="2">${count}</td>`;
@@ -196,10 +233,10 @@ export class RankingsView {
             <tr class="${highlightClass}" data-uid="${user.uid}" data-rank="${displayRank}">
                 <td>${displayRank}</td>
                 <td class="user-cell">
-                    <a href="${profileUrl}" target="_blank" rel="noopener noreferrer">
+                    <a href="${profileUrl}">
                         <img src="${avatarUrl}" alt="${user.name}'s avatar" class="user-avatar">
                     </a>
-                    <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" class="user-nickname-link">
+                    <a href="${profileUrl}" class="user-nickname-link">
                         <span class="user-nickname">${user.name}</span>
                     </a>
                 </td>
@@ -222,7 +259,8 @@ export class RankingsView {
         const consecutiveHeader = document.querySelector('#rankings-table .consecutive-days-header');
 
         if (acHeader) {
-            acHeader.textContent = rankType === 'problem' ? '过题数' : '累计打卡';
+            acHeader.textContent = rankType === 'problem' ? '过题数'
+                : (rankType === 'skill' ? '技能树通过' : '累计打卡');
         }
         if (consecutiveHeader) {
             consecutiveHeader.style.display = rankType === 'checkin' ? '' : 'none';
@@ -314,10 +352,32 @@ export class RankingsView {
         try {
             // Step 1: "Ask for directions" - get the user's specific rank data first
             const rankType = this.state.activeRankingsTab;
-            const userRankDataResponse = rankType === 'problem'
-                ? await this.apiService.fetchUserData(trimmedUserId)
+            let userRankDataResponse = null;
+            if (rankType === 'problem') {
+                userRankDataResponse = await this.apiService.fetchUserData(trimmedUserId);
+            } else if (rankType === 'checkin') {
                 // For check-in, the API should also support fetching a single user by userId
-                : await this.apiService.fetchCheckinRankings(1, 1, trimmedUserId); 
+                userRankDataResponse = await this.apiService.fetchCheckinRankings(1, 1, trimmedUserId);
+            } else if (rankType === 'skill') {
+                const pos = await this.apiService.fetchSkillRankPosition(trimmedUserId);
+                // 统一成 {ranks:[{uid,place,count}]} 的结构，以复用既有跳页逻辑
+                userRankDataResponse = {
+                    totalCount: pos.totalCount,
+                    problemTotal: pos.problemTotal,
+                    ranks: [{
+                        uid: pos.userId,
+                        name: '',
+                        headUrl: '',
+                        count: Number(pos.acceptCount ?? 0) || 0,
+                        place: Number(pos.rank ?? 0) || 0
+                    }]
+                };
+                // 同步 problemTotal，用于展示 x/总题数
+                this.skillProblemTotal = Number(pos.problemTotal ?? 0) || 0;
+                this.state.rankingsTotalUsers = Number(pos.totalCount ?? 0) || 0;
+            } else {
+                userRankDataResponse = await this.apiService.fetchUserData(trimmedUserId);
+            }
             
             if (userRankDataResponse && userRankDataResponse.ranks && userRankDataResponse.ranks.length > 0) {
                 const userData = userRankDataResponse.ranks[0];
@@ -334,9 +394,18 @@ export class RankingsView {
                         await this.fetchAndRenderRankingsPage(targetPage, rankType, trimmedUserId);
                     }
                 } else {
-                    // place==0 -> 1w+：直接跳到封顶页（例如第50页），再将该用户附加在末尾
-                    const capPage = Math.max(1, Math.ceil(1000 / (this.rankingsPageSize || 20)));
-                    await this.fetchAndRenderRankingsPage(capPage, rankType, trimmedUserId);
+                    if (rankType === 'skill') {
+                        const denom = Number(this.skillProblemTotal || 0);
+                        const count = Number(userData.count ?? 0) || 0;
+                        const cell = (denom > 0) ? `${count}/${denom}` : `${count}`;
+                        this.elements.userRankDisplay.innerHTML = `未上榜（技能树通过：${cell}，入榜门槛：>1 题）`;
+                        this.elements.userRankDisplay.style.display = 'block';
+                        await this.fetchAndRenderRankingsPage(1, rankType, null);
+                    } else {
+                        // place==0 -> 1w+：直接跳到封顶页（例如第50页），再将该用户附加在末尾
+                        const capPage = Math.max(1, Math.ceil(1000 / (this.rankingsPageSize || 20)));
+                        await this.fetchAndRenderRankingsPage(capPage, rankType, trimmedUserId);
+                    }
                 }
             } else {
                 this.showRankSearchError('用户未找到');

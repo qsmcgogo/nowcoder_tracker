@@ -344,7 +344,7 @@ export class NowcoderTracker {
         const adminUpdateBtn = document.getElementById('rank-admin-update-btn');
         if (adminUpdateBtn) {
             // 根据管理员态显示/隐藏
-            adminUpdateBtn.style.display = this.state.isAdmin ? 'inline-block' : 'none';
+            adminUpdateBtn.style.display = (this.state.isAdmin && this.state.activeRankingsTab === 'problem') ? 'inline-block' : 'none';
             adminUpdateBtn.addEventListener('click', async () => {
                 if (!this.state.isAdmin) return alert('需要管理员权限');
                 const uid = this.elements.rankUserIdInput?.value?.trim();
@@ -409,6 +409,10 @@ export class NowcoderTracker {
 
         // 初始化帮助菜单
         this.initHelpMenu();
+
+        // 初始化“我的”下拉（链接会在登录态探测后自动填充）
+        this.updateMyProfileDropdownLinks();
+        this.initMyProfileDropdownDelay();
         
         // 监听 USER_LOGIN（来自 todayinfo），自动填充并在相应页签触发查询
         eventBus.on(EVENTS.USER_LOGIN, async (userData) => {
@@ -417,6 +421,7 @@ export class NowcoderTracker {
             
             // 调用 AppState 的方法来统一设置用户
             this.state.setLoggedInUser(uid, userData);
+            this.updateMyProfileDropdownLinks();
             
             // 异步检查管理员状态
             await this.state.checkAdminStatus(this.apiService);
@@ -451,7 +456,7 @@ export class NowcoderTracker {
             // 登录后根据管理员身份刷新"更新过题数"按钮可见性
             const adminUpdateBtn2 = document.getElementById('rank-admin-update-btn');
             if (adminUpdateBtn2) {
-                adminUpdateBtn2.style.display = this.state.isAdmin ? 'inline-block' : 'none';
+                adminUpdateBtn2.style.display = (this.state.isAdmin && this.state.activeRankingsTab === 'problem') ? 'inline-block' : 'none';
             }
 
             if (this.state.activeMainTab === 'problems') {
@@ -521,7 +526,8 @@ export class NowcoderTracker {
             // 直接进入团队页，避免默认跳转到 daily
             this.switchMainTab('team', { subview: null });
         } else {
-            this.switchMainTab(initialTab, { subview: initialSubview });
+            // 从 hash 初始化：保留 hash 的子路由与查询参数（如 /profile?userId=...）
+            this.switchMainTab(initialTab, { subview: initialSubview, preserveHash: true });
         }
 
         // 监听哈希变化，实现前进/后退导航
@@ -530,7 +536,8 @@ export class NowcoderTracker {
             const target = this.normalizeTabName(route || 'daily');
             const subview = this.extractProblemsSubview(route);
             if (target) {
-                this.switchMainTab(target, { subview });
+                // hash 驱动的切页：保留完整 hash（如 /battle/record?... /profile?userId=...）
+                this.switchMainTab(target, { subview, preserveHash: true });
             }
             const tid = this.parseTeamInviteRoute();
             if (tid) this.showTeamInviteLanding(tid);
@@ -562,11 +569,23 @@ export class NowcoderTracker {
         // 将当前标签写入哈希，保持可分享/可返回
         const normalized = this.normalizeTabName(tabName);
         const currentHash = (window.location.hash || '').replace(/^#/, '');
+        const preserveHashByOption = !!(options && options.preserveHash);
         // 邀请链接：当路由以 /team/ 或 /inviteTeam 开头时，保留完整哈希（避免被重写为 /team 导致丢参）
         let shouldPreserveHash = false;
         if (normalized === 'team') {
             const h = (currentHash || '').toLowerCase();
             if (h.startsWith('/team/') || h.startsWith('/inviteteam')) shouldPreserveHash = true;
+        }
+        // 个人名片：仅在“hash 驱动切页”时保留 profile 的 userId 参数；
+        // 用户点击顶部“我的”时应回到自己的 #/profile（不保留 userId）
+        if (normalized === 'profile' && preserveHashByOption) {
+            const h = (currentHash || '').toLowerCase();
+            if (h.startsWith('/profile?') || h.startsWith('/profile/') || h.includes('/profile?userid=')) shouldPreserveHash = true;
+        }
+        // 对战记录：当路由以 /battle/ 开头时，保留完整哈希（避免丢参）
+        if (normalized === 'battle' && preserveHashByOption) {
+            const h = (currentHash || '').toLowerCase();
+            if (h.startsWith('/battle/')) shouldPreserveHash = true;
         }
         if (!shouldPreserveHash) {
             let expectedHash = `/${normalized}`;
@@ -712,6 +731,12 @@ export class NowcoderTracker {
     async handleRankTabChange(rankType) {
         // Step 1: Update state
         this.state.setActiveRankingsTab(rankType);
+
+        // “更新过题数”按钮：仅在过题榜显示（管理员）
+        const adminUpdateBtn2 = document.getElementById('rank-admin-update-btn');
+        if (adminUpdateBtn2) {
+            adminUpdateBtn2.style.display = (this.state.isAdmin && rankType === 'problem') ? 'inline-block' : 'none';
+        }
         
         // Step 2: Notify the view to update its internal state and UI (like headers)
         // This is now an async operation if the view needs to re-render parts of itself
@@ -819,6 +844,8 @@ export class NowcoderTracker {
         const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','battle','activity','team','profile','faq','changelog','admin','prompt','dify']);
         if (key.startsWith('team/')) return 'team';
         if (key.startsWith('invitet') || key.startsWith('inviteTeam'.toLowerCase())) return 'team';
+        if (key.startsWith('profile')) return 'profile'; // 支持 profile?userId=xxx 或 profile/123
+        if (key.startsWith('battle')) return 'battle'; // 支持 battle/record?userId=xxx 等子路由
         if (allowed.has(key)) return key;
         // 允许一些别名
         if (key === 'skills' || key === 'skill' || key === 'skilltree') return 'skill-tree';
@@ -907,6 +934,7 @@ export class NowcoderTracker {
                 const d = data.data;
                 const uid = d.uid && d.uid !== 0 ? String(d.uid) : null;
                 this.state.setLoggedInUser(uid, d.user || null);
+                this.updateMyProfileDropdownLinks();
                 
                 // 如果用户已登录，检查管理员状态 + Prompt 测试资格
                 if (uid) {
@@ -926,6 +954,52 @@ export class NowcoderTracker {
         } catch (_) {
             // 忽略错误，不影响其它页面加载
         }
+    }
+
+    updateMyProfileDropdownLinks() {
+        const contestA = document.getElementById('tracker-my-dropdown-contest');
+        const mainA = document.getElementById('tracker-my-dropdown-main');
+        if (!contestA || !mainA) return;
+
+        const uid = this.state?.loggedInUserId ? String(this.state.loggedInUserId).trim() : '';
+        if (uid) {
+            contestA.href = `https://ac.nowcoder.com/acm/contest/profile/${encodeURIComponent(uid)}`;
+            mainA.href = `https://www.nowcoder.com/users/${encodeURIComponent(uid)}`;
+        } else {
+            // 未登录：仍给出站点入口（避免 href="#" 的“空跳转”体验）
+            contestA.href = 'https://ac.nowcoder.com';
+            mainA.href = 'https://www.nowcoder.com';
+        }
+    }
+
+    initMyProfileDropdownDelay() {
+        if (this._myDropdownInited) return;
+        this._myDropdownInited = true;
+
+        const menu = document.getElementById('tracker-my-menu');
+        const dropdown = document.getElementById('tracker-my-dropdown');
+        if (!menu || !dropdown) return;
+
+        let hideTimer = null;
+        const open = () => {
+            if (hideTimer) {
+                clearTimeout(hideTimer);
+                hideTimer = null;
+            }
+            menu.classList.add('is-open');
+        };
+        const scheduleClose = () => {
+            if (hideTimer) clearTimeout(hideTimer);
+            hideTimer = setTimeout(() => {
+                menu.classList.remove('is-open');
+                hideTimer = null;
+            }, 500);
+        };
+
+        menu.addEventListener('mouseenter', open);
+        menu.addEventListener('mouseleave', scheduleClose);
+        dropdown.addEventListener('mouseenter', open);
+        dropdown.addEventListener('mouseleave', scheduleClose);
     }
     
     // 获取用户搜索数据（供RankingsView使用）

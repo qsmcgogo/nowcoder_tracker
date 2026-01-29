@@ -37,7 +37,7 @@ export class AppState {
         this.courseCurrentPage = 1;
         
         // 排行榜状态
-        this.activeRankingsTab = 'problem'; // 'problem' or 'checkin'
+        this.activeRankingsTab = 'problem'; // 'problem' | 'checkin' | 'skill'
         this.rankingsTotalUsers = 0;
         this.rankingsCurrentPage = 1;
         this.lastSearchedUid = null;

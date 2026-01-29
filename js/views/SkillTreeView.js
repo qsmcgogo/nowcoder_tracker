@@ -351,6 +351,14 @@ export class SkillTreeView {
         this._outsideCloseBound = false;
         this.attachGlobalPanelCloser();
 
+        // UI：是否在题目列表显示 problemId（注意：不是 questionId）
+        try {
+            const saved = localStorage.getItem('skill_show_problem_id');
+            this.showProblemId = (saved === '1' || String(saved).toLowerCase() === 'true');
+        } catch (_) {
+            this.showProblemId = false;
+        }
+
         // 当切换到其他主标签页时，清理所有连线（避免残留在其它页面）
         try {
             eventBus.on(EVENTS.VIEW_CHANGED, (view) => {
@@ -2909,8 +2917,6 @@ export class SkillTreeView {
                                         : {};
                                     if (!qids.length) {
                                         pubMsg = '（题目公开：跳过，未发现 questionId）';
-                                    } else if (!extra || Object.keys(extra).length === 0) {
-                                        pubMsg = '（题目公开：跳过，未配置 QMS headers）';
                                     } else {
                                     // 小并发，避免一次性打爆接口
                                     const limit = 5;
@@ -2935,7 +2941,7 @@ export class SkillTreeView {
                                         if (active.size >= limit) await Promise.race(active);
                                     }
                                     await Promise.allSettled(Array.from(active));
-                                    pubMsg = `（题目公开：成功${ok} 失败${fail}）`;
+                                        pubMsg = `（题目公开：成功${ok} 失败${fail}${(!extra || Object.keys(extra).length === 0) ? '，若提示客户端验证错误请在 QMS 录题测试里粘贴 headers' : ''}）`;
                                     }
                                 } catch (e) {
                                     const m = e && e.message ? e.message : 'unknown';
@@ -2965,6 +2971,7 @@ export class SkillTreeView {
         // 附加题（需要在列表中加重点标识）
         const extraQuestionIds = new Set(['1497534', '11506730', '11269123']);
 
+        const showPid = !!this.showProblemId;
         const problemsHtml = problems.map(problem => {
             const isSolved = problem.solved;
             const depTagIds = parseDeps(problem);
@@ -2996,6 +3003,12 @@ export class SkillTreeView {
             const qid = String(problem.qid || problem.questionId || '');
             const extraFlag = extraQuestionIds.has(qid) ? '<span class="problem-extra-flag" title="附加题">★</span>' : '';
 
+            // 显示 problemId（不是 questionId；不影响“设置题目/批量管理”）
+            const pid = (problem && problem.problemId != null) ? String(problem.problemId).trim() : '';
+            const pidHtml = (showPid && pid)
+                ? `<span class="problem-id-badge" title="problemId" style="margin-left:8px;padding:1px 6px;border-radius:10px;border:1px solid #e5e7eb;background:#f8fafc;color:#64748b;font-size:12px;vertical-align:middle;">#${escapeHtml(pid)}</span>`
+                : '';
+
             // Tooltip content for lock reasons, using Chinese node names
             let lockTooltipInner = '';
             if (isLocked) {
@@ -3018,7 +3031,7 @@ export class SkillTreeView {
                 <li class="problem-item ${problemClass}"${lockAttr}>
                     <a ${linkAttrs}>
                         <span class="problem-status-icon">${isSolved ? '✔' : ''}</span>
-                        ${extraFlag}<span class="problem-title">${problem.name}</span>
+                        ${extraFlag}<span class="problem-title">${problem.name}</span>${pidHtml}
                         ${scoreHtml}
                         ${passHtml}
                         ${isLocked ? '<span class="problem-lock-icon" aria-label="未解锁" title="未解锁"><svg class="icon-lock" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M12 1a5 5 0 0 0-5 5v4H6a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-9a2 2 0 0 0-2-2h-1V6a5 5 0 0 0-5-5zm-3 9V6a3 3 0 1 1 6 0v4H9z"></path></svg></span>' : ''}
@@ -3028,7 +3041,25 @@ export class SkillTreeView {
             `;
         }).join('');
 
-        this.panelProblems.innerHTML = `<ul>${problemsHtml}</ul>`;
+        const toggleBtnText = showPid ? '隐藏 problemId' : '显示 problemId';
+        const toolsBar = `
+            <div class="skill-problem-tools" style="display:flex;align-items:center;gap:10px;margin:8px 0 10px;">
+                <button id="skill-toggle-problem-id" type="button" class="admin-btn" style="padding:6px 10px;">${toggleBtnText}</button>
+            </div>
+        `;
+
+        this.panelProblems.innerHTML = `${toolsBar}<ul>${problemsHtml}</ul>`;
+
+        const toggleBtn = this.panelProblems.querySelector('#skill-toggle-problem-id');
+        if (toggleBtn && !toggleBtn._bound) {
+            toggleBtn._bound = true;
+            toggleBtn.addEventListener('click', () => {
+                this.showProblemId = !this.showProblemId;
+                try { localStorage.setItem('skill_show_problem_id', this.showProblemId ? '1' : '0'); } catch (_) {}
+                // 仅重绘当前面板，不重新请求
+                this.showPanelContent(staticNodeData, tagInfo, false);
+            });
+        }
 
         // 管理员：批量管理入口
         if (this.state.isAdmin) {
@@ -3067,8 +3098,6 @@ export class SkillTreeView {
                                     : {};
                                 if (!qids.length) {
                                     pubMsg = '（题目公开：跳过，未发现 questionId）';
-                                } else if (!extra || Object.keys(extra).length === 0) {
-                                    pubMsg = '（题目公开：跳过，未配置 QMS headers）';
                                 } else {
                                     const limit = 5;
                                     let ok = 0, fail = 0;
@@ -3092,7 +3121,7 @@ export class SkillTreeView {
                                         if (active.size >= limit) await Promise.race(active);
                                     }
                                     await Promise.allSettled(Array.from(active));
-                                    pubMsg = `（题目公开：成功${ok} 失败${fail}）`;
+                                    pubMsg = `（题目公开：成功${ok} 失败${fail}${(!extra || Object.keys(extra).length === 0) ? '，若提示客户端验证错误请在 QMS 录题测试里粘贴 headers' : ''}）`;
                                 }
                             } catch (e) {
                                 const m = e && e.message ? e.message : 'unknown';

@@ -13,22 +13,71 @@ export class ProfileView {
         this.appState = state; // Correctly assign the state object
     }
 
+    // 从 hash 路由解析 profile 目标 userId（支持 #/profile?userId=123 或 #/profile/123）
+    getTargetUserIdFromHash() {
+        try {
+            const full = String(window.location.hash || '').replace(/^#\/?/, '');
+            const s = full.replace(/^\/?/, '');
+            if (!s.toLowerCase().startsWith('profile')) return null;
+            // profile/search 是搜索页，不应当被识别为 userId
+            if (s.toLowerCase().startsWith('profile/search')) return null;
+            // query: profile?userId=...
+            const q = s.split('?')[1] || '';
+            if (q) {
+                const sp = new URLSearchParams(q);
+                const uid = sp.get('userId') || sp.get('uid');
+                if (uid && String(uid).trim()) return String(uid).trim();
+            }
+            // path: profile/123
+            const m = s.match(/^profile\/(\d+)/i);
+            if (m && m[1]) return String(m[1]);
+        } catch (_) {}
+        return null;
+    }
+
+    // 解析 profile/search?query=xxx
+    getSearchQueryFromHash() {
+        try {
+            const full = String(window.location.hash || '').replace(/^#\/?/, '');
+            const s = full.replace(/^\/?/, '');
+            if (!s.toLowerCase().startsWith('profile/search')) return null;
+            const q = s.split('?')[1] || '';
+            const sp = new URLSearchParams(q);
+            const query = (sp.get('query') || sp.get('q') || '').trim();
+            return query || '';
+        } catch (_) {
+            return null;
+        }
+    }
+
     async render() {
         if (!this.container) {
             return;
         }
 
-        if (!this.appState.isLoggedIn()) {
+        const searchQuery = this.getSearchQueryFromHash();
+        if (searchQuery != null) {
+            await this.renderSearchPage(searchQuery);
+            return;
+        }
+
+        const targetUidFromHash = this.getTargetUserIdFromHash();
+        const viewingOther = !!(targetUidFromHash && String(targetUidFromHash) !== String(this.appState.loggedInUserId || ''));
+
+        // 未登录且也没有指定 userId：仍提示登录（或给出可分享链接提示）
+        if (!this.appState.isLoggedIn() && !targetUidFromHash) {
             this.container.innerHTML = this.getLoggedOutHtml();
             return;
         }
 
         this.container.innerHTML = `<div class="loader"></div>`;
         try {
-            const userId = this.appState.loggedInUserId;
-            
-            // 使用整合接口获取所有信息
-            const myInfo = await this.apiService.fetchMyInfo();
+            const userId = targetUidFromHash || this.appState.loggedInUserId;
+
+            // 使用整合接口获取所有信息（看他人用 user-info；看自己用 my-info）
+            const myInfo = targetUidFromHash
+                ? await this.apiService.fetchUserInfo(userId)
+                : await this.apiService.fetchMyInfo();
             
             // 如果整合接口失败，回退到原来的多个接口调用方式
             if (!myInfo) {
@@ -49,6 +98,7 @@ export class ProfileView {
             const checkin = myInfo.checkin || {};
             const skillTree = myInfo.skillTree || {};
             const badge = myInfo.badge || {};
+            const follow = myInfo.follow || {};
             
             // 处理技能树数据
             const skillTreeTotalProgress = skillTree.totalProgress || 0;
@@ -61,11 +111,13 @@ export class ProfileView {
                 'chapter2': '第二章：懵懂新芽',
                 'interlude_2_5': '间章：含苞',
                 'chapter3': '第三章：初显峥嵘',
-                'boss_dream': '梦'
+                'interlude_3_5': '间章：惊鸿',
+                'boss_dream': '梦',
+                'chapter4': '第四章：韬光逐影'
             };
             
             // 章节顺序（按照技能树页面的顺序）
-            const chapterOrder = ['chapter1', 'interlude_dawn', 'chapter2', 'interlude_2_5', 'chapter3', 'boss_dream'];
+            const chapterOrder = ['chapter1', 'interlude_dawn', 'chapter2', 'interlude_2_5', 'chapter3', 'interlude_3_5', 'boss_dream', 'chapter4'];
 
             // 提取成就点数：badge.userTotalScore 是一个对象，包含 totalScore 字段
             let achievementPoints = 0;
@@ -85,12 +137,17 @@ export class ProfileView {
             }
 
             // 构建用户数据对象
+            // userInfo（排行榜）字段优先用于补齐 name/headUrl/rank/count
+            const mergedName = (userInfo && (userInfo.name || userInfo.nickname)) || user.name || '';
+            const mergedHead = (userInfo && userInfo.headUrl) || user.headUrl || '';
+            const mergedPassed = (userInfo && (userInfo.count ?? userInfo.acceptCount)) ?? user.count ?? 0;
+            const mergedRank = (userInfo && (userInfo.place ?? userInfo.rank)) ?? user.place ?? 0;
             const userData = {
                 uid: user.uid || userId,
-                name: user.name || '',
-                headUrl: user.headUrl || '',
-                problemPassed: user.count || 0,
-                rank: user.place === 0 ? '1w+' : (user.place || '1w+'),
+                name: mergedName || '',
+                headUrl: mergedHead || '',
+                problemPassed: Number(mergedPassed) || 0,
+                rank: Number(mergedRank) === 0 ? '1w+' : (Number(mergedRank) || '1w+'),
                 checkin: {
                     count: checkin.countDay || 0,
                     continueDays: checkin.continueDay || 0
@@ -104,18 +161,119 @@ export class ProfileView {
                 achievements: {
                     totalPoints: achievementPoints
                 },
-                battle1v1Score: myInfo.battle1v1Score || 1000
+                battle1v1Score: myInfo.battle1v1Score || 1000,
+                battle1v1WinCount: Number(myInfo.battle1v1WinCount ?? 0) || 0,
+                battle1v1TotalCount: Number(myInfo.battle1v1TotalCount ?? 0) || 0,
+                battleAiWinCount: Number(myInfo.battleAiWinCount ?? 0) || 0,
+                battleAiTotalCount: Number(myInfo.battleAiTotalCount ?? 0) || 0,
+                follow,
+                __viewingOther: viewingOther
             };
             
             this.container.innerHTML = this.getUserProfileHtml(userData);
             
             // 绑定展开/收起事件
             this.bindSkillTreeExpandEvents();
+            // 绑定关注/取关按钮
+            this.bindFollowButton(userData);
+            // 绑定搜索框（浮动）
+            this.bindProfileSearch();
 
         } catch (error) {
             console.error("Failed to render profile view:", error);
             this.container.innerHTML = `<div class="error-message">无法加载您的个人信息，请稍后重试。(${error.message})</div>`;
         }
+    }
+
+    async renderSearchPage(query) {
+        const q = String(query || '').trim();
+        this.container.innerHTML = this.getSearchPageHtml(q, { loading: true, users: [], error: '' });
+        this.bindProfileSearch();
+        if (!q) return;
+
+        try {
+            const { records = [] } = await this.apiService.spartaSearchUser(q, 1, 15);
+            const users = (Array.isArray(records) ? records : [])
+                .filter(r => r && (r.userId != null))
+                .map(r => ({
+                    userId: String(r.userId),
+                    nickname: String(r.nickname || '').trim(),
+                    avatar: String(r.headImgUrl || '').trim()
+                }));
+            this.container.innerHTML = this.getSearchPageHtml(q, { loading: false, users, error: '' });
+            this.bindProfileSearch();
+        } catch (e) {
+            this.container.innerHTML = this.getSearchPageHtml(q, { loading: false, users: [], error: (e && e.message) ? e.message : '搜索失败' });
+            this.bindProfileSearch();
+        }
+    }
+
+    bindProfileSearch() {
+        const box = this.container.querySelector('#profile-search-box');
+        const input = this.container.querySelector('#profile-search-input');
+        const btn = this.container.querySelector('#profile-search-btn');
+        if (!box || !input || !btn) return;
+        if (btn._bound) return;
+        btn._bound = true;
+
+        // 若当前在搜索页，把 query 回填到输入框
+        const currentQ = this.getSearchQueryFromHash();
+        if (currentQ != null && !input.value) input.value = currentQ;
+
+        const doSearch = () => {
+            const q = String(input.value || '').trim();
+            if (!q) return;
+            window.location.hash = `#/profile/search?query=${encodeURIComponent(q)}`;
+        };
+
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            doSearch();
+        });
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                doSearch();
+            }
+        });
+    }
+
+    bindFollowButton(userData) {
+        const btn = this.container.querySelector('#profile-follow-btn');
+        if (!btn || btn._bound) return;
+        btn._bound = true;
+
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (btn.disabled) return;
+
+            const followType = Number(btn.dataset.followType);
+            const targetUid = Number(btn.dataset.targetUid || userData.uid);
+            if (!targetUid || targetUid <= 0) return;
+
+            const shouldFollow = (followType === 0 || followType === 2);
+            const shouldUnfollow = (followType === 1 || followType === 3);
+            if (!shouldFollow && !shouldUnfollow) return;
+
+            const oldText = btn.textContent;
+            btn.disabled = true;
+            btn.textContent = '处理中...';
+
+            try {
+                if (shouldFollow) {
+                    await this.apiService.snsFollow(targetUid);
+                } else {
+                    await this.apiService.snsUnfollow(targetUid);
+                }
+                // 不猜测新 followType，直接刷新名片（走 user-info，拿到最新四态）
+                await this.render();
+            } catch (err) {
+                btn.textContent = oldText;
+                btn.disabled = false;
+                alert(err?.message || '操作失败');
+            }
+        });
     }
 
     /**
@@ -263,16 +421,41 @@ export class ProfileView {
     getUserProfileHtml(user) {
         const avatarUrl = user.headUrl && user.headUrl.startsWith('http') ? user.headUrl : `https://uploadfiles.nowcoder.com${user.headUrl || ''}`;
         const profileUrl = helpers.buildUrlWithChannelPut(`https://www.nowcoder.com/users/${user.uid}`, this.appState?.channelPut);
-        
+
+        const follow = user.follow || {};
+        const followType = Number(follow.followType);
+        const showFollow = user.__viewingOther === true;
+        const followTextMap = {
+            0: '关注',
+            1: '已关注',
+            2: '回关',
+            3: '已互粉'
+        };
+        const followText = followTextMap.hasOwnProperty(followType) ? followTextMap[followType] : '关注';
+        const followDisabled = !(followType === 0 || followType === 1 || followType === 2 || followType === 3);
+        // 悬停不展示说明（不使用 title）
+        const followTone = (followType === 0 || followType === 2) ? 'pink' : 'gray';
         return `
             <div class="profile-card">
                 <div class="profile-header">
                     <img src="${avatarUrl}" alt="${user.name}的头像" class="profile-avatar">
-                    <h2 class="profile-name">
-                        <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" class="profile-name-link" title="打开牛客个人主页">
-                            ${user.name}
-                        </a>
-                    </h2>
+                    <div class="profile-name-row">
+                        <h2 class="profile-name">
+                            <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" class="profile-name-link" title="打开牛客个人主页">
+                                ${user.name}
+                            </a>
+                        </h2>
+                        ${showFollow ? `
+                            <button
+                                id="profile-follow-btn"
+                                class="profile-follow-btn ${followTone === 'pink' ? 'is-pink' : 'is-gray'}"
+                                data-follow-type="${Number.isFinite(followType) ? followType : ''}"
+                                data-viewer-uid="${follow.viewerUserId ?? ''}"
+                                data-target-uid="${follow.targetUserId ?? user.uid}"
+                                ${followDisabled ? 'disabled' : ''}
+                            >${followText}</button>
+                        ` : ''}
+                    </div>
                     <p class="profile-uid">UID: ${user.uid}</p>
                 </div>
                 <div class="profile-stats">
@@ -331,7 +514,69 @@ export class ProfileView {
                         <span class="detail-label">1v1对战分数</span>
                         <span class="detail-value" style="color: ${helpers.getRatingColor(user.battle1v1Score)}; font-weight: 600;">${user.battle1v1Score}</span>
                     </div>
+                    <div class="detail-item">
+                        <span class="detail-icon">🎮</span>
+                        <div class="battle-mini">
+                            <div class="battle-mini-head">
+                                <span class="battle-mini-title">1v1对战统计</span>
+                            </div>
+                            <div class="battle-mini-stats">
+                                <div class="battle-mini-stat">
+                                    <span class="battle-mini-k">总场数</span>
+                                    <span class="battle-mini-v">${Number(user.battle1v1TotalCount) || 0}</span>
+                                </div>
+                                <div class="battle-mini-stat">
+                                    <span class="battle-mini-k">胜场数</span>
+                                    <span class="battle-mini-v">${Number(user.battle1v1WinCount) || 0}</span>
+                                </div>
+                            </div>
+                            <div class="battle-mini-actions">
+                                <a class="battle-mini-link" href="#/battle/record?userId=${encodeURIComponent(String(user.uid))}">查看战绩</a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
+            </div>
+            <div id="profile-search-box" class="profile-search-box profile-search-floating">
+                <input id="profile-search-input" class="profile-search-input" placeholder="搜索用户：ID / 名字" />
+                <button id="profile-search-btn" class="profile-search-btn">搜索</button>
+            </div>
+        `;
+    }
+
+    getSearchPageHtml(query, { loading, users, error }) {
+        const escapeHtml = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        const q = String(query || '').trim();
+        const list = Array.isArray(users) ? users : [];
+        const emptyText = loading ? '搜索中...' : (error ? `搜索失败：${error}` : '未找到用户');
+
+        const items = list.map(u => {
+            const uid = String(u.userId || '').trim();
+            const name = String(u.nickname || '').trim() || (uid ? `用户${uid}` : '用户');
+            const avatar = String(u.avatar || '').trim();
+            return `
+                <div class="profile-search-card">
+                    <a class="profile-search-avatar-link" href="#/profile?userId=${encodeURIComponent(uid)}" aria-label="打开名片">
+                        ${avatar ? `<img class="profile-search-avatar-lg" src="${escapeHtml(avatar)}" onerror="this.style.display='none'" />` : `<div class="profile-search-avatar-lg ph"></div>`}
+                    </a>
+                    <div class="profile-search-row-meta">
+                        <a class="profile-search-name-link" href="#/profile?userId=${encodeURIComponent(uid)}">${escapeHtml(name)}</a>
+                        <div class="profile-search-row-uid">UID: ${escapeHtml(uid)}</div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+
+        return `
+            <div class="profile-search-page">
+                <div class="profile-search-page-title">搜索结果：<b>${escapeHtml(q || '（空）')}</b></div>
+                <div class="profile-search-page-card">
+                    ${list.length ? `<div class="profile-search-grid">${items}</div>` : `<div class="profile-search-page-empty">${escapeHtml(emptyText)}</div>`}
+                </div>
+            </div>
+            <div id="profile-search-box" class="profile-search-box profile-search-floating">
+                <input id="profile-search-input" class="profile-search-input" placeholder="搜索用户：ID / 名字" value="${escapeHtml(q)}" />
+                <button id="profile-search-btn" class="profile-search-btn">搜索</button>
             </div>
         `;
     }

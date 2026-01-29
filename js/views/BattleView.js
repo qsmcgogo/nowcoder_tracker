@@ -27,6 +27,9 @@ export class BattleView {
         this.recordsTotal = 0;
         this.recordsList = [];
         this.selectedRecordId = null;
+        // 路由：查看指定用户的战绩（非本人）
+        this.recordsTargetUserId = null; // string|null
+        this.recordsTargetUserInfo = null; // {userId, name, nickname, avatar}|null
         this.rankingsType = 2; // 1=人机对战，2=1v1对战
         this.rankingsPage = 1;
         this.rankingsLimit = 20;
@@ -53,6 +56,33 @@ export class BattleView {
         this.bindEvents();
     }
 
+    _normalizeAvatarUrl(url) {
+        const s = String(url || '').trim();
+        if (!s) return '';
+        if (/^https?:\/\//i.test(s)) return s;
+        // nowcoder 头像常见为相对路径
+        if (s.startsWith('/')) return `https://uploadfiles.nowcoder.com${s}`;
+        return s;
+    }
+
+    // 解析 hash：支持 #/battle/record?userId=xxx&type=1|2
+    parseBattleRecordRoute() {
+        try {
+            const full = String(window.location.hash || '').replace(/^#\/?/, '');
+            const s = full.replace(/^\/?/, '');
+            if (!s.toLowerCase().startsWith('battle/record')) return null;
+            const q = s.split('?')[1] || '';
+            const sp = new URLSearchParams(q);
+            const uid = (sp.get('userId') || sp.get('uid') || '').trim();
+            const typeRaw = (sp.get('type') || '').trim();
+            const type = (typeRaw === '1' || typeRaw === '2') ? Number(typeRaw) : null;
+            if (!uid) return { userId: null, type };
+            return { userId: uid, type };
+        } catch (_) {
+            return null;
+        }
+    }
+
     bindEvents() {
         eventBus.on(EVENTS.MAIN_TAB_CHANGED, (tab) => {
             if (tab === 'battle') {
@@ -66,9 +96,20 @@ export class BattleView {
         
         // 初始化对战域名配置（强制刷新以确保获取最新配置）
         await initBattleDomain(true);
+
+        // hash 路由：直接打开对战记录页（可指定 userId）
+        const recordRoute = this.parseBattleRecordRoute();
+        if (recordRoute) {
+            this.currentSidebarTab = 'history';
+            this.recordsTargetUserId = recordRoute.userId || null;
+            if (recordRoute.type === 1 || recordRoute.type === 2) this.recordsType = recordRoute.type;
+            this.recordsPage = 1;
+        } else {
+            this.recordsTargetUserId = null;
+        }
         
         // 检查登录状态
-        if (!this.state.isLoggedIn()) {
+        if (!this.state.isLoggedIn() && !recordRoute) {
             const loginUrl = helpers.buildUrlWithChannelPut('https://ac.nowcoder.com/login?callBack=/');
         this.container.innerHTML = `
             <div class="battle-placeholder" style="padding: 40px; text-align: center;">
@@ -1499,6 +1540,7 @@ export class BattleView {
                         const rankIcon = user.rank === 1 ? '🥇' : user.rank === 2 ? '🥈' : user.rank === 3 ? '🥉' : '';
                         const nickname = user.nickname || user.name || `用户${user.userId}`;
                         const avatar = user.avatar || '';
+                        const profileUrl = `#/profile?userId=${encodeURIComponent(String(user.userId))}`;
                         return `
                             <tr style="border-bottom: 1px solid #f0f0f0; transition: background 0.2s;" 
                                 onmouseover="this.style.background='#f5f5f5'"
@@ -1509,7 +1551,7 @@ export class BattleView {
                                 <td style="padding: 12px;">
                                     <div style="display: flex; align-items: center; gap: 8px;">
                                         ${avatar ? `<img src="${avatar}" style="width: 32px; height: 32px; border-radius: 50%;" onerror="this.style.display='none'" />` : ''}
-                                        <a href="https://www.nowcoder.com/users/${user.userId}" target="_blank" style="color: #667eea; text-decoration: none; font-weight: 500;">
+                                        <a href="${profileUrl}" style="color: #667eea; text-decoration: none; font-weight: 500;">
                                             ${nickname}
                                         </a>
                                     </div>
@@ -2110,7 +2152,7 @@ export class BattleView {
         if (!viewEl) return;
         
         viewEl.innerHTML = `
-            <h2 style="font-size: 20px; color: #333; margin-bottom: 20px;">📋 对战历史</h2>
+            <h2 style="font-size: 20px; color: #333; margin-bottom: 20px;">📋 对战记录${this.recordsTargetUserId ? `（UID: ${this.recordsTargetUserId}）` : ''}</h2>
             
             <!-- 类型切换 -->
             <div style="margin-bottom: 20px; display: flex; gap: 12px;">
@@ -4003,7 +4045,9 @@ ${trackerUrl}
         tbody.innerHTML = '<div style="padding: 40px; text-align: center; color: #999;">加载中...</div>';
         
         try {
-            const result = await this.api.battleRecordList(this.recordsType, this.recordsPage, this.recordsLimit);
+            const result = this.recordsTargetUserId
+                ? await this.api.battleRecordListByUser(this.recordsTargetUserId, this.recordsType, this.recordsPage, this.recordsLimit)
+                : await this.api.battleRecordList(this.recordsType, this.recordsPage, this.recordsLimit);
             
             this.recordsList = result.list || [];
             // 按时间倒序排列（最新的在前）
@@ -4013,6 +4057,38 @@ ${trackerUrl}
                 return timeB - timeA; // 倒序：时间大的在前
             });
             this.recordsTotal = result.total || 0;
+
+            // 若在查看“他人战绩”，则预加载目标用户的昵称/头像（用于左侧展示）
+            if (this.recordsTargetUserId) {
+                const uid = String(this.recordsTargetUserId);
+                if (!this.recordsTargetUserInfo || String(this.recordsTargetUserInfo.userId) !== uid) {
+                    let info = { userId: uid, name: '', nickname: '', avatar: '' };
+                    try {
+                        const myInfo = await this.api.fetchUserInfo(uid);
+                        const u = (myInfo && myInfo.user) ? myInfo.user : {};
+                        info.name = String(u.name || '').trim();
+                        info.nickname = String(u.nickName || u.nickname || '').trim();
+                        info.avatar = this._normalizeAvatarUrl(u.headUrl || u.avatar || '');
+                    } catch (_) {}
+                    // 兜底：从过题榜抓一次头像/昵称
+                    if (!info.name || !info.avatar) {
+                        try {
+                            const rankData = await this.api.fetchRankings('problem', 1, uid, 1);
+                            const r0 = rankData?.ranks?.[0] || null;
+                            if (r0) {
+                                info.name = info.name || String(r0.name || '').trim();
+                                info.nickname = info.nickname || String(r0.nickName || r0.nickname || '').trim();
+                                info.avatar = info.avatar || this._normalizeAvatarUrl(r0.avatar || r0.headUrl || '');
+                            }
+                        } catch (_) {}
+                    }
+                    if (!info.name) info.name = `用户${uid}`;
+                    if (!info.avatar) info.avatar = '';
+                    this.recordsTargetUserInfo = info;
+                }
+            } else {
+                this.recordsTargetUserInfo = null;
+            }
             
             // 如果用户信息不完整，尝试从排行榜获取
             const currentUser = this.state.loggedInUserData || {};
@@ -4038,7 +4114,11 @@ ${trackerUrl}
             this.renderRecordsPagination();
         } catch (error) {
             console.error('加载对战记录失败:', error);
-            tbody.innerHTML = '<div style="padding: 40px; text-align: center; color: #f5222d;">加载失败，请稍后重试</div>';
+            const msg = (error && error.message) ? error.message : '加载失败，请稍后重试';
+            const loginHint = (!this.state.isLoggedIn())
+                ? `<div style="margin-top:8px;color:#999;font-size:12px;">如提示无权限，可先登录再查看。</div>`
+                : '';
+            tbody.innerHTML = `<div style="padding: 40px; text-align: center; color: #f5222d;">${msg}${loginHint}</div>`;
         }
     }
 
@@ -4077,10 +4157,12 @@ ${trackerUrl}
             return;
         }
         
-        // 获取当前用户信息
-        const currentUser = this.state.loggedInUserData || {};
-        const myNickname = currentUser.nickname || currentUser.name || '我';
-        const myAvatar = currentUser.avatar || currentUser.headUrl || '';
+        // 左侧“本人”信息：查看他人战绩时应显示目标用户，否则显示自己
+        const owner = this.recordsTargetUserId ? (this.recordsTargetUserInfo || {}) : (this.state.loggedInUserData || {});
+        const ownerName = String(owner.name || '').trim();
+        const ownerNick = String(owner.nickname || owner.nickName || '').trim();
+        const myNickname = ownerNick || ownerName || (this.recordsTargetUserId ? `用户${this.recordsTargetUserId}` : '我');
+        const myAvatar = this._normalizeAvatarUrl(owner.avatar || owner.headUrl || '');
         
         tbody.innerHTML = this.recordsList.map((record, index) => {
             // 格式化时间（只使用开始时间）
@@ -4449,6 +4531,14 @@ ${trackerUrl}
         
         // 对战类型
         const typeText = record.type === 1 ? '人机对战' : record.type === 2 ? '1v1对战' : '未知';
+
+        // 左侧“本人”信息：查看他人战绩时应显示目标用户，否则显示自己
+        const owner = this.recordsTargetUserId ? (this.recordsTargetUserInfo || {}) : (this.state.loggedInUserData || {});
+        const ownerName = String(owner.name || '').trim();
+        const ownerNick = String(owner.nickname || owner.nickName || '').trim();
+        const ownerDisplayName = ownerNick || ownerName || (this.recordsTargetUserId ? `用户${this.recordsTargetUserId}` : '我');
+        const ownerAvatar = this._normalizeAvatarUrl(owner.avatar || owner.headUrl || '');
+        const leftTitle = this.recordsTargetUserId ? ownerDisplayName : '我';
         
         // 对手信息
         const opponent = record.opponent || {};
@@ -4587,7 +4677,10 @@ ${trackerUrl}
                 <div style="font-size: 16px; font-weight: 600; color: #333; margin-bottom: 12px;">对战双方</div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
                     <div style="background: #f0f5ff; padding: 16px; border-radius: 6px; border: 2px solid #667eea;">
-                        <div style="font-weight: 600; color: #667eea; margin-bottom: 12px; font-size: 16px;">我</div>
+                        <div style="font-weight: 600; color: #667eea; margin-bottom: 12px; font-size: 16px; display:flex; align-items:center; gap:8px;">
+                            ${ownerAvatar ? `<img src="${ownerAvatar}" alt="${leftTitle}" style="width: 28px; height: 28px; border-radius: 50%; object-fit: cover;" onerror="this.style.display='none'" />` : ''}
+                            <span>${leftTitle}</span>
+                        </div>
                         <div style="margin-bottom: 8px;">
                             <strong>状态:</strong> 
                             ${myAc ? `<span style="color: #52c41a;">✅ AC (${formatAcTime(myAcTime)})</span>` : 

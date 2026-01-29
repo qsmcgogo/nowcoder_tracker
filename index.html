@@ -42,8 +42,13 @@
                     <li class="tracker-nav-item">
                         <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.getElementById('activity-tab-btn').click();">🔥 活动</a>
                     </li>
-                    <li class="tracker-nav-item">
-                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'profile\']').click();">我的</a>
+                    <li class="tracker-nav-item tracker-my-menu" id="tracker-my-menu">
+                        <a href="#" class="tracker-nav-link tracker-my-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'profile\']').click();">我的</a>
+                        <div class="tracker-my-dropdown" id="tracker-my-dropdown">
+                            <a id="tracker-my-dropdown-contest" class="tracker-dropdown-item" href="#" target="_blank" rel="noopener noreferrer">竞赛站</a>
+                            <a id="tracker-my-dropdown-main" class="tracker-dropdown-item" href="#" target="_blank" rel="noopener noreferrer">主站</a>
+                            <a id="tracker-my-dropdown-tracker" class="tracker-dropdown-item" href="#/profile" onclick="event.preventDefault(); document.querySelector('[data-tab=\'profile\']').click();">Tracker名片</a>
+                        </div>
                     </li>
                     <li class="tracker-nav-item dify-nav-item" id="dify-nav-item" style="display: none;">
                         <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'dify\']').click();">🤖 AI 助手</a>
@@ -640,6 +645,7 @@
                                     <div id="teamLeaderboardPaginationInfo" class="pagination-info"></div>
                                 </div>
                                 <div class="pagination-controls">
+                                    <button id="teamLeaderboardExportAll" class="pagination-btn" style="margin-right:8px;">导出全部</button>
                                     <button id="teamLeaderboardPrev" class="pagination-btn">上一页</button>
                                     <span id="teamLeaderboardPage" style="margin:0 8px;">1</span>
                                     <button id="teamLeaderboardNext" class="pagination-btn">下一页</button>
@@ -703,6 +709,7 @@
                     <div class="contest-tabs view-type-tabs">
                         <button class="contest-tab view-type-tab rank-tab active" data-rank-type="problem">过题排行榜</button>
                         <button class="contest-tab view-type-tab rank-tab" data-rank-type="checkin">打卡排行榜</button>
+                        <button class="contest-tab view-type-tab rank-tab" data-rank-type="skill">技能树全站榜</button>
                     </div>
 
                     <div class="search-and-card-actions">
@@ -854,6 +861,14 @@
             <section id="changelog" class="tab-content">
                 <div class="faq-container">
                     <div class="faq-content-wrapper">
+                        <div class="faq-item">
+                            <h3>2026.1.29 ver. 5.5</h3>
+                            <ul>
+                                <li>1. 优化团队功能</li>
+                                <li>2. 增加技能树排行榜</li>
+                                <li>3. 优化名片功能：可查看他人名片以及对战记录</li>
+                            </ul>
+                        </div>
                         <div class="faq-item">
                             <h3>2026.1.15 ver. 5.4</h3>
                             <ul>

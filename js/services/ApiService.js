@@ -601,10 +601,14 @@ export class ApiService {
         throw new Error((data && data.msg) || '更新团队失败');
     }
 
-    async teamMembers(teamId, limit = 10, page = 1) {
+    // 团队成员列表（分页）。
+    // 排序参数：sortBy（accept_total/accept_today/accept_7days/join_time/name），order（asc/desc）
+    async teamMembers(teamId, limit = 10, page = 1, sortBy = undefined, order = undefined) {
         const p = Math.max(1, Number(page) || 1);
-        const l = Math.max(1, Number(limit) || 10);
-        const url = `${this.apiBase}/problem/tracker/team/members?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(l)}&page=${encodeURIComponent(p)}`;
+        const l = Math.max(1, Math.min(100, Number(limit) || 10));
+        let url = `${this.apiBase}/problem/tracker/team/members?teamId=${encodeURIComponent(teamId)}&limit=${encodeURIComponent(l)}&page=${encodeURIComponent(p)}`;
+        if (sortBy != null && String(sortBy).trim()) url += `&sortBy=${encodeURIComponent(String(sortBy).trim())}`;
+        if (order != null && String(order).trim()) url += `&order=${encodeURIComponent(String(order).trim())}`;
         const res = await fetch(url, { cache: 'no-store' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const body = await res.json();
@@ -793,10 +797,37 @@ export class ApiService {
         return { list: [], total: 0 };
     }
 
-    // 团队技能树排行榜（scope: total|today, stage: all|INTERLUDE_DAWN|CHAPTER1|CHAPTER2...）
+    // 团队技能树排行榜（scope: total|today）
+    // stage：后端支持多个写法；这里做一次归一化（尽量用小写 chapterKey 风格）
     async teamSkillLeaderboard(teamId, scope = 'total', stage = 'all', page = 1, limit = 20) {
         const s = (scope == null ? 'total' : String(scope)).toLowerCase();
-        const st = (stage == null ? 'all' : String(stage));
+        const normalizeStage = (x) => {
+            const raw = String(x ?? 'all').trim();
+            const lower = raw.toLowerCase();
+            // 兼容：空/默认
+            if (!raw || lower === 'all' || lower === 'total') return 'all';
+
+            // 第1章
+            if (lower === 'chapter1' || lower === 'ch1' || lower === '第一章') return 'chapter1';
+            // 间章：拂晓（1.5）
+            if (lower === 'interlude' || lower === 'interlude_dawn' || lower === 'dawn' || lower === '拂晓') return 'interlude_dawn';
+            // 第2章
+            if (lower === 'chapter2' || lower === 'ch2' || lower === '第二章') return 'chapter2';
+            // 间章：含苞（2.5）
+            if (lower === 'interlude25' || lower === 'interlude_2_5' || lower === 'ch2.5' || lower === '含苞') return 'interlude_2_5';
+            // 第3章
+            if (lower === 'chapter3' || lower === 'ch3' || lower === '第三章') return 'chapter3';
+            // 间章：惊鸿（3.5）
+            if (lower === 'ch3.5' || lower === 'interlude_3_5' || lower === 'interlude_3_5' || lower === 'interlude35' || lower === 'interlude_3_5' || lower === '惊鸿') return 'interlude_3_5';
+            // Boss：梦
+            if (lower === 'boss' || lower === 'boss_dream' || lower === 'dream' || lower === '梦' || lower === 'bossdream') return 'boss_dream';
+            // 第4章：韬光逐影
+            if (lower === 'chapter4' || lower === 'ch4' || lower === '第四章' || lower === '韬光逐影') return 'chapter4';
+
+            // 兜底：保持原样（给后端自行处理）
+            return raw;
+        };
+        const st = normalizeStage(stage);
         const p = Math.max(1, Number(page) || 1);
         const url = `${this.apiBase}/problem/tracker/team/leaderboard/skill?teamId=${encodeURIComponent(teamId)}&scope=${encodeURIComponent(s)}&stage=${encodeURIComponent(st)}&page=${encodeURIComponent(p)}&limit=${encodeURIComponent(limit)}`;
         const res = await fetch(url, { cache: 'no-store' });
@@ -817,6 +848,19 @@ export class ApiService {
             return { list, total, problemTotal };
         }
         return { list: [], total: 0, problemTotal: 0 };
+    }
+
+    // 团队对战排行榜（一次返回 1v1 + 人机 两块）
+    // GET /problem/tracker/team/leaderboard/battle?teamId=xx&page=1&limit=20
+    async teamBattleLeaderboard(teamId, page = 1, limit = 20) {
+        const p = Math.max(1, Number(page) || 1);
+        const l = Math.max(1, Number(limit) || 20);
+        const url = `${this.apiBase}/problem/tracker/team/leaderboard/battle?teamId=${encodeURIComponent(teamId)}&page=${encodeURIComponent(p)}&limit=${encodeURIComponent(l)}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '获取团队对战排行榜失败');
     }
 
     async teamApply(teamId, message = '') {
@@ -1316,6 +1360,38 @@ export class ApiService {
      */
     async fetchRankingsPage(rankType, page = 1, limit = 20) {
         return this.fetchRankings(rankType, page, null, limit);
+    }
+
+    /**
+     * 技能树全站排行榜（分页）
+     * GET /problem/tracker/ranks/skill?page=...&limit=...
+     * @returns {Promise<{version:number,problemTotal:number,totalCount:number,page:number,limit:number,ranks:Array}>}
+     */
+    async fetchSkillRankingsPage(page = 1, limit = 20) {
+        const p = Math.max(1, Number(page) || 1);
+        const l = Math.max(1, Math.min(100, Number(limit) || 20));
+        const url = `${this.apiBase}/problem/tracker/ranks/skill?page=${encodeURIComponent(p)}&limit=${encodeURIComponent(l)}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '获取技能树全站排行榜失败');
+    }
+
+    /**
+     * 查询用户在技能树全站榜单中的位置
+     * GET /problem/tracker/ranks/skill/position?userId=...
+     * @returns {Promise<{userId:number,version:number,problemTotal:number,totalCount:number,acceptCount:number,rank:number}>}
+     */
+    async fetchSkillRankPosition(userId) {
+        const uid = String(userId || '').trim();
+        if (!uid) throw new Error('userId不能为空');
+        const url = `${this.apiBase}/problem/tracker/ranks/skill/position?userId=${encodeURIComponent(uid)}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '查询技能树全站榜单位置失败');
     }
 
     /**
@@ -2239,6 +2315,89 @@ export class ApiService {
     }
 
     /**
+     * 获取指定用户的对战记录列表（分页）
+     * GET /problem/tracker/battle/records/user?userId=xxx&type=1|2&page=1&limit=20
+     */
+    async battleRecordListByUser(userId, type = 2, page = 1, limit = 20) {
+        const uid = Number(userId);
+        if (!uid || uid <= 0) throw new Error('userId 参数不合法');
+        const t = Number(type) === 1 ? 1 : 2;
+        const p = Math.max(1, Number(page) || 1);
+        const l = Math.max(1, Number(limit) || 20);
+        const url = `${this.apiBase}/problem/tracker/battle/records/user?userId=${encodeURIComponent(String(uid))}&type=${encodeURIComponent(String(t))}&page=${encodeURIComponent(String(p))}&limit=${encodeURIComponent(String(l))}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) {
+            return data.data || { list: [], total: 0, page: p, limit: l };
+        }
+        throw new Error((data && (data.msg || data.message)) || '获取对战记录失败');
+    }
+
+    /**
+     * 主站用户搜索（gw-c sparta）
+     * POST https://gw-c.nowcoder.com/api/sparta/pc/search
+     * body: {query, type:'user', page, pageSize, gioParams}
+     */
+    async spartaSearchUser(query, page = 1, pageSize = 15) {
+        const q = String(query || '').trim();
+        if (!q) return { records: [], total: 0, page: 1, pageSize: Number(pageSize) || 15 };
+
+        // 直连 gw-c 在 tracker 域名下会触发 CORS；优先走同源反代（需要 nginx/proxy-server 支持）
+        const directUrl = `https://gw-c.nowcoder.com/api/sparta/pc/search`;
+        const sameOriginUrl = `${this.apiBase}/api/sparta/pc/search`;
+        const p = Math.max(1, Number(page) || 1);
+        const ps = Math.max(1, Number(pageSize) || 15);
+        const payload = {
+            query: q,
+            type: 'user',
+            gioParams: {
+                searchFrom_var: 'tracker',
+                searchEnter_var: 'tracker'
+            },
+            page: p,
+            pageSize: ps
+        };
+
+        const tryOnce = async (url) => {
+            const res = await fetch(url, {
+                method: 'POST',
+                cache: 'no-store',
+                credentials: 'include',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json, text/plain, */*'
+                },
+                body: JSON.stringify(payload)
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json().catch(() => ({}));
+            if (data && data.success === true && (data.code === 0 || data.code === 200)) return data;
+            throw new Error((data && (data.msg || data.message)) || '搜索失败');
+        };
+
+        let data = null;
+        let lastErr = null;
+        for (const url of [sameOriginUrl, directUrl]) {
+            try {
+                data = await tryOnce(url);
+                break;
+            } catch (e) {
+                lastErr = e;
+            }
+        }
+        if (!data) throw (lastErr || new Error('搜索失败'));
+
+        const d = data.data || {};
+        return {
+            records: Array.isArray(d.records) ? d.records : [],
+            total: Number(d.total ?? 0) || 0,
+            page: Number(d.current ?? p) || p,
+            pageSize: Number(d.size ?? ps) || ps
+        };
+    }
+
+    /**
      * 获取对战排行榜
      * @param {number} type - 对战类型：1=人机对战，2=1v1对战
      * @param {number} page - 页码（从1开始）
@@ -2531,6 +2690,100 @@ export class ApiService {
             return data.data || {};
         }
         throw new Error((data && data.msg) || '获取用户信息失败');
+    }
+
+    /**
+     * 查看指定用户的“我的信息”整合数据（与 /problem/tracker/my-info 字段结构一致）
+     * GET /problem/tracker/user-info?userId=xxx
+     * 说明：无需登录
+     */
+    async fetchUserInfo(userId) {
+        const uid = Number(userId);
+        if (!uid || uid <= 0) throw new Error('userId 参数不合法');
+        const url = `${this.apiBase}/problem/tracker/user-info?userId=${encodeURIComponent(String(uid))}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '获取用户信息失败');
+    }
+
+    _getCookieValue(name) {
+        try {
+            const key = String(name || '').trim();
+            if (!key) return '';
+            const cookie = (typeof document !== 'undefined' && document.cookie) ? document.cookie : '';
+            if (!cookie) return '';
+            const parts = cookie.split(';');
+            for (const p of parts) {
+                const t = p.trim();
+                if (!t) continue;
+                const idx = t.indexOf('=');
+                if (idx <= 0) continue;
+                const k = t.slice(0, idx).trim();
+                if (k === key) return decodeURIComponent(t.slice(idx + 1).trim());
+            }
+        } catch (_) {}
+        return '';
+    }
+
+    /**
+     * 关注用户（牛客 sns）
+     * POST /sns/follow
+     * body: id={uid}&type=1
+     */
+    async snsFollow(targetUserId) {
+        const uid = Number(targetUserId);
+        if (!uid || uid <= 0) throw new Error('targetUserId 参数不合法');
+        const url = `https://ac.nowcoder.com/sns/follow`;
+        const csrfToken = this._getCookieValue('csrfToken');
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {})
+            },
+            body: `id=${encodeURIComponent(String(uid))}&type=1`
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        // sns 接口返回格式不稳定，这里尽量宽松判定成功
+        if (!data || typeof data !== 'object') return { ok: true };
+        if (data.code === 0 || data.code === 200 || data.success === true || data.ok === true) return data;
+        throw new Error(data.msg || data.message || '关注失败');
+    }
+
+    /**
+     * 取关用户（牛客 sns）
+     * POST /sns/unfollow
+     * body: id={uid}&type=1
+     */
+    async snsUnfollow(targetUserId) {
+        const uid = Number(targetUserId);
+        if (!uid || uid <= 0) throw new Error('targetUserId 参数不合法');
+        const url = `https://ac.nowcoder.com/sns/unfollow`;
+        const csrfToken = this._getCookieValue('csrfToken');
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                'Accept': 'application/json, text/plain, */*',
+                'X-Requested-With': 'XMLHttpRequest',
+                ...(csrfToken ? { 'X-CSRF-TOKEN': csrfToken } : {})
+            },
+            body: `id=${encodeURIComponent(String(uid))}&type=1`
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (!data || typeof data !== 'object') return { ok: true };
+        if (data.code === 0 || data.code === 200 || data.success === true || data.ok === true) return data;
+        throw new Error(data.msg || data.message || '取关失败');
     }
 
     /**
@@ -3486,6 +3739,58 @@ export class ApiService {
         throw new Error((data && (data.msg || data.message)) || '批量导入失败');
     }
 
+    // ==================== 管理员API：直播课一键导入空课程 ====================
+
+    /**
+     * 直播课后台：一键导入空课程（创建章节 + 小节）
+     *
+     * POST /problem/tracker/admin/livecourse/import-one-empty-course
+     * Content-Type: application/x-www-form-urlencoded
+     *
+     * @param {number} courseId - 目标 courseId（必须是“空课程”：章节数=0）
+     * @param {object|string} json - 导入 JSON（对象会自动 JSON.stringify）
+     * @param {boolean} dryRun - true 仅校验不落库
+     * @returns {Promise<object>} 返回后端 data：{courseId,dryRun,createdChapters,createdSections,chapters:[...]}
+     */
+    async adminLivecourseImportOneEmptyCourse(courseId, json, dryRun = false) {
+        const url = `${this.apiBase}/problem/tracker/admin/livecourse/import-one-empty-course`;
+        const cid = parseInt(String(courseId || 0), 10) || 0;
+        if (!cid || cid <= 0) throw new Error('courseId 参数不合法');
+        const jsonStr = (typeof json === 'string') ? String(json) : JSON.stringify(json ?? {});
+        if (!jsonStr || !jsonStr.trim()) throw new Error('json 不能为空');
+
+        const body = new URLSearchParams();
+        body.append('courseId', String(cid));
+        body.append('dryRun', String(!!dryRun));
+        body.append('json', jsonStr);
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                'Accept': 'application/json, text/plain, */*'
+            },
+            body: body.toString(),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+
+        const contentType = (res.headers && res.headers.get) ? (res.headers.get('content-type') || '') : '';
+        if (contentType.includes('text/html')) {
+            const finalUrl = res.url || '';
+            throw new Error(`接口返回 HTML（疑似未登录/无权限/反代兜底）。finalUrl=${finalUrl || '(unknown)'}`);
+        }
+
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '直播课导入失败');
+    }
+
     /**
      * 管理员：一键重算并回填 acm_problem_open.accept_person（全站口径，按用户去重）
      * POST /problem/tracker/admin/acm-problem-open/rebuild-accept-person
@@ -3523,6 +3828,61 @@ export class ApiService {
         const data = await res.json().catch(() => ({}));
         if (data && (data.code === 0 || data.code === 200)) return data.data || {};
         throw new Error((data && (data.msg || data.message)) || '重算 accept_person 失败');
+    }
+
+    /**
+     * 管理员测试：给指定用户增加“2026 春季 AI 体验站”的抽奖次数（Redis 次数体系）
+     * POST /problem/tracker/admin/spring2026-ai/chances/add?uid=xxx&delta=1&uuid=spring2026_ai_station
+     *
+     * @param {number} uid - 用户 uid（必填，>0）
+     * @param {number} [delta=1] - 增加次数（>0，建议 <= 1000）
+     * @param {string} [uuid='spring2026_ai_station'] - 活动 uuid（可选）
+     */
+    async adminSpring2026AiAddChances(uid, delta = 1, uuid = 'spring2026_ai_station') {
+        const url = `${this.apiBase}/problem/tracker/admin/spring2026-ai/chances/add`;
+        const qs = new URLSearchParams();
+        const uidNum = parseInt(String(uid || 0), 10) || 0;
+        const deltaNum = parseInt(String(delta || 1), 10) || 1;
+        qs.append('uid', String(uidNum));
+        qs.append('delta', String(deltaNum));
+        const uuidStr = String(uuid ?? '').trim();
+        if (uuidStr) qs.append('uuid', uuidStr);
+
+        const res = await fetch(`${url}?${qs.toString()}`, {
+            method: 'POST',
+            headers: {
+                // 触发后端返回 JSON（而不是 HTML 页面兜底/跳转页）的概率更高
+                'Accept': 'application/json, text/plain, */*'
+            },
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+
+        const contentType = (res.headers && res.headers.get) ? (res.headers.get('content-type') || '') : '';
+        if (contentType.includes('text/html')) {
+            const html = await res.text().catch(() => '');
+            const finalUrl = res.url || '';
+            throw new Error(`接口返回 HTML（疑似未登录/无权限被跳转到主页，或本地/预发反代未把该路径转到后端）。finalUrl=${finalUrl || '(unknown)'}`);
+        }
+
+        // 兼容某些网关：即使 content-type 不规范，也可能返回 JSON；否则兜底输出可读错误
+        let data = await res.json().catch(() => null);
+        if (data == null || typeof data !== 'object') {
+            const t = await res.text().catch(() => '');
+            // 常见 SPA 兜底：返回 index.html，但 content-type 可能没带 text/html
+            if (t && /<html[\s>]/i.test(t)) {
+                const finalUrl = res.url || '';
+                throw new Error(`接口返回 HTML（疑似未登录/无权限/反代兜底）。finalUrl=${finalUrl || '(unknown)'}`);
+            }
+            throw new Error(t || '接口响应不是 JSON');
+        }
+
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '增加抽奖次数失败');
     }
 
     /**

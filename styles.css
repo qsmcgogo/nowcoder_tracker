@@ -124,8 +124,9 @@ header {
     padding: 0;
     flex: 1;
     gap: 0;
-    overflow-x: auto;
-    overflow-y: hidden;
+    /* 允许下拉菜单溢出显示（否则会被裁掉）
+       注意：当 overflow-x 不是 visible 时，overflow-y: visible 可能会被计算为 auto 导致仍裁剪 */
+    overflow: visible;
 }
 
 .tracker-nav-item {
@@ -338,6 +339,48 @@ header {
     z-index: 1001;
     overflow: hidden;
     animation: fadeIn 0.2s ease;
+}
+
+/* “我的”下拉菜单（hover触发） */
+.tracker-my-menu {
+    position: relative;
+}
+
+.tracker-my-dropdown {
+    display: none;
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 0;
+    min-width: 160px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    z-index: 1001;
+    overflow: hidden;
+    animation: fadeIn 0.2s ease;
+}
+
+.tracker-my-dropdown::before {
+    /* hover 桥接：覆盖“我的”与下拉之间的 8px 间隙，避免鼠标下移时菜单消失 */
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: 0;
+    right: 0;
+    height: 8px;
+    background: transparent;
+}
+
+.tracker-my-menu:hover .tracker-my-dropdown {
+    display: block;
+}
+
+.tracker-my-menu.is-open .tracker-my-dropdown {
+    display: block;
+}
+
+.tracker-my-menu:focus-within .tracker-my-dropdown {
+    display: block;
 }
 
 
@@ -3835,6 +3878,173 @@ body .problems-table tbody tr td.status-none {
     position: relative;
 }
 
+/* 名片页：浮动搜索框（玻璃态，不改变名片布局） */
+.profile-search-box {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px;
+    border-radius: 12px;
+    position: relative; /* 给下拉结果定位 */
+}
+.profile-search-floating {
+    position: fixed;
+    top: 92px;
+    left: 50%;
+    transform: translateX(360px);
+    z-index: 2000;
+    background: rgba(255, 255, 255, 0.18);
+    border: 1px solid rgba(255, 255, 255, 0.28);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.18);
+    backdrop-filter: blur(10px);
+}
+.profile-search-floating .profile-search-input,
+.profile-search-floating .profile-search-btn {
+    background: rgba(255, 255, 255, 0.92);
+}
+.profile-search-floating .profile-search-btn:hover {
+    background: rgba(255, 255, 255, 1);
+}
+.profile-search-input {
+    width: 180px;
+    max-width: 45vw;
+    padding: 8px 10px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #111827;
+    font-size: 12px;
+    outline: none;
+}
+.profile-search-input::placeholder {
+    color: #6b7280;
+}
+.profile-search-btn {
+    padding: 8px 12px;
+    border-radius: 10px;
+    border: 1px solid #e5e7eb;
+    background: #ffffff;
+    color: #1f2937;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+.profile-search-btn:hover {
+    background: #f3f4f6;
+    transform: translateY(-1px);
+}
+
+@media (max-width: 1100px) {
+    .profile-search-floating {
+        top: auto;
+        left: auto;
+        transform: none;
+        right: 14px;
+        bottom: 14px;
+    }
+}
+
+/* 搜索结果页 */
+.profile-search-page {
+    max-width: 1200px;
+    margin: 18px auto 0;
+    padding: 0 12px;
+}
+.profile-search-page-title {
+    font-size: 16px;
+    font-weight: 700;
+    color: #111827;
+    margin-bottom: 12px;
+}
+.profile-search-page-card {
+    background: var(--card-background);
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 14px;
+    box-shadow: 0 8px 28px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+.profile-search-page-empty {
+    padding: 16px 14px;
+    color: #6b7280;
+    font-size: 13px;
+}
+.profile-search-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+    padding: 14px;
+}
+@media (max-width: 720px) {
+    .profile-search-grid {
+        grid-template-columns: 1fr;
+    }
+}
+.profile-search-card {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 12px;
+    border: 1px solid rgba(0,0,0,0.06);
+    border-radius: 12px;
+    background: #fff;
+    transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+}
+.profile-search-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(24,144,255,0.35);
+    box-shadow: 0 10px 22px rgba(0,0,0,0.10);
+}
+.profile-search-avatar-link {
+    display: inline-flex;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    flex-shrink: 0;
+    text-decoration: none;
+}
+.profile-search-avatar-lg {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    object-fit: cover;
+}
+.profile-search-avatar-lg.ph {
+    background: #e5e7eb;
+}
+.profile-search-row-meta {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+.profile-search-row-name {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.profile-search-name-link {
+    font-size: 14px;
+    font-weight: 700;
+    color: #111827;
+    text-decoration: none;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.profile-search-name-link:hover {
+    color: #1890ff;
+    text-decoration: underline;
+}
+.profile-search-row-uid {
+    font-size: 12px;
+    color: #6b7280;
+}
+
 .profile-avatar {
     width: 100px;
     height: 100px;
@@ -3849,6 +4059,72 @@ body .problems-table tbody tr td.status-none {
     font-size: 2.2em;
     font-weight: 700;
     margin: 0;
+}
+
+/* 名片页：昵称右侧关注按钮 */
+.profile-name-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    margin-top: 6px;
+}
+
+.profile-follow-btn {
+    appearance: none;
+    border: 1px solid rgba(255, 255, 255, 0.65);
+    border-radius: 999px;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.2px;
+    line-height: 1;
+    cursor: pointer;
+    transition: transform 0.15s ease, filter 0.15s ease, background 0.15s ease, border-color 0.15s ease, color 0.15s ease, opacity 0.15s ease;
+    user-select: none;
+    white-space: nowrap;
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.18);
+}
+.profile-follow-btn:hover {
+    transform: translateY(-1px);
+    filter: brightness(1.04);
+}
+.profile-follow-btn:active {
+    transform: translateY(0);
+    filter: brightness(0.98);
+}
+.profile-follow-btn:focus-visible {
+    outline: 3px solid rgba(255, 255, 255, 0.75);
+    outline-offset: 3px;
+}
+.profile-follow-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
+    transform: none;
+    filter: none;
+    box-shadow: none;
+}
+
+/* 粉色：关注 / 回关 */
+.profile-follow-btn.is-pink {
+    background: #ff4d9d;
+    color: #ffffff;
+    border-color: #ff4d9d;
+}
+.profile-follow-btn.is-pink:hover:not(:disabled) {
+    background: #ff2f8f;
+    border-color: #ff2f8f;
+}
+
+/* 灰色：已关注 / 已互粉 */
+.profile-follow-btn.is-gray {
+    background: #e5e7eb;
+    color: #6b7280;
+    border-color: #d1d5db;
+}
+.profile-follow-btn.is-gray:hover:not(:disabled) {
+    background: #dfe3ea;
+    border-color: #cbd5e1;
 }
 
 /* “我的”页：昵称可点击跳转个人主页 */
@@ -3869,6 +4145,87 @@ body .problems-table tbody tr td.status-none {
 .profile-uid {
     color: rgba(255, 255, 255, 0.8);
     font-size: 1em;
+}
+
+/* 名片页：对战统计（红框风格） */
+.battle-mini {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.battle-mini-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+.battle-mini-title {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-color-primary);
+}
+.battle-mini-tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #111827;
+    background: #f3f4f6;
+    border: 1px solid #e5e7eb;
+    white-space: nowrap;
+}
+.battle-mini-stats {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+.battle-mini-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+}
+.battle-mini-k {
+    font-size: 13px;
+    color: var(--text-color-secondary);
+    white-space: nowrap;
+}
+.battle-mini-v {
+    font-size: 18px;
+    font-weight: 800;
+    color: var(--text-color-primary);
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.battle-mini-actions {
+    display: flex;
+    justify-content: flex-end;
+}
+.battle-mini-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1890ff;
+    background: #f0f5ff;
+    border: 1px solid #adc6ff;
+    text-decoration: none;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+.battle-mini-link:hover {
+    background: #1890ff;
+    border-color: #1890ff;
+    color: #fff;
 }
 
 .profile-stats {

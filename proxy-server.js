@@ -201,6 +201,14 @@ const judgeTokenProxyHandler = (basePath) => (clientReq, clientRes) => {
     const ua = clientReq.headers['user-agent'];
     if (ua) headers['User-Agent'] = ua;
 
+    // For POST/PUT/PATCH requests, forward body-related headers
+    if (clientReq.method === 'POST' || clientReq.method === 'PUT' || clientReq.method === 'PATCH') {
+        const contentType = clientReq.headers['content-type'];
+        const contentLength = clientReq.headers['content-length'];
+        if (contentType) headers['Content-Type'] = contentType;
+        if (contentLength && contentLength !== '0') headers['Content-Length'] = contentLength;
+    }
+
     const options = {
         hostname: targetUrl.hostname,
         port: 443,
@@ -219,7 +227,11 @@ const judgeTokenProxyHandler = (basePath) => (clientReq, clientRes) => {
         clientRes.status(500).send('Judge token proxy error.');
     });
 
-    proxyReq.end();
+    if (clientReq.method === 'POST' || clientReq.method === 'PUT' || clientReq.method === 'PATCH') {
+        clientReq.pipe(proxyReq, { end: true });
+    } else {
+        proxyReq.end();
+    }
 };
 
 // Local forward handler for Prompt Challenge demo (FastAPI)
@@ -261,6 +273,8 @@ const localForwardHandler = (targetBaseUrl) => (clientReq, clientRes) => {
 };
 
 // Apply the manual proxy handler with the correct, hardcoded base path for each route
+// Sparta search (gw-c) - to bypass CORS in local dev
+app.use('/api/sparta/pc', judgeTokenProxyHandler('/api/sparta/pc'));
 app.use('/problem/tracker/list', manualProxyHandler('/problem/tracker/list'));
 app.use('/problem/tracker/diff', manualProxyHandler('/problem/tracker/diff'));
 app.use('/problem/tracker/ranks/problem', manualProxyHandler('/problem/tracker/ranks/problem'));

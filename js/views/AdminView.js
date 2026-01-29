@@ -8,7 +8,11 @@ export class AdminView {
         this.container = elements.adminContainer;
         this.apiService = apiService;
         this.state = state;
+        // 旧结构：currentTab 用于顶层 tab 切换（保留兼容）
         this.currentTab = 'clock'; // 'clock' | 'battle' | 'import' | 'yearReport' | 'tag' | 'contestDifficulty' | 'promptChallenge' | 'qmsDraft'
+        // 新结构：按业务域（顶部）+ 子栏目（左侧）组织
+        this.adminDomain = 'course';   // course | library | battle | contest | data | ai | activity | record
+        this.adminSection = 'daily';   // depends on domain
         this.clockPage = 1;
         this.battlePage = 1;
         this.battleSubTab = 'manage'; // 'manage' | 'histogram'
@@ -47,98 +51,334 @@ export class AdminView {
             return;
         }
 
+        // 初始化默认 section（避免空）
+        try {
+            const dom = this.getAdminDomains();
+            const d = dom.find(x => x.id === this.adminDomain) || dom[0];
+            if (d) {
+                const secIds = d.sections.map(s => s.id);
+                if (!secIds.includes(this.adminSection)) this.adminSection = d.sections[0]?.id || this.adminSection;
+                this.adminDomain = d.id;
+            }
+        } catch (_) {}
+
         // 渲染管理员页面内容
         this.container.innerHTML = `
             <div style="padding: 20px;">
                 <h2 style="font-size: 24px; font-weight: 600; color: #333; margin-bottom: 24px;">
                     ⚙️ 管理员面板
                 </h2>
-                
-                <!-- 标签页切换 -->
-                <div style="display: flex; gap: 12px; margin-bottom: 24px; border-bottom: 2px solid #f0f0f0;">
-                    <button id="admin-tab-clock" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
-                        每日一题管理
-                    </button>
-                    <button id="admin-tab-battle" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
-                        对战题目管理
-                    </button>
-                    <button id="admin-tab-tag" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
-                        知识点管理
-                    </button>
-                    <button id="admin-tab-import" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
-                        批量导入题库
-                    </button>
-                    <button id="admin-tab-year-report" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
-                        年度报告验数
-                    </button>
-                    <button id="admin-tab-contest-difficulty" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
-                        比赛难度更新
-                    </button>
-                    <button id="admin-tab-prompt-challenge" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
-                        Prompt 挑战评测
-                    </button>
-                    <button id="admin-tab-qms-draft" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
-                        QMS 录题测试
-                    </button>
-                    <button id="admin-tab-dify" class="admin-tab-btn" style="padding: 12px 24px; border: none; background: transparent; font-size: 16px; font-weight: 600; color: #666; cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -2px;">
-                        Dify 配置
-                    </button>
+
+                <!-- 顶部：业务域 -->
+                <div id="admin-domain-bar" style="display:flex; gap:10px; flex-wrap:wrap; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 2px solid #f0f0f0;">
+                    ${this.renderAdminDomainBar()}
                 </div>
 
-                <!-- 每日一题管理 -->
-                <div id="admin-clock-panel" class="admin-panel" style="display: block;">
-                    ${this.renderClockPanel()}
-                </div>
+                <!-- 主区域：左侧子栏目 + 右侧内容 -->
+                <div style="display:flex; gap: 14px; align-items: flex-start;">
+                    <div id="admin-side-nav" style="width: 190px; min-width: 190px; background:#fff; border:1px solid #f0f0f0; border-radius: 12px; padding: 10px;">
+                        ${this.renderAdminSideNav()}
+                    </div>
+                    <div style="flex:1; min-width: 0;">
+                        <!-- 课程 -->
+                        <div id="admin-clock-panel" class="admin-panel" style="display:none;">
+                            ${this.renderClockPanel()}
+                        </div>
+                        <div id="admin-course-livecourse-panel" class="admin-panel" style="display:none;">
+                            ${this.renderLivecourseImportOneEmptyCoursePanel()}
+                        </div>
 
-                <!-- 对战题目管理 -->
-                <div id="admin-battle-panel" class="admin-panel" style="display: none;">
-                    ${this.renderBattlePanel()}
-                </div>
+                        <!-- 题库 -->
+                        <div id="admin-tag-panel" class="admin-panel" style="display:none;">
+                            ${this.renderTagPanel()}
+                        </div>
+                        <div id="admin-library-accept-person-panel" class="admin-panel" style="display:none;">
+                            ${this.renderAcmProblemOpenRebuildAcceptPersonPanel()}
+                        </div>
+                        <div id="admin-library-tracker-import-panel" class="admin-panel" style="display:none;">
+                            ${this.renderAcmProblemOpenBatchImportPanel()}
+                        </div>
 
-                <!-- Tracker 知识点管理 -->
-                <div id="admin-tag-panel" class="admin-panel" style="display: none;">
-                    ${this.renderTagPanel()}
-                </div>
+                        <!-- 对战 -->
+                        <div id="admin-battle-panel" class="admin-panel" style="display:none;">
+                            ${this.renderBattlePanel()}
+                        </div>
+                        <div id="admin-battle-ops-panel" class="admin-panel" style="display:none;">
+                            ${this.renderBattleOpsPanel()}
+                        </div>
 
-                <!-- 批量导入 Tracker 题库到 acm_problem_open -->
-                <div id="admin-import-panel" class="admin-panel" style="display: none;">
-                    ${this.renderImportPanel()}
-                </div>
+                        <!-- 竞赛 -->
+                        <div id="admin-contest-difficulty-panel" class="admin-panel" style="display:none;">
+                            ${this.renderContestDifficultyPanel()}
+                        </div>
 
-                <!-- 管理员验数：年度报告 -->
-                <div id="admin-year-report-panel" class="admin-panel" style="display: none;">
-                    ${this.renderAdminYearReportPanel()}
-                </div>
+                        <!-- 数据 -->
+                        <div id="admin-data-year-report-panel" class="admin-panel" style="display:none;">
+                            ${this.renderYearReportPanel()}
+                        </div>
 
-                <!-- 比赛题目难度一键更新 -->
-                <div id="admin-contest-difficulty-panel" class="admin-panel" style="display: none;">
-                    ${this.renderContestDifficultyPanel()}
-                </div>
+                        <!-- AI -->
+                        <div id="admin-prompt-challenge-panel" class="admin-panel" style="display:none;">
+                            ${this.renderPromptChallengePanel()}
+                        </div>
+                        <div id="admin-dify-panel" class="admin-panel" style="display:none;">
+                            ${this.renderDifyPanel()}
+                        </div>
 
-                <!-- Prompt Challenge Demo（管理员工具） -->
-                <div id="admin-prompt-challenge-panel" class="admin-panel" style="display: none;">
-                    ${this.renderPromptChallengePanel()}
-                </div>
+                        <!-- 活动 -->
+                        <div id="admin-activity-panel" class="admin-panel" style="display:none;">
+                            ${this.renderSpring2026Panel()}
+                        </div>
 
-                <!-- QMS Draft Add 测试（管理员工具） -->
-                <div id="admin-qms-draft-panel" class="admin-panel" style="display: none;">
-                    ${this.renderQmsDraftPanel()}
-                </div>
-
-                <!-- Dify 配置 -->
-                <div id="admin-dify-panel" class="admin-panel" style="display: none;">
-                    ${this.renderDifyPanel()}
+                        <!-- 录题（维持现状） -->
+                        <div id="admin-qms-draft-panel" class="admin-panel" style="display:none;">
+                            ${this.renderQmsDraftPanel()}
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
 
+        // 根据当前 domain/section 决定显示哪个 panel
+        this.applyAdminLayoutVisibility();
+
         // 绑定事件
         this.bindEvents();
         
-        // 加载初始数据
-        this.loadClockList();
-        this.loadBattleList();
-        this.loadTagList();
+        // 按当前可见面板加载数据（避免无意义请求）
+        this.loadAdminInitialData();
+    }
+
+    getAdminDomains() {
+        return [
+            { id: 'course', label: '课程', sections: [
+                { id: 'daily', label: '每日一题', panelId: 'admin-clock-panel' },
+                { id: 'livecourse', label: '直播课导入', panelId: 'admin-course-livecourse-panel' },
+            ] },
+            { id: 'library', label: '题库', sections: [
+                { id: 'tag', label: '知识点', panelId: 'admin-tag-panel' },
+                { id: 'acceptPerson', label: '通过人数回填', panelId: 'admin-library-accept-person-panel' },
+                { id: 'trackerImport', label: '导入到 acm_problem_open', panelId: 'admin-library-tracker-import-panel' },
+            ] },
+            { id: 'battle', label: '对战', sections: [
+                { id: 'pool', label: '题目池', panelId: 'admin-battle-panel' },
+                { id: 'ops', label: '运维', panelId: 'admin-battle-ops-panel' },
+            ] },
+            { id: 'contest', label: '竞赛', sections: [
+                { id: 'difficulty', label: '难度更新', panelId: 'admin-contest-difficulty-panel' },
+            ] },
+            { id: 'data', label: '数据', sections: [
+                { id: 'yearReport', label: '年度报告', panelId: 'admin-data-year-report-panel' },
+            ] },
+            { id: 'ai', label: 'AI', sections: [
+                { id: 'prompt', label: 'Prompt 挑战', panelId: 'admin-prompt-challenge-panel' },
+                { id: 'dify', label: 'Dify', panelId: 'admin-dify-panel' },
+            ] },
+            { id: 'activity', label: '活动', sections: [
+                { id: 'spring2026', label: '春季 AI 体验站', panelId: 'admin-activity-panel' },
+            ] },
+            { id: 'record', label: '录题', sections: [
+                { id: 'qms', label: '录题', panelId: 'admin-qms-draft-panel' },
+            ] },
+        ];
+    }
+
+    renderAdminDomainBar() {
+        const domains = this.getAdminDomains();
+        const btnStyle = (active) => `
+            padding: 9px 14px;
+            border-radius: 999px;
+            border: 1px solid ${active ? '#1890ff' : '#ddd'};
+            background: ${active ? '#e6f7ff' : '#fff'};
+            color: ${active ? '#0958d9' : '#666'};
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 800;
+        `;
+        return domains.map(d => `
+            <button id="admin-domain-${d.id}" style="${btnStyle(d.id === this.adminDomain)}" type="button">${d.label}</button>
+        `).join('');
+    }
+
+    renderAdminSideNav() {
+        const domains = this.getAdminDomains();
+        const d = domains.find(x => x.id === this.adminDomain) || domains[0];
+        if (!d) return '';
+        const itemStyle = (active) => `
+            width: 100%;
+            text-align: left;
+            padding: 9px 10px;
+            border-radius: 10px;
+            border: 1px solid ${active ? '#bae0ff' : 'transparent'};
+            background: ${active ? '#f0f7ff' : 'transparent'};
+            color: ${active ? '#0958d9' : '#333'};
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: ${active ? 800 : 600};
+        `;
+        return `
+            <div style="font-size: 12px; color:#999; margin-bottom: 8px;">${d.label}</div>
+            <div style="display:flex; flex-direction:column; gap:6px;">
+                ${d.sections.map(s => `
+                    <button id="admin-section-${d.id}-${s.id}" style="${itemStyle(s.id === this.adminSection)}" type="button">${s.label}</button>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    applyAdminLayoutVisibility() {
+        const domains = this.getAdminDomains();
+        const d = domains.find(x => x.id === this.adminDomain) || domains[0];
+        const s = d ? (d.sections.find(x => x.id === this.adminSection) || d.sections[0]) : null;
+        const showPanelId = s ? s.panelId : '';
+        for (const dd of domains) {
+            for (const sec of dd.sections) {
+                const el = document.getElementById(sec.panelId);
+                if (el) el.style.display = (sec.panelId === showPanelId) ? 'block' : 'none';
+            }
+        }
+    }
+
+    loadAdminInitialData() {
+        const domains = this.getAdminDomains();
+        const d = domains.find(x => x.id === this.adminDomain) || domains[0];
+        const s = d ? (d.sections.find(x => x.id === this.adminSection) || d.sections[0]) : null;
+        const pid = s ? s.panelId : '';
+        try {
+            if (pid === 'admin-clock-panel') this.loadClockList();
+            if (pid === 'admin-battle-panel') this.loadBattleList();
+            if (pid === 'admin-tag-panel') this.loadTagList();
+            if (pid === 'admin-prompt-challenge-panel') this.loadPromptChallengeList(false);
+        } catch (_) {}
+    }
+
+    bindDifyPanelEventsIfPresent() {
+        const saveBtn = document.getElementById('admin-dify-save-btn');
+        if (saveBtn) saveBtn.addEventListener('click', () => this.saveDifyConfig());
+    }
+
+    bindQmsPanelEventsIfPresent() {
+        // 一键录题
+        const qmsOneBtn = document.getElementById('admin-qms-oneclick');
+        if (qmsOneBtn) qmsOneBtn.addEventListener('click', () => this.adminQmsOneClick());
+
+        // 录题 JSON 导入/清空
+        const fileInput = document.getElementById('admin-qms-problem-json-file');
+        const chooseBtn = document.getElementById('admin-qms-problem-json-choose');
+        const clearBtn = document.getElementById('admin-qms-problem-json-clear');
+        const msgEl = document.getElementById('admin-qms-problem-json-msg');
+        const previewEl = document.getElementById('admin-qms-problem-json-preview');
+        const refreshPayloadPreview = () => {};
+        if (chooseBtn && fileInput) {
+            chooseBtn.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', async () => {
+                const f = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+                if (!f) return;
+                try {
+                    const text = await f.text();
+                    const obj = JSON.parse(text);
+                    const title = obj?.basic?.title || obj?.title;
+                    const content = obj?.statement?.content || obj?.content;
+                    if (!title || !content) throw new Error('缺少必要字段：basic.title 与 statement.content（或 title/content）');
+                    localStorage.setItem('tracker_qms_problem_json', JSON.stringify(obj));
+                    if (msgEl) { msgEl.textContent = `✅ 已导入：${title}`; msgEl.style.color = '#52c41a'; }
+                    if (previewEl) previewEl.textContent = JSON.stringify(obj, null, 2);
+                    refreshPayloadPreview();
+                } catch (e) {
+                    const m = e && e.message ? e.message : '导入失败';
+                    if (msgEl) { msgEl.textContent = `❌ 导入失败：${m}`; msgEl.style.color = '#ff4d4f'; }
+                } finally {
+                    fileInput.value = '';
+                }
+            });
+        }
+        if (clearBtn) {
+            clearBtn.addEventListener('click', () => {
+                try { localStorage.removeItem('tracker_qms_problem_json'); } catch (_) {}
+                if (msgEl) { msgEl.textContent = '已清空录题 JSON（回退到默认示例）'; msgEl.style.color = '#999'; }
+                if (previewEl) previewEl.textContent = '（未导入）';
+                refreshPayloadPreview();
+            });
+        }
+
+        // source.zip 导入/清空
+        const srcZipInput = document.getElementById('admin-qms-source-zip-file');
+        const srcZipChooseBtn = document.getElementById('admin-qms-source-zip-choose');
+        const srcZipClearBtn = document.getElementById('admin-qms-source-zip-clear');
+        const srcZipMsgEl = document.getElementById('admin-qms-source-zip-msg');
+        if (srcZipChooseBtn && srcZipInput) {
+            srcZipChooseBtn.addEventListener('click', () => srcZipInput.click());
+            srcZipInput.addEventListener('change', async () => {
+                const f = srcZipInput.files && srcZipInput.files[0] ? srcZipInput.files[0] : null;
+                if (!f) return;
+                if (srcZipMsgEl) { srcZipMsgEl.textContent = `解析中：${f.name}...`; srcZipMsgEl.style.color = '#999'; }
+                try {
+                    const r = await this.adminQmsParseSourceZip(f);
+                    const parts = [];
+                    if (r.problemTitle) parts.push(`JSON：${r.problemTitle}`);
+                    if (r.dataZipName) parts.push(`data.zip：${r.dataZipName}（${Math.round((r.dataZipSize || 0) / 1024)} KB）`);
+                    if (srcZipMsgEl) { srcZipMsgEl.textContent = `✅ source.zip 解析完成：` + (parts.join('；') || '（未找到有效内容）'); srcZipMsgEl.style.color = '#52c41a'; }
+                    // 同步刷新 JSON 预览
+                    try {
+                        const imported2 = (() => {
+                            try { return JSON.parse(localStorage.getItem('tracker_qms_problem_json') || ''); } catch (_) { return null; }
+                        })();
+                        if (previewEl) previewEl.textContent = imported2 ? JSON.stringify(imported2, null, 2) : '（未导入）';
+                        if (msgEl && imported2) {
+                            const title2 = imported2?.basic?.title || imported2?.title || '';
+                            msgEl.textContent = title2 ? `✅ 已导入：${title2}` : '✅ 已导入 JSON';
+                            msgEl.style.color = '#52c41a';
+                        }
+                        const zipMsgEl2 = document.getElementById('admin-qms-cases-zip-msg');
+                        if (zipMsgEl2 && this._qmsZipFile) {
+                            zipMsgEl2.textContent = `✅ 已选择 ZIP：${this._qmsZipFile.name}（${Math.round((this._qmsZipFile.size || 0) / 1024)} KB）（来自 source.zip）`;
+                            zipMsgEl2.style.color = '#52c41a';
+                        }
+                    } catch (_) {}
+                    refreshPayloadPreview();
+                } catch (e) {
+                    const m = e && e.message ? e.message : '解析失败';
+                    if (srcZipMsgEl) { srcZipMsgEl.textContent = `❌ source.zip 解析失败：${m}`; srcZipMsgEl.style.color = '#ff4d4f'; }
+                } finally {
+                    srcZipInput.value = '';
+                }
+            });
+        }
+        if (srcZipClearBtn) {
+            srcZipClearBtn.addEventListener('click', () => {
+                this._qmsSourceZipFile = null;
+                try { localStorage.removeItem('tracker_qms_problem_json'); } catch (_) {}
+                this._qmsZipFile = null;
+                if (srcZipMsgEl) { srcZipMsgEl.textContent = '已清空 source.zip'; srcZipMsgEl.style.color = '#999'; }
+                if (msgEl) { msgEl.textContent = '已清空录题 JSON（回退到默认示例）'; msgEl.style.color = '#999'; }
+                if (previewEl) previewEl.textContent = '（未导入）';
+                const zipMsgEl2 = document.getElementById('admin-qms-cases-zip-msg');
+                if (zipMsgEl2) { zipMsgEl2.textContent = '已清空 ZIP（将跳过用例上传）'; zipMsgEl2.style.color = '#999'; }
+                refreshPayloadPreview();
+            });
+        }
+
+        // 用例 ZIP 导入/清空（仅保存在内存里，不落 localStorage）
+        const zipInput = document.getElementById('admin-qms-cases-zip-file');
+        const zipChooseBtn = document.getElementById('admin-qms-cases-zip-choose');
+        const zipClearBtn = document.getElementById('admin-qms-cases-zip-clear');
+        const zipMsgEl = document.getElementById('admin-qms-cases-zip-msg');
+        if (zipChooseBtn && zipInput) {
+            zipChooseBtn.addEventListener('click', () => zipInput.click());
+            zipInput.addEventListener('change', () => {
+                const f = zipInput.files && zipInput.files[0] ? zipInput.files[0] : null;
+                if (!f) return;
+                this._qmsZipFile = f;
+                if (zipMsgEl) { zipMsgEl.textContent = `✅ 已选择 ZIP：${f.name}（${Math.round((f.size || 0) / 1024)} KB）`; zipMsgEl.style.color = '#52c41a'; }
+                zipInput.value = '';
+            });
+        }
+        if (zipClearBtn) {
+            zipClearBtn.addEventListener('click', () => {
+                this._qmsZipFile = null;
+                if (zipMsgEl) { zipMsgEl.textContent = '已清空 ZIP（将跳过用例上传）'; zipMsgEl.style.color = '#999'; }
+            });
+        }
     }
 
     renderQmsDraftPanel() {
@@ -240,6 +480,200 @@ export class AdminView {
                 <div style="margin-top: 12px;">
                     <div style="font-size: 13px; color:#333; font-weight: 700; margin-bottom: 6px;">进度</div>
                     <pre id="admin-qms-draft-result" style="margin:0; background:#111827; color:#f9fafb; padding: 12px; border-radius: 10px; overflow:auto; max-height: 260px;">（等待开始）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 题库：批量将 Tracker 题目导入到 acm_problem_open（从旧 import panel 拆出来）
+     */
+    renderAcmProblemOpenBatchImportPanel() {
+        const savedTagId = localStorage.getItem('tracker_import_source_tag_id') || '';
+        const savedBatchSize = localStorage.getItem('tracker_import_batch_size') || '';
+        const savedDryRun = localStorage.getItem('tracker_import_dry_run') || 'false';
+
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    导入到 acm_problem_open
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    管理员只需要每行一个 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">problemId</code>。<br>
+                    后端接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/acm-problem-open/batch-import-tracker</code>
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">trackerSourceTagId:</label>
+                        <input id="admin-import-tag-id" type="number" value="${savedTagId}" placeholder="可不填（走后端默认）"
+                               style="width: 220px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">batchSize:</label>
+                        <input id="admin-import-batch-size" type="number" min="1" max="500" value="${savedBatchSize}" placeholder="默认200（1-500）"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">dryRun:</label>
+                        <input id="admin-import-dry-run" type="checkbox" ${String(savedDryRun) === 'true' ? 'checked' : ''} />
+                        <span style="font-size: 12px; color:#999;">只统计不落库</span>
+                    </div>
+                    <div style="flex: 1;"></div>
+                    <button id="admin-import-preview-btn" style="background:#722ed1; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        解析预览
+                    </button>
+                    <button id="admin-import-submit-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        开始导入
+                    </button>
+                </div>
+
+                <textarea id="admin-import-problem-ids" rows="14"
+                          placeholder="每行一个 problemId，例如：&#10;1001&#10;1002&#10;1003"
+                          style="width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 13px; resize: vertical;"></textarea>
+
+                <div id="admin-import-preview" style="margin-top: 10px; font-size: 13px; color:#666;"></div>
+                <div id="admin-import-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">导入结果</div>
+                    <pre id="admin-import-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 数据：年度报告验数（仅保留年报本体；清理镜像/活动工具已拆出）
+     */
+    renderYearReportPanel() {
+        const savedUid = localStorage.getItem('admin_year_report_uid') || '';
+        const savedYear = localStorage.getItem('admin_year_report_year') || '0';
+        const savedTrackerOnly = localStorage.getItem('admin_year_report_tracker_only') || 'true';
+        // 注入样式（复用旧逻辑）
+        try { this.injectVisualStyles(); } catch (_) {}
+
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    年度报告（验数）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">GET /problem/tracker/admin/year-report</code><br>
+                    用途：快速检查后端年报数据结构/口径是否符合预期，并预览可视化效果。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">uid:</label>
+                        <input id="admin-year-report-uid" type="number" value="${savedUid}" placeholder="必填"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">year:</label>
+                        <input id="admin-year-report-year" type="number" value="${savedYear}" placeholder="0=当前年"
+                               style="width: 100px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">trackerOnly:</label>
+                        <input id="admin-year-report-tracker-only" type="checkbox" ${String(savedTrackerOnly) === 'true' ? 'checked' : ''} />
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-year-report-fetch-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        拉取数据
+                    </button>
+                </div>
+
+                <div id="admin-year-report-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div id="admin-year-report-visuals" class="report-visuals-container" style="display:none;"></div>
+
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-year-report-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 420px;">（尚未拉取）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 对战：运维工具集合（目前仅“清理镜像”）
+     */
+    renderBattleOpsPanel() {
+        const savedClearMirrorUid = localStorage.getItem('admin_clear_user_mirrors_uid') || '';
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    清理用户镜像（Redis）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/battle/clear-user-mirrors?userId=xxx</code><br>
+                    说明：仅清理 Redis 里的镜像数据（镜像池/分桶/用户索引/队列），用于紧急处理异常刷镜像用户。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">userId:</label>
+                        <input id="admin-clear-user-mirrors-uid" type="number" value="${savedClearMirrorUid}" placeholder="必填"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-clear-user-mirrors-btn" style="background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        执行清理
+                    </button>
+                </div>
+
+                <div id="admin-clear-user-mirrors-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-clear-user-mirrors-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 活动：2026 春季 AI 体验站（管理员测试工具）
+     */
+    renderSpring2026Panel() {
+        const savedSpring2026Uid = localStorage.getItem('admin_spring2026_ai_uid') || '';
+        const savedSpring2026Delta = localStorage.getItem('admin_spring2026_ai_delta') || '1';
+        const savedSpring2026Uuid = localStorage.getItem('admin_spring2026_ai_uuid') || 'spring2026_ai_station';
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    春季 AI 体验站：抽奖次数（测试）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/spring2026-ai/chances/add?uid=xxx&delta=1&uuid=spring2026_ai_station</code><br>
+                    说明：仅用于测试抽奖链路（不影响抽奖平台自身的“剩余次数”逻辑）。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">uid:</label>
+                        <input id="admin-spring2026-ai-chances-uid" type="number" value="${savedSpring2026Uid}" placeholder="必填"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">delta:</label>
+                        <input id="admin-spring2026-ai-chances-delta" type="number" min="1" max="1000" value="${savedSpring2026Delta}" placeholder="默认1（1-1000）"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">uuid:</label>
+                        <input id="admin-spring2026-ai-chances-uuid" type="text" value="${savedSpring2026Uuid}" placeholder="spring2026_ai_station"
+                               style="width: 240px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-spring2026-ai-chances-add-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        增加次数
+                    </button>
+                </div>
+
+                <div id="admin-spring2026-ai-chances-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-spring2026-ai-chances-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
                 </div>
             </div>
         `;
@@ -446,6 +880,9 @@ export class AdminView {
         const savedYear = localStorage.getItem('admin_year_report_year') || '0';
         const savedTrackerOnly = localStorage.getItem('admin_year_report_tracker_only') || 'true';
         const savedClearMirrorUid = localStorage.getItem('admin_clear_user_mirrors_uid') || '';
+        const savedSpring2026Uid = localStorage.getItem('admin_spring2026_ai_uid') || '';
+        const savedSpring2026Delta = localStorage.getItem('admin_spring2026_ai_delta') || '1';
+        const savedSpring2026Uuid = localStorage.getItem('admin_spring2026_ai_uuid') || 'spring2026_ai_station';
 
         // 注入样式
         this.injectVisualStyles();
@@ -519,6 +956,44 @@ export class AdminView {
                 <div style="margin-top: 12px;">
                     <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
                     <pre id="admin-clear-user-mirrors-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
+                </div>
+            </div>
+
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    管理员测试：增加“2026 春季 AI 体验站”抽奖次数
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/spring2026-ai/chances/add?uid=xxx&delta=1&uuid=spring2026_ai_station</code><br>
+                    说明：仅用于测试抽奖链路（不影响抽奖平台自身的“剩余次数”逻辑）。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">uid:</label>
+                        <input id="admin-spring2026-ai-chances-uid" type="number" value="${savedSpring2026Uid}" placeholder="必填"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">delta:</label>
+                        <input id="admin-spring2026-ai-chances-delta" type="number" min="1" max="1000" value="${savedSpring2026Delta}" placeholder="默认1（1-1000）"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">uuid:</label>
+                        <input id="admin-spring2026-ai-chances-uuid" type="text" value="${savedSpring2026Uuid}" placeholder="spring2026_ai_station"
+                               style="width: 240px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-spring2026-ai-chances-add-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        增加次数
+                    </button>
+                </div>
+
+                <div id="admin-spring2026-ai-chances-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-spring2026-ai-chances-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
                 </div>
             </div>
             </div>
@@ -731,6 +1206,7 @@ export class AdminView {
 
         return `
             ${this.renderAcmProblemOpenRebuildAcceptPersonPanel()}
+            ${this.renderLivecourseImportOneEmptyCoursePanel()}
             <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
                 <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
                     批量将 Tracker 题目导入到 acm_problem_open
@@ -775,6 +1251,101 @@ export class AdminView {
                 <div style="margin-top: 12px;">
                     <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">导入结果</div>
                     <pre id="admin-import-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 管理员工具：直播课后台——一键导入空课程（创建章节/小节）
+     */
+    renderLivecourseImportOneEmptyCoursePanel() {
+        const get = (k, defVal) => {
+            try {
+                const v = localStorage.getItem(k);
+                return (v == null || v === '') ? String(defVal) : String(v);
+            } catch (_) {
+                return String(defVal);
+            }
+        };
+        const getBool = (k, defVal) => {
+            try {
+                const v = localStorage.getItem(k);
+                if (v == null || v === '') return !!defVal;
+                return String(v) === 'true';
+            } catch (_) {
+                return !!defVal;
+            }
+        };
+
+        const courseId = get('admin_livecourse_import_course_id', '');
+        const dryRun = getBool('admin_livecourse_import_dry_run', true);
+        const raw = get('admin_livecourse_import_raw', '');
+        const presetType = get('admin_livecourse_import_default_type', '1');
+        const presetUnitTagId = get('admin_livecourse_import_default_unit_tag_id', '0');
+        const presetFree = getBool('admin_livecourse_import_default_free', false);
+        const presetRequireLogin = getBool('admin_livecourse_import_default_require_login', true);
+
+        return `
+            <div style="background:#fff; border:1px solid #e8e8e8; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <div style="font-size: 16px; font-weight: 800; color:#333;">直播课：一键导入空课程（章/节）</div>
+                    <div style="font-size: 12px; color:#999;">新接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/livecourse/import-one-empty-course</code></div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-livecourse-import-preview-btn" class="admin-btn modal-secondary" style="padding: 8px 12px;" type="button">解析预览 JSON</button>
+                    <button id="admin-livecourse-import-submit-btn" class="admin-btn" style="padding: 8px 14px; background:#1890ff; color:#fff; font-weight:700;" type="button">开始导入</button>
+                </div>
+
+                <div style="margin-top: 10px; font-size: 13px; color:#666; line-height: 1.7;">
+                    约束：<b>courseId 必须是“空课程”（章节数=0）</b>，否则后端会拒绝导入以避免误覆盖。<br/>
+                    入参：courseId + json（字符串参数，内部是 JSON） + dryRun。你可以直接粘贴 JSON；也可以粘贴文本（Tab/逗号分隔）让前端生成 JSON。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">courseId:</label>
+                        <input id="admin-livecourse-import-course-id" type="number" min="1" value="${courseId}" placeholder="必填"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">dryRun:</label>
+                        <input id="admin-livecourse-import-dry-run" type="checkbox" ${dryRun ? 'checked' : ''} />
+                        <span style="font-size: 12px; color:#999;">只校验不落库（建议先勾选预演）</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">默认 type:</label>
+                        <input id="admin-livecourse-import-default-type" type="number" min="0" value="${presetType}"
+                               style="width: 90px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        <span style="font-size: 12px; color:#999;">文本=6 / 视频=1（按后端枚举）</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">默认 unitTagId:</label>
+                        <input id="admin-livecourse-import-default-unitTagId" type="number" min="0" value="${presetUnitTagId}"
+                               style="width: 110px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">默认 free:</label>
+                        <input id="admin-livecourse-import-default-free" type="checkbox" ${presetFree ? 'checked' : ''} />
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">默认 requireLogin:</label>
+                        <input id="admin-livecourse-import-default-requireLogin" type="checkbox" ${presetRequireLogin ? 'checked' : ''} />
+                    </div>
+                </div>
+
+                <textarea id="admin-livecourse-import-raw" rows="10"
+                          placeholder="支持两种输入：&#10;1) 直接粘贴 JSON：{&quot;chapters&quot;:[...]}&#10;2) 粘贴文本（建议 Tab 分隔）：章\t节\t标题\t时长\tvid&#10;可选列：章标题/课程章标题、type、unitTagId、free、requireLogin、mobileVideoId"
+                          style="width: 100%; margin-top: 10px; padding: 10px; border: 1px solid #ddd; border-radius: 10px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 12px; resize: vertical;">${raw}</textarea>
+
+                <div id="admin-livecourse-import-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div id="admin-livecourse-import-tip" style="margin-top: 8px; font-size: 12px; color:#666;"></div>
+                <div style="margin-top: 10px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 700; margin-bottom: 6px;">预览 JSON</div>
+                    <pre id="admin-livecourse-import-preview" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 10px; overflow:auto; max-height: 260px;">（尚未解析）</pre>
+                </div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 700; margin-bottom: 6px;">导入结果</div>
+                    <pre id="admin-livecourse-import-result" style="margin:0; background:#111827; color:#f9fafb; padding: 12px; border-radius: 10px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
                 </div>
             </div>
         `;
@@ -922,6 +1493,63 @@ export class AdminView {
         } finally {
             btn.disabled = false;
             btn.textContent = oldText || '执行清理';
+        }
+    }
+
+    async adminSpring2026AiAddChances() {
+        const uidInput = document.getElementById('admin-spring2026-ai-chances-uid');
+        const deltaInput = document.getElementById('admin-spring2026-ai-chances-delta');
+        const uuidInput = document.getElementById('admin-spring2026-ai-chances-uuid');
+        const errorEl = document.getElementById('admin-spring2026-ai-chances-error');
+        const resultEl = document.getElementById('admin-spring2026-ai-chances-result');
+        const btn = document.getElementById('admin-spring2026-ai-chances-add-btn');
+        if (!uidInput || !deltaInput || !uuidInput || !errorEl || !resultEl || !btn) return;
+
+        errorEl.style.display = 'none';
+        const uid = parseInt(String(uidInput.value || '').trim(), 10);
+        const delta = parseInt(String(deltaInput.value || '').trim(), 10);
+        const uuid = String(uuidInput.value || '').trim() || 'spring2026_ai_station';
+
+        if (!uid || uid <= 0) {
+            errorEl.textContent = '请填写有效的 uid（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+        if (!delta || delta <= 0) {
+            errorEl.textContent = 'delta 必须为正数';
+            errorEl.style.display = 'block';
+            return;
+        }
+        if (delta > 1000) {
+            errorEl.textContent = 'delta 过大（最大 1000）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        try {
+            localStorage.setItem('admin_spring2026_ai_uid', String(uid));
+            localStorage.setItem('admin_spring2026_ai_delta', String(delta));
+            localStorage.setItem('admin_spring2026_ai_uuid', String(uuid));
+        } catch (_) {}
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '增加中...';
+        resultEl.textContent = `请求中...\nuid=${uid}\ndelta=${delta}\nuuid=${uuid}\n`;
+
+        try {
+            const data = await this.apiService.adminSpring2026AiAddChances(uid, delta, uuid);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            const chances = data && typeof data.chances !== 'undefined' ? data.chances : '-';
+            alert(`已增加抽奖次数：uid=${uid}，本次+${delta}，当前 chances=${chances}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '增加抽奖次数失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '增加次数';
         }
     }
 
@@ -2062,80 +2690,48 @@ export class AdminView {
     }
 
     bindEvents() {
-        // 保留原 bindEvents 内容
-        // （此方法很长，这里只在末尾追加按钮事件绑定）
-        // 由于文件结构原因，清除按钮事件绑定放在 render 后通用绑定里更稳。
-        // ---- existing code below ----
-        // 标签页切换
-        document.getElementById('admin-tab-clock').addEventListener('click', () => {
-            this.switchTab('clock');
-        });
-        document.getElementById('admin-tab-battle').addEventListener('click', () => {
-            this.switchTab('battle');
-        });
-        const tagTabBtn = document.getElementById('admin-tab-tag');
-        if (tagTabBtn) {
-            tagTabBtn.addEventListener('click', () => {
-                this.switchTab('tag');
+        // 新结构：顶部业务域 + 左侧子栏目（点击后直接重渲染，避免漏隐藏/事件残留）
+        const domains = this.getAdminDomains();
+        for (const d of domains) {
+            const btn = document.getElementById(`admin-domain-${d.id}`);
+            if (!btn) continue;
+            btn.addEventListener('click', () => {
+                this.adminDomain = d.id;
+                this.adminSection = d.sections[0]?.id || this.adminSection;
+                this.render();
             });
-        }
-        document.getElementById('admin-tab-import').addEventListener('click', () => {
-            this.switchTab('import');
-        });
-        document.getElementById('admin-tab-year-report').addEventListener('click', () => {
-            this.switchTab('yearReport');
-        });
-        document.getElementById('admin-tab-contest-difficulty').addEventListener('click', () => {
-            this.switchTab('contestDifficulty');
-        });
-        const pcTabBtn = document.getElementById('admin-tab-prompt-challenge');
-        if (pcTabBtn) {
-            pcTabBtn.addEventListener('click', () => {
-                this.switchTab('promptChallenge');
-            });
-        }
-        const qmsTabBtn = document.getElementById('admin-tab-qms-draft');
-        if (qmsTabBtn) {
-            qmsTabBtn.addEventListener('click', () => {
-                this.switchTab('qmsDraft');
-            });
-        }
-        const difyTabBtn = document.getElementById('admin-tab-dify');
-        if (difyTabBtn) {
-            difyTabBtn.addEventListener('click', () => {
-                this.switchTab('dify');
-            });
+            for (const s of d.sections) {
+                const sbtn = document.getElementById(`admin-section-${d.id}-${s.id}`);
+                if (!sbtn) continue;
+                sbtn.addEventListener('click', () => {
+                    this.adminDomain = d.id;
+                    this.adminSection = s.id;
+                    this.render();
+                });
+            }
         }
 
         // 每日一题操作
-        document.getElementById('admin-clock-add-btn').addEventListener('click', () => {
-            this.showClockModal();
-        });
-        document.getElementById('admin-clock-search-btn').addEventListener('click', () => {
-            this.handleClockSearch();
-        });
-        document.getElementById('admin-clock-reset-btn').addEventListener('click', () => {
-            this.resetClockSearch();
-        });
+        const clockAddBtn = document.getElementById('admin-clock-add-btn');
+        if (clockAddBtn) clockAddBtn.addEventListener('click', () => this.showClockModal());
+        const clockSearchBtn = document.getElementById('admin-clock-search-btn');
+        if (clockSearchBtn) clockSearchBtn.addEventListener('click', () => this.handleClockSearch());
+        const clockResetBtn = document.getElementById('admin-clock-reset-btn');
+        if (clockResetBtn) clockResetBtn.addEventListener('click', () => this.resetClockSearch());
         const clockFindBtn = document.getElementById('admin-clock-find-btn');
         if (clockFindBtn) clockFindBtn.addEventListener('click', () => this.handleClockFind());
 
         // 对战题目操作
-        document.getElementById('admin-battle-add-btn').addEventListener('click', () => {
-            this.showBattleModal();
-        });
-        document.getElementById('admin-battle-batch-add-btn').addEventListener('click', () => {
-            this.showBattleBatchAddModal();
-        });
-        document.getElementById('admin-battle-batch-delete-btn').addEventListener('click', () => {
-            this.handleBatchDelete();
-        });
-        document.getElementById('admin-battle-search-btn').addEventListener('click', () => {
-            this.loadBattleList();
-        });
-        document.getElementById('admin-battle-search-by-id-btn').addEventListener('click', () => {
-            this.searchBattleByProblemId();
-        });
+        const battleAddBtn = document.getElementById('admin-battle-add-btn');
+        if (battleAddBtn) battleAddBtn.addEventListener('click', () => this.showBattleModal());
+        const battleBatchAddBtn = document.getElementById('admin-battle-batch-add-btn');
+        if (battleBatchAddBtn) battleBatchAddBtn.addEventListener('click', () => this.showBattleBatchAddModal());
+        const battleBatchDelBtn = document.getElementById('admin-battle-batch-delete-btn');
+        if (battleBatchDelBtn) battleBatchDelBtn.addEventListener('click', () => this.handleBatchDelete());
+        const battleSearchBtn = document.getElementById('admin-battle-search-btn');
+        if (battleSearchBtn) battleSearchBtn.addEventListener('click', () => this.loadBattleList());
+        const battleSearchByIdBtn = document.getElementById('admin-battle-search-by-id-btn');
+        if (battleSearchByIdBtn) battleSearchByIdBtn.addEventListener('click', () => this.searchBattleByProblemId());
 
         // 对战二级页签
         const battleManageBtn = document.getElementById('admin-battle-subtab-manage');
@@ -2151,6 +2747,12 @@ export class AdminView {
         if (previewBtn) previewBtn.addEventListener('click', () => this.previewImportIds());
         if (submitBtn) submitBtn.addEventListener('click', () => this.submitImportIds());
 
+        // 直播课：一键导入空课程
+        const lcPreviewBtn = document.getElementById('admin-livecourse-import-preview-btn');
+        const lcSubmitBtn = document.getElementById('admin-livecourse-import-submit-btn');
+        if (lcPreviewBtn) lcPreviewBtn.addEventListener('click', () => this.previewLivecourseImportOneEmptyCourse());
+        if (lcSubmitBtn) lcSubmitBtn.addEventListener('click', () => this.submitLivecourseImportOneEmptyCourse());
+
         // acm_problem_open：重算 accept_person
         const rebuildBtn = document.getElementById('admin-acm-open-rebuild-run-btn');
         if (rebuildBtn) rebuildBtn.addEventListener('click', () => this.adminAcmOpenRebuildAcceptPerson());
@@ -2164,6 +2766,10 @@ export class AdminView {
         // 对战运维：清理某用户镜像
         const clearMirrorsBtn = document.getElementById('admin-clear-user-mirrors-btn');
         if (clearMirrorsBtn) clearMirrorsBtn.addEventListener('click', () => this.adminClearUserMirrors());
+
+        // 2026 春季 AI 体验站：增加抽奖次数（管理员测试）
+        const spring2026AiAddBtn = document.getElementById('admin-spring2026-ai-chances-add-btn');
+        if (spring2026AiAddBtn) spring2026AiAddBtn.addEventListener('click', () => this.adminSpring2026AiAddChances());
 
         // 知识点管理
         const tagAddBtn = document.getElementById('admin-tag-add-btn');
@@ -2207,6 +2813,10 @@ export class AdminView {
                 alert('已清除本地保存的 headers');
             });
         }
+
+        // Dify / 录题：补齐面板内部事件绑定（以前依赖 switchTab 的 innerHTML 重渲染）
+        this.bindDifyPanelEventsIfPresent();
+        this.bindQmsPanelEventsIfPresent();
     }
 
     async adminAcmOpenRebuildAcceptPerson() {
@@ -3652,6 +4262,353 @@ export class AdminView {
         }
         const unique = [...new Set(ids)];
         return { ids: unique, invalidTokens, inputCount: tokens.length };
+    }
+
+    _parseDurationToMins(raw) {
+        const s = String(raw ?? '').trim();
+        if (!s) return 0;
+        // number-like: treat as minutes
+        if (/^\d+(\.\d+)?$/.test(s)) {
+            const n = Number(s);
+            if (!Number.isFinite(n) || n <= 0) return 0;
+            return Math.max(1, Math.round(n));
+        }
+        // HH:MM:SS or MM:SS
+        if (/^\d{1,2}:\d{2}(:\d{2})?$/.test(s)) {
+            const parts = s.split(':').map(x => parseInt(x, 10));
+            if (parts.some(v => !Number.isFinite(v))) return 0;
+            let seconds = 0;
+            if (parts.length === 2) seconds = parts[0] * 60 + parts[1];
+            else seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+            if (seconds <= 0) return 0;
+            return Math.max(1, Math.round(seconds / 60));
+        }
+        return 0;
+    }
+
+    _parseTruthy(raw) {
+        const s = String(raw ?? '').trim().toLowerCase();
+        if (!s) return null;
+        if (s === 'true' || s === '1' || s === 'yes' || s === 'y' || s === '是') return true;
+        if (s === 'false' || s === '0' || s === 'no' || s === 'n' || s === '否') return false;
+        return null;
+    }
+
+    /**
+     * 文本/TSV/CSV -> 导入 JSON（空课程）
+     *
+     * 期望至少能得到：chapterPos, sectionPos, title
+     * 可选：chapterTitle, duration/时长, videoId/vid, mobileVideoId, type, unitTagId, free, requireLogin
+     */
+    buildLivecourseImportJsonFromRaw(raw, defaults) {
+        const text = String(raw || '').trim();
+        if (!text) throw new Error('请输入 JSON 或文本数据');
+        // JSON direct
+        if (text.startsWith('{') || text.startsWith('[')) {
+            const parsed = JSON.parse(text);
+            if (Array.isArray(parsed)) return { chapters: parsed };
+            return parsed;
+        }
+
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        if (lines.length === 0) throw new Error('未解析到任何行');
+
+        const splitLine = (line) => {
+            // 优先 tab；否则逗号；否则多空格
+            if (line.includes('\t')) return line.split('\t').map(s => s.trim());
+            if (line.includes(',')) return line.split(',').map(s => s.trim());
+            if (line.includes('，')) return line.split('，').map(s => s.trim());
+            return line.split(/\s{2,}|\s+/).map(s => s.trim());
+        };
+
+        const firstCols = splitLine(lines[0]);
+        const maybeHeader = firstCols.some(c => /章|节|标题|title|vid|video|时长|duration/i.test(String(c)));
+        let header = null;
+        let startIdx = 0;
+        if (maybeHeader) {
+            header = firstCols.map(c => String(c || '').trim());
+            startIdx = 1;
+        }
+
+        const normKey = (k) => String(k || '').trim().toLowerCase()
+            .replace(/\s+/g, '')
+            .replace(/（.*?）/g, '')
+            .replace(/[()]/g, '');
+
+        const keyMap = {
+            // chapter
+            '章': 'chapterPos',
+            'chapter': 'chapterPos',
+            'chapterpos': 'chapterPos',
+            '章序': 'chapterPos',
+            '章序号': 'chapterPos',
+            'chapterposition': 'chapterPos',
+            '章标题': 'chapterTitle',
+            'chaptertitle': 'chapterTitle',
+            'chaptername': 'chapterTitle',
+            // section
+            '节': 'sectionPos',
+            'section': 'sectionPos',
+            'sectionpos': 'sectionPos',
+            '节序': 'sectionPos',
+            '节序号': 'sectionPos',
+            'sectionposition': 'sectionPos',
+            // title
+            '标题': 'title',
+            '小节标题': 'title',
+            'sectiontitle': 'title',
+            'title': 'title',
+            'name': 'title',
+            // duration
+            '时长': 'duration',
+            'duration': 'duration',
+            'durationmins': 'duration',
+            'mins': 'duration',
+            // video ids
+            'vid': 'videoId',
+            'videoid': 'videoId',
+            'video': 'videoId',
+            'mobilevideoid': 'mobileVideoId',
+            // other
+            'type': 'type',
+            'unittagid': 'unitTagId',
+            'free': 'free',
+            'requirelogin': 'requireLogin',
+        };
+
+        const rows = [];
+        for (let i = startIdx; i < lines.length; i++) {
+            const cols = splitLine(lines[i]);
+            if (cols.length === 0) continue;
+            const row = {};
+            if (header) {
+                for (let j = 0; j < header.length; j++) {
+                    const hk = keyMap[normKey(header[j])] || normKey(header[j]);
+                    row[hk] = cols[j] ?? '';
+                }
+            } else {
+                // 无表头：按最小约定
+                // 章 节 标题 时长 vid mobileVideoId
+                row.chapterPos = cols[0] ?? '';
+                row.sectionPos = cols[1] ?? '';
+                row.title = cols[2] ?? '';
+                row.duration = cols[3] ?? '';
+                row.videoId = cols[4] ?? '';
+                row.mobileVideoId = cols[5] ?? '';
+            }
+            rows.push(row);
+        }
+        if (rows.length === 0) throw new Error('未解析到数据行（请确认第一行是否是表头）');
+
+        const d = defaults || {};
+        const defType = parseInt(String(d.type ?? 1), 10);
+        const defUnitTagId = parseInt(String(d.unitTagId ?? 0), 10) || 0;
+        const defFree = !!d.free;
+        const defRequireLogin = !!d.requireLogin;
+
+        // group by chapterPos
+        const chaptersMap = new Map();
+        const toInt = (x) => {
+            const v = parseInt(String(x ?? '').trim(), 10);
+            return Number.isFinite(v) ? v : 0;
+        };
+
+        for (const r of rows) {
+            const cpos = toInt(r.chapterPos || r['chapterpos']);
+            const spos = toInt(r.sectionPos || r['sectionpos']);
+            const title = String(r.title ?? '').trim();
+            if (!cpos || cpos <= 0) continue;
+            if (!title) continue;
+            const chapterTitle = String(r.chapterTitle ?? '').trim();
+
+            if (!chaptersMap.has(cpos)) {
+                chaptersMap.set(cpos, {
+                    title: chapterTitle || `第${cpos}章`,
+                    position: cpos,
+                    sections: []
+                });
+            } else if (chapterTitle) {
+                // 如果后续行补充了章标题，优先用非默认值覆盖
+                const ch = chaptersMap.get(cpos);
+                if (ch && (!ch.title || /^第\d+章$/.test(ch.title))) ch.title = chapterTitle;
+            }
+
+            const typeRaw = (r.type != null && String(r.type).trim() !== '') ? parseInt(String(r.type).trim(), 10) : defType;
+            const type = Number.isFinite(typeRaw) ? typeRaw : defType;
+            const unitTagIdRaw = (r.unitTagId != null && String(r.unitTagId).trim() !== '') ? parseInt(String(r.unitTagId).trim(), 10) : defUnitTagId;
+            const unitTagId = Number.isFinite(unitTagIdRaw) ? unitTagIdRaw : defUnitTagId;
+            const freeParsed = this._parseTruthy(r.free);
+            const requireLoginParsed = this._parseTruthy(r.requireLogin);
+            const durationMins = this._parseDurationToMins(r.duration);
+
+            const section = {
+                title,
+                position: spos > 0 ? spos : undefined,
+                type,
+                durationMins,
+                unitTagId,
+                free: freeParsed == null ? defFree : freeParsed,
+                requireLogin: requireLoginParsed == null ? defRequireLogin : requireLoginParsed,
+            };
+
+            const videoId = String(r.videoId ?? '').trim();
+            const mobileVideoId = String(r.mobileVideoId ?? '').trim();
+            if (videoId) section.videoId = videoId;
+            if (mobileVideoId) section.mobileVideoId = mobileVideoId;
+            if (String(r.text ?? '').trim()) section.text = String(r.text).trim();
+
+            chaptersMap.get(cpos).sections.push(section);
+        }
+
+        const chapters = [...chaptersMap.entries()]
+            .sort((a, b) => a[0] - b[0])
+            .map(([, ch]) => {
+                // section sort by position if present
+                ch.sections = (ch.sections || []).slice().sort((s1, s2) => {
+                    const p1 = Number.isFinite(Number(s1.position)) ? Number(s1.position) : 0;
+                    const p2 = Number.isFinite(Number(s2.position)) ? Number(s2.position) : 0;
+                    return p1 - p2;
+                });
+                // drop undefined position to keep JSON clean
+                ch.sections = ch.sections.map(s => {
+                    const out = { ...s };
+                    if (!out.position) delete out.position;
+                    if (!out.durationMins) delete out.durationMins;
+                    return out;
+                });
+                return ch;
+            });
+
+        if (chapters.length === 0) {
+            throw new Error('未生成任何章节：请检查文本格式，至少需要“章/节/标题”列');
+        }
+        return { chapters };
+    }
+
+    previewLivecourseImportOneEmptyCourse() {
+        const courseIdEl = document.getElementById('admin-livecourse-import-course-id');
+        const dryRunEl = document.getElementById('admin-livecourse-import-dry-run');
+        const rawEl = document.getElementById('admin-livecourse-import-raw');
+        const typeEl = document.getElementById('admin-livecourse-import-default-type');
+        const unitTagEl = document.getElementById('admin-livecourse-import-default-unitTagId');
+        const freeEl = document.getElementById('admin-livecourse-import-default-free');
+        const requireLoginEl = document.getElementById('admin-livecourse-import-default-requireLogin');
+        const errEl = document.getElementById('admin-livecourse-import-error');
+        const tipEl = document.getElementById('admin-livecourse-import-tip');
+        const previewEl = document.getElementById('admin-livecourse-import-preview');
+        if (!courseIdEl || !dryRunEl || !rawEl || !errEl || !previewEl || !tipEl) return;
+
+        errEl.style.display = 'none';
+        tipEl.textContent = '';
+
+        const courseId = parseInt(String(courseIdEl.value || '').trim(), 10) || 0;
+        const dryRun = !!dryRunEl.checked;
+        const raw = String(rawEl.value || '').trim();
+        const defaults = {
+            type: parseInt(String(typeEl ? typeEl.value : '1').trim(), 10) || 1,
+            unitTagId: parseInt(String(unitTagEl ? unitTagEl.value : '0').trim(), 10) || 0,
+            free: !!(freeEl && freeEl.checked),
+            requireLogin: !!(requireLoginEl && requireLoginEl.checked),
+        };
+
+        try {
+            if (!courseId || courseId <= 0) throw new Error('请填写有效的 courseId（正整数）');
+            const json = this.buildLivecourseImportJsonFromRaw(raw, defaults);
+            const chapters = Array.isArray(json?.chapters) ? json.chapters : [];
+            const sectionCount = chapters.reduce((acc, ch) => acc + (Array.isArray(ch.sections) ? ch.sections.length : 0), 0);
+            previewEl.textContent = JSON.stringify(json, null, 2);
+            tipEl.textContent = `解析完成：chapters=${chapters.length}，sections=${sectionCount}，dryRun=${dryRun ? 'true' : 'false'}。`;
+
+            // 保存，便于刷新/切换tab复用
+            try {
+                localStorage.setItem('admin_livecourse_import_course_id', String(courseId));
+                localStorage.setItem('admin_livecourse_import_dry_run', String(dryRun));
+                localStorage.setItem('admin_livecourse_import_raw', raw);
+                localStorage.setItem('admin_livecourse_import_default_type', String(defaults.type));
+                localStorage.setItem('admin_livecourse_import_default_unit_tag_id', String(defaults.unitTagId));
+                localStorage.setItem('admin_livecourse_import_default_free', String(!!defaults.free));
+                localStorage.setItem('admin_livecourse_import_default_require_login', String(!!defaults.requireLogin));
+            } catch (_) {}
+        } catch (e) {
+            const msg = e && e.message ? e.message : '解析失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            previewEl.textContent = `（解析失败）\n${msg}`;
+        }
+    }
+
+    async submitLivecourseImportOneEmptyCourse() {
+        const courseIdEl = document.getElementById('admin-livecourse-import-course-id');
+        const dryRunEl = document.getElementById('admin-livecourse-import-dry-run');
+        const rawEl = document.getElementById('admin-livecourse-import-raw');
+        const typeEl = document.getElementById('admin-livecourse-import-default-type');
+        const unitTagEl = document.getElementById('admin-livecourse-import-default-unitTagId');
+        const freeEl = document.getElementById('admin-livecourse-import-default-free');
+        const requireLoginEl = document.getElementById('admin-livecourse-import-default-requireLogin');
+        const errEl = document.getElementById('admin-livecourse-import-error');
+        const resultEl = document.getElementById('admin-livecourse-import-result');
+        const previewEl = document.getElementById('admin-livecourse-import-preview');
+        const btn = document.getElementById('admin-livecourse-import-submit-btn');
+        if (!courseIdEl || !dryRunEl || !rawEl || !errEl || !resultEl || !previewEl) return;
+
+        errEl.style.display = 'none';
+        const courseId = parseInt(String(courseIdEl.value || '').trim(), 10) || 0;
+        const dryRun = !!dryRunEl.checked;
+        const raw = String(rawEl.value || '').trim();
+        const defaults = {
+            type: parseInt(String(typeEl ? typeEl.value : '1').trim(), 10) || 1,
+            unitTagId: parseInt(String(unitTagEl ? unitTagEl.value : '0').trim(), 10) || 0,
+            free: !!(freeEl && freeEl.checked),
+            requireLogin: !!(requireLoginEl && requireLoginEl.checked),
+        };
+
+        let jsonObj;
+        try {
+            if (!courseId || courseId <= 0) throw new Error('请填写有效的 courseId（正整数）');
+            jsonObj = this.buildLivecourseImportJsonFromRaw(raw, defaults);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '参数解析失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+            return;
+        }
+
+        if (!dryRun) {
+            const ok = confirm(
+                `确认要对 courseId=${courseId} 执行导入并落库吗？\n\n` +
+                `注意：该接口仅允许“空课程”（章节数=0）。建议先 dryRun=true 预演。`
+            );
+            if (!ok) return;
+        }
+
+        const oldText = btn ? btn.textContent : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = dryRun ? '校验中...' : '导入中...';
+        }
+
+        resultEl.textContent = `${dryRun ? 'dryRun 校验中...' : '导入执行中...'}\ncourseId=${courseId}\n`;
+
+        try {
+            // 同步更新预览
+            previewEl.textContent = JSON.stringify(jsonObj, null, 2);
+            const data = await this.apiService.adminLivecourseImportOneEmptyCourse(courseId, jsonObj, dryRun);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            const createdChapters = data && typeof data.createdChapters !== 'undefined' ? data.createdChapters : '-';
+            const createdSections = data && typeof data.createdSections !== 'undefined' ? data.createdSections : '-';
+            alert(`完成：courseId=${courseId}，dryRun=${dryRun ? 'true' : 'false'}，createdChapters=${createdChapters}，createdSections=${createdSections}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '导入失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = oldText || '开始导入';
+            }
+        }
     }
 
     /**

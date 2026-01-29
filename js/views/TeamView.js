@@ -20,6 +20,9 @@ export class TeamView {
         // 成员分页状态（团队概览）
         this.teamMembersPage = 1;
         this.teamMembersLimit = 10;
+        // 成员排序（团队概览）——对齐后端 sortBy/order
+        this.teamMembersSortKey = 'join_time'; // accept_total | accept_today | accept_7days | join_time | name | ''(默认旧行为)
+        this.teamMembersSortDir = 'desc'; // asc | desc（name 固定 asc）
         // 卷王团队一览分页状态
         this.activityRankPage = 1;
         this.activityRankLimit = 20;
@@ -32,6 +35,27 @@ export class TeamView {
         this.userInfoCache = new Map();
         // 队长管理成员开关（仅队长可见），默认关闭
         this.manageMembersEnabled = false;
+
+        // 恢复成员排序偏好（兼容旧 key）
+        try {
+            const k = localStorage.getItem('team_members_sort_key');
+            const d = localStorage.getItem('team_members_sort_dir');
+            const kk = k ? String(k) : '';
+            const dd = d ? String(d) : '';
+            // 兼容旧版本值
+            const mapOld = (x) => {
+                const s = String(x || '').trim();
+                if (!s) return '';
+                if (s === 'acceptTotal') return 'accept_total';
+                if (s === 'acceptToday') return 'accept_today';
+                if (s === 'accept_7days') return 'accept_7days';
+                if (s === 'joinTime') return 'join_time';
+                if (s === 'nickname') return 'name';
+                return s;
+            };
+            if (kk) this.teamMembersSortKey = mapOld(kk);
+            if (dd) this.teamMembersSortDir = String(dd);
+        } catch (_) {}
 
         this.bindEvents();
     }
@@ -727,6 +751,11 @@ export class TeamView {
         if (!this.userInfoCache) {
             this.userInfoCache = new Map();
         }
+
+        // 预热昵称：团队成员接口一定带 nickName（榜单接口可能没有）
+        try {
+            await this.warmUserInfoCacheFromMembers(userIds);
+        } catch (_) {}
         
         // 批量获取用户信息
         const userInfos = await Promise.all(
@@ -742,10 +771,11 @@ export class TeamView {
             const nickName = user.nickName || user.nickname || '';
             const displayName = nickName || name;
             const headUrl = user.headUrl || '';
+            const profileUrl = `#/profile?userId=${encodeURIComponent(String(user.userId))}`;
             return `
                 <div style="display:inline-flex;align-items:center;margin:4px 8px 4px 0;padding:4px 8px;background:#f5f5f5;border-radius:4px;">
                     ${headUrl ? `<img src="${headUrl}" style="width:20px;height:20px;border-radius:50%;margin-right:6px;" onerror="this.style.display='none';" />` : ''}
-                    <a href="https://www.nowcoder.com/users/${user.userId}" target="_blank" style="color:#1890ff;text-decoration:none;font-size:12px;">${displayName}</a>${nickName ? `<span style="color:#999;font-size:11px;margin-left:4px;">(${name})</span>` : ''}
+                    <a href="${profileUrl}" style="color:#1890ff;text-decoration:none;font-size:12px;">${displayName}</a>${nickName ? `<span style="color:#999;font-size:11px;margin-left:4px;">(${name})</span>` : ''}
                 </div>
             `;
         }).join('');
@@ -1282,12 +1312,29 @@ export class TeamView {
                 const box = document.getElementById('team-dashboard-members');
                 if (box) {
                     // 成员区骨架 + 分页控件
+                    const sortKey = String(this.teamMembersSortKey || 'join_time');
+                    const sortDir = String(this.teamMembersSortDir || 'desc');
+                    const dirLabel = (sortKey === 'name') ? 'A→Z' : (sortDir === 'asc' ? '升序' : '降序');
+                    const dirDisabled = (sortKey === 'name') ? 'disabled' : '';
+                    const sortControls = `
+                        <div style="display:flex;align-items:center;gap:6px;">
+                            <select id="teamMembersSortKey" style="padding:2px 6px;border:1px solid #e5e5e5;border-radius:6px;font-size:12px;">
+                                <option value="accept_total" ${sortKey==='accept_total'?'selected':''}>总过题</option>
+                                <option value="accept_today" ${sortKey==='accept_today'?'selected':''}>今日过题</option>
+                                <option value="accept_7days" ${sortKey==='accept_7days'?'selected':''}>7日过题</option>
+                                <option value="join_time" ${sortKey==='join_time'?'selected':''}>加入时间</option>
+                                <option value="name" ${sortKey==='name'?'selected':''}>昵称</option>
+                            </select>
+                            <button id="teamMembersSortDir" class="admin-btn" ${dirDisabled} style="padding:2px 8px;${dirDisabled ? 'opacity:.55;cursor:not-allowed;' : ''}">${dirLabel}</button>
+                        </div>
+                    `;
                     box.innerHTML = `
                         <div style="margin-bottom:6px; font-weight:600; display:flex; align-items:center; justify-content:space-between;">
                             <span>成员一览</span>
-                            ${this.role === 'owner' ? `<div style="display:flex;align-items:center;gap:8px;">
-                                <button id="teamMembersManageToggle" class="admin-btn" style="padding:2px 8px;${this.manageMembersEnabled ? '' : 'background:#f5f5f5;color:#666;border:1px solid #e5e5e5;'}">${this.manageMembersEnabled ? '管理成员：ON' : '管理成员：OFF'}</button>
-                            </div>` : ''}
+                            <div style="display:flex;align-items:center;gap:8px;">
+                                ${sortControls}
+                                ${this.role === 'owner' ? `<button id="teamMembersManageToggle" class="admin-btn" style="padding:2px 8px;${this.manageMembersEnabled ? '' : 'background:#f5f5f5;color:#666;border:1px solid #e5e5e5;'}">${this.manageMembersEnabled ? '管理成员：ON' : '管理成员：OFF'}</button>` : ''}
+                            </div>
                         </div>
                         <table style="width:100%; border-collapse:collapse;">
                             <tbody id="team-dashboard-members-tbody">
@@ -1309,12 +1356,48 @@ export class TeamView {
                     await this.loadMembersDashboard();
                     // 绑定分页控件
                     const manageToggle = document.getElementById('teamMembersManageToggle');
+                    const sortSel = document.getElementById('teamMembersSortKey');
+                    const sortDirBtn = document.getElementById('teamMembersSortDir');
                     const firstBtn = document.getElementById('teamMembersFirst');
                     const prevBtn = document.getElementById('teamMembersPrev');
                     const nextBtn = document.getElementById('teamMembersNext');
                     const lastBtn = document.getElementById('teamMembersLast');
                     const jumpBtn = document.getElementById('teamMembersJumpBtn');
                     const jumpInput = document.getElementById('teamMembersJumpInput');
+                    if (sortSel && !sortSel._bound) {
+                        sortSel._bound = true;
+                        sortSel.addEventListener('change', async () => {
+                            const v = String(sortSel.value || 'join_time');
+                            this.teamMembersSortKey = v;
+                            if (v === 'name') this.teamMembersSortDir = 'asc';
+                            try {
+                                localStorage.setItem('team_members_sort_key', this.teamMembersSortKey);
+                                localStorage.setItem('team_members_sort_dir', this.teamMembersSortDir);
+                            } catch (_) {}
+                            this.teamMembersPage = 1;
+                            await this.loadMembersDashboard();
+                            // 刷新控件文案/禁用态（重渲染 header 最简单）
+                            try {
+                                const box2 = document.getElementById('team-dashboard-members');
+                                if (box2) {
+                                    // 只重跑成员区骨架逻辑：直接触发一次 renderDashboard 的异步段会太重，这里复用现有 render（成本可接受）
+                                    // 为避免刷新整页，直接点击当前 tab 保持在看板
+                                    this.render();
+                                }
+                            } catch (_) {}
+                        });
+                    }
+                    if (sortDirBtn && !sortDirBtn._bound) {
+                        sortDirBtn._bound = true;
+                        sortDirBtn.addEventListener('click', async () => {
+                            if (String(this.teamMembersSortKey) === 'name') return;
+                            this.teamMembersSortDir = (String(this.teamMembersSortDir) === 'asc') ? 'desc' : 'asc';
+                            try { localStorage.setItem('team_members_sort_dir', this.teamMembersSortDir); } catch (_) {}
+                            this.teamMembersPage = 1;
+                            await this.loadMembersDashboard();
+                            try { this.render(); } catch (_) {}
+                        });
+                    }
                     if (manageToggle && !manageToggle._bound) {
                         manageToggle._bound = true;
                         manageToggle.addEventListener('click', async () => {
@@ -1402,11 +1485,13 @@ export class TeamView {
                     tb.innerHTML = rows.map(r => {
                         const rank = r.rank || '-';
                         const name = r.name || `用户${r.userId}`;
+                        const nickName = r.nickName || r.nickname || '';
+                        const displayName = nickName || name;
                         const ac = r.acceptCount != null ? r.acceptCount : '-';
                         const avatar = r.headUrl || '';
                         const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
                             <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                            <span>${name}</span>
+                            <span>${displayName}</span>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}
                         </div>`;
                         return `<tr><td>${rank}</td><td>${nameCell}</td><td>${ac}</td></tr>`;
                     }).join('');
@@ -1848,6 +1933,7 @@ export class TeamView {
                         <button class="team-rank-category" data-cat="clock" style="padding:8px 14px;border-radius:999px;border:1px solid #b7eb8f;background:linear-gradient(135deg,#f6ffed,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;">打卡</button>
                         <button class="team-rank-category" data-cat="skill" style="padding:8px 14px;border-radius:999px;border:1px solid #ffd591;background:linear-gradient(135deg,#fff7e6,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;">技能树</button>
                         <button class="team-rank-category" data-cat="topic" style="padding:8px 14px;border-radius:999px;border:1px solid #ffe58f;background:linear-gradient(135deg,#fffbe6,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;">题单</button>
+                        <button class="team-rank-category" data-cat="battle" style="padding:8px 14px;border-radius:999px;border:1px solid #d9d9d9;background:linear-gradient(135deg,#f5f5f5,#fff);box-shadow:0 1px 2px rgba(0,0,0,.04);cursor:pointer;">对战</button>
                     </div>
                 `;
                 // 插在标题下方
@@ -1877,6 +1963,7 @@ export class TeamView {
                         if (cat === 'clock' && !/^clock_/.test(this.teamLeaderboardMetric || '')) this.teamLeaderboardMetric = 'clock_total';
                         if (cat === 'skill' && !/^skill_/.test(this.teamLeaderboardMetric || '')) this.teamLeaderboardMetric = 'skill_total_all';
                         if (cat === 'topic' && !/^topic_/.test(this.teamLeaderboardMetric || '')) this.teamLeaderboardMetric = 'topic_383';
+                        if (cat === 'battle' && !/^battle_/.test(this.teamLeaderboardMetric || '')) this.teamLeaderboardMetric = 'battle_1v1';
                         // 重绘子页签并加载
                         this.renderLeaderboard();
                     });
@@ -1904,16 +1991,26 @@ export class TeamView {
                         <button class="contest-tab team-rank-tab" data-metric="clock_7days">7日打卡</button>
                     `;
                 } else if (this.teamLeaderboardCategory === 'skill') {
-                    // 技能树（顺序：所有章节、晨曦微光、拂晓、懵懂新芽、含苞、初显峥嵘）
+                    // 技能树：补齐第三章后（惊鸿/梦/韬光逐影）；只显示章节名
                     subHTML = `
-                        <button class="contest-tab team-rank-tab" data-metric="skill_total_all">所有章节</button>
-                        <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter1">晨曦微光</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_all">全部</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter1">第一章</button>
                         <button class="contest-tab team-rank-tab" data-metric="skill_total_interlude">拂晓</button>
-                        <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter2">懵懂新芽</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter2">第二章</button>
                         <button class="contest-tab team-rank-tab" data-metric="skill_total_interlude25">含苞</button>
-                        <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter3">初显峥嵘</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter3">第三章</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_interlude35">惊鸿</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_boss">梦</button>
+                        <button class="contest-tab team-rank-tab" data-metric="skill_total_chapter4">韬光逐影</button>
                     `;
                 } else {
+                    // 对战：分 1v1 榜 / 人机榜
+                    if (this.teamLeaderboardCategory === 'battle') {
+                        subHTML = `
+                            <button class="contest-tab team-rank-tab" data-metric="battle_1v1">1v1榜</button>
+                            <button class="contest-tab team-rank-tab" data-metric="battle_ai">人机榜</button>
+                        `;
+                    } else {
                     // 题单（新手130、算法入门、算法进阶、算法登峰）
                     subHTML = `
                         <button class="contest-tab team-rank-tab" data-metric="topic_383">新手130</button>
@@ -1921,6 +2018,7 @@ export class TeamView {
                         <button class="contest-tab team-rank-tab" data-metric="topic_386">算法进阶</button>
                         <button class="contest-tab team-rank-tab" data-metric="topic_388">算法登峰</button>
                     `;
+                    }
                 }
                 subTabsBox.innerHTML = subHTML;
             }
@@ -1943,6 +2041,7 @@ export class TeamView {
         const defaultMetric = (this.teamLeaderboardCategory === 'clock') ? 'clock_total'
             : (this.teamLeaderboardCategory === 'skill') ? 'skill_total_all'
             : (this.teamLeaderboardCategory === 'topic') ? 'topic_383'
+            : (this.teamLeaderboardCategory === 'battle') ? 'battle_1v1'
             : 'solve_total';
         if (!this.teamLeaderboardMetric) this.teamLeaderboardMetric = defaultMetric;
         const current = Array.from(tabs).find(b => (b.getAttribute('data-metric') || '') === (this.teamLeaderboardMetric || defaultMetric));
@@ -1955,6 +2054,31 @@ export class TeamView {
         const prevBtn = document.getElementById('teamLeaderboardPrev');
         const nextBtn = document.getElementById('teamLeaderboardNext');
         const sizeSel = document.getElementById('teamLeaderboardPageSize');
+        // 导出按钮：运行时动态插入（避免 index.html 缓存/结构差异导致看不到）
+        const ensureExportBtn = () => {
+            let btn = document.getElementById('teamLeaderboardExportAll');
+            if (btn) return btn;
+            const box = document.querySelector('#team-leaderboard-pagination .pagination-controls') || document.querySelector('#team-leaderboard-pagination');
+            if (!box) return null;
+            btn = document.createElement('button');
+            btn.id = 'teamLeaderboardExportAll';
+            btn.className = 'pagination-btn';
+            btn.textContent = '导出全部';
+            btn.style.marginRight = '8px';
+            // 尽量插到“上一页”前
+            const prev = document.getElementById('teamLeaderboardPrev');
+            if (prev && prev.parentNode === box) {
+                box.insertBefore(btn, prev);
+            } else {
+                box.insertBefore(btn, box.firstChild);
+            }
+            return btn;
+        };
+        const exportBtn = ensureExportBtn();
+        // 对战榜暂不支持导出（且是双榜结构），先隐藏导出按钮
+        if (exportBtn) {
+            exportBtn.style.display = (this.teamLeaderboardCategory === 'battle' || /^battle_/.test(String(this.teamLeaderboardMetric || ''))) ? 'none' : '';
+        }
         if (prevBtn && !prevBtn._bound) {
             prevBtn._bound = true;
             prevBtn.addEventListener('click', () => {
@@ -1985,8 +2109,234 @@ export class TeamView {
             });
         }
 
+        if (exportBtn && !exportBtn._bound) {
+            exportBtn._bound = true;
+            exportBtn.addEventListener('click', async () => {
+                try {
+                    await this.exportTeamLeaderboardAll(this.teamLeaderboardMetric);
+                } catch (e) {
+                    alert(e?.message || '导出失败');
+                }
+            });
+        }
+
         // 默认加载
         this.loadLeaderboard(this.teamLeaderboardMetric || 'solve_total');
+    }
+
+    // ===================== 导出：团队排行榜（全量） =====================
+    async exportTeamLeaderboardAll(metric) {
+        if (this._exportingLeaderboard) return;
+        if (!this.currentTeamId) throw new Error('未选择团队');
+        const m = String(metric || '').trim() || 'solve_total';
+        const exportBtn = document.getElementById('teamLeaderboardExportAll');
+        const oldText = exportBtn ? exportBtn.textContent : '';
+        const setBtn = (txt, disabled) => {
+            if (!exportBtn) return;
+            exportBtn.textContent = txt;
+            exportBtn.disabled = !!disabled;
+        };
+        this._exportingLeaderboard = true;
+        setBtn('导出中...', true);
+
+        const now = new Date();
+        const ymd = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+
+        const metricLabel = (() => {
+            if (m === 'solve_total') return '累计过题';
+            if (m === 'solve_7days' || m === 'solve_7d') return '7日刷题';
+            if (m === 'solve_today') return '今日刷题';
+            if (m === 'clock_total') return '累计打卡';
+            if (m === 'clock_7days') return '7日打卡';
+            if (m === 'skill_total_all') return '技能树-全部';
+            if (m === 'skill_total_chapter1') return '技能树-第一章';
+            if (m === 'skill_total_interlude') return '技能树-拂晓';
+            if (m === 'skill_total_chapter2') return '技能树-第二章';
+            if (m === 'skill_total_interlude25') return '技能树-含苞';
+            if (m === 'skill_total_chapter3') return '技能树-第三章';
+            if (m === 'skill_total_interlude35') return '技能树-惊鸿';
+            if (m === 'skill_total_boss') return '技能树-梦';
+            if (m === 'skill_total_chapter4') return '技能树-韬光逐影';
+            if (m.startsWith('topic_')) return `题单-${m.split('_')[1] || ''}`;
+            return m;
+        })();
+
+        const pageLimit = 100; // 最大化减少请求次数
+
+        const fetchPage = async (page) => {
+            const p = Math.max(1, Number(page) || 1);
+            // solve
+            if (m.startsWith('solve_')) {
+                const type = (m === 'solve_today') ? 'today' : ((m === 'solve_7days' || m === 'solve_7d') ? '7days' : 'total');
+                const res = await this.api.teamLeaderboard(this.currentTeamId, pageLimit, type, p);
+                const list = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
+                const total = (res && typeof res.total === 'number') ? res.total : 0;
+                return { list, total };
+            }
+            // clock
+            if (m.startsWith('clock_')) {
+                const scope = (m === 'clock_7days') ? '7days' : 'total';
+                const res = await this.api.teamClockLeaderboard(this.currentTeamId, scope, p, pageLimit);
+                const list = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
+                const total = (res && typeof res.total === 'number') ? res.total : 0;
+                return { list, total };
+            }
+            // skill
+            if (m.startsWith('skill_')) {
+                let stage = 'all';
+                if (m === 'skill_total_chapter1') stage = 'chapter1';
+                else if (m === 'skill_total_interlude') stage = 'interlude_dawn';
+                else if (m === 'skill_total_chapter2') stage = 'chapter2';
+                else if (m === 'skill_total_interlude25') stage = 'interlude_2_5';
+                else if (m === 'skill_total_chapter3') stage = 'chapter3';
+                else if (m === 'skill_total_interlude35') stage = 'interlude_3_5';
+                else if (m === 'skill_total_boss') stage = 'boss_dream';
+                else if (m === 'skill_total_chapter4') stage = 'chapter4';
+                const res = await this.api.teamSkillLeaderboard(this.currentTeamId, 'total', stage, p, pageLimit);
+                const list = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
+                const total = (res && typeof res.total === 'number') ? res.total : 0;
+                const problemTotal = Number(res?.problemTotal || 0) || 0;
+                return { list, total, problemTotal };
+            }
+            // topic
+            if (m.startsWith('topic_')) {
+                const topicId = Number(m.split('_')[1] || 0) || 0;
+                const res = await this.api.teamTopicLeaderboard(this.currentTeamId, topicId, p, pageLimit);
+                const list = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
+                const total = (res && typeof res.total === 'number') ? res.total : 0;
+                const problemTotal = Number(res?.problemTotal || 0) || 0;
+                return { list, total, problemTotal };
+            }
+            // fallback: treat as solve_total
+            const res = await this.api.teamLeaderboard(this.currentTeamId, pageLimit, 'total', p);
+            const list = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
+            const total = (res && typeof res.total === 'number') ? res.total : 0;
+            return { list, total };
+        };
+
+        const all = [];
+        let total = 0;
+        let problemTotal = 0;
+        let page = 1;
+        const maxPages = 200; // 安全阈值，避免无限循环
+        while (page <= maxPages) {
+            setBtn(`导出中...(${page})`, true);
+            const res = await fetchPage(page);
+            const list = Array.isArray(res?.list) ? res.list : [];
+            if (typeof res?.total === 'number') total = res.total;
+            if (typeof res?.problemTotal === 'number') problemTotal = res.problemTotal;
+            if (!list.length) break;
+            all.push(...list);
+            if (total > 0) {
+                const totalPages = Math.max(1, Math.ceil(total / pageLimit));
+                setBtn(`导出中...(${page}/${totalPages})`, true);
+                if (page >= totalPages) break;
+            } else {
+                // 无 total：按“是否满页”判断是否还有下一页
+                if (list.length < pageLimit) break;
+            }
+            page += 1;
+        }
+
+        // 昵称补齐（排行榜接口可能不带 nickName）
+        try {
+            const ids = Array.from(new Set(all.map(r => String(r && (r.userId ?? r.uid ?? r.id) || '')).filter(Boolean)));
+            await this.warmUserInfoCacheFromMembers(ids);
+        } catch (_) {}
+
+        const getUserDisplay = (r) => {
+            const uid = String(r && (r.userId ?? r.uid ?? r.id) || '').trim();
+            const cached = (uid && this.userInfoCache) ? this.userInfoCache.get(uid) : null;
+            const name0 = (r && (r.name || r.userName || r.username)) || (cached && cached.name) || (uid ? `用户${uid}` : '用户');
+            const nick0 = (r && (r.nickName || r.nickname)) || (cached && (cached.nickName || cached.nickname)) || '';
+            const name = String(name0 || '').trim() || (uid ? `用户${uid}` : '用户');
+            const nickName = String(nick0 || '').trim();
+            const displayName = nickName || name;
+            return { uid, name, nickName, displayName };
+        };
+
+        const escapeCsv = (v) => {
+            const s = (v == null) ? '' : String(v);
+            if (/[",\r\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`;
+            return s;
+        };
+        const toCsv = (headers, rows) => {
+            const bom = '\uFEFF';
+            const lines = [];
+            lines.push(headers.map(escapeCsv).join(','));
+            rows.forEach(r => {
+                lines.push(r.map(escapeCsv).join(','));
+            });
+            return bom + lines.join('\r\n');
+        };
+        const downloadText = (filename, text) => {
+            const blob = new Blob([text], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        };
+
+        // 生成 CSV（按当前指标）
+        let headers = [];
+        let rows = [];
+        if (m.startsWith('topic_')) {
+            headers = ['排名', '用户ID', '昵称', '用户名', '团队昵称', '累计过题', '7日过题', '今日过题', '题目总数'];
+            rows = all.map(r => {
+                const u = getUserDisplay(r);
+                const rank = r.rank ?? '';
+                const totalAccept = (r.totalAccept ?? '');
+                const seven = (r.sevenDaysAccept ?? r.sevenDays ?? '');
+                const today = (r.todayAccept ?? '');
+                return [rank, u.uid, u.displayName, u.name, u.nickName, totalAccept, seven, today, problemTotal || ''];
+            });
+        } else if (m.startsWith('clock_')) {
+            headers = ['排名', '用户ID', '昵称', '用户名', '团队昵称', '打卡数', '连打天数', '今日已打卡'];
+            rows = all.map(r => {
+                const u = getUserDisplay(r);
+                return [
+                    r.rank ?? '',
+                    u.uid,
+                    u.displayName,
+                    u.name,
+                    u.nickName,
+                    (r.count ?? ''),
+                    (r.continueDays ?? ''),
+                    (r.checkedToday ? '是' : '否')
+                ];
+            });
+        } else if (m.startsWith('skill_')) {
+            headers = ['排名', '用户ID', '昵称', '用户名', '团队昵称', '通过题数', '题目总数'];
+            rows = all.map(r => {
+                const u = getUserDisplay(r);
+                return [
+                    r.rank ?? '',
+                    u.uid,
+                    u.displayName,
+                    u.name,
+                    u.nickName,
+                    (r.acceptCount ?? ''),
+                    (problemTotal || '')
+                ];
+            });
+        } else {
+            // solve 默认
+            headers = ['排名', '用户ID', '昵称', '用户名', '团队昵称', '过题数'];
+            rows = all.map(r => {
+                const u = getUserDisplay(r);
+                return [r.rank ?? '', u.uid, u.displayName, u.name, u.nickName, (r.acceptCount ?? '')];
+            });
+        }
+
+        const filename = `team_${String(this.currentTeamId)}_${metricLabel}_${ymd}.csv`;
+        downloadText(filename, toCsv(headers, rows));
+
+        setBtn(oldText || '导出全部', false);
+        this._exportingLeaderboard = false;
     }
 
     /**
@@ -2038,39 +2388,150 @@ export class TeamView {
         const tb = document.getElementById('team-rankings-tbody');
         if (!tb) return;
         tb.innerHTML = `<tr><td colspan="5">加载中...</td></tr>`;
-        // metric 支持：solve_total | solve_7days | solve_today | clock_total | clock_7days | skill_total_{all|interlude|chapter1|chapter2|interlude25|chapter3} | topic_{id}
+        // metric 支持：solve_total | solve_7days | solve_today | clock_total | clock_7days
+        // skill_total_{all|chapter1|interlude|chapter2|interlude25|chapter3|interlude35|boss|chapter4} | topic_{id} | battle
         try {
+            // 统一：昵称展示（昵称优先，括号补用户名）。部分榜单接口不返回 nickName，需要从成员列表预热。
+            const ensureUserCache = () => {
+                if (!this.userInfoCache) this.userInfoCache = new Map();
+            };
+            const extractUserIds = (rows) => Array.from(new Set(
+                (Array.isArray(rows) ? rows : [])
+                    .map(r => r && (r.userId ?? r.uid ?? r.id))
+                    .filter(v => v != null && String(v).trim() !== '')
+                    .map(v => String(v))
+            ));
+            const getUserDisplay = (r) => {
+                const uid = String(r && (r.userId ?? r.uid ?? r.id) || '').trim();
+                const cached = (uid && this.userInfoCache) ? this.userInfoCache.get(uid) : null;
+                const name0 = (r && (r.name || r.userName || r.username)) || (cached && cached.name) || (uid ? `用户${uid}` : '用户');
+                const nick0 = (r && (r.nickName || r.nickname)) || (cached && (cached.nickName || cached.nickname)) || '';
+                const name = String(name0 || '').trim() || (uid ? `用户${uid}` : '用户');
+                const nickName = String(nick0 || '').trim();
+                const displayName = nickName || name;
+                const avatar = (r && (r.headUrl || r.avatar)) || (cached && cached.headUrl) || '';
+                return { uid, name, nickName, displayName, avatar };
+            };
+
             const isClock = String(metric || '').startsWith('clock_');
             const isSkill = String(metric || '').startsWith('skill_');
             const isTopic = String(metric || '').startsWith('topic_');
+            const isBattle = String(metric || '').startsWith('battle_');
             // 更新表头显示
             const thead = document.querySelector('#team-leaderboard table thead');
             if (thead) {
-                if (isTopic) {
+                if (isBattle) {
+                    thead.innerHTML = `<tr><th class="rank-header">排名</th><th class="user-header">成员</th><th>分数</th><th>胜场/总局</th><th>胜率</th></tr>`;
+                } else if (isTopic) {
                     thead.innerHTML = `<tr><th class="rank-header">排名</th><th class="user-header">成员</th><th class="ac-header">累计</th><th>7日</th><th>今日</th></tr>`;
                 } else {
                     thead.innerHTML = `<tr><th class="rank-header">排名</th><th class="user-header">成员</th><th class="ac-header">${isClock ? '打卡数' : '过题数'}</th></tr>`;
                 }
             }
             let rows = [];
-            if (isClock) {
+            const toProfileUrl = (uid) => `#/profile?userId=${encodeURIComponent(String(uid))}`;
+
+            if (isBattle) {
+                // battle_1v1 / battle_ai：接口一次返回两块，这里按子榜筛选展示
+                const cacheKey = `${this.currentTeamId}|${this.teamLeaderboardPage}|${this.teamLeaderboardLimit}`;
+                let res = null;
+                if (this._teamBattleLeaderboardCache && this._teamBattleLeaderboardCache.key === cacheKey) {
+                    res = this._teamBattleLeaderboardCache.data;
+                } else {
+                    res = await this.api.teamBattleLeaderboard(this.currentTeamId, this.teamLeaderboardPage, this.teamLeaderboardLimit);
+                    this._teamBattleLeaderboardCache = { key: cacheKey, data: res };
+                }
+                const b1 = (res && res.battle1v1) ? res.battle1v1 : {};
+                const bai = (res && res.battleAI) ? res.battleAI : {};
+                const list1 = Array.isArray(b1.list) ? b1.list : [];
+                const list2 = Array.isArray(bai.list) ? bai.list : [];
+                const total1 = (typeof b1.total === 'number') ? b1.total : list1.length;
+                const total2 = (typeof bai.total === 'number') ? bai.total : list2.length;
+                const showAi = String(metric) === 'battle_ai';
+                this.teamLeaderboardTotal = showAi ? total2 : total1;
+
+                // 预热昵称缓存（接口已带 nickname/avatar，但兜底）
+                try {
+                    ensureUserCache();
+                    await this.warmUserInfoCacheFromMembers(extractUserIds([...list1, ...list2]));
+                } catch (_) {}
+
+                // 对战榜：昵称显示规则与其它榜一致
+                // - 只有当缓存里存在 nickName 时才显示昵称；否则显示用户名
+                // - 若缓存缺失，再退回接口的 nickname 作为“用户名”展示（不加括号）
+                const getBattleUserDisplay = (r) => {
+                    const uid = String(r && (r.userId ?? r.uid ?? r.id) || '').trim();
+                    const cached = (uid && this.userInfoCache) ? this.userInfoCache.get(uid) : null;
+                    const name0 = (cached && cached.name) || (r && (r.name || r.userName || r.username)) || (r && r.nickname) || (uid ? `用户${uid}` : '用户');
+                    const nick0 = (cached && (cached.nickName || cached.nickname)) || '';
+                    const name = String(name0 || '').trim() || (uid ? `用户${uid}` : '用户');
+                    const nickName = String(nick0 || '').trim();
+                    const displayName = nickName ? nickName : name;
+                    const avatar = (r && (r.headUrl || r.avatar)) || (cached && cached.headUrl) || '';
+                    return { uid, name, nickName, displayName, avatar };
+                };
+
+                const renderRows = (list) => (Array.isArray(list) ? list : []).map(r => {
+                    const rank = r.rank || '-';
+                    const u = getBattleUserDisplay(r);
+                    const uid = u.uid;
+                    const name = u.name;
+                    const nickName = u.nickName;
+                    const displayName = u.displayName;
+                    const avatar = u.avatar;
+                    const score = (r.levelScore != null) ? r.levelScore : 0;
+                    const win = (r.winCount != null) ? r.winCount : 0;
+                    const total = (r.totalCount != null) ? r.totalCount : 0;
+                    // winRate 后端可能返回 0~1（比例）或 0~100（百分比）或 0~10000（百分比*100），这里自适应展示
+                    const rawWr = (r && r.winRate != null) ? r.winRate : null;
+                    let wrNum = Number(rawWr);
+                    if (!Number.isFinite(wrNum)) {
+                        wrNum = total ? (win / total) : 0;
+                    }
+                    // 极端：后端返回百分比*100（例如 8033 表示 80.33%）
+                    if (wrNum > 100) wrNum = wrNum / 100;
+                    const winRate = (wrNum > 1)
+                        ? `${wrNum.toFixed(1)}%`
+                        : `${(wrNum * 100).toFixed(1)}%`;
+                    const profileUrl = toProfileUrl(uid);
+                    const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
+                        <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
+                        <a href="${profileUrl}" style="color:#333;text-decoration:none;font-weight:600;">${displayName}</a>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}
+                    </div>`;
+                    return `<tr><td>${rank}</td><td>${nameCell}</td><td>${score}</td><td>${win}/${total}</td><td>${winRate}</td></tr>`;
+                }).join('');
+
+                const currentList = showAi ? list2 : list1;
+                if (!currentList.length) {
+                    tb.innerHTML = `<tr><td colspan="5">暂无数据</td></tr>`;
+                } else {
+                    tb.innerHTML = renderRows(currentList);
+                }
+            } else if (isClock) {
                 const clockScope = (metric === 'clock_7days') ? '7days' : 'total';
                 const res = await this.api.teamClockLeaderboard(this.currentTeamId, clockScope, this.teamLeaderboardPage, this.teamLeaderboardLimit);
                 rows = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
                 this.teamLeaderboardTotal = (res && typeof res.total === 'number') ? res.total : 0;
+                // 预热昵称缓存
+                try {
+                    ensureUserCache();
+                    await this.warmUserInfoCacheFromMembers(extractUserIds(rows));
+                } catch (_) {}
                 if (rows.length > 0) {
                     tb.innerHTML = rows.map(r => {
                         const rank = r.rank || '-';
-                        const name = r.name || `用户${r.userId}`;
-                        const nickName = r.nickName || r.nickname || '';
-                        const displayName = nickName || name;
-                        const avatar = r.headUrl || '';
+                        const u = getUserDisplay(r);
+                        const name = u.name;
+                        const nickName = u.nickName;
+                        const displayName = u.displayName;
+                        const avatar = u.avatar;
                         const count = r.count != null ? r.count : '-';
                         const cont = r.continueDays != null ? r.continueDays : 0;
                         const check = r && r.checkedToday ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#52c41a;color:#fff;font-size:11px;line-height:14px;margin-left:6px;">✓</span>` : '';
+                        const profileUrl = toProfileUrl(u.uid);
                         const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
                             <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                            <span>${displayName}</span>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}${check}
+                            <a href="${profileUrl}" style="color:#333;text-decoration:none;font-weight:600;">${displayName}</a>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}${check}
                         </div>`;
                         const contBadge = `<span style="display:inline-block;padding:2px 6px;border-radius:10px;border:1px solid #d9f7be;background:#f6ffed;color:#237804;font-size:12px;">连打 ${cont} 天</span>`;
                         return `<tr><td>${rank}</td><td>${nameCell}</td><td>${count} ${cont > 0 ? contBadge : ''}</td></tr>`;
@@ -2081,14 +2542,22 @@ export class TeamView {
             } else if (isSkill) {
                 // 解析章节
                 let stage = 'all';
-                if (metric === 'skill_total_interlude') stage = 'interlude';
-                else if (metric === 'skill_total_chapter1') stage = 'CHAPTER1';
-                else if (metric === 'skill_total_chapter2') stage = 'CHAPTER2';
-                else if (metric === 'skill_total_interlude25') stage = 'INTERLUDE_2_5';
-                else if (metric === 'skill_total_chapter3') stage = 'CHAPTER3';
+                if (metric === 'skill_total_chapter1') stage = 'chapter1';
+                else if (metric === 'skill_total_interlude') stage = 'interlude_dawn'; // 拂晓
+                else if (metric === 'skill_total_chapter2') stage = 'chapter2';
+                else if (metric === 'skill_total_interlude25') stage = 'interlude_2_5'; // 含苞
+                else if (metric === 'skill_total_chapter3') stage = 'chapter3';
+                else if (metric === 'skill_total_interlude35') stage = 'interlude_3_5'; // 惊鸿
+                else if (metric === 'skill_total_boss') stage = 'boss_dream'; // 梦
+                else if (metric === 'skill_total_chapter4') stage = 'chapter4'; // 韬光逐影
                 const res = await this.api.teamSkillLeaderboard(this.currentTeamId, 'total', stage, this.teamLeaderboardPage, this.teamLeaderboardLimit);
                 rows = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
                 this.teamLeaderboardTotal = (res && typeof res.total === 'number') ? res.total : 0;
+                // 预热昵称缓存
+                try {
+                    ensureUserCache();
+                    await this.warmUserInfoCacheFromMembers(extractUserIds(rows));
+                } catch (_) {}
                 // 取 ApiService 透传的 problemTotal
                 let problemTotal = Number((res && res.problemTotal) || 0);
                 try {
@@ -2102,31 +2571,57 @@ export class TeamView {
                 if (!problemTotal || Number.isNaN(problemTotal)) {
                     try {
                         const skillMeta = await this.api.teamActivitySkillFinishedUsers(this.currentTeamId);
-                        const mapKey = (stage === 'interlude' ? 'interlude' : 
-                                       (stage === 'CHAPTER1' ? 'chapter1' : 
-                                       (stage === 'CHAPTER2' ? 'chapter2' : 
-                                       (stage === 'INTERLUDE_2_5' ? 'interlude25' : 
-                                       (stage === 'CHAPTER3' ? 'chapter3' : '')))));
-                        if (mapKey && skillMeta && skillMeta[mapKey] && typeof skillMeta[mapKey].problemTotal === 'number') {
-                            problemTotal = Number(skillMeta[mapKey].problemTotal);
+                        // 后端 key 命名在不同环境可能不一致，这里做“多候选 key”匹配
+                        const pickProblemTotal = (meta, candidates) => {
+                            if (!meta || typeof meta !== 'object') return 0;
+                            const keys = Object.keys(meta);
+                            for (const c of candidates) {
+                                if (!c) continue;
+                                // 1) 直接命中
+                                if (meta[c] && typeof meta[c].problemTotal === 'number') return Number(meta[c].problemTotal);
+                                // 2) 不区分大小写命中
+                                const hit = keys.find(k => String(k).toLowerCase() === String(c).toLowerCase());
+                                if (hit && meta[hit] && typeof meta[hit].problemTotal === 'number') return Number(meta[hit].problemTotal);
+                            }
+                            return 0;
+                        };
+
+                        const candidates = (() => {
+                            const s = String(stage || 'all').toLowerCase();
+                            if (s === 'chapter1') return ['chapter1', 'CHAPTER1', 'ch1', '第一章'];
+                            if (s === 'chapter2') return ['chapter2', 'CHAPTER2', 'ch2', '第二章'];
+                            if (s === 'chapter3') return ['chapter3', 'CHAPTER3', 'ch3', '第三章'];
+                            if (s === 'chapter4') return ['chapter4', 'CHAPTER4', 'ch4', '第四章'];
+                            if (s === 'interlude_dawn' || s === 'interlude') return ['interlude', 'interlude_dawn', 'INTERLUDE_DAWN', 'dawn', '拂晓'];
+                            if (s === 'interlude_2_5') return ['interlude25', 'interlude_2_5', 'INTERLUDE_2_5', 'ch2.5', '含苞'];
+                            if (s === 'interlude_3_5' || s === 'ch3.5') return ['interlude35', 'interlude_3_5', 'INTERLUDE_3_5', 'ch3.5', '惊鸿'];
+                            if (s === 'boss_dream' || s === 'boss') return ['boss', 'boss_dream', 'BOSS_DREAM', 'dream', '梦'];
+                            return [];
+                        })();
+
+                        const picked = pickProblemTotal(skillMeta, candidates);
+                        if (picked > 0) {
+                            problemTotal = picked;
                             // eslint-disable-next-line no-console
-                            console.debug('[TeamView] skill leaderboard fallback problemTotal', { stage, mapKey, problemTotal });
+                            console.debug('[TeamView] skill leaderboard fallback problemTotal', { stage, candidates, problemTotal });
                         }
                     } catch (_) {}
                 }
                 if (rows.length > 0) {
                     tb.innerHTML = rows.map(r => {
                         const rank = r.rank || '-';
-                        const name = r.name || `用户${r.userId}`;
-                        const nickName = r.nickName || r.nickname || '';
-                        const displayName = nickName || name;
-                        const avatar = r.headUrl || '';
+                        const u = getUserDisplay(r);
+                        const name = u.name;
+                        const nickName = u.nickName;
+                        const displayName = u.displayName;
+                        const avatar = u.avatar;
                         const acRaw = (r.acceptCount != null ? r.acceptCount : '-');
                         const ac = (problemTotal > 0 && acRaw !== '-' ? `${Number(acRaw)}/${problemTotal}` : acRaw);
                         const check = r && r.checkedToday ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#52c41a;color:#fff;font-size:11px;line-height:14px;margin-left:6px;">✓</span>` : '';
+                        const profileUrl = toProfileUrl(u.uid);
                         const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
                             <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                            <span>${displayName}</span>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}${check}
+                            <a href="${profileUrl}" style="color:#333;text-decoration:none;font-weight:600;">${displayName}</a>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}${check}
                         </div>`;
                         return `<tr><td>${rank}</td><td>${nameCell}</td><td>${ac}</td></tr>`;
                     }).join('');
@@ -2139,22 +2634,29 @@ export class TeamView {
                 const res = await this.api.teamTopicLeaderboard(this.currentTeamId, topicId, this.teamLeaderboardPage, this.teamLeaderboardLimit);
                 rows = Array.isArray(res?.list) ? res.list : (Array.isArray(res) ? res : []);
                 this.teamLeaderboardTotal = (res && typeof res.total === 'number') ? res.total : 0;
+                // 预热昵称缓存
+                try {
+                    ensureUserCache();
+                    await this.warmUserInfoCacheFromMembers(extractUserIds(rows));
+                } catch (_) {}
                 const problemTotal = (typeof res.problemTotal === 'number') ? res.problemTotal
                     : ((typeof res.totalProblemCount === 'number') ? res.totalProblemCount : 0);
                 if (rows.length > 0) {
                     tb.innerHTML = rows.map(r => {
                         const rank = r.rank || '-';
-                        const name = r.name || `用户${r.userId}`;
-                        const nickName = r.nickName || r.nickname || '';
-                        const displayName = nickName || name;
-                        const avatar = r.headUrl || '';
+                        const u = getUserDisplay(r);
+                        const name = u.name;
+                        const nickName = u.nickName;
+                        const displayName = u.displayName;
+                        const avatar = u.avatar;
                         const total = r.totalAccept != null ? r.totalAccept : '-';
                         const seven = r.sevenDaysAccept != null ? r.sevenDaysAccept : (r.sevenDays != null ? r.sevenDays : '-');
                         const today = r.todayAccept != null ? r.todayAccept : '-';
                         const totalCell = (problemTotal && typeof total === 'number') ? `${total}/${problemTotal}` : total;
+                        const profileUrl = toProfileUrl(u.uid);
                         const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
                             <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                            <span>${displayName}</span>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}
+                            <a href="${profileUrl}" style="color:#333;text-decoration:none;font-weight:600;">${displayName}</a>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}
                         </div>`;
                         return `<tr><td>${rank}</td><td>${nameCell}</td><td>${totalCell}</td><td>${seven}</td><td>${today}</td></tr>`;
                     }).join('');
@@ -2175,18 +2677,25 @@ export class TeamView {
             const result = await this.api.teamLeaderboard(this.currentTeamId, this.teamLeaderboardLimit, type, this.teamLeaderboardPage);
                 rows = (result && Array.isArray(result.list)) ? result.list : (Array.isArray(result) ? result : []);
             this.teamLeaderboardTotal = (result && typeof result.total === 'number') ? result.total : 0; // 0 表示未知总数（旧接口）
+            // 预热昵称缓存
+            try {
+                ensureUserCache();
+                await this.warmUserInfoCacheFromMembers(extractUserIds(rows));
+            } catch (_) {}
             if (Array.isArray(rows) && rows.length > 0) {
                 tb.innerHTML = rows.map(r => {
                     const rank = r.rank || '-';
-                    const name = r.name || `用户${r.userId}`;
-                    const nickName = r.nickName || r.nickname || '';
-                    const displayName = nickName || name;
+                    const u = getUserDisplay(r);
+                    const name = u.name;
+                    const nickName = u.nickName;
+                    const displayName = u.displayName;
                     const ac = r.acceptCount != null ? r.acceptCount : '-';
-                    const avatar = r.headUrl || '';
+                    const avatar = u.avatar;
                         const check = r && r.checkedToday ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:14px;height:14px;border-radius:50%;background:#52c41a;color:#fff;font-size:11px;line-height:14px;margin-left:6px;">✓</span>` : '';
+                    const profileUrl = toProfileUrl(u.uid);
                     const nameCell = `<div style="display:flex;align-items:center;gap:8px;">
                         <img src="${avatar}" alt="avatar" style="width:20px;height:20px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                            <span>${displayName}</span>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}${check}
+                            <a href="${profileUrl}" style="color:#333;text-decoration:none;font-weight:600;">${displayName}</a>${nickName ? `<span style="color:#999;font-size:11px;">(${name})</span>` : ''}${check}
                     </div>`;
                     return `<tr><td>${rank}</td><td>${nameCell}</td><td>${ac}</td></tr>`;
                 }).join('');
@@ -2251,7 +2760,7 @@ export class TeamView {
                     <div style="position:absolute;inset:0;pointer-events:none;background:radial-gradient(600px 180px at 20% -20%,rgba(255,214,102,0.25),transparent),radial-gradient(600px 180px at 120% 120%,rgba(24,144,255,0.18),transparent);"></div>
                     <div style="position:relative;display:flex;align-items:center;gap:12px;justify-content:space-between;">
                         <div style="display:flex;align-items:center;gap:10px;min-width:0;">
-                            <span style="font-size:18px;">👑</span>
+                            <span style="font-size:18px;">🥇</span>
                             <div style="min-width:0;">
                                 <div style="font-weight:700;color:#1f1f1f;">昨日卷王：<span style="color:#8c8c8c;font-weight:600;">空缺</span></div>
                                 <div style="color:#555;font-size:13px;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">就差你了！现在冲一波，明天可能就是你 <span style="margin-left:4px;">🚀</span></div>
@@ -2286,25 +2795,29 @@ export class TeamView {
         const uid = String(yk.userId);
         // 后端新版本可能直接返回 name/headUrl/url，优先使用，缺失再回退查询
         let name = (yk.name || '').trim();
+        let nickName = (yk.nickName || yk.nickname || '').trim();
         let avatar = (yk.headUrl || '').trim();
         // 不使用后端返回的 url，统一按 uid 拼接个人主页
-        let profileUrl = `https://www.nowcoder.com/users/${uid}`;
+        let profileUrl = `#/profile?userId=${encodeURIComponent(String(uid))}`;
         if (!name || !avatar) {
             const info = await this.resolveUserInfoById(uid);
             name = name || info.name || `用户${uid}`;
             avatar = avatar || info.headUrl || '';
+            nickName = nickName || (info.nickName || info.nickname || '');
         }
+        const displayName = (nickName && nickName.trim()) ? nickName.trim() : name;
         box.innerHTML = `
             <div style="position:relative; overflow:hidden; border-radius:12px; padding:14px; background:linear-gradient(135deg,#fffbe6,#e6f7ff); border:1px solid #f0f0f0;">
                 <div style="position:absolute; inset:0; background:radial-gradient(600px 180px at 20% -20%, rgba(255,214,102,0.25), transparent), radial-gradient(600px 180px at 120% 120%, rgba(24,144,255,0.2), transparent); pointer-events:none;"></div>
                 <div style="position:relative; display:flex; align-items:center; gap:12px;">
                     <div style="position:relative; width:48px; height:48px;">
                         <img src="${avatar}" alt="avatar" style="width:48px;height:48px;border-radius:50%;object-fit:cover;border:2px solid rgba(255,193,7,0.6);" onerror="this.style.display='none'" />
-                        <span style="position:absolute; right:-6px; top:-8px; font-size:18px;">👑</span>
+                        <span style="position:absolute; right:-6px; top:-8px; font-size:18px;">🥇</span>
                     </div>
                     <div style="flex:1; min-width:0;">
                         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                            <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="font-weight:700;color:#222;text-decoration:none;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${name}</a>
+                            <a href="${profileUrl}" style="font-weight:700;color:#222;text-decoration:none;max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</a>
+                            ${nickName ? `<span style="color:#999;font-size:12px;">(${name})</span>` : ''}
                             <span style="display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:12px;color:#ad4e00;background:#fff7e6;border:1px solid #ffd591;">昨日卷王</span>
                         </div>
                         <div style="color:#555;margin-top:2px;font-size:13px;">昨日过题 <b style="color:#d48806;">${Number(yk.acceptCount)||0}</b> 题 · 提交 <b style="color:#1890ff;">${Number(yk.submissionCount)||0}</b> 次</div>
@@ -2322,6 +2835,11 @@ export class TeamView {
         if (this.userInfoCache && this.userInfoCache.has(id)) {
             return this.userInfoCache.get(id);
         }
+        // 若缓存未命中，先尝试从成员列表补一次（可拿到昵称）
+        try {
+            await this.warmUserInfoCacheFromMembers([id]);
+            if (this.userInfoCache && this.userInfoCache.has(id)) return this.userInfoCache.get(id);
+        } catch (_) {}
         try {
             // 优先从“总过题”榜单拿（包含 name/headUrl），分页查找最多 5 页，每页 50
             const limit = 50;
@@ -2351,6 +2869,75 @@ export class TeamView {
         this.userInfoCache.set(id, fallback);
         return fallback;
     }
+
+    /**
+     * 从团队成员列表预热 userInfoCache（保证 nickName 可用）
+     * @param {Array<string|number>} userIds
+     */
+    async warmUserInfoCacheFromMembers(userIds) {
+        const ids = Array.from(new Set((userIds || []).map(x => String(x)).filter(Boolean)));
+        if (!ids.length) return;
+        if (!this.userInfoCache) this.userInfoCache = new Map();
+        // 如果这些 id 都已经有 nickName 信息，就不再拉成员列表
+        const need = ids.filter(id => {
+            const v = this.userInfoCache.get(id);
+            return !(v && (v.nickName || v.nickname));
+        });
+        if (!need.length) return;
+
+        // 拉一次成员列表（尽量大一点减少分页；失败也不影响主流程）
+        const teamId = this.currentTeamId;
+        if (!teamId) return;
+        // 优先复用缓存的成员 map，避免每次榜单翻页都打接口
+        let mMap = null;
+        try {
+            const sameTeam = String(this._memberInfoMapTeamId || '') === String(teamId);
+            const fresh = (Date.now() - Number(this._memberInfoMapTs || 0)) < 5 * 60 * 1000; // 5min
+            if (sameTeam && fresh && this._memberInfoMap && typeof this._memberInfoMap.get === 'function') {
+                mMap = this._memberInfoMap;
+            }
+        } catch (_) {}
+        if (!mMap) {
+            // 后端限制 limit<=100，分页拉取并尽量覆盖需要的 uid
+            const limit = 100;
+            let page = 1;
+            const maxPages = 10; // 覆盖到 1000 人（团队上限约 500）
+            const all = [];
+            for (let i = 0; i < maxPages; i++) {
+                let part = [];
+                try {
+                    part = await this.api.teamMembers(teamId, limit, page);
+                } catch (_) {
+                    part = [];
+                }
+                if (!Array.isArray(part) || part.length === 0) break;
+                all.push(...part);
+                // 如果已经覆盖所有需要的 uid，就提前结束
+                const got = new Set(all.map(m => String(m && (m.userId || m.id) || '')).filter(Boolean));
+                const left = need.some(id => !got.has(String(id)));
+                if (!left) break;
+                // 翻页
+                if (part.length < limit) break;
+                page += 1;
+            }
+            if (!all.length) return;
+            mMap = new Map(all.map(m => [String(m.userId || m.id || ''), m]));
+            this._memberInfoMap = mMap;
+            this._memberInfoMapTeamId = String(teamId);
+            this._memberInfoMapTs = Date.now();
+        }
+        need.forEach(id => {
+            const m = mMap.get(String(id));
+            if (!m) return;
+            const name = m.name || `用户${id}`;
+            const info = {
+                name,
+                headUrl: m.headUrl || '',
+                nickName: m.nickName || m.nickname || ''
+            };
+            this.userInfoCache.set(String(id), info);
+        });
+    }
     /**
      * 团队概览：加载成员分页
      */
@@ -2359,17 +2946,74 @@ export class TeamView {
         if (!tbody) return;
         tbody.innerHTML = `<tr><td style="padding:8px 6px;color:#888;">加载中...</td></tr>`;
         try {
-            const list = await this.api.teamMembers(this.currentTeamId, this.teamMembersLimit, this.teamMembersPage);
+            const sortKey = String(this.teamMembersSortKey || 'join_time');
+            const sortDir = (sortKey === 'name') ? 'asc' : String(this.teamMembersSortDir || 'desc');
+            // 透传给后端（已实现）
+            const list = await this.api.teamMembers(this.currentTeamId, this.teamMembersLimit, this.teamMembersPage, sortKey, sortDir);
             if (Array.isArray(list) && list.length === 0 && this.teamMembersPage > 1) {
                 // 回退一页以避免越界空页
                 this.teamMembersPage = Math.max(1, this.teamMembersPage - 1);
-                const list2 = await this.api.teamMembers(this.currentTeamId, this.teamMembersLimit, this.teamMembersPage);
-                return this.renderMembersDashboardRows(list2);
+                const list2 = await this.api.teamMembers(this.currentTeamId, this.teamMembersLimit, this.teamMembersPage, sortKey, sortDir);
+                return this.renderMembersDashboardRows(Array.isArray(list2) ? list2 : []);
             }
             this.renderMembersDashboardRows(Array.isArray(list) ? list : []);
         } catch (e) {
             tbody.innerHTML = `<tr><td style="padding:8px 6px;color:#888;">加载失败：${e.message || '请稍后重试'}</td></tr>`;
         }
+    }
+
+    sortTeamMembersLocally(members, sortKey, sortDir) {
+        const arr = Array.isArray(members) ? members.slice() : [];
+        const key = String(sortKey || '').trim();
+        const dir = (String(sortDir || 'desc').toLowerCase() === 'asc') ? 1 : -1;
+        if (!key) return arr;
+
+        const getNum = (v) => {
+            const n = Number(v);
+            return Number.isFinite(n) ? n : 0;
+        };
+        const getJoinTs = (m) => {
+            const cand = m?.joinTime ?? m?.joinTs ?? m?.createTime ?? m?.createTs ?? m?.createdAt ?? m?.joinAt ?? m?.ctime ?? m?.utime;
+            if (cand == null) return 0;
+            if (typeof cand === 'number') return cand;
+            const s = String(cand).trim();
+            if (!s) return 0;
+            // 纯数字字符串
+            if (/^\d{10,13}$/.test(s)) return Number(s);
+            const t = Date.parse(s);
+            return Number.isFinite(t) ? t : 0;
+        };
+        const getNameForSort = (m) => {
+            const nick = String(m?.nickName ?? m?.nickname ?? '').trim();
+            const name = String(m?.name ?? '').trim();
+            return (nick || name || '').toLowerCase();
+        };
+        const getAcceptTotal = (m) => getNum(m?.acceptCount ?? m?.solveTotal ?? m?.ac ?? 0);
+        const getAcceptToday = (m) => getNum(m?.todayAcceptCount ?? m?.acceptToday ?? m?.todayAccept ?? m?.todaySolve ?? 0);
+
+        const cmp = (a, b) => {
+            // owner 优先固定在最上（不受排序影响）
+            const aOwner = (typeof a?.role === 'number') ? (a.role === 2) : (String(a?.role || '').toLowerCase() === 'owner');
+            const bOwner = (typeof b?.role === 'number') ? (b.role === 2) : (String(b?.role || '').toLowerCase() === 'owner');
+            if (aOwner !== bOwner) return aOwner ? -1 : 1;
+
+            if (key === 'nickname') {
+                const av = getNameForSort(a);
+                const bv = getNameForSort(b);
+                if (av === bv) return 0;
+                return av < bv ? -1 : 1;
+            }
+            let va = 0, vb = 0;
+            if (key === 'acceptTotal') { va = getAcceptTotal(a); vb = getAcceptTotal(b); }
+            else if (key === 'acceptToday') { va = getAcceptToday(a); vb = getAcceptToday(b); }
+            else { // joinTime default
+                va = getJoinTs(a); vb = getJoinTs(b);
+            }
+            if (va === vb) return 0;
+            return (va < vb ? -1 : 1) * dir;
+        };
+
+        return arr.sort(cmp);
     }
 
     renderMembersDashboardRows(members) {
@@ -2383,6 +3027,39 @@ export class TeamView {
         if (!Array.isArray(members) || members.length === 0) {
             tbody.innerHTML = `<tr><td style="padding:8px 6px;color:#888;">暂无成员</td></tr>`;
         } else {
+            const sortKey = String(this.teamMembersSortKey || '').trim();
+            const formatYmd = (ts) => {
+                const n = Number(ts);
+                if (!Number.isFinite(n) || n <= 0) return '';
+                const ms = (n > 1e12) ? n : (n > 1e10 ? n : n * 1000);
+                const d = new Date(ms);
+                if (Number.isNaN(d.getTime())) return '';
+                const y = d.getFullYear();
+                const m = String(d.getMonth() + 1).padStart(2, '0');
+                const day = String(d.getDate()).padStart(2, '0');
+                return `${y}-${m}-${day}`;
+            };
+            const metricHtmlFor = (m) => {
+                // 依据当前排序方式展示右侧指标
+                if (sortKey === 'accept_total') {
+                    const v = Number(m?.acceptTotal ?? m?.acceptCount ?? 0) || 0;
+                    return `<span style="color:#64748b;font-size:12px;white-space:nowrap;">总过题 ${v} 道</span>`;
+                }
+                if (sortKey === 'accept_today') {
+                    const v = Number(m?.acceptToday ?? 0) || 0;
+                    return `<span style="color:#64748b;font-size:12px;white-space:nowrap;">今日过题 ${v} 道</span>`;
+                }
+                if (sortKey === 'accept_7days') {
+                    const v = Number(m?.accept7Days ?? 0) || 0;
+                    return `<span style="color:#64748b;font-size:12px;white-space:nowrap;">7日过题 ${v} 道</span>`;
+                }
+                if (sortKey === 'join_time') {
+                    const t = formatYmd(m?.joinTime);
+                    return t ? `<span style="color:#64748b;font-size:12px;white-space:nowrap;">加入 ${t}</span>` : '';
+                }
+                // name/默认：不额外展示
+                return '';
+            };
             tbody.innerHTML = members.map(m => {
                 const isOwner = (typeof m.role === 'number' ? m.role === 2 : String(m.role||'').toLowerCase()==='owner');
                 const uid = m.userId || m.id;
@@ -2391,7 +3068,7 @@ export class TeamView {
                 const displayName = nickName || name; // 优先显示昵称，没有则显示用户名
                 const isCurrentUser = String(uid) === String(this.state.loggedInUserId);
                 const avatar = m.headUrl || '';
-                const profileUrl = `https://www.nowcoder.com/users/${uid}`;
+                const profileUrl = `#/profile?userId=${encodeURIComponent(String(uid))}`;
                 const crown = isOwner ? `<span title="队长" style="margin-left:6px;">👑</span>` : '';
                 
                 // 队长在管理模式下可以修改所有成员昵称，任何人都可以修改自己的昵称
@@ -2405,18 +3082,25 @@ export class TeamView {
                     ? `<button class="admin-btn team-btn-transfer" data-user-id="${uid}" style="margin-left:10px;">转让队长</button>
                        <button class="admin-btn team-btn-kick" data-user-id="${uid}" style="margin-left:6px;background:#ffecec;color:#e00;">踢出</button>`
                     : '';
+
+                const metricHtml = metricHtmlFor(m);
                 
                 return `
                     <tr style="border-bottom:1px dashed #f0f0f0;">
                         <td style="padding:8px 6px;">
-                            <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
-                                <img src="${avatar}" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
-                                <a href="${profileUrl}" target="_blank" rel="noopener noreferrer" style="color:#333;text-decoration:none;">${displayName}</a>
-                                ${nickName ? `<span style="color:#999;font-size:12px;">(${name})</span>` : ''}
-                                ${(m && m.checkedToday) ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#52c41a;color:#fff;font-size:12px;line-height:16px;margin-left:6px;">✓</span>` : ``}
-                                ${crown}
-                                ${nicknameEditBtn}
-                                ${actionBtnHtml}
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0;">
+                                    <img src="${avatar}" alt="avatar" style="width:24px;height:24px;border-radius:50%;object-fit:cover;" onerror="this.style.display='none'" />
+                                    <a href="${profileUrl}" style="color:#333;text-decoration:none;max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${displayName}</a>
+                                    ${nickName ? `<span style="color:#999;font-size:12px;">(${name})</span>` : ''}
+                                    ${(m && m.checkedToday) ? `<span title="今日已打卡" style="display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;border-radius:50%;background:#52c41a;color:#fff;font-size:12px;line-height:16px;margin-left:6px;">✓</span>` : ``}
+                                    ${crown}
+                                </div>
+                                <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end;">
+                                    ${metricHtml}
+                                    ${nicknameEditBtn}
+                                    ${actionBtnHtml}
+                                </div>
                             </div>
                         </td>
                     </tr>`;
