@@ -1045,7 +1045,7 @@ export class SkillTreeView {
                             </div>
                             <div style="padding-top: 12px; border-top: 1px solid rgba(144,205,244,0.35); opacity: 1;">
                                 <div style="color: #40a9ff; font-weight: 600; margin-bottom: 6px;">该篇毕业水平参考：</div>
-                                <div style="color: #ffffff; margin-left: 12px;">• 区域赛稳定获得铜奖，具备争夺银奖的实力</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• 区域赛稳定获取银奖，具备冲击金奖的实力</div>
                                 <div style="color: #ffffff; margin-left: 12px;">• CSP-S 稳定一等，可冲击 NOI 奖项</div>
                                 <div style="color: #ffffff; margin-left: 12px;">• Codeforces 稳定橙名水平</div>
                                 <div style="color: #ffffff; margin-left: 12px;">• 蓝桥杯 A 组全国一等奖</div>
