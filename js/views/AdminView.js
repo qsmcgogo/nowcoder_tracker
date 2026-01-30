@@ -628,6 +628,26 @@ export class AdminView {
                     <pre id="admin-clear-user-mirrors-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
                 </div>
             </div>
+
+            <div style="background:#fff; border: 1px solid #e8e8e8; border-radius: 12px; padding: 16px; margin-top: 16px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <div style="font-size: 16px; font-weight: 800; color:#333;">重建对战题 matchCount</div>
+                    <div style="font-size: 12px; color:#999;">接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/battle/problem/admin/rebuild-match-count</code></div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-battle-rebuild-matchcount-btn" style="background:#fa541c; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px; font-weight: 800;">
+                        开始重建
+                    </button>
+                </div>
+                <div style="margin-top: 10px; font-size: 13px; color:#666; line-height: 1.7;">
+                    说明：对<b>所有</b>已纳入对战的题目，按后端口径重建并回填 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">matchCount</code>。<br/>
+                    建议：低峰期执行；执行前确保你有 Tracker 管理员权限（<code>TrackerAdminUtil.isTrackerAdmin</code>）。
+                </div>
+                <div id="admin-battle-rebuild-matchcount-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 700; margin-bottom: 6px;">执行结果</div>
+                    <pre id="admin-battle-rebuild-matchcount-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 10px; overflow:auto; max-height: 280px;">（尚未执行）</pre>
+                </div>
+            </div>
         `;
     }
 
@@ -1493,6 +1513,41 @@ export class AdminView {
         } finally {
             btn.disabled = false;
             btn.textContent = oldText || '执行清理';
+        }
+    }
+
+    async adminBattleRebuildMatchCount() {
+        const btn = document.getElementById('admin-battle-rebuild-matchcount-btn');
+        const errEl = document.getElementById('admin-battle-rebuild-matchcount-error');
+        const resultEl = document.getElementById('admin-battle-rebuild-matchcount-result');
+        if (!btn || !errEl || !resultEl) return;
+        errEl.style.display = 'none';
+
+        const ok = confirm(
+            `确认重建所有对战题目的 matchCount 吗？\n\n` +
+            `接口：POST /problem/tracker/battle/problem/admin/rebuild-match-count\n\n` +
+            `注意：这是全量操作，可能较耗时，建议低峰期执行。`
+        );
+        if (!ok) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '重建中...';
+        resultEl.textContent = `请求中...\n`;
+
+        try {
+            const data = await this.apiService.adminBattleProblemRebuildMatchCount();
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            const rebuilt = (data && (data.rebuilt ?? data.updated ?? data.processed)) ?? '-';
+            alert(`重建完成：rebuilt/updated/processed=${rebuilt}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '重建失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '开始重建';
         }
     }
 
@@ -2766,6 +2821,10 @@ export class AdminView {
         // 对战运维：清理某用户镜像
         const clearMirrorsBtn = document.getElementById('admin-clear-user-mirrors-btn');
         if (clearMirrorsBtn) clearMirrorsBtn.addEventListener('click', () => this.adminClearUserMirrors());
+
+        // 对战运维：重建所有对战题 matchCount
+        const rebuildMatchCountBtn = document.getElementById('admin-battle-rebuild-matchcount-btn');
+        if (rebuildMatchCountBtn) rebuildMatchCountBtn.addEventListener('click', () => this.adminBattleRebuildMatchCount());
 
         // 2026 春季 AI 体验站：增加抽奖次数（管理员测试）
         const spring2026AiAddBtn = document.getElementById('admin-spring2026-ai-chances-add-btn');

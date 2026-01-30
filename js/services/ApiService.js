@@ -823,6 +823,8 @@ export class ApiService {
             if (lower === 'boss' || lower === 'boss_dream' || lower === 'dream' || lower === '梦' || lower === 'bossdream') return 'boss_dream';
             // 第4章：韬光逐影
             if (lower === 'chapter4' || lower === 'ch4' || lower === '第四章' || lower === '韬光逐影') return 'chapter4';
+            // 间章：余晖（4.5）
+            if (lower === 'interlude45' || lower === 'interlude_4_5' || lower === 'ch4.5' || lower === '余晖') return 'interlude_4_5';
 
             // 兜底：保持原样（给后端自行处理）
             return raw;
@@ -3655,6 +3657,36 @@ export class ApiService {
         const data = await res.json();
         if (data.code === 0) return data.data;
         throw new Error(data.message || '重置失败');
+    }
+
+    /**
+     * 管理员：重建所有对战题目的 matchCount
+     *
+     * POST /problem/tracker/battle/problem/admin/rebuild-match-count
+     *
+     * @returns {Promise<object>} 返回后端 data（具体字段以服务端实现为准）
+     */
+    async adminBattleProblemRebuildMatchCount() {
+        const url = `${this.apiBase}/problem/tracker/battle/problem/admin/rebuild-match-count`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'Accept': 'application/json, text/plain, */*' },
+            body: '',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const contentType = (res.headers && res.headers.get) ? (res.headers.get('content-type') || '') : '';
+        if (contentType.includes('text/html')) {
+            const finalUrl = res.url || '';
+            throw new Error(`接口返回 HTML（疑似未登录/无权限/反代兜底）。finalUrl=${finalUrl || '(unknown)'}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '重建 matchCount 失败');
     }
 
     /**

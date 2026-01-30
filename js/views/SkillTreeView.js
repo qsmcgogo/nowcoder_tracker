@@ -87,6 +87,10 @@ export const nodeIdToTagId = {
     'lca': 1504,
     'dsu-on-tree': 1505,
     'topo-sort': 1517,
+    // --- Linear algebra (线性代数) ---
+    'linear-basis': 1518,
+    'gaussian-elimination': 1519,
+    'matrix': 1520,
     'digit-dp': 1506,
     'rerooting-dp': 1507,
     'expected-dp': 1508,
@@ -108,6 +112,12 @@ export const nodeIdToTagId = {
     'thinking-challenge': 1400,  // 思维挑战
     'knowledge-challenge': 1401, // 知识点挑战
     'code-challenge': 1402,      // 代码挑战
+    // --- Interlude 4.5 (间章：余晖) ---
+    'simulation-master': 1403,
+    'construction-master': 1404,
+    'math-thinking': 1405,
+    'binary-search-answer': 1406,
+    'greedy-master': 1407,
 };
 
 // --- 新增：导出技能树的静态结构数据 ---
@@ -173,7 +183,8 @@ export const skillTreeData = {
                     // 你定的“最小生成树”当前已有知识点（tag_id=1316），这里复用同一个节点
                     { id: 's4-col-graph', name: '图论', nodeIds: ['dijkstra', 'minimum-spanning-tree', 'topo-sort', 'lca', 'dsu-on-tree'] },
                     { id: 's4-col-dp', name: '动态规划提高', nodeIds: ['digit-dp', 'rerooting-dp', 'expected-dp', 'dp-rolling-opt', 'dp-monoqueue-segtree-opt'] },
-                    { id: 's4-col-nt', name: '数论进阶', nodeIds: ['sieve', 'euler-theorem', 'exgcd'] },
+                    // 数学进阶：详情页中会渲染为“数论 + 线性代数”两排分区（线代先占位）
+                    { id: 's4-col-nt', name: '数学进阶', nodeIds: ['sieve', 'euler-theorem', 'exgcd', 'linear-basis', 'gaussian-elimination', 'matrix'] },
                     { id: 's4-col-string', name: '字符串进阶', nodeIds: ['kmp', 'manacher', 'trie'] }
                 ]
             },
@@ -288,6 +299,10 @@ export const skillTreeData = {
             'sieve': { id: 'sieve', name: '筛法', dependencies: [] },
             'euler-theorem': { id: 'euler-theorem', name: '欧拉定理', dependencies: [] },
             'exgcd': { id: 'exgcd', name: '扩展欧几里得（exgcd）', dependencies: [] },
+            // 线性代数
+            'linear-basis': { id: 'linear-basis', name: '线性基', dependencies: [] },
+            'gaussian-elimination': { id: 'gaussian-elimination', name: '高斯消元', dependencies: [] },
+            'matrix': { id: 'matrix', name: '矩阵', dependencies: [] },
             // 字符串进阶
             'kmp': { id: 'kmp', name: 'KMP', dependencies: [] },
     'manacher': { id: 'manacher', name: 'Manacher（马拉车）', dependencies: [] },
@@ -298,6 +313,12 @@ export const skillTreeData = {
     'discretization': { id: 'discretization', name: '离散化', dependencies: [] },
     'offline-processing': { id: 'offline-processing', name: '离线处理', dependencies: [] },
     'analytic-geometry': { id: 'analytic-geometry', name: '解析几何', dependencies: [] },
+    // --- Interlude 4.5 nodes (间章：余晖) ---
+    'simulation-master': { id: 'simulation-master', name: '模拟大师', dependencies: [] },
+    'construction-master': { id: 'construction-master', name: '构造大师', dependencies: [] },
+    'math-thinking': { id: 'math-thinking', name: '数学思维', dependencies: [] },
+    'binary-search-answer': { id: 'binary-search-answer', name: '二分答案', dependencies: [] },
+    'greedy-master': { id: 'greedy-master', name: '贪心大师', dependencies: [] },
     // --- Boss章节：梦 ---
     'thinking-challenge': { id: 'thinking-challenge', name: '思维挑战', dependencies: [] },
     'knowledge-challenge': { id: 'knowledge-challenge', name: '知识点挑战', dependencies: [] },
@@ -469,7 +490,9 @@ export class SkillTreeView {
                     'CHAPTER2': { progress: calcStageAvg(stage2Obj) },
                     'INTERLUDE_2_5': { progress: Math.round(['geometry', 'game-theory', 'simulation-advanced', 'construction-advanced', 'greedy-priority-queue'].map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / 5) },
                     'CHAPTER3': { progress: calcStageAvg(stage3Obj) },
-                    'CHAPTER4': { progress: calcStageAvg(stage4Obj) }
+                    'INTERLUDE_3_5': { progress: Math.round(['construction-advanced-35', 'simulation-advanced-35', 'discretization', 'offline-processing', 'analytic-geometry'].map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / 5) },
+                    'CHAPTER4': { progress: calcStageAvg(stage4Obj) },
+                    'INTERLUDE_4_5': { progress: Math.round(['simulation-master', 'construction-master', 'math-thinking', 'binary-search-answer', 'greedy-master'].map(id => pctOf(nodeIdToTagId[id])).reduce((a,b)=>a+b,0) / 5) }
                 };
             }
 
@@ -480,6 +503,8 @@ export class SkillTreeView {
             const stage4Avg = chapterProgressMap['CHAPTER4']?.progress || 0;
             const interludeAvg = chapterProgressMap['INTERLUDE_DAWN']?.progress || 0;
             const interlude25Avg = chapterProgressMap['INTERLUDE_2_5']?.progress || 0;
+            const interlude35Avg = chapterProgressMap['INTERLUDE_3_5']?.progress || 0;
+            const interlude45Avg = chapterProgressMap['INTERLUDE_4_5']?.progress || 0;
 
             // 额外：获取用户累计过题数，用于"跳过解锁"判定（>=50）
             let solvedCount = 0;
@@ -677,7 +702,7 @@ export class SkillTreeView {
                 if (stage.id === 'stage-3') {
                     // 第三章后的间章：惊鸿
                     // 解锁逻辑：第三章平均进度 ≥ 70% 或 tracker累计通过100题（与 Boss 关解锁条件保持一致）
-                    const jinghongAvg = 0; // 暂不单独统计间章进度，占位为 0%
+                    const jinghongAvg = interlude35Avg;
                     const mini3MeetProgress = stage3Avg >= 70;
                     const mini3MeetSolved = solvedCount >= 100;
                     const mini3IsLocked = isAdmin ? false : (!isLoggedIn || !(mini3MeetProgress || mini3MeetSolved));
@@ -818,7 +843,15 @@ export class SkillTreeView {
             const stage4LockReason = stage4IsLocked
                 ? `第三章平均进度达到70% <br>或<br>tracker累计通过100题：${solvedCount} / 100 <span class=\"dep-cross\">×</span>`
                 : '';
-            const stage4CardHtml = stage4Obj ? `
+            // 间章4.5（间章：余晖）解锁逻辑：第四章平均进度 ≥ 70% 或 tracker累计通过150题
+            const mini45MeetProgress = stage4Avg >= 70;
+            const mini45MeetSolved = solvedCount >= 150;
+            const mini45IsLocked = isAdmin ? false : (!isLoggedIn || !(mini45MeetProgress || mini45MeetSolved));
+            const mini45LockReason = !isLoggedIn
+                ? '请先登录开启技能树之旅'
+                : `第四章平均进度达到70% <br>或<br>tracker累计通过150题：${solvedCount} / 150 <span class=\"dep-cross\">×</span>`;
+
+            const stage4CoreHtml = stage4Obj ? `
                 <div class="skill-tree-card stage-4 ${stage4IsLocked ? 'locked' : ''}" data-stage-id="${stage4Obj.id}" ${stage4IsLocked ? 'aria-disabled="true"' : ''} style="opacity: 0.98;">
                     <div class="stage-bg-pattern stage-bg-shadow">
                         <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg" style="width: 100%; height: 100%;">
@@ -841,6 +874,21 @@ export class SkillTreeView {
                         <div class="skill-tree-card__progress-bar-inner" style="width: ${stage4Avg}%;"></div>
                     </div>
                     ${stage4IsLocked ? `<div class="skill-tree-card__tooltip">${stage4LockReason}</div>` : ''}
+                </div>
+            ` : '';
+            const stage4CardHtml = stage4Obj ? `
+                <div class="skill-tree-card-group side-mini stage-4">
+                    ${stage4CoreHtml}
+                    <div class="skill-tree-mini-card ${mini45IsLocked ? 'locked' : ''}" data-mini-of="stage-4" title="间章：余晖">
+                        <div class="skill-tree-mini-card__header">
+                            <span class="skill-tree-mini-card__title">间章：余晖</span>
+                            <span class="skill-tree-mini-card__progress-text">通关率: ${interlude45Avg}%</span>
+                        </div>
+                        <div class="skill-tree-mini-card__progress-bar">
+                            <div class="skill-tree-mini-card__progress-bar-inner" style="width: ${interlude45Avg}%;"></div>
+                        </div>
+                        ${mini45IsLocked ? `<div class=\"skill-tree-card__tooltip\">${mini45LockReason}</div>` : ''}
+                    </div>
                 </div>
             ` : '';
             const stage5CardHtml = stage5Obj ? `
@@ -960,6 +1008,7 @@ export class SkillTreeView {
                                 <div style="color: #ffd700; font-weight: 600; margin-bottom: 6px;">该篇毕业水平参考：</div>
                                 <div style="color: #ffffff; margin-left: 12px;">• 牛客周赛可完成 5~6 题</div>
                                 <div style="color: #ffffff; margin-left: 12px;">• 蓝桥杯 B 组全国二等奖</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• GESP八级 / CSP-J冲击一等</div>
                                 <div style="color: #ffffff; margin-left: 12px;">• 百度之星可入围决赛</div>
                                 <div style="color: #ffffff; margin-left: 12px;">• 区域赛概率获得铜奖</div>
                             </div>
@@ -997,6 +1046,7 @@ export class SkillTreeView {
                             <div style="padding-top: 12px; border-top: 1px solid rgba(144,205,244,0.35); opacity: 1;">
                                 <div style="color: #40a9ff; font-weight: 600; margin-bottom: 6px;">该篇毕业水平参考：</div>
                                 <div style="color: #ffffff; margin-left: 12px;">• 区域赛稳定获得铜奖，具备争夺银奖的实力</div>
+                                <div style="color: #ffffff; margin-left: 12px;">• CSP-S 稳定一等，可冲击 NOI 奖项</div>
                                 <div style="color: #ffffff; margin-left: 12px;">• Codeforces 稳定橙名水平</div>
                                 <div style="color: #ffffff; margin-left: 12px;">• 蓝桥杯 A 组全国一等奖</div>
                             </div>
@@ -1090,7 +1140,8 @@ export class SkillTreeView {
 
             if (stage.columns) {
                 stage.columns.forEach((column, idx) => {
-                    const nodesHtml = column.nodeIds.map(nodeId => {
+                    // 默认：直接渲染列内节点
+                    const defaultNodesHtml = column.nodeIds.map(nodeId => {
                         if (tree.nodes[nodeId]) {
                             const tagId = nodeIdToTagId[nodeId];
                             let progress = this.currentStageProgress.nodeProgress[tagId] || 0;
@@ -1099,6 +1150,47 @@ export class SkillTreeView {
                         }
                         return '';
                     }).join('');
+
+                    // 第四章“数学进阶”：两排（各占满一行）的小虚框
+                    // - 上排：数论（真实节点）
+                    // - 下排：线性代数（先占位，不影响进度接口）
+                    const isMathAdvColumn = (isStage4 && column.id === 's4-col-nt');
+                    const renderNodesByIds = (ids) => ids.map(nodeId => {
+                        if (tree.nodes[nodeId]) {
+                            const tagId = nodeIdToTagId[nodeId];
+                            let progress = this.currentStageProgress.nodeProgress[tagId] || 0;
+                            progress = progress <= 1 ? Math.round(progress * 100) : Math.round(progress);
+                            return this.renderNode(nodeId, tree.nodes, nodeStates, progress);
+                        }
+                        return '';
+                    }).join('');
+
+                    const numberTheoryNodeIds = ['sieve', 'euler-theorem', 'exgcd'];
+                    const linearAlgebraNodeIds = ['matrix', 'linear-basis', 'gaussian-elimination'];
+                    const numberTheoryNodesHtml = isMathAdvColumn ? renderNodesByIds(numberTheoryNodeIds) : defaultNodesHtml;
+                    const linearAlgebraNodesHtml = isMathAdvColumn ? renderNodesByIds(linearAlgebraNodeIds) : '';
+                    const mathAdvNodesHtml = `
+                        <div class="math-adv">
+                            <style>
+                                /* 关键：第四章默认把 nodes 区域做成两列 grid。这里强制跨两列，避免被挤成半宽导致“竖排” */
+                                .math-adv{grid-column:1 / -1; display:flex;flex-direction:column;gap:12px}
+                                /* 小虚框：占满一整行，内部仍用两列节点布局（与第四章一致） */
+                                .math-adv__subbox{border:2px dashed rgba(217,217,217,0.8);border-radius:14px;padding:10px 10px 12px;background:rgba(255,255,255,0.65)}
+                                .math-adv__subbox-title{font-size:13px;font-weight:800;color:#595959;margin-bottom:8px;letter-spacing:1px}
+                                /* 你希望“三个一行”：这里直接三列 */
+                                .math-adv__subbox-nodes{display:grid;grid-template-columns: repeat(3, minmax(0, 1fr));gap:10px}
+                            </style>
+                            <div class="math-adv__subbox">
+                                <div class="math-adv__subbox-title">数论</div>
+                                <div class="math-adv__subbox-nodes">${numberTheoryNodesHtml}</div>
+                            </div>
+                            <div class="math-adv__subbox">
+                                <div class="math-adv__subbox-title">线性代数</div>
+                                <div class="math-adv__subbox-nodes">${linearAlgebraNodesHtml}</div>
+                            </div>
+                        </div>
+                    `;
+                    const nodesHtml = isMathAdvColumn ? mathAdvNodesHtml : defaultNodesHtml;
                     
                     let columnLockClass = '';
                     let columnElementsHtml = '';
@@ -2197,6 +2289,81 @@ export class SkillTreeView {
         });
     }
 
+    // 渲染"间章：余晖" —— 5个“做题能力补给包”知识点的轻量布局
+    async renderInterlude45Detail() {
+        const tree = this.skillTrees['newbie-130'];
+        const nodeIds = ['simulation-master', 'construction-master', 'math-thinking', 'binary-search-answer', 'greedy-master'];
+        // 预取进度
+        try {
+            if (this.state.isLoggedIn() && this.apiService && typeof this.apiService.fetchChapterNodeProgress === 'function') {
+                const d = await this.apiService.fetchChapterNodeProgress('interlude_4_5');
+                this.currentStageProgress = d || { nodeProgress: {} };
+            }
+        } catch (_) { /* ignore progress fetch error */ }
+
+        const chips = nodeIds.map((id, idx) => {
+            const n = tree.nodes[id];
+            const tagId = nodeIdToTagId[id];
+            let pct = 0;
+            if (this.currentStageProgress && this.currentStageProgress.nodeProgress) {
+                const raw = this.currentStageProgress.nodeProgress[tagId] || 0;
+                pct = raw <= 1 ? Math.round(raw * 100) : Math.round(raw);
+            }
+            const isCompleted = pct >= 100;
+            const stateClass = isCompleted ? 'skill-node--completed' : '';
+            const posClass = `interlude-chip--pos${idx + 1}`;
+            let backgroundStyle = '';
+            if (pct > 0 && pct < 100) {
+                backgroundStyle = `style="background: linear-gradient(to right, var(--primary-color-light) ${pct}%, #fff ${pct}%);"`;
+            }
+            return `
+                <div class="interlude-chip skill-node ${stateClass} ${posClass}" data-id="${id}" ${backgroundStyle}>
+                    <div class="skill-node__title">${n.name}</div>
+                    <div class="skill-node__progress-text">${pct}%</div>
+                </div>
+            `;
+        }).join('');
+
+        const html = `
+            <div class="interlude-detail">
+                <div class="interlude-ribbon">间章：余晖</div>
+                <div class="interlude-circle">
+                    <svg class="interlude-magic" viewBox="0 0 100 100" preserveAspectRatio="xMidYMid meet" aria-hidden="true">
+                        <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(124,47,75,0.25)" stroke-width="1.5"></circle>
+                        <circle cx="50" cy="50" r="30" fill="none" stroke="rgba(124,47,75,0.15)" stroke-width="1"></circle>
+                        <!-- 五角形轮廓（外） -->
+                        <path d="M50,10 L88,38 L74,82 L26,82 L12,38 Z" fill="none" stroke="rgba(124,47,75,0.18)" stroke-width="1.1"></path>
+                        <!-- 五角形轮廓（内，整体微上移） -->
+                        <path d="M50,20 L79,41 L68,74 L32,74 L21,41 Z" fill="none" stroke="rgba(124,47,75,0.12)" stroke-width="1"></path>
+                        <!-- 五角星（外顶点连线） -->
+                        <path d="M50,10 L74,82 L12,38 L88,38 L26,82 Z" fill="none" stroke="rgba(124,47,75,0.30)" stroke-width="1.4"></path>
+                    </svg>
+                    ${chips}
+                </div>
+            </div>
+        `;
+        this.container.innerHTML = html;
+
+        // 绑定点击 -> 展示面板（沿用节点面板逻辑）
+        this.container.querySelectorAll('.interlude-chip').forEach(el => {
+            el.addEventListener('click', (e) => {
+                const nodeId = e.currentTarget.getAttribute('data-id');
+                this.showNodePanel(nodeId);
+            });
+        });
+
+        // 返回按钮（复用详情页的绑定逻辑）
+        const backBtn = document.createElement('button');
+        backBtn.className = 'back-button';
+        backBtn.textContent = '\u2190 返回所有阶段';
+        backBtn.style.marginBottom = '12px';
+        this.container.prepend(backBtn);
+        backBtn.addEventListener('click', () => {
+            this.currentView = 'summary';
+            this.render();
+        });
+    }
+
     // 旧版管理员增删改面板已移除
     
     // 计算所有知识点和题目的状态 (修改)
@@ -2583,6 +2750,19 @@ export class SkillTreeView {
                 this.teardownSummarySvg && this.teardownSummarySvg();
                 (async () => {
                     await this.renderInterlude35Detail();
+                    await this.updateCurrentPageNodeProgress().catch(() => {});
+                })();
+            });
+        }
+
+        // 间章4.5：余晖（迷你卡）点击进入：自定义迷你详情
+        const mini45 = this.container.querySelector('.skill-tree-mini-card[data-mini-of="stage-4"]');
+        if (mini45 && !mini45.classList.contains('locked')) {
+            mini45.addEventListener('click', () => {
+                this.clearLines();
+                this.teardownSummarySvg && this.teardownSummarySvg();
+                (async () => {
+                    await this.renderInterlude45Detail();
                     await this.updateCurrentPageNodeProgress().catch(() => {});
                 })();
             });
@@ -3249,6 +3429,10 @@ export class SkillTreeView {
                     // 间章3.5：惊鸿
                     chapterKey = 'interlude_3_5';
                     stageNodeIds = ['construction-advanced-35', 'simulation-advanced-35', 'discretization', 'offline-processing', 'analytic-geometry'];
+                } else if (ribbon && ribbon.textContent.includes('余晖')) {
+                    // 间章4.5：余晖
+                    chapterKey = 'interlude_4_5';
+                    stageNodeIds = ['simulation-master', 'construction-master', 'math-thinking', 'binary-search-answer', 'greedy-master'];
                 } else {
                     // 默认使用间章1.5
                     chapterKey = 'interlude_dawn';

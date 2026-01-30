@@ -4767,6 +4767,11 @@ body.dark-theme .profile-avatar {
     z-index: 1;
 }
 
+/* 第四章：数学进阶（s4-col-nt）单独加宽，方便“三个一行” */
+#skill-tree-column-s4-col-nt {
+    width: 440px;
+}
+
 /* 第四章：每个大虚框内部知识点两列，并适当缩窄节点样式 */
 .skill-tree-detail--stage4 .skill-tree-column__nodes {
     display: grid;
