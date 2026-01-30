@@ -310,8 +310,8 @@ export const skillTreeData = {
     // --- Interlude 3.5 nodes (间章：惊鸿) ---
     'construction-advanced-35': { id: 'construction-advanced-35', name: '高级构造', dependencies: [] },
     'simulation-advanced-35': { id: 'simulation-advanced-35', name: '高级模拟', dependencies: [] },
-    'discretization': { id: 'discretization', name: '离散化', dependencies: [] },
-    'offline-processing': { id: 'offline-processing', name: '离线处理', dependencies: [] },
+    'discretization': { id: 'discretization', name: '单调栈和单调队列', dependencies: [] },
+    'offline-processing': { id: 'offline-processing', name: '离线和离散化', dependencies: [] },
     'analytic-geometry': { id: 'analytic-geometry', name: '解析几何', dependencies: [] },
     // --- Interlude 4.5 nodes (间章：余晖) ---
     'simulation-master': { id: 'simulation-master', name: '模拟大师', dependencies: [] },
