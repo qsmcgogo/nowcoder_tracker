@@ -1,0 +1,53 @@
+{
+  "id": "no_number_words_positive_integer",
+  "slug": "no-number-words-positive-integer",
+  "version": 1,
+  "type": "constrained_prompt_puzzle",
+  "name": "禁数唤数",
+  "title": "禁数唤数：不用任何数字相关词，让 AI 输出一个正整数",
+  "subtitle": "不能直接说“数字”“整数”“数”“number”“一二三四”。",
+  "description": "提交给 AI 的 prompt 里，不能出现阿拉伯数字，也不能出现常见数字相关词，也不能混入英文等其他语言；但 AI 的输出必须是一个正整数，且只能输出这个整数。",
+  "statement_md": "## 题目\n你要写一条 prompt，让模型输出一个**正整数**。\n\n但你的 prompt 里**不能出现任何阿拉伯数字**，也**不能出现常见数字相关词**，例如“数、数字、整数、编号、一、二、三、十、百、千、万”等；同时也**不能混入英文等其他语言**，例如 `print a number` 这种写法直接违规。\n\n## 评测\n- 输出必须严格匹配正整数正则。\n- 系统会多次采样，同一份 prompt 需要稳定触发结果。",
+  "input_requirement": "prompt 不能包含阿拉伯数字，也不能包含数、数字、整数、一、二、三、四、五、六、七、八、九、十、百、千、万、亿等词；同时不能出现英文等其他语言。",
+  "output_requirement": "输出必须为单行正整数，只能包含 0~9，且首位不能为 0。",
+  "forbidden_rules": [
+    "prompt 中禁止出现阿拉伯数字",
+    "prompt 中禁止出现数、数字、整数等数字相关词",
+    "prompt 中禁止出现英文等其他语言"
+  ],
+  "validation_mode": "single_turn",
+  "difficulty": "1800+",
+  "tags": [
+    "ai-puzzle",
+    "number",
+    "constraint"
+  ],
+  "publish_status": "public",
+  "model_profile": {
+    "temperature": 0.1,
+    "run_count": 3,
+    "max_tokens": 32,
+    "model_version": "dify-default"
+  },
+  "judge_spec": {
+    "prompt_rules": [
+      { "type": "length", "min": 2, "max": 80 },
+      { "type": "charset", "value": "no_digit" },
+      { "type": "charset", "value": "no_ascii" },
+      { "type": "regex", "pattern": "[\\u4e00-\\u9fff，。！？；：“”‘’、（）《》〈〉【】…·\\s]+", "should_match": true },
+      { "type": "forbidSubstring", "values": ["数", "数字", "整数", "编号", "序号", "一", "二", "三", "四", "五", "六", "七", "八", "九", "十", "百", "千", "万", "亿", "number", "print"] }
+    ],
+    "output_rules": [
+      { "type": "charset", "value": "single_line" },
+      { "type": "charset", "value": "no_whitespace" },
+      { "type": "regex", "pattern": "[1-9]\\d*", "should_match": true }
+    ],
+    "scoring": {
+      "base_score": 100,
+      "run_count": 3,
+      "pass_mode": "k_of_n",
+      "min_pass_count": 2,
+      "token_penalty_per_1k": 1
+    }
+  }
+}

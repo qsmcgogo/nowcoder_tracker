@@ -83,9 +83,23 @@
    - 输入：userId
    - 接口：`POST /problem/tracker/battle/clear-user-mirrors?userId=xxx`
 
-3. **活动临时工具：增加“2026 春季 AI 体验站”抽奖次数**
+3. **活动临时工具：春季AI体验站增加抽奖次数**
    - 输入：uid/delta/uuid
    - 接口：`POST /problem/tracker/admin/spring2026-ai/chances/add`
+
+4. **活动验数：春季AI体验站抽奖记录查询（含未中奖）**
+   - 输入：uid/activityId/offset/limit
+   - 接口：`GET /problem/tracker/admin/spring2026-ai/lottery/records`
+
+4. **Redis Debug：按 key 读取 Redis（管理员调试）**
+   - 输入：key/type（可选 start/limit/asc/field/member）
+   - 接口：`GET /problem/tracker/admin/redis/debug?key=xxx&type=auto|string|hash|set|zset|list`
+   - 说明：该接口可以读取任意 Redis key，务必仅 Tracker 管理员可用；前端入口已放在 Admin 面板「数据 → Redis Debug」。
+
+5. **发展说明书 Redis 清空（测运运维）**
+   - 输入：uid
+   - 接口：`POST /problem/tracker/admin/spring2026-fortune/redis/clear?uid=xxx`
+   - 说明：清空该用户测运 Redis，使其可重新生成发展说明书；前端入口在 Admin 面板「活动」下与春季AI体验站同页。
 
 ### E. 竞赛（旧 Tab：`比赛难度更新`）
 
@@ -194,7 +208,7 @@
 
 ### 顶部：活动
 - **左侧栏目**
-  - 2026 春季 AI 体验站：抽奖次数工具（以及未来其它活动工具都放这里）
+  - 春季AI体验站增加抽奖次数（以及未来其它活动工具都放这里）
 
 ---
 

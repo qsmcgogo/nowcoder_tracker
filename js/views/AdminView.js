@@ -25,8 +25,14 @@ export class AdminView {
         this.importLastResult = null;
         // 管理员验数：年度报告
         this.adminYearReportLast = null;
+        // 管理员调试：Redis key 查询
+        this.adminRedisDebugLast = null;
+        // 管理员验数：春季AI体验站抽奖记录
+        this.adminSpring2026AiLotteryLast = null;
         // Prompt Challenge demo
         this.promptChallengeListCache = null;
+        this.aiPuzzleAdminSchemaLast = null;
+        this.aiPuzzleAdminStatsLast = null;
         // QMS 录题测试：保留最近一次响应（便于排查）
         this.qmsDraftLastResult = null;
     }
@@ -116,10 +122,16 @@ export class AdminView {
                         <div id="admin-data-year-report-panel" class="admin-panel" style="display:none;">
                             ${this.renderYearReportPanel()}
                         </div>
+                        <div id="admin-data-redis-debug-panel" class="admin-panel" style="display:none;">
+                            ${this.renderRedisDebugPanel()}
+                        </div>
 
                         <!-- AI -->
                         <div id="admin-prompt-challenge-panel" class="admin-panel" style="display:none;">
                             ${this.renderPromptChallengePanel()}
+                        </div>
+                        <div id="admin-ai-puzzle-panel" class="admin-panel" style="display:none;">
+                            ${this.renderAiPuzzleAdminPanel()}
                         </div>
                         <div id="admin-dify-panel" class="admin-panel" style="display:none;">
                             ${this.renderDifyPanel()}
@@ -129,10 +141,23 @@ export class AdminView {
                         <div id="admin-activity-panel" class="admin-panel" style="display:none;">
                             ${this.renderSpring2026Panel()}
                         </div>
+                        <div id="admin-activity-team-stats-panel" class="admin-panel" style="display:none;">
+                            ${this.renderActivityTeamStatsPanel()}
+                        </div>
+
+                        <!-- 成就 -->
+                        <div id="admin-achv-skill-panel" class="admin-panel" style="display:none;">
+                            ${this.renderAchvSkillPanel()}
+                        </div>
 
                         <!-- 录题（维持现状） -->
                         <div id="admin-qms-draft-panel" class="admin-panel" style="display:none;">
                             ${this.renderQmsDraftPanel()}
+                        </div>
+
+                        <!-- 录 Puzzle 题 -->
+                        <div id="admin-puzzle-record-panel" class="admin-panel" style="display:none;">
+                            ${this.renderPuzzleRecordPanel()}
                         </div>
                     </div>
                 </div>
@@ -165,20 +190,27 @@ export class AdminView {
                 { id: 'ops', label: '运维', panelId: 'admin-battle-ops-panel' },
             ] },
             { id: 'contest', label: '竞赛', sections: [
-                { id: 'difficulty', label: '难度更新', panelId: 'admin-contest-difficulty-panel' },
+                { id: 'difficulty', label: '比赛管理', panelId: 'admin-contest-difficulty-panel' },
             ] },
             { id: 'data', label: '数据', sections: [
                 { id: 'yearReport', label: '年度报告', panelId: 'admin-data-year-report-panel' },
+                { id: 'redisDebug', label: 'Redis Debug', panelId: 'admin-data-redis-debug-panel' },
             ] },
             { id: 'ai', label: 'AI', sections: [
                 { id: 'prompt', label: 'Prompt 挑战', panelId: 'admin-prompt-challenge-panel' },
+                { id: 'puzzle', label: '约束解谜', panelId: 'admin-ai-puzzle-panel' },
                 { id: 'dify', label: 'Dify', panelId: 'admin-dify-panel' },
             ] },
             { id: 'activity', label: '活动', sections: [
-                { id: 'spring2026', label: '春季 AI 体验站', panelId: 'admin-activity-panel' },
+                { id: 'spring2026', label: '活动工具集', panelId: 'admin-activity-panel' },
+                { id: 'teamStats', label: '团队活动', panelId: 'admin-activity-team-stats-panel' },
+            ] },
+            { id: 'achv', label: '成就', sections: [
+                { id: 'skill', label: '补发技能树', panelId: 'admin-achv-skill-panel' },
             ] },
             { id: 'record', label: '录题', sections: [
                 { id: 'qms', label: '录题', panelId: 'admin-qms-draft-panel' },
+                { id: 'puzzle', label: '录 Puzzle 题', panelId: 'admin-puzzle-record-panel' },
             ] },
         ];
     }
@@ -249,6 +281,7 @@ export class AdminView {
             if (pid === 'admin-battle-panel') this.loadBattleList();
             if (pid === 'admin-tag-panel') this.loadTagList();
             if (pid === 'admin-prompt-challenge-panel') this.loadPromptChallengeList(false);
+            if (pid === 'admin-ai-puzzle-panel') this.loadAiPuzzleAdminOverview();
         } catch (_) {}
     }
 
@@ -317,6 +350,7 @@ export class AdminView {
                     const parts = [];
                     if (r.problemTitle) parts.push(`JSON：${r.problemTitle}`);
                     if (r.dataZipName) parts.push(`data.zip：${r.dataZipName}（${Math.round((r.dataZipSize || 0) / 1024)} KB）`);
+                    if (r.checkerFileName) parts.push(`checker：${r.checkerFileName}（来自内层 zip 也可识别）`);
                     if (srcZipMsgEl) { srcZipMsgEl.textContent = `✅ source.zip 解析完成：` + (parts.join('；') || '（未找到有效内容）'); srcZipMsgEl.style.color = '#52c41a'; }
                     // 同步刷新 JSON 预览
                     try {
@@ -596,6 +630,324 @@ export class AdminView {
     }
 
     /**
+     * 数据：Redis Debug（管理员调试工具）
+     */
+    renderRedisDebugPanel() {
+        const get = (k, defVal) => {
+            try {
+                const v = localStorage.getItem(k);
+                return (v == null || v === '') ? String(defVal) : String(v);
+            } catch (_) {
+                return String(defVal);
+            }
+        };
+        const getBool = (k, defVal) => {
+            try {
+                const v = localStorage.getItem(k);
+                if (v == null || v === '') return !!defVal;
+                return String(v) === 'true';
+            } catch (_) {
+                return !!defVal;
+            }
+        };
+
+        const key = get('admin_redis_debug_key', '');
+        const type = get('admin_redis_debug_type', 'auto');
+        const start = get('admin_redis_debug_start', '0');
+        const limit = get('admin_redis_debug_limit', '50');
+        const asc = getBool('admin_redis_debug_asc', false);
+        const field = get('admin_redis_debug_field', '');
+        const member = get('admin_redis_debug_member', '');
+
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div style="font-size: 16px; font-weight: 800; color:#333;">Redis Debug（查 key）</div>
+                    <div style="font-size: 12px; color:#999;">仅 Tracker 管理员可用</div>
+                </div>
+                <div style="font-size: 13px; color: #666; margin-top: 8px; margin-bottom: 12px; line-height: 1.7;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">GET /problem/tracker/admin/redis/debug</code><br>
+                    支持：string/hash/set/zset/list（type=auto 会按 Redis 实际类型读取）。limit 最大 200。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">key:</label>
+                        <input id="admin-redis-debug-key" type="text" value="${this.escapeHtmlAttr(key)}" placeholder="必填，例如 sparta:xxx"
+                               style="width: 360px; max-width: 68vw; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">type:</label>
+                        <select id="admin-redis-debug-type" style="padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            ${['auto','string','hash','set','zset','list'].map(t => `<option value="${t}" ${String(type) === t ? 'selected' : ''}>${t}</option>`).join('')}
+                        </select>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">start:</label>
+                        <input id="admin-redis-debug-start" type="number" min="0" value="${this.escapeHtmlAttr(start)}"
+                               style="width: 110px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">limit:</label>
+                        <input id="admin-redis-debug-limit" type="number" min="1" max="200" value="${this.escapeHtmlAttr(limit)}"
+                               style="width: 110px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">asc:</label>
+                        <input id="admin-redis-debug-asc" type="checkbox" ${asc ? 'checked' : ''} />
+                        <span style="font-size: 12px; color:#999;">仅 zset 有效</span>
+                    </div>
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">field:</label>
+                        <input id="admin-redis-debug-field" type="text" value="${this.escapeHtmlAttr(field)}" placeholder="hash 可选：指定 field"
+                               style="width: 240px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">member:</label>
+                        <input id="admin-redis-debug-member" type="text" value="${this.escapeHtmlAttr(member)}" placeholder="zset 可选：查 zscore(member)"
+                               style="width: 240px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-redis-debug-fetch-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        查询
+                    </button>
+                    <button id="admin-redis-debug-copy-btn" style="background:#722ed1; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        复制 JSON
+                    </button>
+                </div>
+
+                <div id="admin-redis-debug-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+
+                <div id="admin-redis-debug-meta" style="margin-top: 10px; font-size: 12px; color:#666; display:none;"></div>
+                <div id="admin-redis-debug-value" style="margin-top: 10px; font-size: 13px; color:#333; display:none;"></div>
+
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 700; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-redis-debug-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 420px;">（尚未查询）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    escapeHtmlAttr(s) {
+        // 轻量转义，避免把输入打断到 attribute 里
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
+    _renderRedisDebugValueBlock(data) {
+        const d = data || {};
+        const t = String(d.effectiveType || d.redisType || d.requestedType || '').toLowerCase();
+        const v = d.value;
+        const titleStyle = 'font-weight:800; margin-bottom:6px;';
+        const preStyle = 'margin:0; background:#fafafa; border:1px solid #f0f0f0; padding: 10px; border-radius: 8px; overflow:auto; max-height: 260px; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size: 12px; line-height: 1.55;';
+
+        const renderJsonPre = (obj) => `<pre style="${preStyle}">${this.escapeHtmlAttr(JSON.stringify(obj, null, 2))}</pre>`;
+
+        if (t === 'string') {
+            return `<div style="${titleStyle}">value（string）</div>${renderJsonPre(v)}`;
+        }
+        if (t === 'hash') {
+            return `<div style="${titleStyle}">value（hash）</div>${renderJsonPre(v)}`;
+        }
+        if (t === 'set') {
+            return `<div style="${titleStyle}">value（set）</div>${renderJsonPre(v)}`;
+        }
+        if (t === 'zset') {
+            const extra = (d.member && d.zscore != null) ? `<div style="margin:6px 0 0; font-size:12px; color:#666;">zscore(${this.escapeHtmlAttr(d.member)}) = <b>${this.escapeHtmlAttr(d.zscore)}</b></div>` : '';
+            return `<div style="${titleStyle}">value（zset）</div>${renderJsonPre(v)}${extra}`;
+        }
+        if (t === 'list') {
+            return `<div style="${titleStyle}">value（list）</div>${renderJsonPre(v)}`;
+        }
+        // unknown / none
+        return `<div style="${titleStyle}">value</div>${renderJsonPre(v)}`;
+    }
+
+    /**
+     * 数据：过题排行榜批量重建（Top N）
+     * 兜底方案：先拉取前 N 名用户，再逐个触发 update-accept-count 刷新计数与榜单缓存
+     */
+    renderAcceptRankRebuildPanel() {
+        const get = (k, defVal) => {
+            try {
+                const v = localStorage.getItem(k);
+                return (v == null || v === '') ? String(defVal) : String(v);
+            } catch (_) {
+                return String(defVal);
+            }
+        };
+        const getBool = (k, defVal) => {
+            try {
+                const v = localStorage.getItem(k);
+                if (v == null || v === '') return !!defVal;
+                return String(v) === 'true';
+            } catch (_) {
+                return !!defVal;
+            }
+        };
+        const topN = get('admin_accept_rank_rebuild_top_n', 1000);
+        const pageSize = get('admin_accept_rank_rebuild_page_size', 200);
+        const batchSize = get('admin_accept_rank_rebuild_batch_size', 20);
+        const sleepMs = get('admin_accept_rank_rebuild_sleep_ms', 80);
+        const dryRun = getBool('admin_accept_rank_rebuild_dry_run', false);
+
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    过题排行榜：批量重建（Top N）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    先拉取：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">GET /problem/tracker/ranks/problem</code>（前 N 名）<br>
+                    再逐个调用：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/rank/update-accept-count</code>（刷新用户过题数/榜单缓存）
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 12px; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">TopN:</label>
+                        <input id="admin-accept-rank-rebuild-top-n" type="number" min="1" max="10000" value="${topN}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">pageSize:</label>
+                        <input id="admin-accept-rank-rebuild-page-size" type="number" min="1" max="500" value="${pageSize}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">batchSize:</label>
+                        <input id="admin-accept-rank-rebuild-batch-size" type="number" min="1" max="50" value="${batchSize}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">sleepMs:</label>
+                        <input id="admin-accept-rank-rebuild-sleep-ms" type="number" min="0" max="3000" value="${sleepMs}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">dryRun:</label>
+                        <input id="admin-accept-rank-rebuild-dry-run" type="checkbox" ${dryRun ? 'checked' : ''} />
+                        <span style="font-size: 12px; color:#999;">只拉榜单/列 UID，不发更新请求</span>
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-accept-rank-rebuild-run-btn"
+                            style="background:#fa541c; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px; font-weight: 700;">
+                        开始执行
+                    </button>
+                    <button id="admin-accept-rank-rebuild-stop-btn"
+                            style="display:none;background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px; font-weight: 700;">
+                        停止
+                    </button>
+                </div>
+
+                <div id="admin-accept-rank-rebuild-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">执行日志</div>
+                    <pre id="admin-accept-rank-rebuild-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 360px;">（尚未执行）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 数据：批量重建用户成就（徽章补发）
+     * POST /problem/tracker/badge/backfill
+     */
+    renderBadgeBackfillPanel() {
+        const get = (k, defVal) => {
+            try {
+                const v = localStorage.getItem(k);
+                return (v == null || v === '') ? String(defVal) : String(v);
+            } catch (_) {
+                return String(defVal);
+            }
+        };
+        const getBool = (k, defVal) => {
+            try {
+                const v = localStorage.getItem(k);
+                if (v == null || v === '') return !!defVal;
+                return String(v) === 'true';
+            } catch (_) {
+                return !!defVal;
+            }
+        };
+        const userId = get('admin_badge_backfill_user_id', 0);
+        const offset = get('admin_badge_backfill_offset', 0);
+        const limit = get('admin_badge_backfill_limit', 200);
+        const dryRun = getBool('admin_badge_backfill_dry_run', true);
+        const includeAccept = getBool('admin_badge_backfill_include_accept', true);
+
+        return `
+            <div style="background:#fff; border: 1px solid #e8e8e8; border-radius: 12px; padding: 16px; margin-bottom: 16px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <div style="font-size: 16px; font-weight: 800; color:#333;">批量重建用户成就（徽章补发）</div>
+                    <div style="font-size: 12px; color:#999;">
+                        接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/badge/backfill</code>
+                    </div>
+                </div>
+                <div style="font-size: 13px; color:#666; margin-top: 8px; line-height: 1.6;">
+                    处理范围：仅扫描 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">tracker_badge_record</code> 出现过的用户（DISTINCT user_id 分页），避免扫全站。<br/>
+                    题数来源：Redis <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">trackerRankboard</code>（key=<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">sparta:question:tracker</code>，score=过题数）。<br/>
+                    技能树补发：已关闭（前端强制 includeSkillTree=false）。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top: 12px; align-items:center;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">userId:</label>
+                        <input id="admin-badge-backfill-user-id" type="number" min="0" value="${userId}"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        <span style="font-size: 12px; color:#999;">0=批量；>0=单用户</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">offset:</label>
+                        <input id="admin-badge-backfill-offset" type="number" min="0" value="${offset}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">limit:</label>
+                        <input id="admin-badge-backfill-limit" type="number" min="1" max="1000" value="${limit}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">dryRun:</label>
+                        <input id="admin-badge-backfill-dry-run" type="checkbox" ${dryRun ? 'checked' : ''} />
+                        <span style="font-size: 12px; color:#999;">建议先勾选预演</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">includeAccept:</label>
+                        <input id="admin-badge-backfill-include-accept" type="checkbox" ${includeAccept ? 'checked' : ''} />
+                        <span style="font-size: 12px; color:#999;">补发累计过题成就</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">includeSkillTree:</label>
+                        <input type="checkbox" checked disabled />
+                        <span style="font-size: 12px; color:#999;">已在后端关闭（强制 false）</span>
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-badge-backfill-run-btn" style="background:#fa541c; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px; font-weight: 800;">
+                        开始执行
+                    </button>
+                    <button id="admin-badge-backfill-stop-btn" style="display:none;background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px; font-weight: 800;">
+                        停止
+                    </button>
+                </div>
+
+                <div id="admin-badge-backfill-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 700; margin-bottom: 6px;">执行日志</div>
+                    <pre id="admin-badge-backfill-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 10px; overflow:auto; max-height: 360px;">（尚未执行）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
      * 对战：运维工具集合（目前仅“清理镜像”）
      */
     renderBattleOpsPanel() {
@@ -652,16 +1004,82 @@ export class AdminView {
     }
 
     /**
-     * 活动：2026 春季 AI 体验站（管理员测试工具）
+     * 活动：春季AI体验站增加抽奖次数（管理员测试工具）
      */
     renderSpring2026Panel() {
         const savedSpring2026Uid = localStorage.getItem('admin_spring2026_ai_uid') || '';
         const savedSpring2026Delta = localStorage.getItem('admin_spring2026_ai_delta') || '1';
         const savedSpring2026Uuid = localStorage.getItem('admin_spring2026_ai_uuid') || 'spring2026_ai_station';
+        const savedRecActivityId = localStorage.getItem('admin_spring2026_ai_records_activity_id') || '465576048';
+        const savedRecOffset = localStorage.getItem('admin_spring2026_ai_records_offset') || '0';
+        const savedRecLimit = localStorage.getItem('admin_spring2026_ai_records_limit') || '50';
+        const savedFortuneClearUid = localStorage.getItem('admin_spring2026_fortune_clear_uid') || '';
+        const savedThirdShareClaimedClearUid = localStorage.getItem('admin_spring2026_third_share_claimed_clear_uid') || savedSpring2026Uid || '';
         return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    第三期大转盘增加抽奖次数（测试）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/spring2026-third/chances/add?uid=xxx&delta=1</code><br>
+                    说明：仅用于测试抽奖链路（不影响抽奖平台自身的“剩余次数”逻辑）。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">uid:</label>
+                        <input id="admin-spring2026-third-chances-uid" type="number" value="${savedSpring2026Uid}" placeholder="必填"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">delta:</label>
+                        <input id="admin-spring2026-third-chances-delta" type="number" min="1" max="1000" value="${savedSpring2026Delta}" placeholder="默认1（1-1000）"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-spring2026-third-chances-add-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        增加次数
+                    </button>
+                </div>
+
+                <div id="admin-spring2026-third-chances-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-spring2026-third-chances-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
+                </div>
+            </div>
+
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    第三期「分享活动页面」领取标记清除（测试）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/spring2026-third/task/share/claimed/clear?uid=xxx</code><br>
+                    说明：只删除“已领取标记”，<b>不会</b>回滚用户抽奖次数；用于重复测试分享功能。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">uid:</label>
+                        <input id="admin-spring2026-third-share-claimed-clear-uid" type="number" value="${this.escapeHtmlAttr(savedThirdShareClaimedClearUid)}" placeholder="必填"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-spring2026-third-share-claimed-clear-btn" style="background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        清除领取标记
+                    </button>
+                </div>
+
+                <div id="admin-spring2026-third-share-claimed-clear-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-spring2026-third-share-claimed-clear-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
+                </div>
+            </div>
+
             <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
                 <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
-                    春季 AI 体验站：抽奖次数（测试）
+                    春季AI体验站增加抽奖次数（测试）
                 </div>
                 <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
                     接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/spring2026-ai/chances/add?uid=xxx&delta=1&uuid=spring2026_ai_station</code><br>
@@ -694,6 +1112,193 @@ export class AdminView {
                 <div style="margin-top: 12px;">
                     <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
                     <pre id="admin-spring2026-ai-chances-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
+                </div>
+            </div>
+
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-top: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    春季AI体验站抽奖记录查询（验数）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">GET /problem/tracker/admin/spring2026-ai/lottery/records</code><br>
+                    返回：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">award_name</code> / <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">time</code> / <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">user_id</code>；当 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">award_name</code> 为空时表示“谢谢惠顾”。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">uid:</label>
+                        <input id="admin-spring2026-ai-records-uid" type="number" value="${savedSpring2026Uid}" placeholder="必填"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">activityId:</label>
+                        <input id="admin-spring2026-ai-records-activity-id" type="number" value="${this.escapeHtmlAttr(savedRecActivityId)}" placeholder="默认 465576048"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">offset:</label>
+                        <input id="admin-spring2026-ai-records-offset" type="number" min="0" value="${this.escapeHtmlAttr(savedRecOffset)}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">limit:</label>
+                        <input id="admin-spring2026-ai-records-limit" type="number" min="1" max="200" value="${this.escapeHtmlAttr(savedRecLimit)}"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-spring2026-ai-records-fetch-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        查询记录
+                    </button>
+                </div>
+
+                <div id="admin-spring2026-ai-records-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+
+                <div id="admin-spring2026-ai-records-table" style="margin-top: 10px; display:none;"></div>
+
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-spring2026-ai-records-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未查询）</pre>
+                </div>
+            </div>
+
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-top: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    发展说明书 Redis 清空
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/spring2026-fortune/redis/clear?uid=xxx</code><br>
+                    说明：清空该用户测运 Redis，使其可重新生成发展说明书。
+                </div>
+
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">uid:</label>
+                        <input id="admin-clear-spring2026-fortune-redis-uid" type="number" value="${savedFortuneClearUid}" placeholder="必填"
+                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-clear-spring2026-fortune-redis-btn" style="background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        清空 Redis
+                    </button>
+                </div>
+
+                <div id="admin-clear-spring2026-fortune-redis-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                    <pre id="admin-clear-spring2026-fortune-redis-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
+                </div>
+
+                <div style="margin-top: 20px; padding-top: 16px; border-top: 1px dashed #e8e8e8;">
+                    <div style="font-size: 14px; font-weight: 600; color:#333; margin-bottom: 8px;">批量清空</div>
+                    <div style="font-size: 12px; color:#666; margin-bottom: 8px;">多个 uid 用数字或空格、逗号、换行分隔</div>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:flex-start;">
+                        <textarea id="admin-batch-clear-spring2026-fortune-redis-uids" placeholder="例如：919247 123456 789012"
+                                  style="width:320px; min-height:80px; padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px; resize:vertical;"></textarea>
+                        <button id="admin-batch-clear-spring2026-fortune-redis-btn" style="background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                            批量清空 Redis
+                        </button>
+                    </div>
+                    <div id="admin-batch-clear-spring2026-fortune-redis-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                    <div style="margin-top: 12px;">
+                        <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON（批量）</div>
+                        <pre id="admin-batch-clear-spring2026-fortune-redis-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 活动：团队活动（批量统计）
+     */
+    renderActivityTeamStatsPanel() {
+        const savedTeamStatsIds = localStorage.getItem('admin_team_stats_ids') || '';
+        const savedTeamStatsBegin = localStorage.getItem('admin_team_stats_begin') || '2025-11-01';
+        const savedTeamStatsEnd = localStorage.getItem('admin_team_stats_end') || '2026-03-01';
+
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    批量统计团队活动最终数据（严格实时）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /tracker/activity/teams/statistics</code><br>
+                    说明：用于活动结束后，针对一批特定团队，实时计算其最终的活动各项指标（打卡、题单制霸、技能树制霸、最终积分），不走缓存，保证数据绝对准确。
+                </div>
+                <div style="margin-bottom: 12px;">
+                    <label style="display:block; font-size: 13px; color:#666; margin-bottom: 6px;">teamIds (逗号分隔):</label>
+                    <textarea id="admin-team-stats-ids" placeholder="例如：101,102,103"
+                              style="width: 100%; min-height: 60px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px; resize:vertical;">${savedTeamStatsIds}</textarea>
+                </div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">beginDate:</label>
+                        <input id="admin-team-stats-begin" type="text" value="${savedTeamStatsBegin}" placeholder="yyyy-MM-dd"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">endDate:</label>
+                        <input id="admin-team-stats-end" type="text" value="${savedTeamStatsEnd}" placeholder="yyyy-MM-dd"
+                               style="width: 120px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-team-stats-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        开始统计
+                    </button>
+                </div>
+                <div id="admin-team-stats-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                        <div style="font-size: 13px; color:#333; font-weight: 600;">统计结果 JSON</div>
+                        <button id="admin-team-stats-copy-btn" style="background:none; border:none; color:#1890ff; font-size:12px; cursor:pointer; padding:2px 5px;">
+                            📋 复制 JSON
+                        </button>
+                    </div>
+                    <pre id="admin-team-stats-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 400px;">（尚未执行）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    /**
+     * 成就：补发技能树
+     */
+    renderAchvSkillPanel() {
+        const savedRefreshChapterUid = localStorage.getItem('admin_refresh_chapter_uid') || '';
+        const savedRefreshChapterKey = localStorage.getItem('admin_refresh_chapter_key') || 'chapter1';
+
+        return `
+            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                    刷新用户技能树进度（含成就补发）
+                </div>
+                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                    接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /tracker/skill-tree/refresh-user-chapter-progress</code><br>
+                    说明：用于管理员手动触发指定用户的技能树章节进度重算，并检查是否满足成就条件（可用于修复“进度100%但未发成就”的问题）。
+                </div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">userId:</label>
+                        <input id="admin-refresh-chapter-uid" type="number" value="${savedRefreshChapterUid}" placeholder="用户ID"
+                               style="width: 140px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">chapterKey:</label>
+                        <select id="admin-refresh-chapter-key" style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                            <option value="chapter1" ${savedRefreshChapterKey === 'chapter1' ? 'selected' : ''}>第一章 (chapter1)</option>
+                            <option value="interlude_dawn" ${savedRefreshChapterKey === 'interlude_dawn' ? 'selected' : ''}>间章 (interlude_dawn)</option>
+                            <option value="chapter2" ${savedRefreshChapterKey === 'chapter2' ? 'selected' : ''}>第二章 (chapter2)</option>
+                        </select>
+                    </div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-refresh-chapter-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                        刷新进度 & 检查成就
+                    </button>
+                </div>
+                <div id="admin-refresh-chapter-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回结果</div>
+                    <pre id="admin-refresh-chapter-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
                 </div>
             </div>
         `;
@@ -851,6 +1456,35 @@ export class AdminView {
                     </div>
                     <div id="pc-details" style="margin-top: 8px; border:1px solid #f0f0f0; border-radius: 12px; overflow:auto; max-height: 520px;">
                         <div style="padding: 18px; text-align:center; color:#999;">（尚未评测）</div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderAiPuzzleAdminPanel() {
+        return `
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="background:#fff; border:1px solid #e8e8e8; border-radius: 12px; padding: 16px;">
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <div style="font-size: 16px; font-weight: 800; color:#333;">AI 约束型解谜后台概览</div>
+                        <div style="font-size: 12px; color:#999;">查看题目协议、文件型存储表结构、最近提交与榜单物化快照。</div>
+                        <div style="flex:1;"></div>
+                        <button id="admin-ai-puzzle-refresh-btn" class="admin-btn modal-secondary" type="button">刷新</button>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start;">
+                    <div style="background:#fff; border:1px solid #e8e8e8; border-radius: 12px; padding: 16px;">
+                        <div style="font-size: 14px; font-weight: 800; color:#111827;">运行统计</div>
+                        <div id="admin-ai-puzzle-stats-cards" style="margin-top:12px; color:#999;">加载中...</div>
+                        <div style="margin-top: 14px; font-size: 13px; color:#333; font-weight: 700;">最近提交</div>
+                        <div id="admin-ai-puzzle-recent-submissions" style="margin-top:8px; max-height: 420px; overflow:auto; color:#999;">加载中...</div>
+                    </div>
+
+                    <div style="background:#fff; border:1px solid #e8e8e8; border-radius: 12px; padding: 16px;">
+                        <div style="font-size: 14px; font-weight: 800; color:#111827;">表结构 / 索引</div>
+                        <pre id="admin-ai-puzzle-schema" style="margin:12px 0 0 0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 520px;">加载中...</pre>
                     </div>
                 </div>
             </div>
@@ -1021,49 +1655,86 @@ export class AdminView {
     }
 
     /**
-     * 渲染比赛题目难度一键更新面板
+     * 渲染竞赛管理面板
      */
     renderContestDifficultyPanel() {
         const savedContestId = localStorage.getItem('contest_difficulty_contest_id') || '';
         const savedAcRateMax = localStorage.getItem('contest_difficulty_ac_rate_max') || '85';
+        const savedDirectContestId = localStorage.getItem('admin_contest_direct_contest_id') || savedContestId;
 
         return `
-            <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
-                <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
-                    比赛题目难度一键更新
-                </div>
-                <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
-                    用于<strong>已结束比赛</strong>：基于「每题通过人数 + 参赛者当前平均 rating」一键计算该比赛所有题目的难度，并更新到表 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">acm_problem_open.difficulty</code>。<br>
-                    后端接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/acm-contest/rebuild-problem-difficulty</code>
-                </div>
-
-                <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 12px;">
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <label style="font-size: 13px; color:#666;">contestId:</label>
-                        <input id="admin-contest-difficulty-contest-id" type="number" value="${savedContestId}" placeholder="必填：比赛ID"
-                               style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+            <div style="display:flex; flex-direction:column; gap:16px;">
+                <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                    <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                        ACM 比赛管理：榜单持久化 / Rating 直调
                     </div>
-                    <div style="display:flex; align-items:center; gap:8px;">
-                        <label style="font-size: 13px; color:#666;">acRateMax:</label>
-                        <input id="admin-contest-difficulty-ac-rate-max" type="number" min="1" max="100" value="${savedAcRateMax}" placeholder="默认85（1-100）"
-                               style="width: 140px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.7;">
+                        用于管理员绕过 event，直接执行比赛榜单持久化与 rerating。适合排查“事件没消费 / 状态没推进 / 需要手动补跑”的场景。<br>
+                        榜单接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/acm/rank/persist-direct?contestId=xxx</code><br>
+                        Rating 接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/acm/rating/rerating-direct?contestId=xxx</code>
                     </div>
-                    <div style="flex: 1;"></div>
-                    <button id="admin-contest-difficulty-preview-btn" style="background:#722ed1; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
-                        🔍 预览（不写库）
-                    </button>
-                    <button id="admin-contest-difficulty-submit-btn" style="background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
-                        ✅ 写入数据库
-                    </button>
+
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size: 13px; color:#666;">contestId:</label>
+                            <input id="admin-contest-direct-contest-id" type="number" value="${savedDirectContestId}" placeholder="必填：比赛ID"
+                                   style="width: 180px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <div style="flex:1;"></div>
+                        <button id="admin-contest-rank-persist-direct-btn" style="background:#1890ff; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                            持久化 ACM 榜单
+                        </button>
+                        <button id="admin-contest-rerating-direct-btn" style="background:#fa541c; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                            执行 ACM rerating
+                        </button>
+                    </div>
+
+                    <div id="admin-contest-direct-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                    <div id="admin-contest-direct-summary" style="margin-top: 12px; padding: 12px; background: #f5f5f5; border-radius: 6px; font-size: 13px; display:none;"></div>
+
+                    <div style="margin-top: 12px;">
+                        <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                        <pre id="admin-contest-direct-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
+                    </div>
                 </div>
 
-                <div id="admin-contest-difficulty-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                    <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                        比赛题目难度一键更新
+                    </div>
+                    <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.6;">
+                        用于<strong>已结束比赛</strong>：基于「每题通过人数 + 参赛者当前平均 rating」一键计算该比赛所有题目的难度，并更新到表 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">acm_problem_open.difficulty</code>。<br>
+                        后端接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/acm-contest/rebuild-problem-difficulty</code>
+                    </div>
 
-                <div style="margin-top: 12px;">
-                    <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">计算结果</div>
-                    <div id="admin-contest-difficulty-summary" style="margin-bottom: 12px; padding: 12px; background: #f5f5f5; border-radius: 6px; font-size: 13px; display: none;"></div>
-                    <div id="admin-contest-difficulty-list" style="max-height: 500px; overflow-y: auto; border: 1px solid #e8e8e8; border-radius: 6px;">
-                        <div style="padding: 20px; text-align: center; color: #999;">（尚未执行）</div>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom: 12px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size: 13px; color:#666;">contestId:</label>
+                            <input id="admin-contest-difficulty-contest-id" type="number" value="${savedContestId}" placeholder="必填：比赛ID"
+                                   style="width: 160px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size: 13px; color:#666;">acRateMax:</label>
+                            <input id="admin-contest-difficulty-ac-rate-max" type="number" min="1" max="100" value="${savedAcRateMax}" placeholder="默认85（1-100）"
+                                   style="width: 140px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <div style="flex: 1;"></div>
+                        <button id="admin-contest-difficulty-preview-btn" style="background:#722ed1; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                            🔍 预览（不写库）
+                        </button>
+                        <button id="admin-contest-difficulty-submit-btn" style="background:#ff4d4f; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                            ✅ 写入数据库
+                        </button>
+                    </div>
+
+                    <div id="admin-contest-difficulty-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+
+                    <div style="margin-top: 12px;">
+                        <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">计算结果</div>
+                        <div id="admin-contest-difficulty-summary" style="margin-bottom: 12px; padding: 12px; background: #f5f5f5; border-radius: 6px; font-size: 13px; display: none;"></div>
+                        <div id="admin-contest-difficulty-list" style="max-height: 500px; overflow-y: auto; border: 1px solid #e8e8e8; border-radius: 6px;">
+                            <div style="padding: 20px; text-align: center; color: #999;">（尚未执行）</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1551,6 +2222,280 @@ export class AdminView {
         }
     }
 
+    /**
+     * 刷新用户技能树进度
+     */
+    async adminRefreshUserChapterProgress() {
+        const uidInput = document.getElementById('admin-refresh-chapter-uid');
+        const keyInput = document.getElementById('admin-refresh-chapter-key');
+        const errorEl = document.getElementById('admin-refresh-chapter-error');
+        const resultEl = document.getElementById('admin-refresh-chapter-result');
+        const btn = document.getElementById('admin-refresh-chapter-btn');
+        if (!uidInput || !keyInput || !errorEl || !resultEl || !btn) return;
+
+        errorEl.style.display = 'none';
+        const uid = parseInt(String(uidInput.value || '').trim(), 10);
+        const key = String(keyInput.value || 'chapter1').trim();
+
+        if (!uid || uid <= 0) {
+            errorEl.textContent = '请填写有效的 userId（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        try {
+            localStorage.setItem('admin_refresh_chapter_uid', String(uid));
+            localStorage.setItem('admin_refresh_chapter_key', key);
+        } catch (_) {}
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '刷新中...';
+        resultEl.textContent = `请求中...\nuserId=${uid}\nchapterKey=${key}\n`;
+
+        try {
+            const data = await this.apiService.adminRefreshUserChapterProgress(uid, key);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '刷新进度失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '刷新进度 & 检查成就';
+        }
+    }
+
+    /**
+     * 批量统计团队活动最终数据
+     */
+    async adminActivityTeamStatistics() {
+        const idsInput = document.getElementById('admin-team-stats-ids');
+        const beginInput = document.getElementById('admin-team-stats-begin');
+        const endInput = document.getElementById('admin-team-stats-end');
+        const errorEl = document.getElementById('admin-team-stats-error');
+        const resultEl = document.getElementById('admin-team-stats-result');
+        const btn = document.getElementById('admin-team-stats-btn');
+        if (!idsInput || !beginInput || !endInput || !errorEl || !resultEl || !btn) return;
+
+        errorEl.style.display = 'none';
+        const ids = String(idsInput.value || '').trim();
+        const begin = String(beginInput.value || '').trim();
+        const end = String(endInput.value || '').trim();
+
+        if (!ids) {
+            errorEl.textContent = '请填写 teamIds';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        try {
+            localStorage.setItem('admin_team_stats_ids', ids);
+            localStorage.setItem('admin_team_stats_begin', begin);
+            localStorage.setItem('admin_team_stats_end', end);
+        } catch (_) {}
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '统计中...';
+        resultEl.textContent = `请求中...\nteamIds=${ids}\nbegin=${begin}\nend=${end}\n`;
+
+        try {
+            const data = await this.apiService.adminActivityTeamStatistics(ids, begin, end);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+
+            // 渲染可视化报表
+            if (data && Array.isArray(data.list)) {
+                const teams = data.list;
+                const html = teams.map(t => {
+                    const tid = t.teamId;
+                    const name = this.escapeHtml(t.teamName || `Team ${tid}`);
+                    const score = t.score;
+                    const totalClock = t.clockTotalTimes;
+
+                    // 1. 打卡统计
+                    const ge30 = t.ge30Count || 0;
+                    const ge30Uids = Array.isArray(t.ge30UserIds) ? t.ge30UserIds : [];
+                    const ge60 = t.ge60Count || 0;
+                    const ge60Uids = Array.isArray(t.ge60UserIds) ? t.ge60UserIds : [];
+                    const ge90 = t.ge90Count || 0; // 新增 >=90
+                    const ge90Uids = Array.isArray(t.ge90UserIds) ? t.ge90UserIds : []; // 新增名单
+
+                    // 2. 题单制霸
+                    const tf = t.topicFinished || {};
+                    const topicKeys = Object.keys(tf);
+                    const topicHtml = topicKeys.map(k => {
+                        const item = tf[k];
+                        const cnt = item.count || 0;
+                        const uids = Array.isArray(item.userIds) ? item.userIds : [];
+                        if (cnt === 0) return '';
+                        return `<div style="margin-top:2px;">
+                            <span style="color:#666;">${k}:</span> <b>${cnt}人</b>
+                            <span style="color:#999;font-size:12px;">(${uids.join(',')})</span>
+                        </div>`;
+                    }).join('');
+
+                    // 3. 技能树制霸
+                    const sf = t.skillFinished || {};
+                    const skillKeys = Object.keys(sf);
+                    const skillHtml = skillKeys.map(k => {
+                        const item = sf[k];
+                        const cnt = item.count || 0;
+                        const uids = Array.isArray(item.userIds) ? item.userIds : [];
+                        if (cnt === 0) return '';
+                        return `<div style="margin-top:2px;">
+                            <span style="color:#666;">${k}:</span> <b>${cnt}人</b>
+                            <span style="color:#999;font-size:12px;">(${uids.join(',')})</span>
+                        </div>`;
+                    }).join('');
+
+                    return `
+                        <div style="border:1px solid #eee; border-radius:8px; padding:12px; margin-bottom:12px; background:#fbfbfb;">
+                            <div style="font-size:14px; font-weight:700; color:#333; margin-bottom:8px;">
+                                [${tid}] ${name} <span style="margin-left:10px; color:#1890ff;">积分: ${score}</span>
+                            </div>
+                            <div style="font-size:13px; line-height:1.6;">
+                                <div style="margin-bottom:6px;">
+                                    <b>打卡统计:</b> 总人次 ${totalClock}<br>
+                                    ≥30天: <b>${ge30}人</b> <span style="color:#999;font-size:12px;">(${ge30Uids.join(',')})</span><br>
+                                    ≥60天: <b>${ge60}人</b> <span style="color:#999;font-size:12px;">(${ge60Uids.join(',')})</span><br>
+                                    ≥90天: <b>${ge90}人</b> <span style="color:#999;font-size:12px;">(${ge90Uids.join(',')})</span>
+                                </div>
+                                ${topicHtml ? `<div style="margin-bottom:6px; border-top:1px dashed #ddd; padding-top:6px;"><b>题单制霸:</b>${topicHtml}</div>` : ''}
+                                ${skillHtml ? `<div style="margin-bottom:6px; border-top:1px dashed #ddd; padding-top:6px;"><b>技能树制霸:</b>${skillHtml}</div>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                const reportDiv = document.createElement('div');
+                reportDiv.innerHTML = `<div style="margin-top:16px; font-weight:600;">可视化报表：</div>${html}`;
+                // 清理旧报表
+                const oldReport = document.getElementById('admin-team-stats-report');
+                if (oldReport) oldReport.remove();
+                
+                reportDiv.id = 'admin-team-stats-report';
+                resultEl.parentNode.appendChild(reportDiv);
+            }
+
+        } catch (e) {
+            const msg = e && e.message ? e.message : '统计失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '开始统计';
+        }
+    }
+
+    async adminSpring2026ThirdAddChances() {
+        const uidInput = document.getElementById('admin-spring2026-third-chances-uid');
+        const deltaInput = document.getElementById('admin-spring2026-third-chances-delta');
+        const errorEl = document.getElementById('admin-spring2026-third-chances-error');
+        const resultEl = document.getElementById('admin-spring2026-third-chances-result');
+        const btn = document.getElementById('admin-spring2026-third-chances-add-btn');
+        if (!uidInput || !deltaInput || !errorEl || !resultEl || !btn) return;
+
+        errorEl.style.display = 'none';
+        const uid = parseInt(String(uidInput.value || '').trim(), 10);
+        const delta = parseInt(String(deltaInput.value || '').trim(), 10);
+
+        if (!uid || uid <= 0) {
+            errorEl.textContent = '请填写有效的 uid（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+        if (!delta || delta <= 0) {
+            errorEl.textContent = 'delta 必须为正数';
+            errorEl.style.display = 'block';
+            return;
+        }
+        if (delta > 1000) {
+            errorEl.textContent = 'delta 过大（最大 1000）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        try {
+            localStorage.setItem('admin_spring2026_ai_uid', String(uid));
+            localStorage.setItem('admin_spring2026_ai_delta', String(delta));
+        } catch (_) {}
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '增加中...';
+        resultEl.textContent = `请求中...\nuid=${uid}\ndelta=${delta}\n`;
+
+        try {
+            const data = await this.apiService.adminSpring2026ThirdAddChances(uid, delta);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            const chances = data && typeof data.chances !== 'undefined' ? data.chances : '-';
+            alert(`已增加抽奖次数：uid=${uid}，本次+${delta}，当前 chances=${chances}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '增加抽奖次数失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '增加次数';
+        }
+    }
+
+    /**
+     * 管理员测试：清除第三期「分享活动页面」的全期领取标记（用于重复测试分享功能）。
+     */
+    async adminClearSpring2026ThirdShareClaimed() {
+        const uidInput = document.getElementById('admin-spring2026-third-share-claimed-clear-uid');
+        const errorEl = document.getElementById('admin-spring2026-third-share-claimed-clear-error');
+        const resultEl = document.getElementById('admin-spring2026-third-share-claimed-clear-result');
+        const btn = document.getElementById('admin-spring2026-third-share-claimed-clear-btn');
+
+        if (!uidInput || !errorEl || !resultEl || !btn) return;
+        errorEl.style.display = 'none';
+
+        const uid = parseInt(String(uidInput.value || '').trim(), 10);
+        if (!uid || uid <= 0) {
+            errorEl.textContent = '请填写有效的 uid（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        try {
+            localStorage.setItem('admin_spring2026_third_share_claimed_clear_uid', String(uid));
+            // 顺便同步通用 uid，减少重复输入
+            localStorage.setItem('admin_spring2026_ai_uid', String(uid));
+        } catch (_) {}
+
+        const ok = confirm(`确认清除该用户的“第三期分享活动页面领取标记”？\n\nuid=${uid}\n\n注意：只删除“已领取标记”，不会回滚用户抽奖次数。`);
+        if (!ok) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '清除中...';
+        resultEl.textContent = `请求中...\nuid=${uid}\n`;
+
+        try {
+            const data = await this.apiService.adminClearSpring2026ThirdShareClaimed(uid);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            const deleted = !!(data && data.deleted);
+            const key = data && data.key ? data.key : '';
+            alert(deleted
+                ? `已清除领取标记：uid=${uid}${key ? `\nkey=${key}` : ''}`
+                : `未找到标记（可能本就未领取/已清除）：uid=${uid}${key ? `\nkey=${key}` : ''}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '清除失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '清除领取标记';
+        }
+    }
+
     async adminSpring2026AiAddChances() {
         const uidInput = document.getElementById('admin-spring2026-ai-chances-uid');
         const deltaInput = document.getElementById('admin-spring2026-ai-chances-delta');
@@ -1606,6 +2551,224 @@ export class AdminView {
             btn.disabled = false;
             btn.textContent = oldText || '增加次数';
         }
+    }
+
+    async adminSpring2026AiFetchLotteryRecords() {
+        const uidInput = document.getElementById('admin-spring2026-ai-records-uid');
+        const activityIdInput = document.getElementById('admin-spring2026-ai-records-activity-id');
+        const offsetInput = document.getElementById('admin-spring2026-ai-records-offset');
+        const limitInput = document.getElementById('admin-spring2026-ai-records-limit');
+        const errorEl = document.getElementById('admin-spring2026-ai-records-error');
+        const tableEl = document.getElementById('admin-spring2026-ai-records-table');
+        const resultEl = document.getElementById('admin-spring2026-ai-records-result');
+        const btn = document.getElementById('admin-spring2026-ai-records-fetch-btn');
+        if (!uidInput || !activityIdInput || !offsetInput || !limitInput || !errorEl || !resultEl || !btn) return;
+
+        errorEl.style.display = 'none';
+        if (tableEl) tableEl.style.display = 'none';
+
+        const uid = parseInt(String(uidInput.value || '').trim(), 10);
+        const activityId = parseInt(String(activityIdInput.value || '465576048').trim(), 10) || 465576048;
+        const offset = Math.max(0, parseInt(String(offsetInput.value || '0').trim(), 10) || 0);
+        const limit = Math.max(1, Math.min(200, parseInt(String(limitInput.value || '50').trim(), 10) || 50));
+
+        if (!uid || uid <= 0) {
+            errorEl.textContent = '请填写有效的 uid（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        try {
+            // 复用 uid 记忆；额外保存 records 参数
+            localStorage.setItem('admin_spring2026_ai_uid', String(uid));
+            localStorage.setItem('admin_spring2026_ai_records_activity_id', String(activityId));
+            localStorage.setItem('admin_spring2026_ai_records_offset', String(offset));
+            localStorage.setItem('admin_spring2026_ai_records_limit', String(limit));
+        } catch (_) {}
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '查询中...';
+        resultEl.textContent = `请求中...\nuid=${uid}\nactivityId=${activityId}\noffset=${offset}\nlimit=${limit}\n`;
+
+        try {
+            const data = await this.apiService.adminSpring2026AiLotteryRecords(uid, activityId, offset, limit);
+            this.adminSpring2026AiLotteryLast = data || null;
+            resultEl.textContent = JSON.stringify(data, null, 2);
+
+            const raw = data;
+            let records = [];
+            let total = null;
+            if (Array.isArray(raw)) {
+                records = raw;
+            } else if (raw && Array.isArray(raw.records)) {
+                records = raw.records;
+                if (typeof raw.total === 'number') total = raw.total;
+                if (typeof raw.totalCount === 'number') total = raw.totalCount;
+            } else if (raw && Array.isArray(raw.list)) {
+                records = raw.list;
+                if (typeof raw.total === 'number') total = raw.total;
+                if (typeof raw.totalCount === 'number') total = raw.totalCount;
+            } else if (raw && Array.isArray(raw.items)) {
+                records = raw.items;
+                if (typeof raw.total === 'number') total = raw.total;
+                if (typeof raw.totalCount === 'number') total = raw.totalCount;
+            }
+
+            if (tableEl) {
+                const header = `
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom: 8px;">
+                        <div style="font-size: 13px; font-weight: 700; color:#333;">记录列表</div>
+                        <div style="font-size: 12px; color:#999;">本次返回 ${records.length} 条${(typeof total === 'number') ? `，total=${total}` : ''}</div>
+                    </div>
+                `;
+                const rows = records.map((r, idx) => {
+                    const award = (r && (r.award_name ?? r.awardName ?? r.award)) ?? '';
+                    const time = (r && (r.time ?? r.create_time ?? r.createdAt)) ?? '';
+                    const userId = (r && (r.user_id ?? r.userId ?? r.uid)) ?? uid;
+                    const awardText = String(award || '').trim() ? String(award).trim() : '谢谢惠顾';
+                    return `
+                        <tr>
+                            <td style="padding: 8px 10px; border-bottom: 1px solid #f0f0f0; color:#999; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;">${offset + idx + 1}</td>
+                            <td style="padding: 8px 10px; border-bottom: 1px solid #f0f0f0;">${this.escapeHtml(String(userId))}</td>
+                            <td style="padding: 8px 10px; border-bottom: 1px solid #f0f0f0; font-weight:700;">${this.escapeHtml(String(awardText))}</td>
+                            <td style="padding: 8px 10px; border-bottom: 1px solid #f0f0f0; color:#666;">${this.escapeHtml(String(time))}</td>
+                        </tr>
+                    `;
+                }).join('');
+
+                const table = `
+                    <div style="border: 1px solid #f0f0f0; border-radius: 10px; overflow:hidden;">
+                        <table style="width:100%; border-collapse: collapse; font-size: 13px;">
+                            <thead>
+                                <tr style="background:#fafafa;">
+                                    <th style="text-align:left; padding: 8px 10px; border-bottom: 1px solid #f0f0f0; color:#666; width: 70px;">#</th>
+                                    <th style="text-align:left; padding: 8px 10px; border-bottom: 1px solid #f0f0f0; color:#666; width: 120px;">user_id</th>
+                                    <th style="text-align:left; padding: 8px 10px; border-bottom: 1px solid #f0f0f0; color:#666; width: 220px;">award_name</th>
+                                    <th style="text-align:left; padding: 8px 10px; border-bottom: 1px solid #f0f0f0; color:#666;">time</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${rows || `<tr><td colspan="4" style="padding: 14px 10px; color:#999; text-align:center;">（无记录）</td></tr>`}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                tableEl.innerHTML = header + table;
+                tableEl.style.display = 'block';
+            }
+        } catch (e) {
+            const msg = e && e.message ? e.message : '查询抽奖记录失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+            this.adminSpring2026AiLotteryLast = null;
+            if (tableEl) tableEl.style.display = 'none';
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '查询记录';
+        }
+    }
+
+    /**
+     * 管理员：清空某用户的发展说明书测运 Redis，使其可重新生成。
+     */
+    async adminClearSpring2026FortuneRedis() {
+        const uidInput = document.getElementById('admin-clear-spring2026-fortune-redis-uid');
+        const errorEl = document.getElementById('admin-clear-spring2026-fortune-redis-error');
+        const resultEl = document.getElementById('admin-clear-spring2026-fortune-redis-result');
+        const btn = document.getElementById('admin-clear-spring2026-fortune-redis-btn');
+
+        if (!uidInput || !errorEl || !resultEl || !btn) return;
+        errorEl.style.display = 'none';
+
+        const uid = parseInt(String(uidInput.value || '').trim(), 10);
+        if (!uid || uid <= 0) {
+            errorEl.textContent = '请填写有效的 uid（正整数）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        try {
+            localStorage.setItem('admin_spring2026_fortune_clear_uid', String(uid));
+        } catch (_) {}
+
+        const ok = confirm(`确认清空该用户的发展说明书 Redis？\n\nuid=${uid}\n\n清空后该用户可重新生成发展说明书。`);
+        if (!ok) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '清空中...';
+        resultEl.textContent = `请求中...\nuid=${uid}\n`;
+
+        try {
+            const data = await this.apiService.adminClearSpring2026FortuneRedis(uid);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            const deleted = data && data.deleted;
+            alert(deleted ? `已清空：uid=${uid}，该用户可重新生成发展说明书。` : `未找到缓存（可能本就无数据）：uid=${uid}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '清空失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '清空 Redis';
+        }
+    }
+
+    /**
+     * 管理员：批量清空多用户的发展说明书测运 Redis。
+     * 文本 id 用数字或空格、逗号、换行分隔。
+     */
+    async adminBatchClearSpring2026FortuneRedis() {
+        const textarea = document.getElementById('admin-batch-clear-spring2026-fortune-redis-uids');
+        const errorEl = document.getElementById('admin-batch-clear-spring2026-fortune-redis-error');
+        const resultEl = document.getElementById('admin-batch-clear-spring2026-fortune-redis-result');
+        const btn = document.getElementById('admin-batch-clear-spring2026-fortune-redis-btn');
+
+        if (!textarea || !errorEl || !resultEl || !btn) return;
+        errorEl.style.display = 'none';
+
+        const raw = String(textarea.value || '').trim();
+        const uids = raw
+            .split(/[\s,，、\n]+/)
+            .map(s => parseInt(String(s).trim(), 10))
+            .filter(n => !isNaN(n) && n > 0);
+        const uniqueUids = [...new Set(uids)];
+
+        if (uniqueUids.length === 0) {
+            errorEl.textContent = '请填写有效的 uid（多个用数字或空格、逗号、换行分隔）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        const ok = confirm(`确认批量清空 ${uniqueUids.length} 个用户的发展说明书 Redis？\n\nuids: ${uniqueUids.join(', ')}\n\n清空后这些用户可重新生成发展说明书。`);
+        if (!ok) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        resultEl.textContent = '请求中...\n';
+        const results = [];
+
+        for (let i = 0; i < uniqueUids.length; i++) {
+            const uid = uniqueUids[i];
+            resultEl.textContent = `执行中 (${i + 1}/${uniqueUids.length}) uid=${uid}...\n`;
+            try {
+                const data = await this.apiService.adminClearSpring2026FortuneRedis(uid);
+                results.push({ uid, deleted: !!data?.deleted, ok: true, data });
+            } catch (e) {
+                results.push({ uid, deleted: false, ok: false, error: (e && e.message) ? e.message : '清空失败' });
+            }
+        }
+
+        resultEl.textContent = JSON.stringify(results, null, 2);
+        const successCount = results.filter(r => r.ok && r.deleted).length;
+        const failCount = results.filter(r => !r.ok).length;
+        btn.disabled = false;
+        btn.textContent = oldText || '批量清空 Redis';
+        alert(`批量清空完成：共 ${uniqueUids.length} 个，成功 ${successCount} 个，失败 ${failCount} 个`);
     }
 
     /**
@@ -1710,8 +2873,12 @@ export class AdminView {
             // 强制渲染：避免某些环境下初次渲染丢失/被清空导致 tab 内容为空
             contestDifficultyPanel.innerHTML = this.renderContestDifficultyPanel();
             // 重新绑定按钮事件（因为 innerHTML 重新注入会丢失事件）
+            const contestRankPersistBtn = document.getElementById('admin-contest-rank-persist-direct-btn');
+            const contestReratingBtn = document.getElementById('admin-contest-rerating-direct-btn');
             const contestPreviewBtn = document.getElementById('admin-contest-difficulty-preview-btn');
             const contestSubmitBtn = document.getElementById('admin-contest-difficulty-submit-btn');
+            if (contestRankPersistBtn) contestRankPersistBtn.addEventListener('click', () => this.handleContestRankPersistDirect());
+            if (contestReratingBtn) contestReratingBtn.addEventListener('click', () => this.handleContestReratingDirect());
             if (contestPreviewBtn) contestPreviewBtn.addEventListener('click', () => this.handleContestDifficultyPreview());
             if (contestSubmitBtn) contestSubmitBtn.addEventListener('click', () => this.handleContestDifficultySubmit());
 
@@ -1797,6 +2964,7 @@ export class AdminView {
                         const parts = [];
                         if (r.problemTitle) parts.push(`JSON：${r.problemTitle}`);
                         if (r.dataZipName) parts.push(`data.zip：${r.dataZipName}（${Math.round((r.dataZipSize || 0) / 1024)} KB）`);
+                        if (r.checkerFileName) parts.push(`checker：${r.checkerFileName}（来自内层 zip 也可识别）`);
                         if (srcZipMsgEl) { srcZipMsgEl.textContent = `✅ source.zip 解析完成：` + (parts.join('；') || '（未找到有效内容）'); srcZipMsgEl.style.color = '#52c41a'; }
                         // 同步刷新 JSON 预览与 payload 预览
                         try {
@@ -2320,22 +3488,21 @@ export class AdminView {
         }
         if (!finalResult) throw new Error('status 轮询超时/未成功');
 
-        // 5) draft/update 回填（dataFileUrl/caseCount/checker）
+        // 5) draft/update 回填（dataFileUrl/caseCount）
         const finalDataFileUrl = String(finalResult.dataFileUrl || '').trim();
         const caseCount = Number(finalResult.caseCount || 0);
-        const checker = String(finalResult.codingCheckerFileName || finalResult.checkerFileName || '').trim();
-        // 缓存回填信息，便于后续 /qms/question 自动组装
+        // 缓存回填信息，便于后续 /qms/question 自动组装（仅与用例 zip 相关字段）
+        // 注意：checker 文件名必须以“导入的 source.zip / problem.json”为准，不能从上传用例接口结果里缓存兜底。
+        // 否则会出现：本次没有 checker 也被自动回填成 checker.cc，导致提交后评测找不到文件而报错。
         try {
             if (finalDataFileUrl) localStorage.setItem('tracker_qms_last_dataFileUrl', finalDataFileUrl);
             if (!Number.isNaN(caseCount)) localStorage.setItem('tracker_qms_last_caseCount', String(caseCount));
-            if (checker) localStorage.setItem('tracker_qms_last_checker', checker);
         } catch (_) {}
         resultEl.textContent = `用例上传成功：回填 draft/update...\nfinalDataFileUrl=${finalDataFileUrl}\ncaseCount=${caseCount}\n`;
 
         const updPayload = this.buildQmsDraftUpdatePayload(imported, qid, {
             dataFileUrl: finalDataFileUrl,
-            caseCount,
-            codingCheckerFileName: checker
+            caseCount
         });
         const updResp = await this.apiService.adminQmsDraftUpdate({ ...updPayload, __tracker_extra_headers: extraHeaders });
         resultEl.textContent = `draft/update 回填结果：HTTP ${updResp.status}\n\n${updResp.text || ''}`;
@@ -2414,6 +3581,41 @@ export class AdminView {
         const jsonName = pickBy(/(^|\/)problem\.json$/i) || pickBy(/\.json$/i) || '';
         const dataZipName = pickBy(/(^|\/)data\.zip$/i) || pickBy(/(^|\/)cases\.zip$/i) || '';
 
+        // 从 source.zip（以及可能的内层 cases.zip/data.zip）探测 checker 文件名（以 zip 内容为准）
+        // 约定：优先匹配根目录的 checker.*，其次任意目录下的 checker.*
+        const baseName = (p) => String(p || '').split('/').pop() || '';
+        const checkerExtPriority = ['cc', 'cpp', 'cxx', 'c', 'py', 'java', 'js', 'ts', 'go', 'rs'];
+        const checkerRe = /(^|\/)checker\.(cc|cpp|cxx|c|py|java|js|ts|go|rs)$/i;
+        const pickCheckerFromZip = (z) => {
+            const names = Object.keys(z?.files || {});
+            const isFile = (name) => {
+                try { return !!(z.files && z.files[name] && !z.files[name].dir); } catch (_) { return false; }
+            };
+            const checkerCandidates = names.filter(n => checkerRe.test(String(n || '')) && isFile(n));
+            if (!checkerCandidates.length) return '';
+            const score = (n) => {
+                const b = baseName(n).toLowerCase();
+                const ext = b.split('.').pop() || '';
+                const extRank = checkerExtPriority.indexOf(ext);
+                const depth = String(n || '').split('/').length; // root: 1
+                return (depth * 100) + (extRank >= 0 ? extRank : 99);
+            };
+            const best = checkerCandidates.slice().sort((a, b) => score(a) - score(b))[0];
+            return baseName(best);
+        };
+
+        // 先在外层 source.zip 找 checker；若没找到且存在 cases.zip/data.zip，则尝试解内层 zip 再找
+        let checkerNameInZip = pickCheckerFromZip(zip);
+        if (!checkerNameInZip && dataZipName) {
+            try {
+                const innerBuf = await zip.file(dataZipName).async('arraybuffer');
+                const innerZip = await JSZip.loadAsync(innerBuf);
+                checkerNameInZip = pickCheckerFromZip(innerZip);
+            } catch (_) {
+                // ignore：内层 zip 无法读取/不是 zip/损坏等，保持空字符串
+            }
+        }
+
         let problemTitle = '';
         if (jsonName) {
             const jsonText = await zip.file(jsonName).async('string');
@@ -2422,7 +3624,19 @@ export class AdminView {
             const title = obj?.basic?.title || obj?.title;
             const content = obj?.statement?.content || obj?.content;
             if (!title || !content) throw new Error('problem.json 缺少必要字段：basic.title 与 statement.content（或 title/content）');
-            try { localStorage.setItem('tracker_qms_problem_json', JSON.stringify(obj)); } catch (_) {}
+            // 关键：checker 文件名必须与 source.zip 内容一致；若 zip 不含 checker，则强制清空（避免误用历史值导致提交后找不到 checker 文件）
+            try {
+                const next = { ...(obj || {}) };
+                // 兼容两种字段形态：顶层 codingCheckerFileName / coding.checkerFileName
+                if (checkerNameInZip) {
+                    next.codingCheckerFileName = checkerNameInZip;
+                    next.coding = { ...(next.coding || {}), checkerFileName: checkerNameInZip };
+                } else {
+                    next.codingCheckerFileName = '';
+                    next.coding = { ...(next.coding || {}), checkerFileName: '' };
+                }
+                localStorage.setItem('tracker_qms_problem_json', JSON.stringify(next));
+            } catch (_) {}
             problemTitle = String(title || '');
         }
 
@@ -2446,7 +3660,8 @@ export class AdminView {
             jsonName,
             problemTitle,
             dataZipName,
-            dataZipSize
+            dataZipSize,
+            checkerFileName: checkerNameInZip
         };
     }
 
@@ -2818,6 +4033,52 @@ export class AdminView {
         const yrBtn = document.getElementById('admin-year-report-fetch-btn');
         if (yrBtn) yrBtn.addEventListener('click', () => this.fetchAdminYearReport());
 
+        // Redis Debug：查 key
+        const redisDebugBtn = document.getElementById('admin-redis-debug-fetch-btn');
+        if (redisDebugBtn) redisDebugBtn.addEventListener('click', () => this.fetchAdminRedisDebugKey());
+        const redisCopyBtn = document.getElementById('admin-redis-debug-copy-btn');
+        if (redisCopyBtn) {
+            redisCopyBtn.addEventListener('click', async () => {
+                try {
+                    const text = JSON.stringify(this.adminRedisDebugLast || {}, null, 2);
+                    if (navigator && navigator.clipboard && navigator.clipboard.writeText) {
+                        await navigator.clipboard.writeText(text);
+                        alert('已复制到剪贴板');
+                    } else {
+                        // 兜底：选中 pre 文本
+                        const pre = document.getElementById('admin-redis-debug-result');
+                        if (pre) {
+                            const r = document.createRange();
+                            r.selectNodeContents(pre);
+                            const sel = window.getSelection();
+                            sel.removeAllRanges();
+                            sel.addRange(r);
+                            document.execCommand('copy');
+                            sel.removeAllRanges();
+                            alert('已复制到剪贴板（兼容模式）');
+                        } else {
+                            alert('复制失败：找不到结果区');
+                        }
+                    }
+                } catch (e) {
+                    const msg = e && e.message ? e.message : '复制失败';
+                    alert(msg);
+                }
+            });
+        }
+
+        // 过题排行榜：批量重建（Top N）
+        const acceptRankRunBtn = document.getElementById('admin-accept-rank-rebuild-run-btn');
+        if (acceptRankRunBtn) acceptRankRunBtn.addEventListener('click', () => this.adminAcceptRankRebuildTopN());
+        const acceptRankStopBtn = document.getElementById('admin-accept-rank-rebuild-stop-btn');
+        if (acceptRankStopBtn) acceptRankStopBtn.addEventListener('click', () => { this._adminAcceptRankRebuildStop = true; });
+
+        // 成就补发：徽章 backfill
+        const badgeRunBtn = document.getElementById('admin-badge-backfill-run-btn');
+        if (badgeRunBtn) badgeRunBtn.addEventListener('click', () => this.adminBadgeBackfillRun());
+        const badgeStopBtn = document.getElementById('admin-badge-backfill-stop-btn');
+        if (badgeStopBtn) badgeStopBtn.addEventListener('click', () => { this._adminBadgeBackfillStop = true; });
+
         // 对战运维：清理某用户镜像
         const clearMirrorsBtn = document.getElementById('admin-clear-user-mirrors-btn');
         if (clearMirrorsBtn) clearMirrorsBtn.addEventListener('click', () => this.adminClearUserMirrors());
@@ -2826,9 +4087,64 @@ export class AdminView {
         const rebuildMatchCountBtn = document.getElementById('admin-battle-rebuild-matchcount-btn');
         if (rebuildMatchCountBtn) rebuildMatchCountBtn.addEventListener('click', () => this.adminBattleRebuildMatchCount());
 
+        // 2026 第三期大转盘：增加抽奖次数（管理员测试）
+        const spring2026ThirdAddBtn = document.getElementById('admin-spring2026-third-chances-add-btn');
+        if (spring2026ThirdAddBtn) spring2026ThirdAddBtn.addEventListener('click', () => this.adminSpring2026ThirdAddChances());
+        const spring2026ThirdShareClaimedClearBtn = document.getElementById('admin-spring2026-third-share-claimed-clear-btn');
+        if (spring2026ThirdShareClaimedClearBtn) spring2026ThirdShareClaimedClearBtn.addEventListener('click', () => this.adminClearSpring2026ThirdShareClaimed());
+
+        // 刷新用户技能树进度
+        const refreshChapterBtn = document.getElementById('admin-refresh-chapter-btn');
+        if (refreshChapterBtn) refreshChapterBtn.addEventListener('click', () => this.adminRefreshUserChapterProgress());
+
+        // 批量统计团队活动最终数据
+        const teamStatsBtn = document.getElementById('admin-team-stats-btn');
+        if (teamStatsBtn) teamStatsBtn.addEventListener('click', () => this.adminActivityTeamStatistics());
+
+        // 复制统计结果 JSON
+        const teamStatsCopyBtn = document.getElementById('admin-team-stats-copy-btn');
+        if (teamStatsCopyBtn) {
+            teamStatsCopyBtn.addEventListener('click', async () => {
+                const resultEl = document.getElementById('admin-team-stats-result');
+                if (!resultEl) return;
+                
+                const text = resultEl.innerText || resultEl.textContent;
+                if (!text || text.trim() === '（尚未执行）') {
+                    alert('暂无数据可复制');
+                    return;
+                }
+
+                try {
+                    await navigator.clipboard.writeText(text);
+                    const originalText = teamStatsCopyBtn.innerHTML; // 保存原始 HTML（含 emoji）
+                    teamStatsCopyBtn.textContent = '✅ 已复制';
+                    setTimeout(() => { teamStatsCopyBtn.innerHTML = originalText; }, 2000);
+                } catch (e) {
+                    // 兜底：选中并提示手动复制
+                    const range = document.createRange();
+                    range.selectNodeContents(resultEl);
+                    const sel = window.getSelection();
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    try {
+                        document.execCommand('copy');
+                        alert('已尝试复制（兼容模式）。若失败，请手动 Ctrl+C。');
+                    } catch (_) {
+                        alert('复制失败，请手动复制');
+                    }
+                }
+            });
+        }
+
         // 2026 春季 AI 体验站：增加抽奖次数（管理员测试）
         const spring2026AiAddBtn = document.getElementById('admin-spring2026-ai-chances-add-btn');
         if (spring2026AiAddBtn) spring2026AiAddBtn.addEventListener('click', () => this.adminSpring2026AiAddChances());
+        const spring2026AiRecordsBtn = document.getElementById('admin-spring2026-ai-records-fetch-btn');
+        if (spring2026AiRecordsBtn) spring2026AiRecordsBtn.addEventListener('click', () => this.adminSpring2026AiFetchLotteryRecords());
+        const clearFortuneRedisBtn = document.getElementById('admin-clear-spring2026-fortune-redis-btn');
+        if (clearFortuneRedisBtn) clearFortuneRedisBtn.addEventListener('click', () => this.adminClearSpring2026FortuneRedis());
+        const batchClearFortuneRedisBtn = document.getElementById('admin-batch-clear-spring2026-fortune-redis-btn');
+        if (batchClearFortuneRedisBtn) batchClearFortuneRedisBtn.addEventListener('click', () => this.adminBatchClearSpring2026FortuneRedis());
 
         // 知识点管理
         const tagAddBtn = document.getElementById('admin-tag-add-btn');
@@ -2847,8 +4163,12 @@ export class AdminView {
         }
 
         // 比赛题目难度更新
+        const contestRankPersistBtn = document.getElementById('admin-contest-rank-persist-direct-btn');
+        const contestReratingBtn = document.getElementById('admin-contest-rerating-direct-btn');
         const contestPreviewBtn = document.getElementById('admin-contest-difficulty-preview-btn');
         const contestSubmitBtn = document.getElementById('admin-contest-difficulty-submit-btn');
+        if (contestRankPersistBtn) contestRankPersistBtn.addEventListener('click', () => this.handleContestRankPersistDirect());
+        if (contestReratingBtn) contestReratingBtn.addEventListener('click', () => this.handleContestReratingDirect());
         if (contestPreviewBtn) contestPreviewBtn.addEventListener('click', () => this.handleContestDifficultyPreview());
         if (contestSubmitBtn) contestSubmitBtn.addEventListener('click', () => this.handleContestDifficultySubmit());
 
@@ -2857,6 +4177,8 @@ export class AdminView {
         if (pcRefreshBtn) pcRefreshBtn.addEventListener('click', () => this.loadPromptChallengeList(true));
         const pcRunBtn = document.getElementById('pc-run');
         if (pcRunBtn) pcRunBtn.addEventListener('click', () => this.runPromptChallengeEvaluate());
+        const aiPuzzleRefreshBtn = document.getElementById('admin-ai-puzzle-refresh-btn');
+        if (aiPuzzleRefreshBtn) aiPuzzleRefreshBtn.addEventListener('click', () => this.loadAiPuzzleAdminOverview());
 
         // QMS 录题测试
         const qmsSendBtn = document.getElementById('admin-qms-draft-send');
@@ -2876,6 +4198,88 @@ export class AdminView {
         // Dify / 录题：补齐面板内部事件绑定（以前依赖 switchTab 的 innerHTML 重渲染）
         this.bindDifyPanelEventsIfPresent();
         this.bindQmsPanelEventsIfPresent();
+        this.bindPuzzleRecordEventsIfPresent();
+    }
+
+    async fetchAdminRedisDebugKey() {
+        const keyEl = document.getElementById('admin-redis-debug-key');
+        const typeEl = document.getElementById('admin-redis-debug-type');
+        const startEl = document.getElementById('admin-redis-debug-start');
+        const limitEl = document.getElementById('admin-redis-debug-limit');
+        const ascEl = document.getElementById('admin-redis-debug-asc');
+        const fieldEl = document.getElementById('admin-redis-debug-field');
+        const memberEl = document.getElementById('admin-redis-debug-member');
+        const errEl = document.getElementById('admin-redis-debug-error');
+        const metaEl = document.getElementById('admin-redis-debug-meta');
+        const valueEl = document.getElementById('admin-redis-debug-value');
+        const resultEl = document.getElementById('admin-redis-debug-result');
+        const btn = document.getElementById('admin-redis-debug-fetch-btn');
+
+        if (!keyEl || !typeEl || !startEl || !limitEl || !ascEl || !fieldEl || !memberEl || !errEl || !resultEl) return;
+        errEl.style.display = 'none';
+        if (metaEl) metaEl.style.display = 'none';
+        if (valueEl) valueEl.style.display = 'none';
+
+        const key = String(keyEl.value || '').trim();
+        const type = String(typeEl.value || 'auto').trim() || 'auto';
+        const start = Math.max(0, parseInt(String(startEl.value || '0').trim(), 10) || 0);
+        const limit = Math.max(1, Math.min(200, parseInt(String(limitEl.value || '50').trim(), 10) || 50));
+        const asc = !!ascEl.checked;
+        const field = String(fieldEl.value || '').trim();
+        const member = String(memberEl.value || '').trim();
+
+        if (!key) {
+            errEl.textContent = '请填写 key（不能为空）';
+            errEl.style.display = 'block';
+            return;
+        }
+
+        try {
+            localStorage.setItem('admin_redis_debug_key', key);
+            localStorage.setItem('admin_redis_debug_type', type);
+            localStorage.setItem('admin_redis_debug_start', String(start));
+            localStorage.setItem('admin_redis_debug_limit', String(limit));
+            localStorage.setItem('admin_redis_debug_asc', String(asc));
+            localStorage.setItem('admin_redis_debug_field', field);
+            localStorage.setItem('admin_redis_debug_member', member);
+        } catch (_) {}
+
+        const oldText = btn ? btn.textContent : '';
+        if (btn) {
+            btn.disabled = true;
+            btn.textContent = '查询中...';
+        }
+        resultEl.textContent = `请求中...\nkey=${key}\ntype=${type}\nstart=${start}\nlimit=${limit}\nasc=${asc}\nfield=${field || '(empty)'}\nmember=${member || '(empty)'}\n`;
+
+        try {
+            const data = await this.apiService.adminRedisDebugKey({ key, type, start, limit, asc, field, member });
+            this.adminRedisDebugLast = data || {};
+            resultEl.textContent = JSON.stringify(data, null, 2);
+
+            if (metaEl) {
+                const exists = (data && data.exists === true) ? 'true' : 'false';
+                const ttl = (data && typeof data.ttl !== 'undefined') ? String(data.ttl) : '';
+                const rt = data?.redisType || '';
+                const et = data?.effectiveType || '';
+                metaEl.innerHTML = `exists=<b>${this.escapeHtmlAttr(exists)}</b>，redisType=<b>${this.escapeHtmlAttr(rt)}</b>，effectiveType=<b>${this.escapeHtmlAttr(et)}</b>，ttl=<b>${this.escapeHtmlAttr(ttl)}</b>`;
+                metaEl.style.display = 'block';
+            }
+            if (valueEl) {
+                valueEl.innerHTML = this._renderRedisDebugValueBlock(data);
+                valueEl.style.display = 'block';
+            }
+        } catch (e) {
+            const msg = e && e.message ? e.message : '查询失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+            this.adminRedisDebugLast = null;
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = oldText || '查询';
+            }
+        }
     }
 
     async adminAcmOpenRebuildAcceptPerson() {
@@ -3015,6 +4419,237 @@ export class AdminView {
         }
     }
 
+    // 数据：过题排行榜批量重建（Top N）
+    async adminAcceptRankRebuildTopN() {
+        const btn = document.getElementById('admin-accept-rank-rebuild-run-btn');
+        const stopBtn = document.getElementById('admin-accept-rank-rebuild-stop-btn');
+        const errEl = document.getElementById('admin-accept-rank-rebuild-error');
+        const resultEl = document.getElementById('admin-accept-rank-rebuild-result');
+        if (!btn || !stopBtn || !errEl || !resultEl) return;
+
+        const getNum = (id, defVal) => {
+            const el = document.getElementById(id);
+            const v = el ? Number(String(el.value || '').trim()) : Number(defVal);
+            return Number.isFinite(v) ? v : Number(defVal);
+        };
+        const getBool = (id) => {
+            const el = document.getElementById(id);
+            return !!(el && el.checked);
+        };
+
+        errEl.style.display = 'none';
+        this._adminAcceptRankRebuildStop = false;
+
+        const topN = Math.max(1, Math.min(10000, getNum('admin-accept-rank-rebuild-top-n', 1000)));
+        const pageSize = Math.max(1, Math.min(500, getNum('admin-accept-rank-rebuild-page-size', 200)));
+        const batchSize = Math.max(1, Math.min(50, getNum('admin-accept-rank-rebuild-batch-size', 20)));
+        const sleepMs = Math.max(0, Math.min(3000, getNum('admin-accept-rank-rebuild-sleep-ms', 80)));
+        const dryRun = getBool('admin-accept-rank-rebuild-dry-run');
+
+        try {
+            localStorage.setItem('admin_accept_rank_rebuild_top_n', String(topN));
+            localStorage.setItem('admin_accept_rank_rebuild_page_size', String(pageSize));
+            localStorage.setItem('admin_accept_rank_rebuild_batch_size', String(batchSize));
+            localStorage.setItem('admin_accept_rank_rebuild_sleep_ms', String(sleepMs));
+            localStorage.setItem('admin_accept_rank_rebuild_dry_run', String(dryRun));
+        } catch (_) {}
+
+        const ok = confirm(
+            `确认批量重建过题榜 Top ${topN} 吗？\n\n` +
+            `步骤：GET ranks/problem 分页拉取 -> 对每个 uid POST rank/update-accept-count\n\n` +
+            (dryRun ? `当前 dryRun=ON：只拉取不更新\n\n` : '') +
+            `建议低峰期执行，避免对后端造成压力。`
+        );
+        if (!ok) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = dryRun ? '拉取中...' : '执行中...';
+        stopBtn.style.display = 'inline-block';
+        resultEl.textContent = `准备中...\nTopN=${topN}, pageSize=${pageSize}, batchSize=${batchSize}, sleepMs=${sleepMs}, dryRun=${dryRun}\n`;
+
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+        const pickUid = (row) => {
+            if (!row || typeof row !== 'object') return null;
+            return row.uid ?? row.userId ?? row.user_id ?? row.id ?? row.ID ?? null;
+        };
+
+        try {
+            // 1) 拉取前 N 的 uid 列表
+            const uids = [];
+            const seen = new Set();
+            let page = 1;
+            while (uids.length < topN && !this._adminAcceptRankRebuildStop) {
+                const data = await this.apiService.fetchRankings('problem', page, null, pageSize);
+                const list = Array.isArray(data?.ranks) ? data.ranks : (Array.isArray(data) ? data : []);
+                if (!list.length) break;
+                for (const r of list) {
+                    const uid = pickUid(r);
+                    if (!uid) continue;
+                    const key = String(uid);
+                    if (seen.has(key)) continue;
+                    seen.add(key);
+                    uids.push(Number(uid));
+                    if (uids.length >= topN) break;
+                }
+                resultEl.textContent = `拉取榜单中...\npage=${page}, got=${uids.length}/${topN}\n`;
+                page += 1;
+                if (list.length < pageSize) break;
+            }
+
+            if (this._adminAcceptRankRebuildStop) {
+                resultEl.textContent = `已停止。\n已拉取 uid=${uids.length}\n`;
+                return;
+            }
+            resultEl.textContent = `榜单拉取完成：uid=${uids.length}\n` + (dryRun ? `dryRun=ON（不更新）\n` : `开始更新...\n`);
+
+            if (dryRun) {
+                resultEl.textContent += `uids(前${Math.min(50, uids.length)}): ${uids.slice(0, 50).join(', ')}\n`;
+                return;
+            }
+
+            // 2) 分批更新
+            let okCount = 0;
+            let failCount = 0;
+            const fails = [];
+            for (let i = 0; i < uids.length; i += batchSize) {
+                if (this._adminAcceptRankRebuildStop) break;
+                const batch = uids.slice(i, i + batchSize);
+                await Promise.all(batch.map(async (uid) => {
+                    try {
+                        await this.apiService.adminUpdateUserAcceptCount(uid);
+                        okCount += 1;
+                    } catch (e) {
+                        failCount += 1;
+                        const msg = (e && e.message) ? e.message : 'update failed';
+                        fails.push({ uid, msg });
+                    }
+                }));
+                resultEl.textContent =
+                    `更新中...\n` +
+                    `done=${Math.min(i + batch.length, uids.length)}/${uids.length}\n` +
+                    `ok=${okCount}, fail=${failCount}\n` +
+                    (failCount ? `lastFail=${fails[fails.length - 1]?.uid ?? ''} ${fails[fails.length - 1]?.msg ?? ''}\n` : '');
+                if (sleepMs > 0) await sleep(sleepMs);
+            }
+
+            if (this._adminAcceptRankRebuildStop) {
+                resultEl.textContent += `\n已停止。\n`;
+            }
+            if (failCount) {
+                resultEl.textContent += `\n失败列表（最多50条）：\n` + JSON.stringify(fails.slice(0, 50), null, 2);
+            }
+            alert(`完成：ok=${okCount}, fail=${failCount}, total=${uids.length}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '执行失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '开始执行';
+            stopBtn.style.display = 'none';
+            this._adminAcceptRankRebuildStop = false;
+        }
+    }
+
+    // 数据：徽章/成就补发（批量/单用户）
+    async adminBadgeBackfillRun() {
+        const btn = document.getElementById('admin-badge-backfill-run-btn');
+        const stopBtn = document.getElementById('admin-badge-backfill-stop-btn');
+        const errEl = document.getElementById('admin-badge-backfill-error');
+        const resultEl = document.getElementById('admin-badge-backfill-result');
+        if (!btn || !stopBtn || !errEl || !resultEl) return;
+
+        const getNum = (id, defVal) => {
+            const el = document.getElementById(id);
+            const v = el ? Number(String(el.value || '').trim()) : Number(defVal);
+            return Number.isFinite(v) ? v : Number(defVal);
+        };
+        const getBool = (id) => {
+            const el = document.getElementById(id);
+            return !!(el && el.checked);
+        };
+
+        errEl.style.display = 'none';
+        this._adminBadgeBackfillStop = false;
+
+        const userId = Math.max(0, Math.floor(getNum('admin-badge-backfill-user-id', 0)));
+        const offset0 = Math.max(0, Math.floor(getNum('admin-badge-backfill-offset', 0)));
+        const limit = Math.max(1, Math.min(1000, Math.floor(getNum('admin-badge-backfill-limit', 200))));
+        const dryRun = getBool('admin-badge-backfill-dry-run');
+        const includeAccept = getBool('admin-badge-backfill-include-accept');
+
+        try {
+            localStorage.setItem('admin_badge_backfill_user_id', String(userId));
+            localStorage.setItem('admin_badge_backfill_offset', String(offset0));
+            localStorage.setItem('admin_badge_backfill_limit', String(limit));
+            localStorage.setItem('admin_badge_backfill_dry_run', String(dryRun));
+            localStorage.setItem('admin_badge_backfill_include_accept', String(includeAccept));
+        } catch (_) {}
+
+        const ok = confirm(
+            `确认执行“成就补发（badge backfill）”吗？\n\n` +
+            `userId=${userId}（0=批量）\n` +
+            (userId === 0 ? `offset=${offset0}, limit=${limit}\n` : '') +
+            `dryRun=${dryRun}\nincludeAccept=${includeAccept}\nincludeSkillTree=false（强制）\n\n` +
+            `接口：POST /problem/tracker/badge/backfill`
+        );
+        if (!ok) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = dryRun ? '预演中...' : '执行中...';
+        stopBtn.style.display = 'inline-block';
+        resultEl.textContent = `开始...\nuserId=${userId}\n` + (userId === 0 ? `offset=${offset0}, limit=${limit}\n` : '') +
+            `dryRun=${dryRun}, includeAccept=${includeAccept}, includeSkillTree=false\n\n`;
+
+        try {
+            if (userId > 0) {
+                const data = await this.apiService.adminBadgeBackfill({ userId, dryRun, includeAccept, includeSkillTree: false });
+                resultEl.textContent += JSON.stringify(data, null, 2);
+                alert('执行完成');
+                return;
+            }
+
+            // 批量：按 offset 分页循环
+            let offset = offset0;
+            let page = 0;
+            while (!this._adminBadgeBackfillStop) {
+                page += 1;
+                resultEl.textContent += `\n--- page ${page} ---\noffset=${offset}, limit=${limit}\n`;
+                const data = await this.apiService.adminBadgeBackfill({ userId: 0, offset, limit, dryRun, includeAccept, includeSkillTree: false });
+                resultEl.textContent += JSON.stringify(data, null, 2) + '\n';
+
+                // 尝试从返回值推断是否还有下一页
+                const processed = Number(data?.processed ?? data?.processedCount ?? data?.count ?? data?.handled ?? data?.total ?? 0);
+                const hasMore = (data?.hasMore === true) || (data?.nextOffset != null) || (processed >= limit);
+
+                if (data?.nextOffset != null) {
+                    offset = Math.max(offset + limit, Number(data.nextOffset) || offset + limit);
+                } else {
+                    offset += limit;
+                }
+                if (!hasMore) break;
+            }
+
+            if (this._adminBadgeBackfillStop) {
+                resultEl.textContent += `\n已停止。\n`;
+            }
+            alert('执行完成');
+        } catch (e) {
+            const msg = e && e.message ? e.message : '执行失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent += `\n失败：${msg}\n`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '开始执行';
+            stopBtn.style.display = 'none';
+            this._adminBadgeBackfillStop = false;
+        }
+    }
+
     parseRawHeaders(text) {
         const out = {};
         const lines = String(text || '')
@@ -3110,6 +4745,214 @@ export class AdminView {
             return `<div>\n\t${inner}\n</div>`;
         });
         return blocks.join('\n');
+    }
+
+    // ==================== 录 Puzzle 题 ====================
+
+    renderPuzzleRecordPanel() {
+        const savedTitle = (() => { try { return localStorage.getItem('puzzle_record_title') || ''; } catch (_) { return ''; } })();
+        const savedContent = (() => { try { return localStorage.getItem('puzzle_record_content') || ''; } catch (_) { return ''; } })();
+        const savedJudge = (() => { try { return localStorage.getItem('puzzle_record_judge') || ''; } catch (_) { return ''; } })();
+        const savedDifficulty = (() => { try { return Number(localStorage.getItem('puzzle_record_difficulty')) || 4; } catch (_) { return 4; } })();
+        return `
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                    <div style="font-size: 16px; font-weight: 800; color:#333;">录 Prompt Puzzle 题</div>
+                    <div style="font-size: 12px; color:#999;">QMS 建题(type=4) → 审核 → convert(type=21) + 写入 judge 代码</div>
+                    <div style="flex:1;"></div>
+                    <button id="puzzle-record-save-btn" class="admin-btn" style="padding: 9px 18px; font-weight:900; background:#52c41a; color:#fff;" type="button">一键录题</button>
+                </div>
+
+                <div id="puzzle-record-error" style="display:none; padding:10px 12px; background:#fff2f0; border:1px solid #ffccc7; border-radius:10px; color:#a8071a; font-size:13px;"></div>
+
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px; align-items:start;">
+                    <!-- 左：题面信息 -->
+                    <div style="border:1px solid #f0f0f0; border-radius:12px; background:#fff; overflow:hidden;">
+                        <div style="padding:10px 12px; border-bottom:1px solid #f0f0f0; font-size:13px; font-weight:800; color:#111827;">题目信息</div>
+                        <div style="padding:12px; display:flex; flex-direction:column; gap:10px;">
+                            <div>
+                                <label style="font-size:12px; color:#666;">标题</label>
+                                <input id="puzzle-record-title" type="text" value="${this.escapeHtmlAttr(savedTitle)}" placeholder="如：双回文"
+                                    style="width:100%; padding:8px 10px; border:1px solid #ddd; border-radius:10px; font-size:13px; margin-top:4px;" />
+                            </div>
+                            <div>
+                                <label style="font-size:12px; color:#666;">难度（1~5）</label>
+                                <input id="puzzle-record-difficulty" type="number" min="1" max="5" value="${savedDifficulty}"
+                                    style="width:80px; padding:8px 10px; border:1px solid #ddd; border-radius:10px; font-size:13px; margin-top:4px;" />
+                            </div>
+                            <div>
+                                <label style="font-size:12px; color:#666;">题面（HTML）</label>
+                                <textarea id="puzzle-record-content" rows="12" placeholder="<h3>题目</h3>&#10;<p>...</p>&#10;<h3>输入限制</h3>&#10;..."
+                                    style="width:100%; padding:10px; border:1px solid #ddd; border-radius:12px; font-size:13px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; margin-top:4px;">${this.escapeHtml(savedContent)}</textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 右：judge 代码 -->
+                    <div style="border:1px solid #f0f0f0; border-radius:12px; background:#fff; overflow:hidden;">
+                        <div style="padding:10px 12px; border-bottom:1px solid #f0f0f0; font-size:13px; font-weight:800; color:#111827;">Judge 代码（Python）</div>
+                        <div style="padding:12px;">
+                            <textarea id="puzzle-record-judge" rows="22" placeholder="# @temperature 0.1&#10;# @run_count 3&#10;# @max_tokens 64&#10;&#10;def check_prompt(prompt):&#10;    ...&#10;&#10;def check_output(prompt, output):&#10;    ..."
+                                style="width:100%; padding:10px; border:1px solid #ddd; border-radius:12px; font-size:12px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; line-height:1.5; background:#fafafa;">${this.escapeHtml(savedJudge)}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 日志 -->
+                <div style="border:1px solid #f0f0f0; border-radius:12px; background:#fff; overflow:hidden;">
+                    <div style="padding:10px 12px; border-bottom:1px solid #f0f0f0; font-size:13px; font-weight:800; color:#111827;">执行日志</div>
+                    <pre id="puzzle-record-log" style="margin:0; padding:12px; font-size:12px; color:#374151; line-height:1.6; max-height:300px; overflow:auto; white-space:pre-wrap; background:#fafafa;">（点击"一键录题"开始）</pre>
+                </div>
+            </div>
+        `;
+    }
+
+    bindPuzzleRecordEventsIfPresent() {
+        const saveBtn = document.getElementById('puzzle-record-save-btn');
+        if (saveBtn && !saveBtn._bound) {
+            saveBtn._bound = true;
+            saveBtn.addEventListener('click', () => this.adminPuzzleOneClick());
+        }
+        // 自动保存输入
+        for (const [elId, key] of [
+            ['puzzle-record-title', 'puzzle_record_title'],
+            ['puzzle-record-content', 'puzzle_record_content'],
+            ['puzzle-record-judge', 'puzzle_record_judge'],
+            ['puzzle-record-difficulty', 'puzzle_record_difficulty'],
+        ]) {
+            const el = document.getElementById(elId);
+            if (el && !el._bound) {
+                el._bound = true;
+                el.addEventListener('input', () => {
+                    try { localStorage.setItem(key, el.value); } catch (_) {}
+                });
+            }
+        }
+    }
+
+    async adminPuzzleOneClick() {
+        const btn = document.getElementById('puzzle-record-save-btn');
+        const errEl = document.getElementById('puzzle-record-error');
+        const logEl = document.getElementById('puzzle-record-log');
+        if (!btn || !errEl || !logEl) return;
+
+        const titleEl = document.getElementById('puzzle-record-title');
+        const contentEl = document.getElementById('puzzle-record-content');
+        const judgeEl = document.getElementById('puzzle-record-judge');
+        const diffEl = document.getElementById('puzzle-record-difficulty');
+
+        const title = String(titleEl?.value || '').trim();
+        const content = String(contentEl?.value || '').trim();
+        const judgeCode = String(judgeEl?.value || '').trim();
+        const difficulty = Number(diffEl?.value) || 4;
+
+        errEl.style.display = 'none';
+        if (!title) { errEl.textContent = '请填写标题'; errEl.style.display = 'block'; return; }
+        if (!content) { errEl.textContent = '请填写题面'; errEl.style.display = 'block'; return; }
+        if (!judgeCode) { errEl.textContent = '请填写 judge 代码'; errEl.style.display = 'block'; return; }
+        if (!judgeCode.includes('check_prompt')) { errEl.textContent = 'judge 代码缺少 check_prompt 函数'; errEl.style.display = 'block'; return; }
+        if (!judgeCode.includes('check_output')) { errEl.textContent = 'judge 代码缺少 check_output 函数'; errEl.style.display = 'block'; return; }
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '录题中...';
+        logEl.textContent = '';
+
+        const log = (msg) => { logEl.textContent += msg + '\n'; logEl.scrollTop = logEl.scrollHeight; };
+        const step = (i, total, desc) => { log(`[${i}/${total}] ${desc}`); };
+
+        // QMS headers
+        let extraHeaders = {};
+        try {
+            const raw = String(localStorage.getItem('admin_qms_draft_headers') || '').trim();
+            if (raw) {
+                extraHeaders = raw.startsWith('{') ? (JSON.parse(raw) || {}) : this.parseRawHeaders(raw);
+            }
+        } catch (_) {}
+
+        try {
+            // 1) QMS draft/add (type=4)
+            step(1, 6, '创建草稿（QMS draft/add, type=4）');
+            const addPayload = {
+                type: 4,
+                title,
+                content,
+                analysis: '',
+                difficulty,
+                defaultScore: null,
+                skills: ['584'],
+                remark: '',
+                openScopes: [],
+                designSetting: { attachmentUploadNum: 0, attachmentSizeOption: 0, uploadPhotoSwitch: 0 },
+                aiJudgeSetting: { aiJudge: false, scoringCriteria: '', scoringExamples: [], attachment: [], customScoringSwitch: true, spokenTestSwitch: false, spokenScoringSetting: { newLanguage: [], assessmentType: null, languageSettings: [] } },
+                previewSkills: ['584'],
+                caseCount: null,
+                aiDigitalHumanResource: { ttsText: String(content).replace(/<[^>]*>/g, '').slice(0, 200) }
+            };
+            const addResp = await this.apiService.adminQmsDraftAdd({ ...addPayload, __tracker_extra_headers: extraHeaders });
+            const addJson = addResp && addResp.json ? addResp.json : null;
+            const qid = (addJson && Array.isArray(addJson.data) && addJson.data.length > 0) ? String(addJson.data[0]) : '';
+            if (!addResp.ok || !qid) throw new Error(`draft/add 失败：HTTP ${addResp.status} ${addResp.text || ''}`);
+            log(`   → qid = ${qid}`);
+
+            // 2) QMS question（最终提交）
+            step(2, 6, '最终提交（QMS question）');
+            const questionPayload = { ...addPayload, id: qid, regenerateDigitalHumanResource: false, tags: [] };
+            const qResp = await this.apiService.adminQmsQuestionUpsert({ ...questionPayload, __tracker_extra_headers: extraHeaders });
+            if (!qResp.ok) throw new Error(`question 失败：HTTP ${qResp.status} ${qResp.text || ''}`);
+            log(`   → 提交成功`);
+
+            // 3) review/next-question → 拿快照（含 uuid）
+            step(3, 6, '审题：获取快照（review/next-question）');
+            const nextResp = await this.apiService.adminQmsReviewNextQuestion({ curQid: [String(qid)], scene: 1, __tracker_extra_headers: extraHeaders });
+            const snap = nextResp && nextResp.json && nextResp.json.data ? nextResp.json.data : null;
+            if (!nextResp.ok || !snap || !snap.id) throw new Error(`next-question 失败：HTTP ${nextResp.status}`);
+            log(`   → uuid = ${snap.uuid || '(空)'}`);
+
+            // 4) review/confirm
+            step(4, 6, '审题：确认（review/confirm）');
+            const question = this._normalizeReviewQuestionFromSnapshot(snap);
+            const confirmResp = await this.apiService.adminQmsReviewConfirm({ question, type: 1, __tracker_extra_headers: extraHeaders });
+            if (!confirmResp.ok) throw new Error(`review/confirm 失败：HTTP ${confirmResp.status}`);
+            log(`   → 审核通过`);
+
+            // 5) open-library/save
+            step(5, 6, '设置开放范围（open-library/save）');
+            {
+                let olType = 1, olIds = ['391696'], olScopes = [1, 3];
+                try {
+                    olType = Number(localStorage.getItem('tracker_qms_open_library_type') || 1) || 1;
+                    olIds = String(localStorage.getItem('tracker_qms_open_library_ids') || '391696').split(',').map(s => s.trim()).filter(Boolean);
+                    olScopes = String(localStorage.getItem('tracker_qms_open_library_scopes') || '1,3').split(',').map(s => s.trim()).filter(Boolean).map(Number).filter(Number.isFinite);
+                    if (!olIds.length) olIds = ['391696'];
+                    if (!olScopes.length) olScopes = [1, 3];
+                } catch (_) {}
+                const olResp = await this.apiService.adminQmsQuestionOpenLibrarySave({ questionId: String(qid), type: olType, ids: olIds, openScopes: olScopes, __tracker_extra_headers: extraHeaders });
+                if (!olResp.ok) throw new Error(`open-library/save 失败：HTTP ${olResp.status}`);
+                log(`   → 开放范围已设置`);
+            }
+
+            // 6) convert → type=21 + 写入 judge 代码
+            step(6, 6, '转换为 Puzzle 题（convert）');
+            const convertResp = await this.apiService.promptPuzzleAdminConvert(qid, judgeCode);
+            if (!convertResp || convertResp.code !== 0) {
+                const msg = (convertResp && convertResp.message) ? convertResp.message : 'convert 失败';
+                throw new Error(msg);
+            }
+            const judgeConfig = convertResp.data && convertResp.data.judgeConfig ? convertResp.data.judgeConfig : {};
+            log(`   → 转换成功！questionId=${qid}`);
+            log(`   → judge_config: run_count=${judgeConfig.run_count || '?'}, temperature=${judgeConfig.temperature || '?'}, max_tokens=${judgeConfig.max_tokens || '?'}`);
+
+            log(`\n✅ 录题完成！questionId = ${qid}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '录题失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            log(`\n❌ 失败：${msg}`);
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText;
+        }
     }
 
     _normalizeQmsRichText(input, mode = 'html') {
@@ -3266,15 +5109,14 @@ export class AdminView {
     buildQmsQuestionPayload(problemJson, qid) {
         // /qms/question：新增/修改题目。根据抓包观测，uuid 在“新增”时可缺省，响应只回 id。
         const base = this.buildQmsDraftUpdatePayload(problemJson, qid, (() => {
-            // 若刚完成用例回填，则从本地缓存兜底带上 dataFileUrl/caseCount/checker（避免用户没点 update 预览也能提交）
+            // 若刚完成用例回填，则从本地缓存兜底带上 dataFileUrl/caseCount（避免用户没点 update 预览也能提交）
+            // 注意：checker 文件名禁止在这里兜底缓存，必须以导入的 source.zip / problem.json 为准。
             try {
                 const dataFileUrl = localStorage.getItem('tracker_qms_last_dataFileUrl') || '';
                 const caseCount = localStorage.getItem('tracker_qms_last_caseCount') || '';
-                const checker = localStorage.getItem('tracker_qms_last_checker') || '';
                 const o = {};
                 if (dataFileUrl) o.dataFileUrl = dataFileUrl;
                 if (caseCount) o.caseCount = Number(caseCount);
-                if (checker) o.codingCheckerFileName = checker;
                 return o;
             } catch (_) { return null; }
         })());
@@ -3568,6 +5410,65 @@ export class AdminView {
         }).join('');
 
         detailsEl.innerHTML = rows ? `<div style="border-radius: 12px; overflow:hidden;">${rows}</div>` : `<div style="padding: 18px; text-align:center; color:#999;">（无明细）</div>`;
+    }
+
+    async loadAiPuzzleAdminOverview() {
+        const schemaEl = document.getElementById('admin-ai-puzzle-schema');
+        const cardsEl = document.getElementById('admin-ai-puzzle-stats-cards');
+        const recentEl = document.getElementById('admin-ai-puzzle-recent-submissions');
+        if (schemaEl) schemaEl.textContent = '加载中...';
+        if (cardsEl) cardsEl.innerHTML = '加载中...';
+        if (recentEl) recentEl.innerHTML = '加载中...';
+        try {
+            const [schema, stats] = await Promise.all([
+                this.apiService.aiPuzzleAdminSchema(),
+                this.apiService.aiPuzzleAdminStats()
+            ]);
+            this.aiPuzzleAdminSchemaLast = schema;
+            this.aiPuzzleAdminStatsLast = stats;
+            if (schemaEl) schemaEl.textContent = JSON.stringify(schema.tables || {}, null, 2);
+            if (cardsEl) {
+                cardsEl.innerHTML = `
+                    <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                        <div style="padding: 10px 12px; border:1px solid #f0f0f0; border-radius: 12px; background:#fff;">
+                            <div style="font-size: 12px; color:#666;">题目数</div>
+                            <div style="font-size: 20px; font-weight: 900; color:#111827;">${Number(stats.problem_count || 0)}</div>
+                        </div>
+                        <div style="padding: 10px 12px; border:1px solid #f0f0f0; border-radius: 12px; background:#fff;">
+                            <div style="font-size: 12px; color:#666;">提交数</div>
+                            <div style="font-size: 20px; font-weight: 900; color:#111827;">${Number(stats.submission_count || 0)}</div>
+                        </div>
+                        <div style="padding: 10px 12px; border:1px solid #f0f0f0; border-radius: 12px; background:#fff;">
+                            <div style="font-size: 12px; color:#666;">公开提交</div>
+                            <div style="font-size: 20px; font-weight: 900; color:#111827;">${Number(stats.public_submission_count || 0)}</div>
+                        </div>
+                        <div style="padding: 10px 12px; border:1px solid #f0f0f0; border-radius: 12px; background:#fff;">
+                            <div style="font-size: 12px; color:#666;">最佳成绩记录</div>
+                            <div style="font-size: 20px; font-weight: 900; color:#111827;">${Number(stats.best_user_count || 0)}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            const recent = Array.isArray(stats.recent_submissions) ? stats.recent_submissions : [];
+            if (recentEl) {
+                recentEl.innerHTML = recent.length ? recent.map(item => `
+                    <div style="padding:10px 0; border-bottom:1px solid #f0f0f0;">
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                            <div style="font-size:12px; font-weight:800; color:#111827;">${this.escapeHtml(String(item.user_id || 'guest'))}</div>
+                            <div style="font-size:12px; color:#6b7280;">${this.escapeHtml(String(item.puzzle_id || ''))}</div>
+                            <div style="font-size:12px; color:#6b7280;">${this.escapeHtml(String(item.final_status || ''))}</div>
+                            <div style="font-size:12px; color:#6b7280;">score=${Number(item.final_score || 0).toFixed(2)}</div>
+                        </div>
+                        <div style="margin-top:4px; font-size:12px; color:#6b7280;">${this.escapeHtml(String(item.created_at || ''))}</div>
+                    </div>
+                `).join('') : '<div style="color:#999;">（暂无提交）</div>';
+            }
+        } catch (e) {
+            const msg = e && e.message ? e.message : '加载失败';
+            if (schemaEl) schemaEl.textContent = msg;
+            if (cardsEl) cardsEl.innerHTML = `<div style="color:#ff4d4f;">${this.escapeHtml(msg)}</div>`;
+            if (recentEl) recentEl.innerHTML = `<div style="color:#ff4d4f;">${this.escapeHtml(msg)}</div>`;
+        }
     }
 
     escapeHtml(s) {
@@ -4111,6 +6012,146 @@ export class AdminView {
                 btn.disabled = false;
                 btn.textContent = oldText || '拉取数据';
             }
+        }
+    }
+
+    /**
+     * 读取竞赛管理面板中的 contestId
+     */
+    getContestDirectContestId() {
+        const input = document.getElementById('admin-contest-direct-contest-id');
+        const errorEl = document.getElementById('admin-contest-direct-error');
+        const contestId = parseInt(String(input && input.value ? input.value : '').trim(), 10);
+        if (!contestId || contestId <= 0) {
+            if (errorEl) {
+                errorEl.textContent = '请填写有效的 contestId（正整数）';
+                errorEl.style.display = 'block';
+            }
+            return 0;
+        }
+        try { localStorage.setItem('admin_contest_direct_contest_id', String(contestId)); } catch (_) {}
+        return contestId;
+    }
+
+    /**
+     * 渲染 ACM 榜单/Rating 直调结果摘要
+     */
+    renderContestDirectSummary(data, mode) {
+        const summaryEl = document.getElementById('admin-contest-direct-summary');
+        if (!summaryEl) return;
+
+        if (mode === 'persistRank') {
+            const success = !!data?.success;
+            summaryEl.innerHTML = `
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+                    <div><strong>比赛ID:</strong> ${data?.contestId ?? '-'}</div>
+                    <div><strong>比赛名称:</strong> ${data?.contestName || '-'}</div>
+                    <div><strong>执行结果:</strong> <span style="color:${success ? '#52c41a' : '#ff4d4f'};">${success ? '成功' : '未完成'}</span></div>
+                    <div><strong>榜单数:</strong> ${data?.beforeRankCount ?? 0} -> ${data?.afterRankCount ?? 0}</div>
+                    <div><strong>持久化状态:</strong> ${data?.beforeRankSaveStatus || '-'} -> ${data?.afterRankSaveStatus || '-'}</div>
+                </div>
+            `;
+        } else {
+            const finished = !!data?.finished;
+            const hintHtml = data?.hint
+                ? `<div style="margin-top:8px; color:#d46b08;"><strong>提示:</strong> ${data.hint}</div>`
+                : '';
+            summaryEl.innerHTML = `
+                <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+                    <div><strong>比赛ID:</strong> ${data?.contestId ?? '-'}</div>
+                    <div><strong>比赛名称:</strong> ${data?.contestName || '-'}</div>
+                    <div><strong>执行结果:</strong> <span style="color:${finished ? '#52c41a' : '#ff4d4f'};">${finished ? 'Finished' : '未完成'}</span></div>
+                    <div><strong>Rating 状态:</strong> ${data?.beforeRatingStatus || '-'} -> ${data?.afterRatingStatus || '-'}</div>
+                </div>
+                ${hintHtml}
+            `;
+        }
+        summaryEl.style.display = 'block';
+    }
+
+    /**
+     * ACM 榜单直调持久化
+     */
+    async handleContestRankPersistDirect() {
+        const errorEl = document.getElementById('admin-contest-direct-error');
+        const summaryEl = document.getElementById('admin-contest-direct-summary');
+        const resultEl = document.getElementById('admin-contest-direct-result');
+        const btn = document.getElementById('admin-contest-rank-persist-direct-btn');
+        if (!errorEl || !summaryEl || !resultEl || !btn) return;
+
+        errorEl.style.display = 'none';
+        summaryEl.style.display = 'none';
+        const contestId = this.getContestDirectContestId();
+        if (!contestId) return;
+
+        const confirmed = confirm(
+            `确认直接持久化比赛 ${contestId} 的 ACM 榜单吗？\n\n` +
+            `接口：POST /problem/tracker/admin/acm/rank/persist-direct?contestId=${contestId}\n\n` +
+            `该操作会直接写入 acm_contest_rank，不经过 event。`
+        );
+        if (!confirmed) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '持久化中...';
+        resultEl.textContent = `请求中...\ncontestId=${contestId}\nmode=persist-direct\n`;
+
+        try {
+            const data = await this.apiService.adminPersistAcmRankDirect(contestId);
+            this.renderContestDirectSummary(data, 'persistRank');
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            alert(`榜单持久化完成：afterRankCount=${data?.afterRankCount ?? 0}，status=${data?.afterRankSaveStatus || '-'}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '持久化失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '持久化 ACM 榜单';
+        }
+    }
+
+    /**
+     * ACM rating 直调 rerating
+     */
+    async handleContestReratingDirect() {
+        const errorEl = document.getElementById('admin-contest-direct-error');
+        const summaryEl = document.getElementById('admin-contest-direct-summary');
+        const resultEl = document.getElementById('admin-contest-direct-result');
+        const btn = document.getElementById('admin-contest-rerating-direct-btn');
+        if (!errorEl || !summaryEl || !resultEl || !btn) return;
+
+        errorEl.style.display = 'none';
+        summaryEl.style.display = 'none';
+        const contestId = this.getContestDirectContestId();
+        if (!contestId) return;
+
+        const confirmed = confirm(
+            `确认直接执行比赛 ${contestId} 的 ACM rerating 吗？\n\n` +
+            `接口：POST /problem/tracker/admin/acm/rating/rerating-direct?contestId=${contestId}\n\n` +
+            `该操作会直接调用 computeRating，不经过 event。`
+        );
+        if (!confirmed) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '执行中...';
+        resultEl.textContent = `请求中...\ncontestId=${contestId}\nmode=rerating-direct\n`;
+
+        try {
+            const data = await this.apiService.adminReratingAcmDirect(contestId);
+            this.renderContestDirectSummary(data, 'rerating');
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            alert(`rerating 执行完成：status=${data?.afterRatingStatus || '-'}${data?.finished ? '' : '（未到 FINISHED）'}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : 'rerating 失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '执行 ACM rerating';
         }
     }
 

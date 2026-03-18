@@ -3,7 +3,11 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
+import time
+import uuid
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from datetime import datetime, timezone
 from pathlib import Path
 
 import requests
@@ -14,6 +18,10 @@ from pydantic import BaseModel
 ROOT = Path(__file__).resolve().parents[1]
 DEMO_ROOT = Path(__file__).resolve().parent
 CHALLENGES_DIR = DEMO_ROOT / "challenges"
+AI_PUZZLES_DIR = DEMO_ROOT / "puzzles"
+AI_PUZZLE_DATA_DIR = DEMO_ROOT / "data"
+AI_PUZZLE_STORE_PATH = AI_PUZZLE_DATA_DIR / "ai_puzzle_store.json"
+AI_PUZZLE_STORE_LOCK = threading.Lock()
 
 # 可选：从本地文件读取 Dify 配置（仅用于本地开发；文件已在 .gitignore 中忽略）
 def _load_local_config() -> None:
@@ -832,6 +840,786 @@ def evaluate(req: EvaluateRequest):
         "quality_judge_query": quality_debug_query if req.debug else None,
         "copy_check_query": copy_query if req.debug else None,
         "details": details,
+    }
+
+
+class AiPuzzleSubmitRequest(BaseModel):
+    puzzle_id: str
+    user_prompt: str
+    user_id: str | None = None
+    visibility: str | None = "public"  # public | private | ac_only
+    anonymous: bool | None = False
+    model: str | None = None
+    api_key: str | None = None
+    base_url: str | None = None
+    debug: bool | None = False
+
+
+def _ensure_ai_puzzle_store() -> None:
+    AI_PUZZLE_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    if AI_PUZZLE_STORE_PATH.exists():
+        return
+    empty = {
+        "submissions": [],
+        "submission_runs": [],
+        "user_best": [],
+        "leaderboard_snapshots": [],
+        "submission_visibility": [],
+    }
+    AI_PUZZLE_STORE_PATH.write_text(json.dumps(empty, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _load_ai_puzzle_store() -> dict:
+    _ensure_ai_puzzle_store()
+    try:
+        data = json.loads(AI_PUZZLE_STORE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    if not isinstance(data, dict):
+        data = {}
+    data.setdefault("submissions", [])
+    data.setdefault("submission_runs", [])
+    data.setdefault("user_best", [])
+    data.setdefault("leaderboard_snapshots", [])
+    data.setdefault("submission_visibility", [])
+    return data
+
+
+def _save_ai_puzzle_store(data: dict) -> None:
+    _ensure_ai_puzzle_store()
+    AI_PUZZLE_STORE_PATH.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
+def _load_ai_puzzles() -> list[dict]:
+    if not AI_PUZZLES_DIR.exists():
+        return []
+    out: list[dict] = []
+    for fp in sorted(AI_PUZZLES_DIR.glob("*.json")):
+        try:
+            item = json.loads(fp.read_text(encoding="utf-8"))
+            if not isinstance(item, dict):
+                continue
+            item["_file"] = fp.name
+            out.append(item)
+        except Exception:
+            continue
+    return out
+
+
+def _get_ai_puzzle(puzzle_id: str) -> dict:
+    for item in _load_ai_puzzles():
+        if str(item.get("id") or "") == str(puzzle_id):
+            return item
+    raise HTTPException(status_code=404, detail=f"puzzle_id not found: {puzzle_id}")
+
+
+def _ai_puzzle_now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def _ai_puzzle_today() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
+
+
+def _next_submission_id() -> str:
+    return f"sub_{int(time.time() * 1000)}_{uuid.uuid4().hex[:8]}"
+
+
+def _normalize_text_basic(text: str) -> str:
+    return str(text or "").strip()
+
+
+def _is_chinese_only(text: str) -> bool:
+    s = str(text or "")
+    return bool(s) and bool(re.fullmatch(r"[\u4e00-\u9fff]+", s))
+
+
+def _is_palindrome(text: str) -> bool:
+    s = str(text or "")
+    return bool(s) and s == s[::-1]
+
+
+def _apply_rule(rule: dict, text: str, ctx: dict, phase: str) -> str | None:
+    rule_type = str((rule or {}).get("type") or "").strip()
+    if not rule_type:
+        return None
+    s = str(text or "")
+    if rule_type == "length":
+        min_v = rule.get("min")
+        max_v = rule.get("max")
+        if min_v is not None and max_v is not None and int(min_v) == int(max_v):
+            exact = int(min_v)
+            if len(s) != exact:
+                return f"{phase}长度需 = {exact}"
+            return None
+        if min_v is not None and len(s) < int(min_v):
+            return f"{phase}长度需 >= {int(min_v)}"
+        if max_v is not None and len(s) > int(max_v):
+            return f"{phase}长度需 <= {int(max_v)}"
+        return None
+    if rule_type == "charset":
+        value = str(rule.get("value") or "").strip()
+        if value == "chinese_only" and not _is_chinese_only(s):
+            return f"{phase}必须为全中文且不含空格/标点/英文/数字"
+        if value == "no_digit" and re.search(r"\d", s):
+            return f"{phase}不能包含数字"
+        if value == "no_ascii" and re.search(r"[A-Za-z]", s):
+            return f"{phase}不能包含英文字符"
+        if value == "single_line" and ("\n" in s or "\r" in s):
+            return f"{phase}必须为单行"
+        if value == "no_whitespace" and re.search(r"\s", s):
+            return f"{phase}不能包含空白字符"
+        return None
+    if rule_type == "palindrome":
+        if not _is_palindrome(s):
+            return f"{phase}必须是回文串"
+        return None
+    if rule_type == "forbidSubstring":
+        vals = rule.get("values") if isinstance(rule.get("values"), list) else []
+        hit = [str(v) for v in vals if str(v) and str(v) in s]
+        if hit:
+            return f"{phase}不能包含：{'、'.join(hit[:5])}"
+        return None
+    if rule_type == "regex":
+        pattern = str(rule.get("pattern") or "")
+        should_match = bool(rule.get("should_match", True))
+        matched = bool(pattern) and bool(re.fullmatch(pattern, s))
+        if should_match and not matched:
+            return f"{phase}不符合格式要求"
+        if (not should_match) and matched:
+            return f"{phase}命中了禁止格式"
+        return None
+    if rule_type == "notEqualInput":
+        prompt_text = str(ctx.get("prompt_text") or "")
+        if s == prompt_text:
+            return f"{phase}不能与输入 prompt 完全相同"
+        return None
+    if rule_type == "notContainInputChars":
+        prompt_text = str(ctx.get("prompt_text") or "")
+        forbid_chars = {ch for ch in prompt_text if ch.strip()}
+        hit = [ch for ch in s if ch in forbid_chars]
+        if hit:
+            uniq = []
+            for ch in hit:
+                if ch not in uniq:
+                    uniq.append(ch)
+            return f"{phase}不能包含输入中的字符：{'、'.join(uniq[:8])}"
+        return None
+    if rule_type == "lengthCompareInput":
+        op = str(rule.get("operator") or "gt").strip()
+        prompt_len = len(str(ctx.get("prompt_text") or ""))
+        cur_len = len(s)
+        ok = True
+        if op == "gt":
+            ok = cur_len > prompt_len
+        elif op == "gte":
+            ok = cur_len >= prompt_len
+        elif op == "lt":
+            ok = cur_len < prompt_len
+        elif op == "lte":
+            ok = cur_len <= prompt_len
+        elif op == "eq":
+            ok = cur_len == prompt_len
+        if not ok:
+            op_desc = {
+                "gt": ">",
+                "gte": ">=",
+                "lt": "<",
+                "lte": "<=",
+                "eq": "=",
+            }.get(op, op)
+            return f"{phase}长度需 {op_desc} 输入长度"
+        return None
+    if rule_type == "notAllSameChar":
+        uniq = {ch for ch in s}
+        if len(uniq) <= 1:
+            return f"{phase}不能全部由同一个汉字组成"
+        return None
+    if rule_type == "containsAllSubstrings":
+        vals = rule.get("values") if isinstance(rule.get("values"), list) else []
+        missing = [str(v) for v in vals if str(v) and str(v) not in s]
+        if missing:
+            return f"{phase}必须包含：{'、'.join(missing[:8])}"
+        return None
+    return None
+
+
+def _validate_rules(rules: list[dict], text: str, ctx: dict, phase: str) -> tuple[bool, list[str], str]:
+    normalized = _normalize_text_basic(text)
+    violations: list[str] = []
+    for rule in rules or []:
+        if not isinstance(rule, dict):
+            continue
+        reason = _apply_rule(rule, normalized, ctx, phase)
+        if reason:
+            violations.append(reason)
+    return len(violations) == 0, violations, normalized
+
+
+def _effective_visibility(raw_visibility: str, solved: bool) -> str:
+    v = str(raw_visibility or "public").strip().lower()
+    if v not in {"public", "private", "ac_only"}:
+        v = "public"
+    if v == "ac_only":
+        return "public" if solved else "private"
+    return v
+
+
+def _pick_best_submission(items: list[dict]) -> dict | None:
+    if not items:
+        return None
+    def sort_key(item: dict):
+        return (
+            float(item.get("final_score", 0.0) or 0.0),
+            float(item.get("pass_rate", 0.0) or 0.0),
+            -int(item.get("token_total", 0) or 0),
+            -int(item.get("created_at_ts", 0) or 0),
+        )
+    return sorted(items, key=sort_key, reverse=True)[0]
+
+
+def _rebuild_ai_puzzle_materialized_views(store: dict) -> None:
+    submissions = [x for x in store.get("submissions", []) if isinstance(x, dict)]
+    for sub in submissions:
+        try:
+            solved = bool(sub.get("solved"))
+            pass_rate = float(sub.get("pass_rate", 0.0) or 0.0)
+            if solved and pass_rate >= 1.0:
+                judge_spec = sub.get("judge_spec_json") if isinstance(sub.get("judge_spec_json"), dict) else {}
+                scoring = judge_spec.get("scoring") if isinstance(judge_spec.get("scoring"), dict) else {}
+                base_score = float(scoring.get("base_score") or 100.0)
+                sub["final_score"] = round(base_score, 4)
+        except Exception:
+            continue
+    best_map: dict[tuple[str, str], dict] = {}
+    for sub in submissions:
+        key = (str(sub.get("user_id") or ""), str(sub.get("puzzle_id") or ""))
+        cur = best_map.get(key)
+        if cur is None:
+            best_map[key] = sub
+            continue
+        cur_score = float(cur.get("final_score", 0.0) or 0.0)
+        new_score = float(sub.get("final_score", 0.0) or 0.0)
+        if new_score > cur_score:
+            best_map[key] = sub
+        elif new_score == cur_score:
+            cur_ts = int(cur.get("created_at_ts", 0) or 0)
+            new_ts = int(sub.get("created_at_ts", 0) or 0)
+            if new_ts < cur_ts:
+                best_map[key] = sub
+
+    user_best_rows: list[dict] = []
+    snapshots: list[dict] = []
+    per_user: dict[str, list[dict]] = {}
+    per_user_daily: dict[tuple[str, str], list[dict]] = {}
+    per_problem: dict[str, list[dict]] = {}
+
+    for (user_id, puzzle_id), best in best_map.items():
+        user_all = [s for s in submissions if str(s.get("user_id") or "") == user_id and str(s.get("puzzle_id") or "") == puzzle_id]
+        first_ac = None
+        for s in sorted(user_all, key=lambda x: int(x.get("created_at_ts", 0) or 0)):
+            if bool(s.get("solved")):
+                first_ac = str(s.get("created_at") or "")
+                break
+        row = {
+            "user_id": user_id,
+            "puzzle_id": puzzle_id,
+            "best_submission_id": best.get("submission_id"),
+            "best_score": round(float(best.get("final_score", 0.0) or 0.0), 4),
+            "first_ac_at": first_ac or "",
+            "best_ac_at": str(best.get("created_at") or "") if bool(best.get("solved")) else "",
+            "submit_count": len(user_all),
+            "best_pass_rate": round(float(best.get("pass_rate", 0.0) or 0.0), 4),
+            "best_token_total": int(best.get("token_total", 0) or 0),
+        }
+        user_best_rows.append(row)
+        per_user.setdefault(user_id, []).append(row)
+        if row["best_ac_at"]:
+            date_key = row["best_ac_at"][:10]
+            per_user_daily.setdefault((date_key, user_id), []).append(row)
+        per_problem.setdefault(puzzle_id, []).append(row)
+
+    overall_rows: list[dict] = []
+    for user_id, rows in per_user.items():
+        solved_count = sum(1 for r in rows if r.get("best_ac_at"))
+        total_score = sum(float(r.get("best_score", 0.0) or 0.0) for r in rows)
+        avg_pass_rate = (sum(float(r.get("best_pass_rate", 0.0) or 0.0) for r in rows) / len(rows)) if rows else 0.0
+        ac_times = [r.get("first_ac_at") for r in rows if r.get("first_ac_at")]
+        earliest_ac = min(ac_times) if ac_times else ""
+        overall_rows.append({
+            "board_type": "overall",
+            "board_date": "",
+            "dimension_key": "overall",
+            "user_id": user_id,
+            "score": round(total_score, 4),
+            "solved_count": solved_count,
+            "avg_pass_rate": round(avg_pass_rate, 4),
+            "earliest_ac_time": earliest_ac,
+            "last_submit_at": max((str(s.get("created_at") or "") for s in submissions if str(s.get("user_id") or "") == user_id), default=""),
+        })
+
+    def _rank_rows(rows: list[dict], sort_key):
+        sorted_rows = sorted(rows, key=sort_key)
+        out: list[dict] = []
+        for idx, row in enumerate(sorted_rows, start=1):
+            row2 = dict(row)
+            row2["rank"] = idx
+            out.append(row2)
+        return out
+
+    snapshots.extend(_rank_rows(
+        overall_rows,
+        lambda r: (
+            -int(r.get("solved_count", 0) or 0),
+            -float(r.get("score", 0.0) or 0.0),
+            -float(r.get("avg_pass_rate", 0.0) or 0.0),
+            str(r.get("earliest_ac_time") or "9999-12-31T23:59:59+00:00"),
+            str(r.get("user_id") or ""),
+        ),
+    ))
+
+    for (date_key, user_id), rows in per_user_daily.items():
+        solved_count = sum(1 for r in rows if r.get("best_ac_at"))
+        total_score = sum(float(r.get("best_score", 0.0) or 0.0) for r in rows)
+        avg_pass_rate = (sum(float(r.get("best_pass_rate", 0.0) or 0.0) for r in rows) / len(rows)) if rows else 0.0
+        snapshots.append({
+            "board_type": "daily",
+            "board_date": date_key,
+            "dimension_key": date_key,
+            "user_id": user_id,
+            "score": round(total_score, 4),
+            "solved_count": solved_count,
+            "avg_pass_rate": round(avg_pass_rate, 4),
+            "earliest_ac_time": min((r.get("first_ac_at") for r in rows if r.get("first_ac_at")), default=""),
+            "last_submit_at": max((str(s.get("created_at") or "") for s in submissions if str(s.get("user_id") or "") == user_id and str(s.get("created_at") or "").startswith(date_key)), default=""),
+            "rank": 0,
+        })
+
+    daily_by_date: dict[str, list[dict]] = {}
+    for row in snapshots:
+        if row.get("board_type") == "daily":
+            daily_by_date.setdefault(str(row.get("board_date") or ""), []).append(row)
+    fixed_daily: list[dict] = []
+    for date_key, rows in daily_by_date.items():
+        fixed_daily.extend(_rank_rows(
+            rows,
+            lambda r: (
+                -int(r.get("solved_count", 0) or 0),
+                -float(r.get("score", 0.0) or 0.0),
+                -float(r.get("avg_pass_rate", 0.0) or 0.0),
+                str(r.get("earliest_ac_time") or "9999-12-31T23:59:59+00:00"),
+                str(r.get("user_id") or ""),
+            ),
+        ))
+
+    snapshots = [x for x in snapshots if x.get("board_type") != "daily"] + fixed_daily
+
+    for puzzle_id, rows in per_problem.items():
+        problem_rows = []
+        for row in rows:
+            problem_rows.append({
+                "board_type": "problem",
+                "board_date": "",
+                "dimension_key": puzzle_id,
+                "user_id": row.get("user_id"),
+                "score": round(float(row.get("best_score", 0.0) or 0.0), 4),
+                "solved_count": 1 if row.get("best_ac_at") else 0,
+                "avg_pass_rate": round(float(row.get("best_pass_rate", 0.0) or 0.0), 4),
+                "token_total": int(row.get("best_token_total", 0) or 0),
+                "earliest_ac_time": row.get("first_ac_at") or "",
+                "last_submit_at": row.get("best_ac_at") or "",
+                "best_submission_id": row.get("best_submission_id"),
+            })
+        snapshots.extend(_rank_rows(
+            problem_rows,
+            lambda r: (
+                -int(r.get("solved_count", 0) or 0),
+                int(r.get("token_total", 0) or 0) if int(r.get("solved_count", 0) or 0) > 0 else 10**9,
+                str(r.get("earliest_ac_time") or "9999-12-31T23:59:59+00:00"),
+                -float(r.get("score", 0.0) or 0.0),
+                str(r.get("user_id") or ""),
+            ),
+        ))
+
+    store["user_best"] = user_best_rows
+    store["leaderboard_snapshots"] = snapshots
+
+
+def _summarize_ai_puzzle(item: dict, store: dict | None = None) -> dict:
+    store = store or _load_ai_puzzle_store()
+    puzzle_id = str(item.get("id") or "")
+    submissions = [x for x in store.get("submissions", []) if isinstance(x, dict) and str(x.get("puzzle_id") or "") == puzzle_id]
+    public_count = sum(1 for x in submissions if str(x.get("visibility") or "public") == "public")
+    best_rows = [x for x in store.get("user_best", []) if isinstance(x, dict) and str(x.get("puzzle_id") or "") == puzzle_id]
+    judge_spec = item.get("judge_spec") if isinstance(item.get("judge_spec"), dict) else {}
+    scoring = judge_spec.get("scoring") if isinstance(judge_spec.get("scoring"), dict) else {}
+    model_profile = item.get("model_profile") if isinstance(item.get("model_profile"), dict) else {}
+    sample_prompt = ""
+    sample_output = ""
+    examples = item.get("examples") if isinstance(item.get("examples"), list) else []
+    if examples and isinstance(examples[0], dict):
+        sample_prompt = str(examples[0].get("prompt") or "")
+        sample_output = str(examples[0].get("output") or "")
+    return {
+        "id": puzzle_id,
+        "name": item.get("name") or item.get("title") or puzzle_id,
+        "title": item.get("title") or item.get("name") or puzzle_id,
+        "subtitle": item.get("subtitle") or "",
+        "description": item.get("description") or "",
+        "statement_md": item.get("statement_md") or item.get("description") or "",
+        "difficulty": item.get("difficulty") or "",
+        "tags": item.get("tags") if isinstance(item.get("tags"), list) else [],
+        "publish_status": item.get("publish_status") or "draft",
+        "validation_mode": item.get("validation_mode") or "single_turn",
+        "prompt_rule_count": len(judge_spec.get("prompt_rules") or []),
+        "output_rule_count": len(judge_spec.get("output_rules") or []),
+        "run_count": int(scoring.get("run_count") or model_profile.get("run_count") or 1),
+        "pass_mode": scoring.get("pass_mode") or "all_runs",
+        "sample_input": sample_prompt,
+        "sample_output": sample_output,
+        "public_submission_count": public_count,
+        "best_user_count": len(best_rows),
+    }
+
+
+def _score_ai_puzzle_submission(puzzle: dict, prompt_text: str, outputs: list[dict], token_total: int) -> dict:
+    judge_spec = puzzle.get("judge_spec") if isinstance(puzzle.get("judge_spec"), dict) else {}
+    scoring = judge_spec.get("scoring") if isinstance(judge_spec.get("scoring"), dict) else {}
+    run_count = max(1, int(scoring.get("run_count") or len(outputs) or 1))
+    pass_mode = str(scoring.get("pass_mode") or "all_runs")
+    min_pass_count = int(scoring.get("min_pass_count") or run_count)
+    if pass_mode == "k_of_n":
+        min_pass_count = max(1, min(run_count, min_pass_count))
+    pass_count = sum(1 for x in outputs if bool(x.get("output_valid")))
+    pass_rate = (pass_count / run_count) if run_count > 0 else 0.0
+    solved = pass_count >= (run_count if pass_mode == "all_runs" else min_pass_count)
+    base_score = float(scoring.get("base_score") or 100.0)
+    token_penalty_per_1k = float(scoring.get("token_penalty_per_1k") or 0.0)
+    token_penalty = (token_total / 1000.0) * token_penalty_per_1k
+    final_score = max(0.0, base_score * pass_rate - token_penalty)
+    if pass_rate >= 1.0:
+        final_score = base_score
+    if solved and final_score <= 0:
+        final_score = max(1.0, base_score * pass_rate)
+    return {
+        "run_count": run_count,
+        "pass_mode": pass_mode,
+        "min_pass_count": min_pass_count,
+        "pass_count": pass_count,
+        "pass_rate": round(pass_rate, 4),
+        "solved": solved,
+        "base_score": round(base_score, 4),
+        "token_penalty": round(token_penalty, 4),
+        "final_score": round(final_score, 4),
+    }
+
+
+@app.get("/api/ai-puzzle/problems")
+def list_ai_puzzles():
+    with AI_PUZZLE_STORE_LOCK:
+        store = _load_ai_puzzle_store()
+        _rebuild_ai_puzzle_materialized_views(store)
+        _save_ai_puzzle_store(store)
+    items = [_summarize_ai_puzzle(p, store) for p in _load_ai_puzzles() if str(p.get("publish_status") or "draft") != "deleted"]
+    return {"code": 0, "msg": "OK", "data": {"problems": items}}
+
+
+@app.get("/api/ai-puzzle/problems/{puzzle_id}")
+def get_ai_puzzle_problem(puzzle_id: str):
+    puzzle = _get_ai_puzzle(puzzle_id)
+    with AI_PUZZLE_STORE_LOCK:
+        store = _load_ai_puzzle_store()
+        _rebuild_ai_puzzle_materialized_views(store)
+        _save_ai_puzzle_store(store)
+    data = _summarize_ai_puzzle(puzzle, store)
+    data["input_requirement"] = puzzle.get("input_requirement") or ""
+    data["output_requirement"] = puzzle.get("output_requirement") or ""
+    data["forbidden_rules"] = puzzle.get("forbidden_rules") if isinstance(puzzle.get("forbidden_rules"), list) else []
+    data["judge_spec"] = puzzle.get("judge_spec") if isinstance(puzzle.get("judge_spec"), dict) else {}
+    data["model_profile"] = puzzle.get("model_profile") if isinstance(puzzle.get("model_profile"), dict) else {}
+    data["examples"] = puzzle.get("examples") if isinstance(puzzle.get("examples"), list) else []
+    data["version"] = int(puzzle.get("version") or 1)
+    return {"code": 0, "msg": "OK", "data": data}
+
+
+@app.post("/api/ai-puzzle/submit")
+def submit_ai_puzzle(req: AiPuzzleSubmitRequest):
+    puzzle = _get_ai_puzzle(req.puzzle_id)
+    prompt_text = str(req.user_prompt or "").strip()
+    if not prompt_text:
+        raise HTTPException(status_code=400, detail="user_prompt is required")
+
+    judge_spec = puzzle.get("judge_spec") if isinstance(puzzle.get("judge_spec"), dict) else {}
+    scoring = judge_spec.get("scoring") if isinstance(judge_spec.get("scoring"), dict) else {}
+    model_profile = puzzle.get("model_profile") if isinstance(puzzle.get("model_profile"), dict) else {}
+    prompt_rules = judge_spec.get("prompt_rules") if isinstance(judge_spec.get("prompt_rules"), list) else []
+    output_rules = judge_spec.get("output_rules") if isinstance(judge_spec.get("output_rules"), list) else []
+
+    prompt_valid, prompt_violations, normalized_prompt = _validate_rules(
+        prompt_rules,
+        prompt_text,
+        {"prompt_text": prompt_text},
+        "输入",
+    )
+
+    api_key = (req.api_key or DEFAULT_API_KEY or "").strip()
+    base_url = (req.base_url or DEFAULT_API_URL or "").strip()
+    run_count = max(1, int(scoring.get("run_count") or model_profile.get("run_count") or 1))
+    outputs: list[dict] = []
+    token_total = 0
+    raw_request = {
+        "puzzle_id": req.puzzle_id,
+        "user_prompt": prompt_text,
+        "model": req.model or DEFAULT_MODEL,
+        "base_url": base_url,
+        "run_count": run_count,
+    }
+
+    if prompt_valid:
+        if not api_key:
+            raise HTTPException(status_code=400, detail="api_key is required (set DIFY_API_KEY env or pass in request)")
+        for idx in range(run_count):
+            started = time.time()
+            out_text, used_tokens = call_llm(
+                prompt=prompt_text,
+                user_input="",
+                model=req.model or DEFAULT_MODEL,
+                api_key=api_key,
+                base_url=base_url,
+            )
+            token_total += int(used_tokens or 0)
+            output_valid, output_violations, normalized_output = _validate_rules(
+                output_rules,
+                out_text,
+                {"prompt_text": normalized_prompt},
+                "输出",
+            )
+            outputs.append({
+                "run_index": idx + 1,
+                "raw_output": out_text,
+                "normalized_output": normalized_output,
+                "output_valid": output_valid,
+                "output_violations": output_violations,
+                "token_output": int(used_tokens or 0),
+                "latency_ms": int((time.time() - started) * 1000),
+            })
+
+    score_data = _score_ai_puzzle_submission(puzzle, normalized_prompt, outputs, token_total)
+    created_at = _ai_puzzle_now_iso()
+    created_at_ts = int(time.time() * 1000)
+    submission_id = _next_submission_id()
+    user_id = str(req.user_id or "guest").strip() or "guest"
+    effective_visibility = _effective_visibility(str(req.visibility or "public"), bool(score_data.get("solved")))
+    anonymous = bool(req.anonymous)
+
+    submission = {
+        "submission_id": submission_id,
+        "puzzle_id": str(req.puzzle_id),
+        "user_id": user_id,
+        "user_prompt": prompt_text,
+        "normalized_prompt": normalized_prompt,
+        "prompt_valid": prompt_valid,
+        "prompt_violations": prompt_violations,
+        "final_status": "AC" if bool(score_data.get("solved")) else ("INVALID_PROMPT" if not prompt_valid else "FAIL"),
+        "final_score": float(score_data.get("final_score", 0.0) or 0.0),
+        "pass_rate": float(score_data.get("pass_rate", 0.0) or 0.0),
+        "solved": bool(score_data.get("solved")),
+        "run_count": int(score_data.get("run_count", run_count) or run_count),
+        "pass_count": int(score_data.get("pass_count", 0) or 0),
+        "pass_mode": str(score_data.get("pass_mode") or "all_runs"),
+        "model_name": str(req.model or DEFAULT_MODEL or ""),
+        "model_version": str(model_profile.get("model_version") or ""),
+        "temperature": float(model_profile.get("temperature") or 0.0),
+        "token_total": int(token_total),
+        "latency_ms": int(sum(int(x.get("latency_ms", 0) or 0) for x in outputs)),
+        "visibility": effective_visibility,
+        "visibility_requested": str(req.visibility or "public"),
+        "anonymous": anonymous,
+        "created_at": created_at,
+        "created_at_ts": created_at_ts,
+        "board_date": created_at[:10],
+        "version_no": int(puzzle.get("version") or 1),
+        "judge_spec_json": judge_spec,
+        "model_profile_json": model_profile,
+    }
+
+    run_rows = []
+    for item in outputs:
+        run_rows.append({
+            "submission_id": submission_id,
+            "run_index": int(item.get("run_index", 0) or 0),
+            "raw_output": item.get("raw_output") or "",
+            "normalized_output": item.get("normalized_output") or "",
+            "output_valid": bool(item.get("output_valid")),
+            "output_violation_json": item.get("output_violations") or [],
+            "judge_detail_json": {
+                "pass": bool(item.get("output_valid")),
+                "latency_ms": int(item.get("latency_ms", 0) or 0),
+            },
+            "token_input": 0,
+            "token_output": int(item.get("token_output", 0) or 0),
+            "latency_ms": int(item.get("latency_ms", 0) or 0),
+        })
+
+    visibility_row = {
+        "submission_id": submission_id,
+        "user_id": user_id,
+        "puzzle_id": str(req.puzzle_id),
+        "visibility": effective_visibility,
+        "anonymous": anonymous,
+        "updated_at": created_at,
+    }
+
+    with AI_PUZZLE_STORE_LOCK:
+        store = _load_ai_puzzle_store()
+        store["submissions"].append(submission)
+        store["submission_runs"].extend(run_rows)
+        store["submission_visibility"] = [x for x in store.get("submission_visibility", []) if isinstance(x, dict) and str(x.get("submission_id") or "") != submission_id]
+        store["submission_visibility"].append(visibility_row)
+        _rebuild_ai_puzzle_materialized_views(store)
+        _save_ai_puzzle_store(store)
+        best_rows = [x for x in store.get("user_best", []) if isinstance(x, dict) and str(x.get("user_id") or "") == user_id and str(x.get("puzzle_id") or "") == str(req.puzzle_id)]
+        best_row = best_rows[0] if best_rows else None
+
+    return {
+        "code": 0,
+        "msg": "OK",
+        "data": {
+            "submission_id": submission_id,
+            "problem": _summarize_ai_puzzle(puzzle),
+            "prompt_valid": prompt_valid,
+            "prompt_violations": prompt_violations,
+            "normalized_prompt": normalized_prompt,
+            "runs": outputs,
+            "score": score_data,
+            "submission": submission,
+            "best": best_row,
+            "raw_request": raw_request if req.debug else None,
+        },
+    }
+
+
+@app.get("/api/ai-puzzle/history")
+def get_ai_puzzle_history(user_id: str = "guest", puzzle_id: str = "", limit: int = 20):
+    uid = str(user_id or "guest").strip() or "guest"
+    pid = str(puzzle_id or "").strip()
+    lim = max(1, min(100, int(limit or 20)))
+    with AI_PUZZLE_STORE_LOCK:
+        store = _load_ai_puzzle_store()
+    rows = [x for x in store.get("submissions", []) if isinstance(x, dict) and str(x.get("user_id") or "") == uid]
+    if pid:
+        rows = [x for x in rows if str(x.get("puzzle_id") or "") == pid]
+    rows = sorted(rows, key=lambda x: int(x.get("created_at_ts", 0) or 0), reverse=True)[:lim]
+    return {"code": 0, "msg": "OK", "data": {"items": rows}}
+
+
+@app.get("/api/ai-puzzle/submissions")
+def list_ai_puzzle_submissions(puzzle_id: str = "", public_only: bool = True, limit: int = 20):
+    pid = str(puzzle_id or "").strip()
+    lim = max(1, min(100, int(limit or 20)))
+    with AI_PUZZLE_STORE_LOCK:
+        store = _load_ai_puzzle_store()
+    rows = [x for x in store.get("submissions", []) if isinstance(x, dict)]
+    if pid:
+        rows = [x for x in rows if str(x.get("puzzle_id") or "") == pid]
+    if public_only:
+        rows = [x for x in rows if str(x.get("visibility") or "public") == "public"]
+    rows = sorted(rows, key=lambda x: int(x.get("created_at_ts", 0) or 0), reverse=True)[:lim]
+    items = []
+    for row in rows:
+        item = dict(row)
+        if bool(item.get("anonymous")):
+            item["user_id"] = "anonymous"
+        items.append(item)
+    return {"code": 0, "msg": "OK", "data": {"items": items}}
+
+
+@app.get("/api/ai-puzzle/leaderboard")
+def get_ai_puzzle_leaderboard(board_type: str = "overall", dimension_key: str = "", board_date: str = "", limit: int = 50):
+    bt = str(board_type or "overall").strip().lower()
+    lim = max(1, min(200, int(limit or 50)))
+    with AI_PUZZLE_STORE_LOCK:
+        store = _load_ai_puzzle_store()
+        _rebuild_ai_puzzle_materialized_views(store)
+        _save_ai_puzzle_store(store)
+    rows = [x for x in store.get("leaderboard_snapshots", []) if isinstance(x, dict) and str(x.get("board_type") or "") == bt]
+    if bt == "problem" and str(dimension_key or "").strip():
+        rows = [x for x in rows if str(x.get("dimension_key") or "") == str(dimension_key).strip()]
+    if bt == "daily":
+        target_date = str(board_date or dimension_key or _ai_puzzle_today()).strip()
+        rows = [x for x in rows if str(x.get("board_date") or "") == target_date]
+    rows = sorted(rows, key=lambda x: int(x.get("rank", 999999) or 999999))[:lim]
+    return {"code": 0, "msg": "OK", "data": {"items": rows}}
+
+
+@app.get("/api/ai-puzzle/admin/schema")
+def get_ai_puzzle_admin_schema():
+    with AI_PUZZLE_STORE_LOCK:
+        store = _load_ai_puzzle_store()
+        _rebuild_ai_puzzle_materialized_views(store)
+        _save_ai_puzzle_store(store)
+    tables = {
+        "ai_puzzle_problem": {
+            "source": "json files in prompt_challenge_demo/puzzles",
+            "fields": ["id", "slug", "title", "statement_md", "difficulty", "judge_spec_json", "model_profile_json", "publish_status"],
+            "indexes": ["PRIMARY(id)", "UNIQUE(slug)", "IDX_publish_status"],
+        },
+        "ai_puzzle_problem_version": {
+            "source": "problem json version field",
+            "fields": ["problem_id", "version_no", "statement_md", "judge_spec_json", "model_profile_json"],
+            "indexes": ["PRIMARY(problem_id, version_no)"],
+        },
+        "ai_puzzle_submission": {
+            "rows": len(store.get("submissions", [])),
+            "fields": ["submission_id", "puzzle_id", "user_id", "user_prompt", "prompt_valid", "final_status", "final_score", "pass_rate", "token_total", "created_at"],
+            "indexes": ["PRIMARY(submission_id)", "IDX_user_problem_created(user_id,puzzle_id,created_at_ts)", "IDX_puzzle_score(puzzle_id,final_score)"],
+        },
+        "ai_puzzle_submission_run": {
+            "rows": len(store.get("submission_runs", [])),
+            "fields": ["submission_id", "run_index", "raw_output", "normalized_output", "output_valid", "output_violation_json", "latency_ms"],
+            "indexes": ["PRIMARY(submission_id, run_index)"],
+        },
+        "ai_puzzle_user_best": {
+            "rows": len(store.get("user_best", [])),
+            "fields": ["user_id", "puzzle_id", "best_submission_id", "best_score", "first_ac_at", "best_ac_at", "submit_count"],
+            "indexes": ["PRIMARY(user_id,puzzle_id)", "IDX_best_score(best_score)"],
+        },
+        "ai_puzzle_leaderboard_snapshot": {
+            "rows": len(store.get("leaderboard_snapshots", [])),
+            "fields": ["board_type", "board_date", "dimension_key", "user_id", "score", "rank", "solved_count", "last_submit_at"],
+            "indexes": ["IDX_board(board_type,board_date,dimension_key,rank)"],
+        },
+        "ai_puzzle_submission_visibility": {
+            "rows": len(store.get("submission_visibility", [])),
+            "fields": ["submission_id", "user_id", "puzzle_id", "visibility", "anonymous", "updated_at"],
+            "indexes": ["PRIMARY(submission_id)", "IDX_visibility(puzzle_id,visibility)"],
+        },
+    }
+    return {"code": 0, "msg": "OK", "data": {"tables": tables, "problems": [_summarize_ai_puzzle(p, store) for p in _load_ai_puzzles()]}}
+
+
+@app.get("/api/ai-puzzle/admin/stats")
+def get_ai_puzzle_admin_stats():
+    with AI_PUZZLE_STORE_LOCK:
+        store = _load_ai_puzzle_store()
+        _rebuild_ai_puzzle_materialized_views(store)
+        _save_ai_puzzle_store(store)
+    problems = _load_ai_puzzles()
+    recent_submissions = sorted(
+        [x for x in store.get("submissions", []) if isinstance(x, dict)],
+        key=lambda x: int(x.get("created_at_ts", 0) or 0),
+        reverse=True,
+    )[:20]
+    return {
+        "code": 0,
+        "msg": "OK",
+        "data": {
+            "problem_count": len(problems),
+            "submission_count": len(store.get("submissions", [])),
+            "public_submission_count": sum(1 for x in store.get("submissions", []) if isinstance(x, dict) and str(x.get("visibility") or "public") == "public"),
+            "best_user_count": len(store.get("user_best", [])),
+            "recent_submissions": recent_submissions,
+        },
     }
 
 

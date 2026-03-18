@@ -1,0 +1,50 @@
+{
+  "id": "cn_palindrome_dual",
+  "slug": "cn-palindrome-dual",
+  "version": 1,
+  "type": "constrained_prompt_puzzle",
+  "name": "双回文",
+  "title": "双回文：输入和输出都必须是全中文回文串",
+  "subtitle": "你的 prompt 本身要合法，模型输出也要合法。",
+  "description": "输入一个全中文回文串作为 prompt，要求 AI 的输出也必须是全中文回文串，且不能与输入完全相同。",
+  "statement_md": "## 题目\n提交给 AI 的内容本身必须是一个**全中文回文串**。\n\nAI 的最终输出也必须是一个**全中文回文串**，并且**不能与输入 prompt 完全相同**。\n\n## 提示\n- 这是约束型 prompt 解谜，不是文本匹配题。\n- 系统会对同一份提交进行多次采样，考察 prompt 的鲁棒性。\n- 你要同时满足“输入合法”和“输出合法”。",
+  "input_requirement": "prompt 需为长度 2~20 的全中文回文串。",
+  "output_requirement": "输出需为全中文回文串，长度 2~16，且不能与输入 prompt 完全相同。",
+  "forbidden_rules": [
+    "prompt 中不能出现英文或数字",
+    "输出不能与输入完全相同"
+  ],
+  "validation_mode": "single_turn",
+  "difficulty": "1700+",
+  "tags": [
+    "ai-puzzle",
+    "palindrome",
+    "constraint"
+  ],
+  "publish_status": "public",
+  "model_profile": {
+    "temperature": 0.1,
+    "run_count": 3,
+    "max_tokens": 64,
+    "model_version": "dify-default"
+  },
+  "judge_spec": {
+    "prompt_rules": [
+      { "type": "length", "min": 2, "max": 20 },
+      { "type": "charset", "value": "chinese_only" },
+      { "type": "palindrome" }
+    ],
+    "output_rules": [
+      { "type": "length", "min": 2, "max": 16 },
+      { "type": "charset", "value": "chinese_only" },
+      { "type": "palindrome" },
+      { "type": "notEqualInput" }
+    ],
+    "scoring": {
+      "base_score": 100,
+      "run_count": 3,
+      "pass_mode": "all_runs",
+      "token_penalty_per_1k": 1
+    }
+  }
+}

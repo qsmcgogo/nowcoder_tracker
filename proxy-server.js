@@ -412,14 +412,20 @@ app.use('/problem/tracker/acm-problem-open/batch-import-tracker', manualProxyHan
 app.use('/problem/tracker/admin/check', manualProxyHandler('/problem/tracker/admin/check'));
 // Admin: Year report (验数，不走缓存)
 app.use('/problem/tracker/admin/year-report', manualProxyHandler('/problem/tracker/admin/year-report'));
+app.use('/problem/tracker/admin/spring2026-fortune/redis/clear', manualProxyHandler('/problem/tracker/admin/spring2026-fortune/redis/clear'));
+app.use('/problem/tracker/admin/spring2026-third/chances/add', manualProxyHandler('/problem/tracker/admin/spring2026-third/chances/add'));
+app.use('/problem/tracker/admin/spring2026-third/task/share/claimed/clear', manualProxyHandler('/problem/tracker/admin/spring2026-third/task/share/claimed/clear'));
 
 // Prompt Challenge / Prompt Code (pre/线上)：挂在 /problem/tracker/api 前缀下
 app.use('/problem/tracker/api/prompt-challenge', manualProxyHandler('/problem/tracker/api/prompt-challenge'));
 app.use('/problem/tracker/api/prompt-code', manualProxyHandler('/problem/tracker/api/prompt-code'));
+// AI Puzzle 本地原型：当前仅走本地 FastAPI demo，后续远端服务就绪后可切到 manualProxyHandler
+app.use('/problem/tracker/api/ai-puzzle', localForwardHandler(`${PROMPT_CHALLENGE_URL}/api/ai-puzzle`));
 
 // Prompt Challenge demo API（本地 FastAPI service，保留给本地联调用）
 app.use('/api/prompt-challenge', localForwardHandler(`${PROMPT_CHALLENGE_URL}/api/prompt-challenge`));
 app.use('/api/prompt-code', localForwardHandler(`${PROMPT_CHALLENGE_URL}/api/prompt-code`));
+app.use('/api/ai-puzzle', localForwardHandler(`${PROMPT_CHALLENGE_URL}/api/ai-puzzle`));
 
 // Judge APIs - local dev only (对齐线上路径：/api/service/judge/*)
 app.use('/api/service/judge/submit', judgeProxyHandler('/api/service/judge/submit'));

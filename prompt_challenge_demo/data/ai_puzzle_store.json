@@ -1,0 +1,4835 @@
+{
+  "submissions": [
+    {
+      "submission_id": "sub_1773392463861_beddcc4d",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "我的爸爸的妻子是谁谁是子妻的爸爸的我",
+      "normalized_prompt": "我的爸爸的妻子是谁谁是子妻的爸爸的我",
+      "prompt_valid": false,
+      "prompt_violations": [
+        "输入长度需 <= 12"
+      ],
+      "final_status": "INVALID_PROMPT",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 0,
+      "latency_ms": 0,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:01:03+00:00",
+      "created_at_ts": 1773392463861,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 12
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773392605874_599530bc",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "好好好好",
+      "normalized_prompt": "好好好好",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 118,
+      "latency_ms": 10372,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:03:25+00:00",
+      "created_at_ts": 1773392605874,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 12
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773392675102_9527dcb2",
+      "puzzle_id": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "user_prompt": "输出个成年的年龄",
+      "normalized_prompt": "输出个成年的年龄",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "k_of_n",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 398,
+      "latency_ms": 20926,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:04:35+00:00",
+      "created_at_ts": 1773392675102,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 80
+          },
+          {
+            "type": "charset",
+            "value": "no_digit"
+          },
+          {
+            "type": "forbidSubstring",
+            "values": [
+              "数字",
+              "整数",
+              "编号",
+              "序号",
+              "一",
+              "二",
+              "三",
+              "四",
+              "五",
+              "六",
+              "七",
+              "八",
+              "九",
+              "十",
+              "百",
+              "千",
+              "万",
+              "亿"
+            ]
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "charset",
+            "value": "single_line"
+          },
+          {
+            "type": "charset",
+            "value": "no_whitespace"
+          },
+          {
+            "type": "regex",
+            "pattern": "[1-9]\\d*",
+            "should_match": true
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "k_of_n",
+          "min_pass_count": 2,
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 32,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773392699211_d8dfb55d",
+      "puzzle_id": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "user_prompt": "每周有几天，只输出答案",
+      "normalized_prompt": "每周有几天，只输出答案",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "AC",
+      "final_score": 100.0,
+      "pass_rate": 1.0,
+      "solved": true,
+      "run_count": 3,
+      "pass_count": 3,
+      "pass_mode": "k_of_n",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 63,
+      "latency_ms": 7430,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:04:59+00:00",
+      "created_at_ts": 1773392699211,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 80
+          },
+          {
+            "type": "charset",
+            "value": "no_digit"
+          },
+          {
+            "type": "forbidSubstring",
+            "values": [
+              "数字",
+              "整数",
+              "编号",
+              "序号",
+              "一",
+              "二",
+              "三",
+              "四",
+              "五",
+              "六",
+              "七",
+              "八",
+              "九",
+              "十",
+              "百",
+              "千",
+              "万",
+              "亿"
+            ]
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "charset",
+            "value": "single_line"
+          },
+          {
+            "type": "charset",
+            "value": "no_whitespace"
+          },
+          {
+            "type": "regex",
+            "pattern": "[1-9]\\d*",
+            "should_match": true
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "k_of_n",
+          "min_pass_count": 2,
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 32,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773393046459_18095ca7",
+      "puzzle_id": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "user_prompt": "每周有几天，只输出答案",
+      "normalized_prompt": "每周有几天，只输出答案",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "AC",
+      "final_score": 100.0,
+      "pass_rate": 1.0,
+      "solved": true,
+      "run_count": 3,
+      "pass_count": 3,
+      "pass_mode": "k_of_n",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 63,
+      "latency_ms": 8813,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:10:46+00:00",
+      "created_at_ts": 1773393046459,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 80
+          },
+          {
+            "type": "charset",
+            "value": "no_digit"
+          },
+          {
+            "type": "charset",
+            "value": "no_ascii"
+          },
+          {
+            "type": "regex",
+            "pattern": "[\\u4e00-\\u9fff，。！？；：“”‘’、（）《》〈〉【】…·\\s]+",
+            "should_match": true
+          },
+          {
+            "type": "forbidSubstring",
+            "values": [
+              "数",
+              "数字",
+              "整数",
+              "编号",
+              "序号",
+              "一",
+              "二",
+              "三",
+              "四",
+              "五",
+              "六",
+              "七",
+              "八",
+              "九",
+              "十",
+              "百",
+              "千",
+              "万",
+              "亿",
+              "number",
+              "print"
+            ]
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "charset",
+            "value": "single_line"
+          },
+          {
+            "type": "charset",
+            "value": "no_whitespace"
+          },
+          {
+            "type": "regex",
+            "pattern": "[1-9]\\d*",
+            "should_match": true
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "k_of_n",
+          "min_pass_count": 2,
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 32,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773393225813_5305d104",
+      "puzzle_id": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "user_prompt": "每周有几天，只输出答案",
+      "normalized_prompt": "每周有几天，只输出答案",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "AC",
+      "final_score": 100.0,
+      "pass_rate": 1.0,
+      "solved": true,
+      "run_count": 3,
+      "pass_count": 3,
+      "pass_mode": "k_of_n",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 63,
+      "latency_ms": 8864,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:13:45+00:00",
+      "created_at_ts": 1773393225813,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 80
+          },
+          {
+            "type": "charset",
+            "value": "no_digit"
+          },
+          {
+            "type": "charset",
+            "value": "no_ascii"
+          },
+          {
+            "type": "regex",
+            "pattern": "[\\u4e00-\\u9fff，。！？；：“”‘’、（）《》〈〉【】…·\\s]+",
+            "should_match": true
+          },
+          {
+            "type": "forbidSubstring",
+            "values": [
+              "数",
+              "数字",
+              "整数",
+              "编号",
+              "序号",
+              "一",
+              "二",
+              "三",
+              "四",
+              "五",
+              "六",
+              "七",
+              "八",
+              "九",
+              "十",
+              "百",
+              "千",
+              "万",
+              "亿",
+              "number",
+              "print"
+            ]
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "charset",
+            "value": "single_line"
+          },
+          {
+            "type": "charset",
+            "value": "no_whitespace"
+          },
+          {
+            "type": "regex",
+            "pattern": "[1-9]\\d*",
+            "should_match": true
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "k_of_n",
+          "min_pass_count": 2,
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 32,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773393337740_e85eac7f",
+      "puzzle_id": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "user_prompt": "每周有几天，只输出答案",
+      "normalized_prompt": "每周有几天，只输出答案",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "AC",
+      "final_score": 100.0,
+      "pass_rate": 1.0,
+      "solved": true,
+      "run_count": 3,
+      "pass_count": 3,
+      "pass_mode": "k_of_n",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 63,
+      "latency_ms": 6628,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:15:37+00:00",
+      "created_at_ts": 1773393337740,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 80
+          },
+          {
+            "type": "charset",
+            "value": "no_digit"
+          },
+          {
+            "type": "charset",
+            "value": "no_ascii"
+          },
+          {
+            "type": "regex",
+            "pattern": "[\\u4e00-\\u9fff，。！？；：“”‘’、（）《》〈〉【】…·\\s]+",
+            "should_match": true
+          },
+          {
+            "type": "forbidSubstring",
+            "values": [
+              "数",
+              "数字",
+              "整数",
+              "编号",
+              "序号",
+              "一",
+              "二",
+              "三",
+              "四",
+              "五",
+              "六",
+              "七",
+              "八",
+              "九",
+              "十",
+              "百",
+              "千",
+              "万",
+              "亿",
+              "number",
+              "print"
+            ]
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "charset",
+            "value": "single_line"
+          },
+          {
+            "type": "charset",
+            "value": "no_whitespace"
+          },
+          {
+            "type": "regex",
+            "pattern": "[1-9]\\d*",
+            "should_match": true
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "k_of_n",
+          "min_pass_count": 2,
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 32,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773393709559_d1f5cc1b",
+      "puzzle_id": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "user_prompt": "来个合法的身份证",
+      "normalized_prompt": "来个合法的身份证",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "k_of_n",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 411,
+      "latency_ms": 19159,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:21:49+00:00",
+      "created_at_ts": 1773393709559,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 80
+          },
+          {
+            "type": "charset",
+            "value": "no_digit"
+          },
+          {
+            "type": "charset",
+            "value": "no_ascii"
+          },
+          {
+            "type": "regex",
+            "pattern": "[\\u4e00-\\u9fff，。！？；：“”‘’、（）《》〈〉【】…·\\s]+",
+            "should_match": true
+          },
+          {
+            "type": "forbidSubstring",
+            "values": [
+              "数",
+              "数字",
+              "整数",
+              "编号",
+              "序号",
+              "一",
+              "二",
+              "三",
+              "四",
+              "五",
+              "六",
+              "七",
+              "八",
+              "九",
+              "十",
+              "百",
+              "千",
+              "万",
+              "亿",
+              "number",
+              "print"
+            ]
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "charset",
+            "value": "single_line"
+          },
+          {
+            "type": "charset",
+            "value": "no_whitespace"
+          },
+          {
+            "type": "regex",
+            "pattern": "[1-9]\\d*",
+            "should_match": true
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "k_of_n",
+          "min_pass_count": 2,
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 32,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773393872228_c9556122",
+      "puzzle_id": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "user_prompt": "输入一个非负的整形",
+      "normalized_prompt": "输入一个非负的整形",
+      "prompt_valid": false,
+      "prompt_violations": [
+        "输入不能包含：一"
+      ],
+      "final_status": "INVALID_PROMPT",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "k_of_n",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 0,
+      "latency_ms": 0,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:24:32+00:00",
+      "created_at_ts": 1773393872228,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 80
+          },
+          {
+            "type": "charset",
+            "value": "no_digit"
+          },
+          {
+            "type": "charset",
+            "value": "no_ascii"
+          },
+          {
+            "type": "regex",
+            "pattern": "[\\u4e00-\\u9fff，。！？；：“”‘’、（）《》〈〉【】…·\\s]+",
+            "should_match": true
+          },
+          {
+            "type": "forbidSubstring",
+            "values": [
+              "数",
+              "数字",
+              "整数",
+              "编号",
+              "序号",
+              "一",
+              "二",
+              "三",
+              "四",
+              "五",
+              "六",
+              "七",
+              "八",
+              "九",
+              "十",
+              "百",
+              "千",
+              "万",
+              "亿",
+              "number",
+              "print"
+            ]
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "charset",
+            "value": "single_line"
+          },
+          {
+            "type": "charset",
+            "value": "no_whitespace"
+          },
+          {
+            "type": "regex",
+            "pattern": "[1-9]\\d*",
+            "should_match": true
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "k_of_n",
+          "min_pass_count": 2,
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 32,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773393950575_8b4aa6cb",
+      "puzzle_id": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "user_prompt": "给个年纪",
+      "normalized_prompt": "给个年纪",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "k_of_n",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 166,
+      "latency_ms": 10858,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:25:50+00:00",
+      "created_at_ts": 1773393950575,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 80
+          },
+          {
+            "type": "charset",
+            "value": "no_digit"
+          },
+          {
+            "type": "charset",
+            "value": "no_ascii"
+          },
+          {
+            "type": "regex",
+            "pattern": "[\\u4e00-\\u9fff，。！？；：“”‘’、（）《》〈〉【】…·\\s]+",
+            "should_match": true
+          },
+          {
+            "type": "forbidSubstring",
+            "values": [
+              "数",
+              "数字",
+              "整数",
+              "编号",
+              "序号",
+              "一",
+              "二",
+              "三",
+              "四",
+              "五",
+              "六",
+              "七",
+              "八",
+              "九",
+              "十",
+              "百",
+              "千",
+              "万",
+              "亿",
+              "number",
+              "print"
+            ]
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "charset",
+            "value": "single_line"
+          },
+          {
+            "type": "charset",
+            "value": "no_whitespace"
+          },
+          {
+            "type": "regex",
+            "pattern": "[1-9]\\d*",
+            "should_match": true
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "k_of_n",
+          "min_pass_count": 2,
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 32,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394025374_e45d0353",
+      "puzzle_id": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "user_prompt": "圆周率的整数部分，只输出一个数字",
+      "normalized_prompt": "圆周率的整数部分，只输出一个数字",
+      "prompt_valid": false,
+      "prompt_violations": [
+        "输入不能包含：数、数字、整数、一"
+      ],
+      "final_status": "INVALID_PROMPT",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "k_of_n",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 0,
+      "latency_ms": 0,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:27:05+00:00",
+      "created_at_ts": 1773394025374,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 80
+          },
+          {
+            "type": "charset",
+            "value": "no_digit"
+          },
+          {
+            "type": "charset",
+            "value": "no_ascii"
+          },
+          {
+            "type": "regex",
+            "pattern": "[\\u4e00-\\u9fff，。！？；：“”‘’、（）《》〈〉【】…·\\s]+",
+            "should_match": true
+          },
+          {
+            "type": "forbidSubstring",
+            "values": [
+              "数",
+              "数字",
+              "整数",
+              "编号",
+              "序号",
+              "一",
+              "二",
+              "三",
+              "四",
+              "五",
+              "六",
+              "七",
+              "八",
+              "九",
+              "十",
+              "百",
+              "千",
+              "万",
+              "亿",
+              "number",
+              "print"
+            ]
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "charset",
+            "value": "single_line"
+          },
+          {
+            "type": "charset",
+            "value": "no_whitespace"
+          },
+          {
+            "type": "regex",
+            "pattern": "[1-9]\\d*",
+            "should_match": true
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "k_of_n",
+          "min_pass_count": 2,
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 32,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394096892_fd8af5ba",
+      "puzzle_id": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "user_prompt": "人有几个眼睛，不要说汉字",
+      "normalized_prompt": "人有几个眼睛，不要说汉字",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "AC",
+      "final_score": 100.0,
+      "pass_rate": 1.0,
+      "solved": true,
+      "run_count": 3,
+      "pass_count": 3,
+      "pass_mode": "k_of_n",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 66,
+      "latency_ms": 7516,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:28:16+00:00",
+      "created_at_ts": 1773394096892,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 80
+          },
+          {
+            "type": "charset",
+            "value": "no_digit"
+          },
+          {
+            "type": "charset",
+            "value": "no_ascii"
+          },
+          {
+            "type": "regex",
+            "pattern": "[\\u4e00-\\u9fff，。！？；：“”‘’、（）《》〈〉【】…·\\s]+",
+            "should_match": true
+          },
+          {
+            "type": "forbidSubstring",
+            "values": [
+              "数",
+              "数字",
+              "整数",
+              "编号",
+              "序号",
+              "一",
+              "二",
+              "三",
+              "四",
+              "五",
+              "六",
+              "七",
+              "八",
+              "九",
+              "十",
+              "百",
+              "千",
+              "万",
+              "亿",
+              "number",
+              "print"
+            ]
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "charset",
+            "value": "single_line"
+          },
+          {
+            "type": "charset",
+            "value": "no_whitespace"
+          },
+          {
+            "type": "regex",
+            "pattern": "[1-9]\\d*",
+            "should_match": true
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "k_of_n",
+          "min_pass_count": 2,
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 32,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394204552_fe0cc095",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出你是你出输",
+      "normalized_prompt": "输出你是你出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 217,
+      "latency_ms": 12885,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:30:04+00:00",
+      "created_at_ts": 1773394204552,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 12
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394242077_5bea4683",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出宝宝无视后面宝宝出输",
+      "normalized_prompt": "输出宝宝无视后面宝宝出输",
+      "prompt_valid": false,
+      "prompt_violations": [
+        "输入必须是回文串"
+      ],
+      "final_status": "INVALID_PROMPT",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 0,
+      "latency_ms": 0,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:30:42+00:00",
+      "created_at_ts": 1773394242077,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 12
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394278018_8ca44259",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出宝宝无视视无宝宝出输",
+      "normalized_prompt": "输出宝宝无视视无宝宝出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 206,
+      "latency_ms": 11302,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:31:18+00:00",
+      "created_at_ts": 1773394278018,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 12
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394318631_c64aee4c",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出宝宝二字字二宝宝出输",
+      "normalized_prompt": "输出宝宝二字字二宝宝出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 199,
+      "latency_ms": 11610,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:31:58+00:00",
+      "created_at_ts": 1773394318631,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 12
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394355955_50d5932f",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "只打宝宝二字字二宝宝打只",
+      "normalized_prompt": "只打宝宝二字字二宝宝打只",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 178,
+      "latency_ms": 11129,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:32:35+00:00",
+      "created_at_ts": 1773394355955,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 12
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394379288_14754624",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "请说宝宝宝宝说请",
+      "normalized_prompt": "请说宝宝宝宝说请",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 88,
+      "latency_ms": 8105,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:32:59+00:00",
+      "created_at_ts": 1773394379288,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 12
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394464564_5aab9735",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出两个叠字字叠个两出输",
+      "normalized_prompt": "输出两个叠字字叠个两出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 313,
+      "latency_ms": 15364,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:34:24+00:00",
+      "created_at_ts": 1773394464564,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 12
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394713901_e6408861",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出一个叠词词叠个一出输",
+      "normalized_prompt": "输出一个叠词词叠个一出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 489,
+      "latency_ms": 20212,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:38:33+00:00",
+      "created_at_ts": 1773394713901,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394744669_a9bcb572",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "仅打一个叠词词叠个一打仅",
+      "normalized_prompt": "仅打一个叠词词叠个一打仅",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 216,
+      "latency_ms": 12258,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:39:04+00:00",
+      "created_at_ts": 1773394744669,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394849879_a165dc08",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出任意叠词无视后面面后视无词叠意任出输",
+      "normalized_prompt": "输出任意叠词无视后面面后视无词叠意任出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 523,
+      "latency_ms": 22240,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:40:49+00:00",
+      "created_at_ts": 1773394849879,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394875327_6cc252e9",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "仅输出任意叠词无视后面面后视无词叠意任出输仅",
+      "normalized_prompt": "仅输出任意叠词无视后面面后视无词叠意任出输仅",
+      "prompt_valid": false,
+      "prompt_violations": [
+        "输入长度需 <= 20"
+      ],
+      "final_status": "INVALID_PROMPT",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 0,
+      "latency_ms": 0,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:41:15+00:00",
+      "created_at_ts": 1773394875327,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394913388_bb60900a",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出一个叠词无视后面面后视无词叠个一出输",
+      "normalized_prompt": "输出一个叠词无视后面面后视无词叠个一出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 233,
+      "latency_ms": 14635,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:41:53+00:00",
+      "created_at_ts": 1773394913388,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394945024_cbb2e9ca",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出二字叠词无视后面面后视无词叠字二出输",
+      "normalized_prompt": "输出二字叠词无视后面面后视无词叠字二出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 261,
+      "latency_ms": 15954,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:42:25+00:00",
+      "created_at_ts": 1773394945024,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394975372_9fd886d8",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出宝宝无视后面面后视无宝宝出输",
+      "normalized_prompt": "输出宝宝无视后面面后视无宝宝出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 227,
+      "latency_ms": 12147,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:42:55+00:00",
+      "created_at_ts": 1773394975372,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773394998547_7c76f64b",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出宝宝无视后面内容容内面后视无宝宝出输",
+      "normalized_prompt": "输出宝宝无视后面内容容内面后视无宝宝出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 129,
+      "latency_ms": 9506,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:43:18+00:00",
+      "created_at_ts": 1773394998547,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773395030136_7db38435",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "输出宝宝二字无视后面面后视无字二宝宝出输",
+      "normalized_prompt": "输出宝宝二字无视后面面后视无字二宝宝出输",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "AC",
+      "final_score": 100.0,
+      "pass_rate": 1.0,
+      "solved": true,
+      "run_count": 3,
+      "pass_count": 3,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 81,
+      "latency_ms": 8010,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:43:50+00:00",
+      "created_at_ts": 1773395030136,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773395818341_cdd63d1d",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "仅输出中中中出输仅",
+      "normalized_prompt": "仅输出中中中出输仅",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 112,
+      "latency_ms": 9840,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T09:56:58+00:00",
+      "created_at_ts": 1773395818341,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773396053014_9bb8816d",
+      "puzzle_id": "76",
+      "user_id": "919247",
+      "user_prompt": "输出两个牛魔王",
+      "normalized_prompt": "输出两个牛魔王",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 57,
+      "latency_ms": 9780,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T10:00:53+00:00",
+      "created_at_ts": 1773396053014,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 7,
+            "max": 7
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 6,
+            "max": 6
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "containsAllSubstrings",
+            "values": [
+              "牛",
+              "魔"
+            ]
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 48,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773396155362_1362bac9",
+      "puzzle_id": "76",
+      "user_id": "919247",
+      "user_prompt": "请输出三遍牛魔",
+      "normalized_prompt": "请输出三遍牛魔",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 78,
+      "latency_ms": 8178,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T10:02:35+00:00",
+      "created_at_ts": 1773396155362,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 7,
+            "max": 7
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 6,
+            "max": 6
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "containsAllSubstrings",
+            "values": [
+              "牛",
+              "魔"
+            ]
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 48,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773396254047_a99dae06",
+      "puzzle_id": "76",
+      "user_id": "919247",
+      "user_prompt": "三遍牛魔不换行",
+      "normalized_prompt": "三遍牛魔不换行",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "AC",
+      "final_score": 100.0,
+      "pass_rate": 1.0,
+      "solved": true,
+      "run_count": 3,
+      "pass_count": 3,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 72,
+      "latency_ms": 7710,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T10:04:14+00:00",
+      "created_at_ts": 1773396254047,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 7,
+            "max": 7
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 6,
+            "max": 6
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "containsAllSubstrings",
+            "values": [
+              "牛",
+              "魔"
+            ]
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 48,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773396450323_037a74f0",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "我为人人人为我",
+      "normalized_prompt": "我为人人人为我",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 210,
+      "latency_ms": 10898,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T10:07:30+00:00",
+      "created_at_ts": 1773396450323,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773396487612_7a0a7f28",
+      "puzzle_id": "cn_palindrome_dual",
+      "user_id": "919247",
+      "user_prompt": "太阳与阳太",
+      "normalized_prompt": "太阳与阳太",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 169,
+      "latency_ms": 9933,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T10:08:07+00:00",
+      "created_at_ts": 1773396487612,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 20
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 2,
+            "max": 16
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "palindrome"
+          },
+          {
+            "type": "notEqualInput"
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 64,
+        "model_version": "dify-default"
+      }
+    },
+    {
+      "submission_id": "sub_1773396859691_86ca851f",
+      "puzzle_id": "76",
+      "user_id": "919247",
+      "user_prompt": "含牛魔出六字文",
+      "normalized_prompt": "含牛魔出六字文",
+      "prompt_valid": true,
+      "prompt_violations": [],
+      "final_status": "FAIL",
+      "final_score": 0.0,
+      "pass_rate": 0.0,
+      "solved": false,
+      "run_count": 3,
+      "pass_count": 0,
+      "pass_mode": "all_runs",
+      "model_name": "doubao-seed-1-6-flash-250828",
+      "model_version": "dify-default",
+      "temperature": 0.1,
+      "token_total": 329,
+      "latency_ms": 14617,
+      "visibility": "public",
+      "visibility_requested": "public",
+      "anonymous": false,
+      "created_at": "2026-03-13T10:14:19+00:00",
+      "created_at_ts": 1773396859691,
+      "board_date": "2026-03-13",
+      "version_no": 1,
+      "judge_spec_json": {
+        "prompt_rules": [
+          {
+            "type": "length",
+            "min": 7,
+            "max": 7
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          }
+        ],
+        "output_rules": [
+          {
+            "type": "length",
+            "min": 6,
+            "max": 6
+          },
+          {
+            "type": "charset",
+            "value": "chinese_only"
+          },
+          {
+            "type": "containsAllSubstrings",
+            "values": [
+              "牛",
+              "魔"
+            ]
+          }
+        ],
+        "scoring": {
+          "base_score": 100,
+          "run_count": 3,
+          "pass_mode": "all_runs",
+          "token_penalty_per_1k": 1
+        }
+      },
+      "model_profile_json": {
+        "temperature": 0.1,
+        "run_count": 3,
+        "max_tokens": 48,
+        "model_version": "dify-default"
+      }
+    }
+  ],
+  "submission_runs": [
+    {
+      "submission_id": "sub_1773392605874_599530bc",
+      "run_index": 1,
+      "raw_output": "看起来你心情很不错呀，能和我分享下让你觉得开心的事吗？",
+      "normalized_output": "看起来你心情很不错呀，能和我分享下让你觉得开心的事吗？",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3181
+      },
+      "token_input": 0,
+      "token_output": 34,
+      "latency_ms": 3181
+    },
+    {
+      "submission_id": "sub_1773392605874_599530bc",
+      "run_index": 2,
+      "raw_output": "看起来你心情很不错呀，能用这么多“好”字表达积极的感受。可以和我多分享一下让你觉得好的事儿呢。",
+      "normalized_output": "看起来你心情很不错呀，能用这么多“好”字表达积极的感受。可以和我多分享一下让你觉得好的事儿呢。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3731
+      },
+      "token_input": 0,
+      "token_output": 48,
+      "latency_ms": 3731
+    },
+    {
+      "submission_id": "sub_1773392605874_599530bc",
+      "run_index": 3,
+      "raw_output": "看起来你心情很不错呢，能和我分享下让你觉得这么好的事情吗？",
+      "normalized_output": "看起来你心情很不错呢，能和我分享下让你觉得这么好的事情吗？",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3460
+      },
+      "token_input": 0,
+      "token_output": 36,
+      "latency_ms": 3460
+    },
+    {
+      "submission_id": "sub_1773392675102_9527dcb2",
+      "run_index": 1,
+      "raw_output": "在大多数国家和地区，成年的年龄为 18 岁。不过，不同国家和地区对于成年年龄的界定可能会有所不同。例如，在日本，2022 年 4 月 1 日起，成年年龄从 20 岁下调至 18 岁；在韩国，自 2023 年 6 月 28 日起，成年年龄从 20 岁改为 19 岁。\n\n如果你需要了解特定国家或地区的成年年龄，可以进一步明确需求，我将为你提供更精准的信息。",
+      "normalized_output": "在大多数国家和地区，成年的年龄为 18 岁。不过，不同国家和地区对于成年年龄的界定可能会有所不同。例如，在日本，2022 年 4 月 1 日起，成年年龄从 20 岁下调至 18 岁；在韩国，自 2023 年 6 月 28 日起，成年年龄从 20 岁改为 19 岁。\n\n如果你需要了解特定国家或地区的成年年龄，可以进一步明确需求，我将为你提供更精准的信息。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出必须为单行",
+        "输出不能包含空白字符",
+        "输出不符合格式要求"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 7192
+      },
+      "token_input": 0,
+      "token_output": 151,
+      "latency_ms": 7192
+    },
+    {
+      "submission_id": "sub_1773392675102_9527dcb2",
+      "run_index": 2,
+      "raw_output": "在大多数国家和地区，成年的年龄是 18 岁。不过，也有一些地方成年年龄的界定有所不同，比如在日本，2022 年 4 月 1 日起将成年年龄从 20 岁下调至 18 岁；在韩国，自 2023 年 6 月 28 日起，成年年龄也从 20 岁改为 18 岁。 \n\n如果你需要的是一个通用的成年年龄，通常为 18 岁。",
+      "normalized_output": "在大多数国家和地区，成年的年龄是 18 岁。不过，也有一些地方成年年龄的界定有所不同，比如在日本，2022 年 4 月 1 日起将成年年龄从 20 岁下调至 18 岁；在韩国，自 2023 年 6 月 28 日起，成年年龄也从 20 岁改为 18 岁。 \n\n如果你需要的是一个通用的成年年龄，通常为 18 岁。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出必须为单行",
+        "输出不能包含空白字符",
+        "输出不符合格式要求"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 7098
+      },
+      "token_input": 0,
+      "token_output": 141,
+      "latency_ms": 7098
+    },
+    {
+      "submission_id": "sub_1773392675102_9527dcb2",
+      "run_index": 3,
+      "raw_output": "在大多数国家和地区，成年的年龄是18岁。不过，在不同的法律场景和不同国家、地区，成年年龄的界定可能会有所差异。例如，在日本，2022年4月1日起将成年年龄从20岁下调至18岁；在韩国，自2024年起将成年年龄从20岁更改为19岁。",
+      "normalized_output": "在大多数国家和地区，成年的年龄是18岁。不过，在不同的法律场景和不同国家、地区，成年年龄的界定可能会有所差异。例如，在日本，2022年4月1日起将成年年龄从20岁下调至18岁；在韩国，自2024年起将成年年龄从20岁更改为19岁。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出不符合格式要求"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 6636
+      },
+      "token_input": 0,
+      "token_output": 106,
+      "latency_ms": 6636
+    },
+    {
+      "submission_id": "sub_1773392699211_d8dfb55d",
+      "run_index": 1,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 3068
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 3068
+    },
+    {
+      "submission_id": "sub_1773392699211_d8dfb55d",
+      "run_index": 2,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2213
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 2213
+    },
+    {
+      "submission_id": "sub_1773392699211_d8dfb55d",
+      "run_index": 3,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2149
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 2149
+    },
+    {
+      "submission_id": "sub_1773393046459_18095ca7",
+      "run_index": 1,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2540
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 2540
+    },
+    {
+      "submission_id": "sub_1773393046459_18095ca7",
+      "run_index": 2,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 3409
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 3409
+    },
+    {
+      "submission_id": "sub_1773393046459_18095ca7",
+      "run_index": 3,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2864
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 2864
+    },
+    {
+      "submission_id": "sub_1773393225813_5305d104",
+      "run_index": 1,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 3123
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 3123
+    },
+    {
+      "submission_id": "sub_1773393225813_5305d104",
+      "run_index": 2,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2894
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 2894
+    },
+    {
+      "submission_id": "sub_1773393225813_5305d104",
+      "run_index": 3,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2847
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 2847
+    },
+    {
+      "submission_id": "sub_1773393337740_e85eac7f",
+      "run_index": 1,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2365
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 2365
+    },
+    {
+      "submission_id": "sub_1773393337740_e85eac7f",
+      "run_index": 2,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2222
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 2222
+    },
+    {
+      "submission_id": "sub_1773393337740_e85eac7f",
+      "run_index": 3,
+      "raw_output": "7",
+      "normalized_output": "7",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2041
+      },
+      "token_input": 0,
+      "token_output": 21,
+      "latency_ms": 2041
+    },
+    {
+      "submission_id": "sub_1773393709559_d1f5cc1b",
+      "run_index": 1,
+      "raw_output": "身份证号码包含了公民的个人隐私信息，随意提供他人身份证号码是违法且侵犯他人隐私的行为。同时，伪造、使用虚假身份证号码也是违反法律规定的。\n\n如果你是因特定场景（如进行实名认证测试等）需要一个身份证号码示例，以下是一个虚构的示例（仅用于示意，不对应真实人员）：11010519491231002X 。但请记住，这只是虚构内容，不能用于非法或不恰当的用途。\n\n如果你需要使用身份证号码进行正规业务操作，建议你使用自己真实有效的身份证号码。",
+      "normalized_output": "身份证号码包含了公民的个人隐私信息，随意提供他人身份证号码是违法且侵犯他人隐私的行为。同时，伪造、使用虚假身份证号码也是违反法律规定的。\n\n如果你是因特定场景（如进行实名认证测试等）需要一个身份证号码示例，以下是一个虚构的示例（仅用于示意，不对应真实人员）：11010519491231002X 。但请记住，这只是虚构内容，不能用于非法或不恰当的用途。\n\n如果你需要使用身份证号码进行正规业务操作，建议你使用自己真实有效的身份证号码。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出必须为单行",
+        "输出不能包含空白字符",
+        "输出不符合格式要求"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 5879
+      },
+      "token_input": 0,
+      "token_output": 151,
+      "latency_ms": 5879
+    },
+    {
+      "submission_id": "sub_1773393709559_d1f5cc1b",
+      "run_index": 2,
+      "raw_output": "身份证号码包含了个人的重要隐私信息，随意获取、提供他人真实有效的身份证号是违法行为。同时，冒用他人身份证也是违法的行为。\n\n如果你是因为某些合理的业务场景需要测试身份证号码的格式等，可以使用一些符合身份证编码规则的虚拟号码，但这些号码不对应真实的个人身份。例如，一个虚拟的18位身份证号码示例（仅用于测试格式，无真实对应）：11010519491231002X 。\n\n需要强调的是，在实际使用中，一定要遵守法律法规，不得将虚拟号码用于非法或不恰当的用途。",
+      "normalized_output": "身份证号码包含了个人的重要隐私信息，随意获取、提供他人真实有效的身份证号是违法行为。同时，冒用他人身份证也是违法的行为。\n\n如果你是因为某些合理的业务场景需要测试身份证号码的格式等，可以使用一些符合身份证编码规则的虚拟号码，但这些号码不对应真实的个人身份。例如，一个虚拟的18位身份证号码示例（仅用于测试格式，无真实对应）：11010519491231002X 。\n\n需要强调的是，在实际使用中，一定要遵守法律法规，不得将虚拟号码用于非法或不恰当的用途。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出必须为单行",
+        "输出不能包含空白字符",
+        "输出不符合格式要求"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 8042
+      },
+      "token_input": 0,
+      "token_output": 156,
+      "latency_ms": 8042
+    },
+    {
+      "submission_id": "sub_1773393709559_d1f5cc1b",
+      "run_index": 3,
+      "raw_output": "身份证号码属于个人隐私信息，受到严格的法律保护，随意获取、提供他人身份证号码是违法行为。因此，我不能为你提供具体的身份证号码。\n\n如果你因某些合法用途（如进行实名认证测试等）需要模拟身份证号码，可以使用专门的身份证号码生成工具，但请确保仅用于合法合规的测试场景，且不将其用于任何非法或侵犯他人权益的行为。",
+      "normalized_output": "身份证号码属于个人隐私信息，受到严格的法律保护，随意获取、提供他人身份证号码是违法行为。因此，我不能为你提供具体的身份证号码。\n\n如果你因某些合法用途（如进行实名认证测试等）需要模拟身份证号码，可以使用专门的身份证号码生成工具，但请确保仅用于合法合规的测试场景，且不将其用于任何非法或侵犯他人权益的行为。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出必须为单行",
+        "输出不能包含空白字符",
+        "输出不符合格式要求"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 5238
+      },
+      "token_input": 0,
+      "token_output": 104,
+      "latency_ms": 5238
+    },
+    {
+      "submission_id": "sub_1773393950575_8b4aa6cb",
+      "run_index": 1,
+      "raw_output": "请你明确一下具体需求，比如是要给出某个角色、人物的年纪，还是其他相关内容呢？以便我更精准地为你提供合适的年纪信息。",
+      "normalized_output": "请你明确一下具体需求，比如是要给出某个角色、人物的年纪，还是其他相关内容呢？以便我更精准地为你提供合适的年纪信息。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出不符合格式要求"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 2977
+      },
+      "token_input": 0,
+      "token_output": 54,
+      "latency_ms": 2977
+    },
+    {
+      "submission_id": "sub_1773393950575_8b4aa6cb",
+      "run_index": 2,
+      "raw_output": "请你明确一下具体需求，比如是要一个虚构人物的年纪、某类人群的大概年纪范围等，这样我才能更精准地给你一个合适的年纪。",
+      "normalized_output": "请你明确一下具体需求，比如是要一个虚构人物的年纪、某类人群的大概年纪范围等，这样我才能更精准地给你一个合适的年纪。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出不符合格式要求"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4023
+      },
+      "token_input": 0,
+      "token_output": 55,
+      "latency_ms": 4023
+    },
+    {
+      "submission_id": "sub_1773393950575_8b4aa6cb",
+      "run_index": 3,
+      "raw_output": "请你明确一下具体要求，比如是要给某个人设定一个年纪，还是根据某些信息推测年纪，或者是其他相关内容，以便我更精准地给出合适的年纪。",
+      "normalized_output": "请你明确一下具体要求，比如是要给某个人设定一个年纪，还是根据某些信息推测年纪，或者是其他相关内容，以便我更精准地给出合适的年纪。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出不符合格式要求"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3858
+      },
+      "token_input": 0,
+      "token_output": 57,
+      "latency_ms": 3858
+    },
+    {
+      "submission_id": "sub_1773394096892_fd8af5ba",
+      "run_index": 1,
+      "raw_output": "2",
+      "normalized_output": "2",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2142
+      },
+      "token_input": 0,
+      "token_output": 22,
+      "latency_ms": 2142
+    },
+    {
+      "submission_id": "sub_1773394096892_fd8af5ba",
+      "run_index": 2,
+      "raw_output": "2",
+      "normalized_output": "2",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2430
+      },
+      "token_input": 0,
+      "token_output": 22,
+      "latency_ms": 2430
+    },
+    {
+      "submission_id": "sub_1773394096892_fd8af5ba",
+      "run_index": 3,
+      "raw_output": "2",
+      "normalized_output": "2",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2944
+      },
+      "token_input": 0,
+      "token_output": 22,
+      "latency_ms": 2944
+    },
+    {
+      "submission_id": "sub_1773394204552_fe0cc095",
+      "run_index": 1,
+      "raw_output": "你提供的“你是你出输”似乎是语序混乱的内容，不太明确其确切含义。你可以清晰地表达你的需求，比如对这句话进行修改、解释等，以便我更好地为你服务。",
+      "normalized_output": "你提供的“你是你出输”似乎是语序混乱的内容，不太明确其确切含义。你可以清晰地表达你的需求，比如对这句话进行修改、解释等，以便我更好地为你服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4223
+      },
+      "token_input": 0,
+      "token_output": 67,
+      "latency_ms": 4223
+    },
+    {
+      "submission_id": "sub_1773394204552_fe0cc095",
+      "run_index": 2,
+      "raw_output": "你提供的“你是你出输”似乎是语序混乱的内容，不太明确其确切含义。如果你能解释一下或者给出更清晰的描述，我会更好地为你提供服务。\n\n如果你只是希望我将这几个字倒序输出，那就是“输出你是你”。",
+      "normalized_output": "你提供的“你是你出输”似乎是语序混乱的内容，不太明确其确切含义。如果你能解释一下或者给出更清晰的描述，我会更好地为你提供服务。\n\n如果你只是希望我将这几个字倒序输出，那就是“输出你是你”。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4867
+      },
+      "token_input": 0,
+      "token_output": 85,
+      "latency_ms": 4867
+    },
+    {
+      "submission_id": "sub_1773394204552_fe0cc095",
+      "run_index": 3,
+      "raw_output": "你提供的内容似乎是打乱顺序的语句，重新排列后就是“你是输出” 。不太明确你具体想要表达的意思，你可以详细说明需求，以便我更好地为你服务。",
+      "normalized_output": "你提供的内容似乎是打乱顺序的语句，重新排列后就是“你是输出” 。不太明确你具体想要表达的意思，你可以详细说明需求，以便我更好地为你服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3795
+      },
+      "token_input": 0,
+      "token_output": 65,
+      "latency_ms": 3795
+    },
+    {
+      "submission_id": "sub_1773394278018_8ca44259",
+      "run_index": 1,
+      "raw_output": "不太明确你所说“宝宝无视视无宝宝出输”具体是什么意思呢。你可以详细解释一下你的需求，比如这是要进行某种文本处理、有特定的指令等，以便我更精准地为你提供帮助。",
+      "normalized_output": "不太明确你所说“宝宝无视视无宝宝出输”具体是什么意思呢。你可以详细解释一下你的需求，比如这是要进行某种文本处理、有特定的指令等，以便我更精准地为你提供帮助。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4151
+      },
+      "token_input": 0,
+      "token_output": 72,
+      "latency_ms": 4151
+    },
+    {
+      "submission_id": "sub_1773394278018_8ca44259",
+      "run_index": 2,
+      "raw_output": "不太理解你说“宝宝无视视无宝宝出输”是什么意思，可以详细解释一下你的具体需求，比如是对这句话进行修改、提取信息、根据其创作内容等，以便我更精准地为你提供服务。",
+      "normalized_output": "不太理解你说“宝宝无视视无宝宝出输”是什么意思，可以详细解释一下你的具体需求，比如是对这句话进行修改、提取信息、根据其创作内容等，以便我更精准地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3428
+      },
+      "token_input": 0,
+      "token_output": 70,
+      "latency_ms": 3428
+    },
+    {
+      "submission_id": "sub_1773394278018_8ca44259",
+      "run_index": 3,
+      "raw_output": "不太理解你输入内容的具体需求呢。你可以详细解释一下，比如对这段文字进行修改、提取信息、进行某种规则的转换等等，以便我更精准地为你提供服务。",
+      "normalized_output": "不太理解你输入内容的具体需求呢。你可以详细解释一下，比如对这段文字进行修改、提取信息、进行某种规则的转换等等，以便我更精准地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3723
+      },
+      "token_input": 0,
+      "token_output": 64,
+      "latency_ms": 3723
+    },
+    {
+      "submission_id": "sub_1773394318631_c64aee4c",
+      "run_index": 1,
+      "raw_output": "不太明确你所说的意思。你给出的“宝宝二字字二宝宝出输”看起来比较混乱，你是想要对这串内容进行排序、解读还是有其他需求呢？可以详细说明一下。",
+      "normalized_output": "不太明确你所说的意思。你给出的“宝宝二字字二宝宝出输”看起来比较混乱，你是想要对这串内容进行排序、解读还是有其他需求呢？可以详细说明一下。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3592
+      },
+      "token_input": 0,
+      "token_output": 67,
+      "latency_ms": 3592
+    },
+    {
+      "submission_id": "sub_1773394318631_c64aee4c",
+      "run_index": 2,
+      "raw_output": "我不太理解你提供内容的具体需求。你是想对“宝宝二字字二宝宝出输”进行整理排序、解读含义，还是有其他方面的要求呢？可以详细说明一下。",
+      "normalized_output": "我不太理解你提供内容的具体需求。你是想对“宝宝二字字二宝宝出输”进行整理排序、解读含义，还是有其他方面的要求呢？可以详细说明一下。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3687
+      },
+      "token_input": 0,
+      "token_output": 64,
+      "latency_ms": 3687
+    },
+    {
+      "submission_id": "sub_1773394318631_c64aee4c",
+      "run_index": 3,
+      "raw_output": "不太明确你说的意思。你输入的“宝宝二字字二宝宝出输”看起来比较混乱，你是想要对这几个字进行某种处理，比如重新排列、解读含义等，可以详细说明一下需求。",
+      "normalized_output": "不太明确你说的意思。你输入的“宝宝二字字二宝宝出输”看起来比较混乱，你是想要对这几个字进行某种处理，比如重新排列、解读含义等，可以详细说明一下需求。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4331
+      },
+      "token_input": 0,
+      "token_output": 68,
+      "latency_ms": 4331
+    },
+    {
+      "submission_id": "sub_1773394355955_50d5932f",
+      "run_index": 1,
+      "raw_output": "请你明确一下具体需求，比如对这串字符进行排序、解读、重新组合等，以便我更为精准地处理。",
+      "normalized_output": "请你明确一下具体需求，比如对这串字符进行排序、解读、重新组合等，以便我更为精准地处理。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3405
+      },
+      "token_input": 0,
+      "token_output": 50,
+      "latency_ms": 3405
+    },
+    {
+      "submission_id": "sub_1773394355955_50d5932f",
+      "run_index": 2,
+      "raw_output": "请你明确一下具体需求，比如对这串“只打宝宝二字字二宝宝打只”进行何种处理，是重新排序组成通顺语句、分析其含义之类的，以便我更为精准地为你提供服务。",
+      "normalized_output": "请你明确一下具体需求，比如对这串“只打宝宝二字字二宝宝打只”进行何种处理，是重新排序组成通顺语句、分析其含义之类的，以便我更为精准地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4259
+      },
+      "token_input": 0,
+      "token_output": 72,
+      "latency_ms": 4259
+    },
+    {
+      "submission_id": "sub_1773394355955_50d5932f",
+      "run_index": 3,
+      "raw_output": "请你明确一下具体需求，比如对这串字符进行排序、解读、调整成通顺语句之类的，以便我更为精准地为你提供服务。",
+      "normalized_output": "请你明确一下具体需求，比如对这串字符进行排序、解读、调整成通顺语句之类的，以便我更为精准地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3465
+      },
+      "token_input": 0,
+      "token_output": 56,
+      "latency_ms": 3465
+    },
+    {
+      "submission_id": "sub_1773394379288_14754624",
+      "run_index": 1,
+      "raw_output": "请宝宝宝宝说请\n\n不太确定你这样输入的具体意图，如果还有其他需求，可以详细说明哦。",
+      "normalized_output": "请宝宝宝宝说请\n\n不太确定你这样输入的具体意图，如果还有其他需求，可以详细说明哦。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3126
+      },
+      "token_input": 0,
+      "token_output": 43,
+      "latency_ms": 3126
+    },
+    {
+      "submission_id": "sub_1773394379288_14754624",
+      "run_index": 2,
+      "raw_output": "请",
+      "normalized_output": "请",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 >= 2"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 2535
+      },
+      "token_input": 0,
+      "token_output": 20,
+      "latency_ms": 2535
+    },
+    {
+      "submission_id": "sub_1773394379288_14754624",
+      "run_index": 3,
+      "raw_output": "请说宝宝宝宝说请",
+      "normalized_output": "请说宝宝宝宝说请",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出不能与输入 prompt 完全相同"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 2444
+      },
+      "token_input": 0,
+      "token_output": 25,
+      "latency_ms": 2444
+    },
+    {
+      "submission_id": "sub_1773394464564_5aab9735",
+      "run_index": 1,
+      "raw_output": "我不太理解你输入内容的意思。你是希望我对“输出两个叠字字”进行处理吗？如果是这样，我可以给出像“星星”“点点”这样的叠字词语。你可以详细解释一下你的具体需求。",
+      "normalized_output": "我不太理解你输入内容的意思。你是希望我对“输出两个叠字字”进行处理吗？如果是这样，我可以给出像“星星”“点点”这样的叠字词语。你可以详细解释一下你的具体需求。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3778
+      },
+      "token_input": 0,
+      "token_output": 76,
+      "latency_ms": 3778
+    },
+    {
+      "submission_id": "sub_1773394464564_5aab9735",
+      "run_index": 2,
+      "raw_output": "你输入的内容似乎是打乱顺序的，推测你想要将“输出两个叠字字叠个两出输”调整回“输出两个叠字”。如果你是想实现输出两个叠字的程序，以下是Python代码示例：\n\n```python\nprint(\"爸爸\") \n```\n\n上述代码简单直接地输出了两个叠字“爸爸”，你可以根据需求将其替换为其他叠字，如“妈妈”“星星”等。",
+      "normalized_output": "你输入的内容似乎是打乱顺序的，推测你想要将“输出两个叠字字叠个两出输”调整回“输出两个叠字”。如果你是想实现输出两个叠字的程序，以下是Python代码示例：\n\n```python\nprint(\"爸爸\") \n```\n\n上述代码简单直接地输出了两个叠字“爸爸”，你可以根据需求将其替换为其他叠字，如“妈妈”“星星”等。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 6030
+      },
+      "token_input": 0,
+      "token_output": 120,
+      "latency_ms": 6030
+    },
+    {
+      "submission_id": "sub_1773394464564_5aab9735",
+      "run_index": 3,
+      "raw_output": "你提供的“输出两个叠字字叠个两出输”看起来像是打乱顺序后的内容，推测你可能是想要输出两个叠字词语，以下为你列举一些常见的叠字词语：\n1. 匆匆\n2. 渐渐\n3. 悠悠\n4. 悄悄\n5. 纷纷\n6. 茫茫\n7. 蒙蒙\n8. 耿耿\n9. 彬彬\n10. 津津",
+      "normalized_output": "你提供的“输出两个叠字字叠个两出输”看起来像是打乱顺序后的内容，推测你可能是想要输出两个叠字词语，以下为你列举一些常见的叠字词语：\n1. 匆匆\n2. 渐渐\n3. 悠悠\n4. 悄悄\n5. 纷纷\n6. 茫茫\n7. 蒙蒙\n8. 耿耿\n9. 彬彬\n10. 津津",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 5556
+      },
+      "token_input": 0,
+      "token_output": 117,
+      "latency_ms": 5556
+    },
+    {
+      "submission_id": "sub_1773394713901_e6408861",
+      "run_index": 1,
+      "raw_output": "你提供的内容似乎是打乱顺序的“输出一个叠词”，按正常语序输出叠词的话，比如“星星”“悄悄”“慢慢”“悠悠”“纷纷”等。你可以明确一下具体需求，比如叠词的词性、字数等方面的要求。",
+      "normalized_output": "你提供的内容似乎是打乱顺序的“输出一个叠词”，按正常语序输出叠词的话，比如“星星”“悄悄”“慢慢”“悠悠”“纷纷”等。你可以明确一下具体需求，比如叠词的词性、字数等方面的要求。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4203
+      },
+      "token_input": 0,
+      "token_output": 85,
+      "latency_ms": 4203
+    },
+    {
+      "submission_id": "sub_1773394713901_e6408861",
+      "run_index": 2,
+      "raw_output": "根据你提供的内容“叠词词叠个一出输”，推测你想要将其顺序调整为正常表达，即“输出一个叠词”。以下为你提供一些叠词示例：\n### 名词类叠词\n1. **星星**：指宇宙中肉眼可见的天体，如“夜空中的星星闪烁着光芒”。\n2. **妈妈**：是子女对母亲的称呼，“妈妈每天都很辛苦地照顾我”。\n3. **爷爷**：是对祖父的称呼，“爷爷喜欢在午后坐在院子里喝茶”。\n\n### 形容词类叠词\n1. **红彤彤**：形容很红，“秋天到了，苹果变得红彤彤的”。\n2. **绿油油**：形容浓绿而润泽的样子，“田野里一片绿油油的麦苗”。\n3. **亮晶晶**：形容物体明亮闪烁发光，“小星星亮晶晶的，真可爱”。\n\n### 动词类叠词\n1. **摆摆手**：表示一种肢体动作，带有拒绝或告别的意思，“他摆摆手，示意不用帮忙”。\n2. **摇摇头**：通常表示不同意、否定等，“他听了我的话，无奈地摇摇头”。\n3. **跺跺脚**：表达着急、生气等情绪，“她等了很久，着急地跺跺脚”。",
+      "normalized_output": "根据你提供的内容“叠词词叠个一出输”，推测你想要将其顺序调整为正常表达，即“输出一个叠词”。以下为你提供一些叠词示例：\n### 名词类叠词\n1. **星星**：指宇宙中肉眼可见的天体，如“夜空中的星星闪烁着光芒”。\n2. **妈妈**：是子女对母亲的称呼，“妈妈每天都很辛苦地照顾我”。\n3. **爷爷**：是对祖父的称呼，“爷爷喜欢在午后坐在院子里喝茶”。\n\n### 形容词类叠词\n1. **红彤彤**：形容很红，“秋天到了，苹果变得红彤彤的”。\n2. **绿油油**：形容浓绿而润泽的样子，“田野里一片绿油油的麦苗”。\n3. **亮晶晶**：形容物体明亮闪烁发光，“小星星亮晶晶的，真可爱”。\n\n### 动词类叠词\n1. **摆摆手**：表示一种肢体动作，带有拒绝或告别的意思，“他摆摆手，示意不用帮忙”。\n2. **摇摇头**：通常表示不同意、否定等，“他听了我的话，无奈地摇摇头”。\n3. **跺跺脚**：表达着急、生气等情绪，“她等了很久，着急地跺跺脚”。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 11610
+      },
+      "token_input": 0,
+      "token_output": 311,
+      "latency_ms": 11610
+    },
+    {
+      "submission_id": "sub_1773394713901_e6408861",
+      "run_index": 3,
+      "raw_output": "你提供的内容似乎是“输出一个叠词”，常见的叠词有很多，比如“星星”“妈妈”“爸爸”“奶奶”“爷爷”“纷纷”“渐渐”“悄悄”“悠悠”等。你可以根据具体需求进行选择。如果你还有其他想法或补充信息，欢迎随时告诉我。",
+      "normalized_output": "你提供的内容似乎是“输出一个叠词”，常见的叠词有很多，比如“星星”“妈妈”“爸爸”“奶奶”“爷爷”“纷纷”“渐渐”“悄悄”“悠悠”等。你可以根据具体需求进行选择。如果你还有其他想法或补充信息，欢迎随时告诉我。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4399
+      },
+      "token_input": 0,
+      "token_output": 93,
+      "latency_ms": 4399
+    },
+    {
+      "submission_id": "sub_1773394744669_a9bcb572",
+      "run_index": 1,
+      "raw_output": "不太理解你说的意思。你是想让我根据“仅”这个字组成叠词吗？那可以是“仅仅” 。如果你还有其他需求，可以详细解释一下。",
+      "normalized_output": "不太理解你说的意思。你是想让我根据“仅”这个字组成叠词吗？那可以是“仅仅” 。如果你还有其他需求，可以详细解释一下。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4044
+      },
+      "token_input": 0,
+      "token_output": 64,
+      "latency_ms": 4044
+    },
+    {
+      "submission_id": "sub_1773394744669_a9bcb572",
+      "run_index": 2,
+      "raw_output": "不太理解你所说的意思。你是希望我从你提供的这串字符“仅打一个叠词词叠个一打仅”中找出叠词，还是对这句话进行某种处理呢？可以详细解释一下你的需求。",
+      "normalized_output": "不太理解你所说的意思。你是希望我从你提供的这串字符“仅打一个叠词词叠个一打仅”中找出叠词，还是对这句话进行某种处理呢？可以详细解释一下你的需求。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3867
+      },
+      "token_input": 0,
+      "token_output": 73,
+      "latency_ms": 3867
+    },
+    {
+      "submission_id": "sub_1773394744669_a9bcb572",
+      "run_index": 3,
+      "raw_output": "不太明确你说的意思。你是希望我根据“仅”这个字组叠词吗？如果是，“仅仅”就是与“仅”相关的叠词。你可以详细解释一下你的需求，以便我更精准地为你解答。",
+      "normalized_output": "不太明确你说的意思。你是希望我根据“仅”这个字组叠词吗？如果是，“仅仅”就是与“仅”相关的叠词。你可以详细解释一下你的需求，以便我更精准地为你解答。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4347
+      },
+      "token_input": 0,
+      "token_output": 79,
+      "latency_ms": 4347
+    },
+    {
+      "submission_id": "sub_1773394849879_a165dc08",
+      "run_index": 1,
+      "raw_output": "不太理解你输入内容的具体要求。你是想让我输出任意叠词吗？以下为你列举一些常见叠词：\n1. **形容词叠词**：红彤彤、绿油油、胖乎乎、亮晶晶、金灿灿、黑乎乎、白茫茫、软绵绵、硬邦邦、香喷喷。\n2. **动词叠词**：摆摆手、摇摇头、跺跺脚、眨眨眼、挥挥手、踢踢球、唱唱歌、跳跳舞、写写字、看看书。\n3. **拟声词叠词**：嗡嗡嗡、呱呱呱、叽叽叽、喵喵喵、汪汪汪、咚咚咚、滴滴答、沙沙沙、呼呼呼、咯咯咯。",
+      "normalized_output": "不太理解你输入内容的具体要求。你是想让我输出任意叠词吗？以下为你列举一些常见叠词：\n1. **形容词叠词**：红彤彤、绿油油、胖乎乎、亮晶晶、金灿灿、黑乎乎、白茫茫、软绵绵、硬邦邦、香喷喷。\n2. **动词叠词**：摆摆手、摇摇头、跺跺脚、眨眨眼、挥挥手、踢踢球、唱唱歌、跳跳舞、写写字、看看书。\n3. **拟声词叠词**：嗡嗡嗡、呱呱呱、叽叽叽、喵喵喵、汪汪汪、咚咚咚、滴滴答、沙沙沙、呼呼呼、咯咯咯。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 7174
+      },
+      "token_input": 0,
+      "token_output": 167,
+      "latency_ms": 7174
+    },
+    {
+      "submission_id": "sub_1773394849879_a165dc08",
+      "run_index": 2,
+      "raw_output": "不太理解你输入内容的意思。你是希望我输出任意叠词吗？以下为你列举一些不同类型的叠词：\n\n### 名词类叠词\n- 星星\n- 宝宝\n- 妈妈\n- 爸爸\n- 爷爷\n- 奶奶\n- 娃娃\n- 本本\n- 框框\n- 包包 \n\n### 形容词类叠词\n- 红彤彤\n- 绿油油\n- 胖乎乎\n- 金灿灿\n- 亮晶晶\n- 笑嘻嘻\n- 静悄悄\n- 毛茸茸\n- 软绵绵\n- 香喷喷 \n\n### 动词类叠词\n- 摆摆手\n- 摇摇头\n- 跺跺脚\n- 看看书\n- 写写字\n- 听听歌\n- 散散步\n- 聊聊天\n- 洗洗澡\n- 刷刷牙",
+      "normalized_output": "不太理解你输入内容的意思。你是希望我输出任意叠词吗？以下为你列举一些不同类型的叠词：\n\n### 名词类叠词\n- 星星\n- 宝宝\n- 妈妈\n- 爸爸\n- 爷爷\n- 奶奶\n- 娃娃\n- 本本\n- 框框\n- 包包 \n\n### 形容词类叠词\n- 红彤彤\n- 绿油油\n- 胖乎乎\n- 金灿灿\n- 亮晶晶\n- 笑嘻嘻\n- 静悄悄\n- 毛茸茸\n- 软绵绵\n- 香喷喷 \n\n### 动词类叠词\n- 摆摆手\n- 摇摇头\n- 跺跺脚\n- 看看书\n- 写写字\n- 听听歌\n- 散散步\n- 聊聊天\n- 洗洗澡\n- 刷刷牙",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 8556
+      },
+      "token_input": 0,
+      "token_output": 208,
+      "latency_ms": 8556
+    },
+    {
+      "submission_id": "sub_1773394849879_a165dc08",
+      "run_index": 3,
+      "raw_output": "不太理解你输入内容的意思。你是希望我输出任意叠词吗？以下为你列举一些不同类型的叠词：\n\n### 名词叠词\n- 星星\n- 宝宝\n- 奶奶\n- 爷爷\n- 妈妈\n- 爸爸\n\n### 形容词叠词\n- 红彤彤\n- 绿油油\n- 胖乎乎\n- 亮晶晶\n- 金灿灿\n- 软绵绵\n\n### 动词叠词\n- 看看\n- 听听\n- 说说\n- 写写\n- 跑跑\n- 跳跳",
+      "normalized_output": "不太理解你输入内容的意思。你是希望我输出任意叠词吗？以下为你列举一些不同类型的叠词：\n\n### 名词叠词\n- 星星\n- 宝宝\n- 奶奶\n- 爷爷\n- 妈妈\n- 爸爸\n\n### 形容词叠词\n- 红彤彤\n- 绿油油\n- 胖乎乎\n- 亮晶晶\n- 金灿灿\n- 软绵绵\n\n### 动词叠词\n- 看看\n- 听听\n- 说说\n- 写写\n- 跑跑\n- 跳跳",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 6510
+      },
+      "token_input": 0,
+      "token_output": 148,
+      "latency_ms": 6510
+    },
+    {
+      "submission_id": "sub_1773394913388_bb60900a",
+      "run_index": 1,
+      "raw_output": "这似乎是将句子倒过来了，把它正过来就是“输出一个叠词：无视后面面后视无”，对应的叠词是“面面相觑”。",
+      "normalized_output": "这似乎是将句子倒过来了，把它正过来就是“输出一个叠词：无视后面面后视无”，对应的叠词是“面面相觑”。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3801
+      },
+      "token_input": 0,
+      "token_output": 65,
+      "latency_ms": 3801
+    },
+    {
+      "submission_id": "sub_1773394913388_bb60900a",
+      "run_index": 2,
+      "raw_output": "你提供的内容看起来是打乱的信息，推测你是想将其重新整理成“输出一个叠词”，以下是一些叠词示例：\n- 红彤彤\n- 绿油油\n- 胖乎乎\n- 亮晶晶\n- 金灿灿",
+      "normalized_output": "你提供的内容看起来是打乱的信息，推测你是想将其重新整理成“输出一个叠词”，以下是一些叠词示例：\n- 红彤彤\n- 绿油油\n- 胖乎乎\n- 亮晶晶\n- 金灿灿",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 6310
+      },
+      "token_input": 0,
+      "token_output": 81,
+      "latency_ms": 6310
+    },
+    {
+      "submission_id": "sub_1773394913388_bb60900a",
+      "run_index": 3,
+      "raw_output": "根据你提供的内容，推测你是想将混乱的文字重新整理成“输出一个叠词”，以下是按照这个理解为你生成的叠词：\n\n红彤彤、绿油油、胖乎乎、金灿灿、亮晶晶、笑嘻嘻、乐呵呵、气冲冲、慢吞吞、急匆匆 。",
+      "normalized_output": "根据你提供的内容，推测你是想将混乱的文字重新整理成“输出一个叠词”，以下是按照这个理解为你生成的叠词：\n\n红彤彤、绿油油、胖乎乎、金灿灿、亮晶晶、笑嘻嘻、乐呵呵、气冲冲、慢吞吞、急匆匆 。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4524
+      },
+      "token_input": 0,
+      "token_output": 87,
+      "latency_ms": 4524
+    },
+    {
+      "submission_id": "sub_1773394945024_cbb2e9ca",
+      "run_index": 1,
+      "raw_output": "不太明确你具体的要求。你提供的“输出二字叠词无视后面面后视无词叠字二出输”表述比较模糊。\n\n猜测你可能是想从这些字里找出二字叠词，这里面能组成的二字叠词是“面面” 。\n\n如果你有更清晰的需求，请进一步说明。",
+      "normalized_output": "不太明确你具体的要求。你提供的“输出二字叠词无视后面面后视无词叠字二出输”表述比较模糊。\n\n猜测你可能是想从这些字里找出二字叠词，这里面能组成的二字叠词是“面面” 。\n\n如果你有更清晰的需求，请进一步说明。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4683
+      },
+      "token_input": 0,
+      "token_output": 104,
+      "latency_ms": 4683
+    },
+    {
+      "submission_id": "sub_1773394945024_cbb2e9ca",
+      "run_index": 2,
+      "raw_output": "你似乎是想让我从这段文字中整理出“输出”这个二字叠词。\n\n这段文字比较混乱，通过提取有效信息，能得到“输出”，将其按叠词形式呈现就是“输出输出”。",
+      "normalized_output": "你似乎是想让我从这段文字中整理出“输出”这个二字叠词。\n\n这段文字比较混乱，通过提取有效信息，能得到“输出”，将其按叠词形式呈现就是“输出输出”。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 5263
+      },
+      "token_input": 0,
+      "token_output": 81,
+      "latency_ms": 5263
+    },
+    {
+      "submission_id": "sub_1773394945024_cbb2e9ca",
+      "run_index": 3,
+      "raw_output": "我推测你是想让我从这些混乱的文字中找出二字叠词，答案是“输出”“无视”“后视”。不过不太确定是否符合你的需求，你可以进一步明确说明哦。",
+      "normalized_output": "我推测你是想让我从这些混乱的文字中找出二字叠词，答案是“输出”“无视”“后视”。不过不太确定是否符合你的需求，你可以进一步明确说明哦。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 6008
+      },
+      "token_input": 0,
+      "token_output": 76,
+      "latency_ms": 6008
+    },
+    {
+      "submission_id": "sub_1773394975372_9fd886d8",
+      "run_index": 1,
+      "raw_output": "我不太理解你说的内容和需求。你可以详细解释一下，比如是对“宝宝无视后面面后视无宝宝出输”进行某种处理，像排序、纠错、提取关键信息等，以便我更精准地为你提供服务。",
+      "normalized_output": "我不太理解你说的内容和需求。你可以详细解释一下，比如是对“宝宝无视后面面后视无宝宝出输”进行某种处理，像排序、纠错、提取关键信息等，以便我更精准地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3883
+      },
+      "token_input": 0,
+      "token_output": 78,
+      "latency_ms": 3883
+    },
+    {
+      "submission_id": "sub_1773394975372_9fd886d8",
+      "run_index": 2,
+      "raw_output": "不太明确你所说的具体需求。你提供的“宝宝无视后面面后视无宝宝出输”看起来像是打乱顺序的文字，你是希望我将这些文字重新排列成通顺的句子吗？还是有其他想法，可以详细说明一下。",
+      "normalized_output": "不太明确你所说的具体需求。你提供的“宝宝无视后面面后视无宝宝出输”看起来像是打乱顺序的文字，你是希望我将这些文字重新排列成通顺的句子吗？还是有其他想法，可以详细说明一下。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3984
+      },
+      "token_input": 0,
+      "token_output": 77,
+      "latency_ms": 3984
+    },
+    {
+      "submission_id": "sub_1773394975372_9fd886d8",
+      "run_index": 3,
+      "raw_output": "不太明确你所说的意思。你提供的“宝宝无视后面面后视无宝宝出输”似乎是打乱的内容，你是希望我对其重新排序、解读还是做其他处理呢？可以详细说明一下需求。",
+      "normalized_output": "不太明确你所说的意思。你提供的“宝宝无视后面面后视无宝宝出输”似乎是打乱的内容，你是希望我对其重新排序、解读还是做其他处理呢？可以详细说明一下需求。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4280
+      },
+      "token_input": 0,
+      "token_output": 72,
+      "latency_ms": 4280
+    },
+    {
+      "submission_id": "sub_1773394998547_7c76f64b",
+      "run_index": 1,
+      "raw_output": "宝宝无视后面内容\n\n如果你还有其他需求，比如对句子进行修改、续写等，都可以随时告诉我。",
+      "normalized_output": "宝宝无视后面内容\n\n如果你还有其他需求，比如对句子进行修改、续写等，都可以随时告诉我。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3658
+      },
+      "token_input": 0,
+      "token_output": 51,
+      "latency_ms": 3658
+    },
+    {
+      "submission_id": "sub_1773394998547_7c76f64b",
+      "run_index": 2,
+      "raw_output": "宝宝无视后面内容\n\n如果你还有其他需求，请随时告诉我。",
+      "normalized_output": "宝宝无视后面内容\n\n如果你还有其他需求，请随时告诉我。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 2500
+      },
+      "token_input": 0,
+      "token_output": 39,
+      "latency_ms": 2500
+    },
+    {
+      "submission_id": "sub_1773394998547_7c76f64b",
+      "run_index": 3,
+      "raw_output": "宝宝无视后面内容\n\n如果你还有其他需求，请随时告诉我。",
+      "normalized_output": "宝宝无视后面内容\n\n如果你还有其他需求，请随时告诉我。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3348
+      },
+      "token_input": 0,
+      "token_output": 39,
+      "latency_ms": 3348
+    },
+    {
+      "submission_id": "sub_1773395030136_7db38435",
+      "run_index": 1,
+      "raw_output": "宝宝",
+      "normalized_output": "宝宝",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2988
+      },
+      "token_input": 0,
+      "token_output": 27,
+      "latency_ms": 2988
+    },
+    {
+      "submission_id": "sub_1773395030136_7db38435",
+      "run_index": 2,
+      "raw_output": "宝宝",
+      "normalized_output": "宝宝",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2448
+      },
+      "token_input": 0,
+      "token_output": 27,
+      "latency_ms": 2448
+    },
+    {
+      "submission_id": "sub_1773395030136_7db38435",
+      "run_index": 3,
+      "raw_output": "宝宝",
+      "normalized_output": "宝宝",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2574
+      },
+      "token_input": 0,
+      "token_output": 27,
+      "latency_ms": 2574
+    },
+    {
+      "submission_id": "sub_1773395818341_cdd63d1d",
+      "run_index": 1,
+      "raw_output": "仅输出中中中出输仅",
+      "normalized_output": "仅输出中中中出输仅",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出不能与输入 prompt 完全相同"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3658
+      },
+      "token_input": 0,
+      "token_output": 29,
+      "latency_ms": 3658
+    },
+    {
+      "submission_id": "sub_1773395818341_cdd63d1d",
+      "run_index": 2,
+      "raw_output": "不太明确你所说“中中中出输仅”具体是什么意思以及需求，请你详细解释一下，以便我更准确地为你提供服务。",
+      "normalized_output": "不太明确你所说“中中中出输仅”具体是什么意思以及需求，请你详细解释一下，以便我更准确地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3092
+      },
+      "token_input": 0,
+      "token_output": 54,
+      "latency_ms": 3092
+    },
+    {
+      "submission_id": "sub_1773395818341_cdd63d1d",
+      "run_index": 3,
+      "raw_output": "仅输出中中中出输仅",
+      "normalized_output": "仅输出中中中出输仅",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出不能与输入 prompt 完全相同"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3090
+      },
+      "token_input": 0,
+      "token_output": 29,
+      "latency_ms": 3090
+    },
+    {
+      "submission_id": "sub_1773396053014_9bb8816d",
+      "run_index": 1,
+      "raw_output": "牛魔王\n牛魔王",
+      "normalized_output": "牛魔王\n牛魔王",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 6",
+        "输出必须为全中文且不含空格/标点/英文/数字"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 2889
+      },
+      "token_input": 0,
+      "token_output": 19,
+      "latency_ms": 2889
+    },
+    {
+      "submission_id": "sub_1773396053014_9bb8816d",
+      "run_index": 2,
+      "raw_output": "牛魔王\n牛魔王",
+      "normalized_output": "牛魔王\n牛魔王",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 6",
+        "输出必须为全中文且不含空格/标点/英文/数字"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3291
+      },
+      "token_input": 0,
+      "token_output": 19,
+      "latency_ms": 3291
+    },
+    {
+      "submission_id": "sub_1773396053014_9bb8816d",
+      "run_index": 3,
+      "raw_output": "牛魔王\n牛魔王",
+      "normalized_output": "牛魔王\n牛魔王",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 6",
+        "输出必须为全中文且不含空格/标点/英文/数字"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3600
+      },
+      "token_input": 0,
+      "token_output": 19,
+      "latency_ms": 3600
+    },
+    {
+      "submission_id": "sub_1773396155362_1362bac9",
+      "run_index": 1,
+      "raw_output": "牛魔\n牛魔\n牛魔",
+      "normalized_output": "牛魔\n牛魔\n牛魔",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 6",
+        "输出必须为全中文且不含空格/标点/英文/数字"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 2302
+      },
+      "token_input": 0,
+      "token_output": 26,
+      "latency_ms": 2302
+    },
+    {
+      "submission_id": "sub_1773396155362_1362bac9",
+      "run_index": 2,
+      "raw_output": "牛魔\n牛魔\n牛魔",
+      "normalized_output": "牛魔\n牛魔\n牛魔",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 6",
+        "输出必须为全中文且不含空格/标点/英文/数字"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 2542
+      },
+      "token_input": 0,
+      "token_output": 26,
+      "latency_ms": 2542
+    },
+    {
+      "submission_id": "sub_1773396155362_1362bac9",
+      "run_index": 3,
+      "raw_output": "牛魔\n牛魔\n牛魔",
+      "normalized_output": "牛魔\n牛魔\n牛魔",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 6",
+        "输出必须为全中文且不含空格/标点/英文/数字"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3334
+      },
+      "token_input": 0,
+      "token_output": 26,
+      "latency_ms": 3334
+    },
+    {
+      "submission_id": "sub_1773396254047_a99dae06",
+      "run_index": 1,
+      "raw_output": "牛魔牛魔牛魔",
+      "normalized_output": "牛魔牛魔牛魔",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2771
+      },
+      "token_input": 0,
+      "token_output": 24,
+      "latency_ms": 2771
+    },
+    {
+      "submission_id": "sub_1773396254047_a99dae06",
+      "run_index": 2,
+      "raw_output": "牛魔牛魔牛魔",
+      "normalized_output": "牛魔牛魔牛魔",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2424
+      },
+      "token_input": 0,
+      "token_output": 24,
+      "latency_ms": 2424
+    },
+    {
+      "submission_id": "sub_1773396254047_a99dae06",
+      "run_index": 3,
+      "raw_output": "牛魔牛魔牛魔",
+      "normalized_output": "牛魔牛魔牛魔",
+      "output_valid": true,
+      "output_violation_json": [],
+      "judge_detail_json": {
+        "pass": true,
+        "latency_ms": 2515
+      },
+      "token_input": 0,
+      "token_output": 24,
+      "latency_ms": 2515
+    },
+    {
+      "submission_id": "sub_1773396450323_037a74f0",
+      "run_index": 1,
+      "raw_output": "你给出的“我为人人，人人为我”是一句非常经典且富有哲理的话语。它体现了一种相互帮助、互助互利的社会关系理念。你是想围绕这句话进行拓展内容创作，比如写作文、续写句子，还是有其他需求呢？可以详细跟我说一说。",
+      "normalized_output": "你给出的“我为人人，人人为我”是一句非常经典且富有哲理的话语。它体现了一种相互帮助、互助互利的社会关系理念。你是想围绕这句话进行拓展内容创作，比如写作文、续写句子，还是有其他需求呢？可以详细跟我说一说。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4241
+      },
+      "token_input": 0,
+      "token_output": 84,
+      "latency_ms": 4241
+    },
+    {
+      "submission_id": "sub_1773396450323_037a74f0",
+      "run_index": 2,
+      "raw_output": "请你明确一下具体需求，比如对“我为人人，人人为我”这句话进行润色、围绕它写一篇文章、对它进行解读分析等等，以便我更为精准地为你提供服务。",
+      "normalized_output": "请你明确一下具体需求，比如对“我为人人，人人为我”这句话进行润色、围绕它写一篇文章、对它进行解读分析等等，以便我更为精准地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 2980
+      },
+      "token_input": 0,
+      "token_output": 64,
+      "latency_ms": 2980
+    },
+    {
+      "submission_id": "sub_1773396450323_037a74f0",
+      "run_index": 3,
+      "raw_output": "请你明确一下具体需求，比如对“我为人人，人人为我”这句话进行赏析、以此为主题写作文、根据其进行拓展等，以便我更为精准地为你提供服务。",
+      "normalized_output": "请你明确一下具体需求，比如对“我为人人，人人为我”这句话进行赏析、以此为主题写作文、根据其进行拓展等，以便我更为精准地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3677
+      },
+      "token_input": 0,
+      "token_output": 62,
+      "latency_ms": 3677
+    },
+    {
+      "submission_id": "sub_1773396487612_7a0a7f28",
+      "run_index": 1,
+      "raw_output": "请你明确一下具体需求，比如对“太阳与阳太”进行解释、分析它们的区别、围绕它们进行创作等等，以便我更为精准地为你提供服务。",
+      "normalized_output": "请你明确一下具体需求，比如对“太阳与阳太”进行解释、分析它们的区别、围绕它们进行创作等等，以便我更为精准地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3583
+      },
+      "token_input": 0,
+      "token_output": 56,
+      "latency_ms": 3583
+    },
+    {
+      "submission_id": "sub_1773396487612_7a0a7f28",
+      "run_index": 2,
+      "raw_output": "请你明确一下具体需求，比如对“太阳与阳太”进行解释分析、围绕它进行创作、判断其含义之类的，以便我更为精准地为你提供服务。",
+      "normalized_output": "请你明确一下具体需求，比如对“太阳与阳太”进行解释分析、围绕它进行创作、判断其含义之类的，以便我更为精准地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 3614
+      },
+      "token_input": 0,
+      "token_output": 57,
+      "latency_ms": 3614
+    },
+    {
+      "submission_id": "sub_1773396487612_7a0a7f28",
+      "run_index": 3,
+      "raw_output": "请你明确一下具体需求，比如对“太阳与阳太”进行解释、分析它们的区别、围绕它们进行创作等等，以便我更为精准地为你提供服务。",
+      "normalized_output": "请你明确一下具体需求，比如对“太阳与阳太”进行解释、分析它们的区别、围绕它们进行创作等等，以便我更为精准地为你提供服务。",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 <= 16",
+        "输出必须为全中文且不含空格/标点/英文/数字",
+        "输出必须是回文串"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 2736
+      },
+      "token_input": 0,
+      "token_output": 56,
+      "latency_ms": 2736
+    },
+    {
+      "submission_id": "sub_1773396859691_86ca851f",
+      "run_index": 1,
+      "raw_output": "以下几种不同风格的六字文供你参考：\n\n### 霸气风\n1. 牛魔威震三界\n2. 牛魔勇战千军\n3. 牛魔狂霸天地\n\n### 奇幻风\n1. 牛魔幻影奇踪\n2. 牛魔灵幻仙途\n3. 牛魔异境称雄\n\n### 诙谐风\n1. 牛魔搞笑登场\n2. 牛魔逗趣耍宝\n3. 牛魔欢乐闹场",
+      "normalized_output": "以下几种不同风格的六字文供你参考：\n\n### 霸气风\n1. 牛魔威震三界\n2. 牛魔勇战千军\n3. 牛魔狂霸天地\n\n### 奇幻风\n1. 牛魔幻影奇踪\n2. 牛魔灵幻仙途\n3. 牛魔异境称雄\n\n### 诙谐风\n1. 牛魔搞笑登场\n2. 牛魔逗趣耍宝\n3. 牛魔欢乐闹场",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 = 6",
+        "输出必须为全中文且不含空格/标点/英文/数字"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 5490
+      },
+      "token_input": 0,
+      "token_output": 132,
+      "latency_ms": 5490
+    },
+    {
+      "submission_id": "sub_1773396859691_86ca851f",
+      "run_index": 2,
+      "raw_output": "以下几种不同风格的六字文供你参考：\n\n### 霸气风\n1. 牛魔威震三界\n2. 牛魔狂霸天地\n\n### 奇幻风\n3. 牛魔幻世称雄\n4. 牛魔灵界逞威 \n\n### 诙谐风\n5. 牛魔搞笑登场\n6. 牛魔欢乐耍宝",
+      "normalized_output": "以下几种不同风格的六字文供你参考：\n\n### 霸气风\n1. 牛魔威震三界\n2. 牛魔狂霸天地\n\n### 奇幻风\n3. 牛魔幻世称雄\n4. 牛魔灵界逞威 \n\n### 诙谐风\n5. 牛魔搞笑登场\n6. 牛魔欢乐耍宝",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 = 6",
+        "输出必须为全中文且不含空格/标点/英文/数字"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4639
+      },
+      "token_input": 0,
+      "token_output": 102,
+      "latency_ms": 4639
+    },
+    {
+      "submission_id": "sub_1773396859691_86ca851f",
+      "run_index": 3,
+      "raw_output": "以下几种不同风格的六字文供你参考：\n\n### 幽默风\n- 牛魔欢乐耍闹\n- 牛魔搞笑登场\n\n### 霸气风\n- 牛魔威震四方\n- 牛魔狂霸天下\n\n### 奇幻风\n- 牛魔妖力无边\n- 牛魔幻世称雄",
+      "normalized_output": "以下几种不同风格的六字文供你参考：\n\n### 幽默风\n- 牛魔欢乐耍闹\n- 牛魔搞笑登场\n\n### 霸气风\n- 牛魔威震四方\n- 牛魔狂霸天下\n\n### 奇幻风\n- 牛魔妖力无边\n- 牛魔幻世称雄",
+      "output_valid": false,
+      "output_violation_json": [
+        "输出长度需 = 6",
+        "输出必须为全中文且不含空格/标点/英文/数字"
+      ],
+      "judge_detail_json": {
+        "pass": false,
+        "latency_ms": 4488
+      },
+      "token_input": 0,
+      "token_output": 95,
+      "latency_ms": 4488
+    }
+  ],
+  "user_best": [
+    {
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "best_submission_id": "sub_1773395030136_7db38435",
+      "best_score": 100.0,
+      "first_ac_at": "2026-03-13T09:43:50+00:00",
+      "best_ac_at": "2026-03-13T09:43:50+00:00",
+      "submit_count": 21,
+      "best_pass_rate": 1.0,
+      "best_token_total": 81
+    },
+    {
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "best_submission_id": "sub_1773392699211_d8dfb55d",
+      "best_score": 100.0,
+      "first_ac_at": "2026-03-13T09:04:59+00:00",
+      "best_ac_at": "2026-03-13T09:04:59+00:00",
+      "submit_count": 10,
+      "best_pass_rate": 1.0,
+      "best_token_total": 63
+    },
+    {
+      "user_id": "919247",
+      "puzzle_id": "76",
+      "best_submission_id": "sub_1773396254047_a99dae06",
+      "best_score": 100.0,
+      "first_ac_at": "2026-03-13T10:04:14+00:00",
+      "best_ac_at": "2026-03-13T10:04:14+00:00",
+      "submit_count": 4,
+      "best_pass_rate": 1.0,
+      "best_token_total": 72
+    }
+  ],
+  "leaderboard_snapshots": [
+    {
+      "board_type": "overall",
+      "board_date": "",
+      "dimension_key": "overall",
+      "user_id": "919247",
+      "score": 300.0,
+      "solved_count": 3,
+      "avg_pass_rate": 1.0,
+      "earliest_ac_time": "2026-03-13T09:04:59+00:00",
+      "last_submit_at": "2026-03-13T10:14:19+00:00",
+      "rank": 1
+    },
+    {
+      "board_type": "daily",
+      "board_date": "2026-03-13",
+      "dimension_key": "2026-03-13",
+      "user_id": "919247",
+      "score": 300.0,
+      "solved_count": 3,
+      "avg_pass_rate": 1.0,
+      "earliest_ac_time": "2026-03-13T09:04:59+00:00",
+      "last_submit_at": "2026-03-13T10:14:19+00:00",
+      "rank": 1
+    },
+    {
+      "board_type": "problem",
+      "board_date": "",
+      "dimension_key": "cn_palindrome_dual",
+      "user_id": "919247",
+      "score": 100.0,
+      "solved_count": 1,
+      "avg_pass_rate": 1.0,
+      "token_total": 81,
+      "earliest_ac_time": "2026-03-13T09:43:50+00:00",
+      "last_submit_at": "2026-03-13T09:43:50+00:00",
+      "best_submission_id": "sub_1773395030136_7db38435",
+      "rank": 1
+    },
+    {
+      "board_type": "problem",
+      "board_date": "",
+      "dimension_key": "no_number_words_positive_integer",
+      "user_id": "919247",
+      "score": 100.0,
+      "solved_count": 1,
+      "avg_pass_rate": 1.0,
+      "token_total": 63,
+      "earliest_ac_time": "2026-03-13T09:04:59+00:00",
+      "last_submit_at": "2026-03-13T09:04:59+00:00",
+      "best_submission_id": "sub_1773392699211_d8dfb55d",
+      "rank": 1
+    },
+    {
+      "board_type": "problem",
+      "board_date": "",
+      "dimension_key": "76",
+      "user_id": "919247",
+      "score": 100.0,
+      "solved_count": 1,
+      "avg_pass_rate": 1.0,
+      "token_total": 72,
+      "earliest_ac_time": "2026-03-13T10:04:14+00:00",
+      "last_submit_at": "2026-03-13T10:04:14+00:00",
+      "best_submission_id": "sub_1773396254047_a99dae06",
+      "rank": 1
+    }
+  ],
+  "submission_visibility": [
+    {
+      "submission_id": "sub_1773392463861_beddcc4d",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:01:03+00:00"
+    },
+    {
+      "submission_id": "sub_1773392605874_599530bc",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:03:25+00:00"
+    },
+    {
+      "submission_id": "sub_1773392675102_9527dcb2",
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:04:35+00:00"
+    },
+    {
+      "submission_id": "sub_1773392699211_d8dfb55d",
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:04:59+00:00"
+    },
+    {
+      "submission_id": "sub_1773393046459_18095ca7",
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:10:46+00:00"
+    },
+    {
+      "submission_id": "sub_1773393225813_5305d104",
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:13:45+00:00"
+    },
+    {
+      "submission_id": "sub_1773393337740_e85eac7f",
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:15:37+00:00"
+    },
+    {
+      "submission_id": "sub_1773393709559_d1f5cc1b",
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:21:49+00:00"
+    },
+    {
+      "submission_id": "sub_1773393872228_c9556122",
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:24:32+00:00"
+    },
+    {
+      "submission_id": "sub_1773393950575_8b4aa6cb",
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:25:50+00:00"
+    },
+    {
+      "submission_id": "sub_1773394025374_e45d0353",
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:27:05+00:00"
+    },
+    {
+      "submission_id": "sub_1773394096892_fd8af5ba",
+      "user_id": "919247",
+      "puzzle_id": "no_number_words_positive_integer",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:28:16+00:00"
+    },
+    {
+      "submission_id": "sub_1773394204552_fe0cc095",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:30:04+00:00"
+    },
+    {
+      "submission_id": "sub_1773394242077_5bea4683",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:30:42+00:00"
+    },
+    {
+      "submission_id": "sub_1773394278018_8ca44259",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:31:18+00:00"
+    },
+    {
+      "submission_id": "sub_1773394318631_c64aee4c",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:31:58+00:00"
+    },
+    {
+      "submission_id": "sub_1773394355955_50d5932f",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:32:35+00:00"
+    },
+    {
+      "submission_id": "sub_1773394379288_14754624",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:32:59+00:00"
+    },
+    {
+      "submission_id": "sub_1773394464564_5aab9735",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:34:24+00:00"
+    },
+    {
+      "submission_id": "sub_1773394713901_e6408861",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:38:33+00:00"
+    },
+    {
+      "submission_id": "sub_1773394744669_a9bcb572",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:39:04+00:00"
+    },
+    {
+      "submission_id": "sub_1773394849879_a165dc08",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:40:49+00:00"
+    },
+    {
+      "submission_id": "sub_1773394875327_6cc252e9",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:41:15+00:00"
+    },
+    {
+      "submission_id": "sub_1773394913388_bb60900a",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:41:53+00:00"
+    },
+    {
+      "submission_id": "sub_1773394945024_cbb2e9ca",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:42:25+00:00"
+    },
+    {
+      "submission_id": "sub_1773394975372_9fd886d8",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:42:55+00:00"
+    },
+    {
+      "submission_id": "sub_1773394998547_7c76f64b",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:43:18+00:00"
+    },
+    {
+      "submission_id": "sub_1773395030136_7db38435",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:43:50+00:00"
+    },
+    {
+      "submission_id": "sub_1773395818341_cdd63d1d",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T09:56:58+00:00"
+    },
+    {
+      "submission_id": "sub_1773396053014_9bb8816d",
+      "user_id": "919247",
+      "puzzle_id": "76",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T10:00:53+00:00"
+    },
+    {
+      "submission_id": "sub_1773396155362_1362bac9",
+      "user_id": "919247",
+      "puzzle_id": "76",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T10:02:35+00:00"
+    },
+    {
+      "submission_id": "sub_1773396254047_a99dae06",
+      "user_id": "919247",
+      "puzzle_id": "76",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T10:04:14+00:00"
+    },
+    {
+      "submission_id": "sub_1773396450323_037a74f0",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T10:07:30+00:00"
+    },
+    {
+      "submission_id": "sub_1773396487612_7a0a7f28",
+      "user_id": "919247",
+      "puzzle_id": "cn_palindrome_dual",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T10:08:07+00:00"
+    },
+    {
+      "submission_id": "sub_1773396859691_86ca851f",
+      "user_id": "919247",
+      "puzzle_id": "76",
+      "visibility": "public",
+      "anonymous": false,
+      "updated_at": "2026-03-13T10:14:19+00:00"
+    }
+  ]
+}

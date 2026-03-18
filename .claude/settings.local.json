@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "WebFetch(domain:www.nowcoder.com)",
+      "WebFetch(domain:m.nowcoder.com)"
+    ],
+    "defaultMode": "bypassPermissions"
+  }
+}

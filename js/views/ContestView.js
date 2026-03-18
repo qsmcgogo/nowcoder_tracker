@@ -335,26 +335,27 @@ export class ContestView {
                 (problem.title || 'N/A');
             
             if (finalUrl && !isLocked) {
-                titleHtml = `<a class="problem-link" href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="${problem.title}">${truncatedTitle}</a>`;
+                const letterPrefix = letter ? `${letter}. ` : '';
+                titleHtml = `<a class="problem-link" href="${finalUrl}" target="_blank" rel="noopener noreferrer" title="${problem.title}">${letterPrefix}${truncatedTitle}</a>`;
             } else if (isLocked) {
+                const letterPrefix = letter ? `${letter}. ` : '';
                 titleHtml = `<span class="problem-link problem-locked js-paywall-buy"
                                 data-contest-id="${this.escapeHtml(String(problem.contestId))}"
                                 data-buy-url="${this.escapeHtml(buyUrl)}"
                                 title="需购买后访问"
                                 style="color:#9ca3af; cursor:pointer; font-weight:700;">
-                                ${this.escapeHtml(truncatedTitle)} 🔒
+                                ${this.escapeHtml(letterPrefix)}${this.escapeHtml(truncatedTitle)} 🔒
                              </span>`;
             } else {
-                titleHtml = `<span title="${problem.title || 'N/A'}">${truncatedTitle}</span>`;
+                const letterPrefix = letter ? `${letter}. ` : '';
+                titleHtml = `<span title="${problem.title || 'N/A'}">${this.escapeHtml(letterPrefix)}${this.escapeHtml(truncatedTitle)}</span>`;
             }
         }
-
-        const letterPrefix = letter && !isXCPC ? `${letter}. ` : '';
         
         return `
             <div class="problem-cell-content" style="${isLocked ? 'opacity:0.65;' : ''}">
                 ${difficultyCircleHtml}
-                ${letterPrefix}${titleHtml}
+                ${titleHtml}
             </div>
         `;
     }

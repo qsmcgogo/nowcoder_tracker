@@ -2880,6 +2880,51 @@ export class ApiService {
         throw new Error((data && (data.msg || data.message)) || '获取年度报告失败');
     }
 
+    /**
+     * 管理员调试：查询 Redis 指定 key 的值（按类型）。
+     * GET /problem/tracker/admin/redis/debug?key=xxx&type=string|hash|set|zset|list|auto
+     *
+     * @param {{
+     *  key: string,
+     *  type?: string,
+     *  start?: number|string,
+     *  limit?: number|string,
+     *  asc?: boolean|string,
+     *  field?: string,
+     *  member?: string
+     * }} params
+     * @returns {Promise<object>} 返回后端 data 字段（含 key/type/ttl/value 等）
+     */
+    async adminRedisDebugKey(params = {}) {
+        const key = String(params?.key || '').trim();
+        if (!key) throw new Error('key 不能为空');
+        const type = String(params?.type || 'auto').trim() || 'auto';
+        const start = Number.isFinite(Number(params?.start)) ? Math.max(0, Number(params.start)) : 0;
+        const limitRaw = Number.isFinite(Number(params?.limit)) ? Number(params.limit) : 50;
+        const limit = Math.max(1, Math.min(200, Math.floor(limitRaw)));
+        const asc = (params?.asc === true || params?.asc === 'true');
+        const field = String(params?.field || '').trim();
+        const member = String(params?.member || '').trim();
+
+        const qs = new URLSearchParams();
+        qs.set('key', key);
+        if (type) qs.set('type', type);
+        if (start) qs.set('start', String(start));
+        if (limit) qs.set('limit', String(limit));
+        if (asc) qs.set('asc', 'true');
+        if (field) qs.set('field', field);
+        if (member) qs.set('member', member);
+
+        const url = `${this.apiBase}/problem/tracker/admin/redis/debug?${qs.toString()}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, 'Redis Debug 查询失败');
+    }
+
     // ==================== Prompt Challenge Demo（管理员工具） ====================
 
     /**
@@ -3036,6 +3081,240 @@ export class ApiService {
         }
         const data = await res.json().catch(() => ({}));
         return this._unwrapCommon(data, '评测失败');
+    }
+
+    // ==================== AI Puzzle（约束型 Prompt 解谜） ====================
+
+    async aiPuzzleList() {
+        const url = `${this.apiBase}/problem/tracker/api/ai-puzzle/problems`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        const unwrapped = this._unwrapCommon(data, '获取 AI 题列表失败');
+        return (unwrapped && Array.isArray(unwrapped.problems)) ? unwrapped.problems : [];
+    }
+
+    async aiPuzzleGet(problemId) {
+        const id = String(problemId || '').trim();
+        if (!id) throw new Error('problemId不能为空');
+        const url = `${this.apiBase}/problem/tracker/api/ai-puzzle/problems/${encodeURIComponent(id)}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '获取 AI 题详情失败');
+    }
+
+    async aiPuzzleSubmit(payload) {
+        const url = `${this.apiBase}/problem/tracker/api/ai-puzzle/submit`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload || {}),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '提交 AI 题失败');
+    }
+
+    async aiPuzzleHistory(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.userId != null && String(params.userId).trim() !== '') qs.set('user_id', String(params.userId).trim());
+        if (params.puzzleId != null && String(params.puzzleId).trim() !== '') qs.set('puzzle_id', String(params.puzzleId).trim());
+        if (params.limit != null && String(params.limit).trim() !== '') qs.set('limit', String(params.limit).trim());
+        const url = `${this.apiBase}/problem/tracker/api/ai-puzzle/history${qs.toString() ? `?${qs.toString()}` : ''}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '获取 AI 题历史失败');
+    }
+
+    async aiPuzzleSubmissions(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.puzzleId != null && String(params.puzzleId).trim() !== '') qs.set('puzzle_id', String(params.puzzleId).trim());
+        if (params.publicOnly != null) qs.set('public_only', params.publicOnly ? 'true' : 'false');
+        if (params.limit != null && String(params.limit).trim() !== '') qs.set('limit', String(params.limit).trim());
+        const url = `${this.apiBase}/problem/tracker/api/ai-puzzle/submissions${qs.toString() ? `?${qs.toString()}` : ''}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '获取 AI 题公开提交失败');
+    }
+
+    async aiPuzzleLeaderboard(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.boardType != null && String(params.boardType).trim() !== '') qs.set('board_type', String(params.boardType).trim());
+        if (params.dimensionKey != null && String(params.dimensionKey).trim() !== '') qs.set('dimension_key', String(params.dimensionKey).trim());
+        if (params.boardDate != null && String(params.boardDate).trim() !== '') qs.set('board_date', String(params.boardDate).trim());
+        if (params.limit != null && String(params.limit).trim() !== '') qs.set('limit', String(params.limit).trim());
+        const url = `${this.apiBase}/problem/tracker/api/ai-puzzle/leaderboard${qs.toString() ? `?${qs.toString()}` : ''}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '获取 AI 题排行榜失败');
+    }
+
+    async aiPuzzleAdminSchema() {
+        const url = `${this.apiBase}/problem/tracker/api/ai-puzzle/admin/schema`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '获取 AI 题 schema 失败');
+    }
+
+    async aiPuzzleAdminStats() {
+        const url = `${this.apiBase}/problem/tracker/api/ai-puzzle/admin/stats`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '获取 AI 题统计失败');
+    }
+
+    // ==================== Prompt Puzzle 管理端 ====================
+
+    /**
+     * 转换题目为 Prompt Puzzle（type=21）+ 写入 judge 代码
+     * POST /problem/tracker/prompt/puzzle/admin/convert
+     */
+    async promptPuzzleAdminConvert(questionId, judgeCode) {
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/admin/convert`;
+        const body = `questionId=${encodeURIComponent(questionId)}&judgeCode=${encodeURIComponent(judgeCode)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body,
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        return await res.json().catch(() => ({}));
+    }
+
+    /**
+     * 更新 Prompt Puzzle 的 judge 代码 / 题面
+     * POST /problem/tracker/prompt/puzzle/admin/update-judge
+     */
+    async promptPuzzleAdminUpdateJudge(params) {
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/admin/update-judge`;
+        const parts = [];
+        if (params.questionId != null) parts.push(`questionId=${encodeURIComponent(params.questionId)}`);
+        if (params.judgeCode != null) parts.push(`judgeCode=${encodeURIComponent(params.judgeCode)}`);
+        if (params.title != null) parts.push(`title=${encodeURIComponent(params.title)}`);
+        if (params.content != null) parts.push(`content=${encodeURIComponent(params.content)}`);
+        if (params.difficulty != null) parts.push(`difficulty=${encodeURIComponent(params.difficulty)}`);
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: parts.join('&'),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        return await res.json().catch(() => ({}));
+    }
+
+    /**
+     * 管理端题目列表
+     * GET /problem/tracker/prompt/puzzle/admin/list
+     */
+    async promptPuzzleAdminList() {
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/admin/list`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json().catch(() => ({}));
+    }
+
+    /**
+     * 获取 judge 代码原文
+     * GET /problem/tracker/prompt/puzzle/admin/judge-code?questionId=xxx
+     */
+    async promptPuzzleAdminJudgeCode(questionId) {
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/admin/judge-code?questionId=${encodeURIComponent(questionId)}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json().catch(() => ({}));
+    }
+
+    // ==================== Prompt Puzzle 用户端 ====================
+
+    async promptPuzzleProblems(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.page) qs.set('page', String(params.page));
+        if (params.pageSize) qs.set('pageSize', String(params.pageSize));
+        if (params.orderBy) qs.set('orderBy', params.orderBy);
+        if (params.order) qs.set('order', params.order);
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/problems${qs.toString() ? `?${qs}` : ''}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && data.code === 0 && data.data) return data.data;
+        throw new Error((data && data.message) || '获取题目列表失败');
+    }
+
+    async promptPuzzleDetail(questionId) {
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/problems/detail?questionId=${encodeURIComponent(questionId)}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && data.code === 0 && data.data) return data.data;
+        throw new Error((data && data.message) || '获取题目详情失败');
+    }
+
+    async promptPuzzleSubmit(params) {
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/submit`;
+        const body = new URLSearchParams();
+        body.set('questionId', String(params.questionId || ''));
+        body.set('userPrompt', String(params.userPrompt || ''));
+        if (params.visibility) body.set('visibility', params.visibility);
+        if (params.anonymous != null) body.set('anonymous', String(!!params.anonymous));
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: body.toString(),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data && data.code === 0 && data.data) return data.data;
+        throw new Error((data && data.message) || '提交失败');
+    }
+
+    async promptPuzzleHistory(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.questionId) qs.set('questionId', String(params.questionId));
+        if (params.limit) qs.set('limit', String(params.limit));
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/history${qs.toString() ? `?${qs}` : ''}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && data.code === 0 && data.data) return data.data.items || [];
+        return [];
+    }
+
+    async promptPuzzleLeaderboard(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.questionId) qs.set('questionId', String(params.questionId));
+        if (params.limit) qs.set('limit', String(params.limit));
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/leaderboard${qs.toString() ? `?${qs}` : ''}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && data.code === 0 && data.data) return data.data.items || [];
+        return [];
     }
 
     // ==================== Prompt Code Challenge（AI 编程题） ====================
@@ -3863,6 +4142,60 @@ export class ApiService {
     }
 
     /**
+     * 管理员：刷新用户技能树进度（含成就补发）
+     * POST /tracker/skill-tree/refresh-user-chapter-progress
+     * @param {number} userId - 用户ID
+     * @param {string} chapterKey - 章节Key，默认 chapter1
+     */
+    async adminRefreshUserChapterProgress(userId, chapterKey = 'chapter1') {
+        const url = `${this.apiBase}/problem/tracker/skill-tree/refresh-user-chapter-progress`;
+        const body = new URLSearchParams();
+        body.append('userId', String(userId));
+        if (chapterKey) body.append('chapterKey', String(chapterKey));
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: body.toString(),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '刷新进度失败');
+    }
+
+    /**
+     * 管理员：批量统计团队活动最终数据（严格实时）
+     * POST /tracker/activity/teams/statistics
+     * @param {string} teamIds - 团队ID列表，逗号分隔
+     * @param {string} beginDate - 开始日期
+     * @param {string} endDate - 结束日期
+     */
+    async adminActivityTeamStatistics(teamIds, beginDate, endDate) {
+        const url = `${this.apiBase}/problem/tracker/activity/teams/statistics`;
+        const body = new URLSearchParams();
+        body.append('teamIds', String(teamIds || '').trim());
+        if (beginDate) body.append('beginDate', String(beginDate));
+        if (endDate) body.append('endDate', String(endDate));
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: body.toString(),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '统计失败');
+    }
+
+    /**
      * 管理员测试：给指定用户增加“2026 春季 AI 体验站”的抽奖次数（Redis 次数体系）
      * POST /problem/tracker/admin/spring2026-ai/chances/add?uid=xxx&delta=1&uuid=spring2026_ai_station
      *
@@ -3918,6 +4251,150 @@ export class ApiService {
     }
 
     /**
+     * 管理员验数：查询某用户在指定抽奖活动下的抽奖记录（包含未中奖）。
+     *
+     * Path: GET /problem/tracker/admin/spring2026-ai/lottery/records?uid=xxx&activityId=465576048&offset=0&limit=50
+     *
+     * @param {number|string} uid - 用户 uid（必填，>0）
+     * @param {number|string} [activityId=465576048]
+     * @param {number|string} [offset=0]
+     * @param {number|string} [limit=50]
+     * @returns {Promise<object|Array>} 后端 data（通常包含 records/list/total 等字段；也兼容直接返回数组）
+     */
+    async adminSpring2026AiLotteryRecords(uid, activityId = 465576048, offset = 0, limit = 50) {
+        const uidNum = parseInt(String(uid || 0), 10) || 0;
+        if (!uidNum || uidNum <= 0) throw new Error('uid 参数不合法');
+        const aid = parseInt(String(activityId || 465576048), 10) || 465576048;
+        const off = Math.max(0, parseInt(String(offset || 0), 10) || 0);
+        const lim = Math.max(1, Math.min(200, parseInt(String(limit || 50), 10) || 50));
+
+        const qs = new URLSearchParams();
+        qs.set('uid', String(uidNum));
+        qs.set('activityId', String(aid));
+        qs.set('offset', String(off));
+        qs.set('limit', String(lim));
+
+        const url = `${this.apiBase}/problem/tracker/admin/spring2026-ai/lottery/records?${qs.toString()}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '查询抽奖记录失败');
+    }
+
+    /**
+     * 管理员：清空某用户的测运 Redis，使其可重新生成发展说明书。
+     * POST /problem/tracker/admin/spring2026-fortune/redis/clear?uid=xxx
+     *
+     * @param {number|string} uid - 用户 uid（必填，>0）
+     * @returns {Promise<object>} 返回 data: { uid, deleted }
+     */
+    async adminClearSpring2026FortuneRedis(uid) {
+        const uidNum = parseInt(String(uid || 0), 10) || 0;
+        if (!uidNum || uidNum <= 0) throw new Error('uid 参数不合法');
+        const url = `${this.apiBase}/problem/tracker/admin/spring2026-fortune/redis/clear?uid=${encodeURIComponent(uidNum)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json, text/plain, */*' },
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const data = await res.json().catch(() => null);
+        if (data == null || typeof data !== 'object') throw new Error('接口响应不是 JSON');
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '清空发展说明书 Redis 失败');
+    }
+
+    /**
+     * 管理员测试：清除第三期「分享活动页面」的全期领取标记（用于重复测试分享功能）。
+     * 注意：该接口只删除“已领取标记”，不会回滚用户抽奖次数。
+     *
+     * POST /problem/tracker/admin/spring2026-third/task/share/claimed/clear?uid=xxx
+     *
+     * @param {number|string} uid - 用户 uid（必填，>0）
+     * @returns {Promise<object>} 返回 data: { uid, key, exists, oldValue, deleted }
+     */
+    async adminClearSpring2026ThirdShareClaimed(uid) {
+        const uidNum = parseInt(String(uid || 0), 10) || 0;
+        if (!uidNum || uidNum <= 0) throw new Error('uid 参数不合法');
+
+        const url = `${this.apiBase}/problem/tracker/admin/spring2026-third/task/share/claimed/clear?uid=${encodeURIComponent(uidNum)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json, text/plain, */*' },
+            cache: 'no-store',
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json().catch(() => null);
+        if (data == null || typeof data !== 'object') {
+            const t = await res.text().catch(() => '');
+            if (t && /<html[\s>]/i.test(t)) {
+                const finalUrl = res.url || '';
+                throw new Error(`接口返回 HTML（疑似未登录/无权限/反代兜底）。finalUrl=${finalUrl || '(unknown)'}`);
+            }
+            throw new Error(t || '接口响应不是 JSON');
+        }
+
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '清除分享领取标记失败');
+    }
+
+    /**
+     * 管理员测试：给指定用户增加“第三期大转盘”的抽奖次数（Redis 次数体系）
+     * POST /problem/tracker/admin/spring2026-third/chances/add?uid=xxx&delta=1
+     *
+     * @param {number} uid - 用户 uid（必填，>0）
+     * @param {number} [delta=1] - 增加次数（>0，建议 <= 1000）
+     */
+    async adminSpring2026ThirdAddChances(uid, delta = 1) {
+        const url = `${this.apiBase}/problem/tracker/admin/spring2026-third/chances/add`;
+        const qs = new URLSearchParams();
+        const uidNum = parseInt(String(uid || 0), 10) || 0;
+        const deltaNum = parseInt(String(delta || 1), 10) || 1;
+        qs.append('uid', String(uidNum));
+        qs.append('delta', String(deltaNum));
+
+        const res = await fetch(`${url}?${qs.toString()}`, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json, text/plain, */*'
+            },
+            cache: 'no-store',
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json().catch(() => null);
+        if (data == null || typeof data !== 'object') {
+            const t = await res.text().catch(() => '');
+            if (t && /<html[\s>]/i.test(t)) {
+                const finalUrl = res.url || '';
+                throw new Error(`接口返回 HTML（疑似未登录/无权限/反代兜底）。finalUrl=${finalUrl || '(unknown)'}`);
+            }
+            throw new Error(t || '接口响应不是 JSON');
+        }
+
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '增加抽奖次数失败');
+    }
+
+    /**
      * 比赛题目难度一键更新
      * POST /problem/tracker/admin/acm-contest/rebuild-problem-difficulty
      * @param {number} contestId - 比赛ID（必填）
@@ -3944,6 +4421,66 @@ export class ApiService {
         const data = await res.json().catch(() => ({}));
         if (data && (data.code === 0 || data.code === 200)) return data.data || {};
         throw new Error((data && (data.msg || data.message)) || '难度更新失败');
+    }
+
+    /**
+     * 管理员直调：直接持久化 ACM 榜单到 acm_contest_rank，不经过 event。
+     * POST /problem/tracker/admin/acm/rank/persist-direct?contestId=xxx
+     *
+     * @param {number|string} contestId - 比赛ID（必填，>0）
+     * @returns {Promise<object>} 返回 data：{contestId, contestName, beforeRankCount, afterRankCount, beforeRankSaveStatus, afterRankSaveStatus, success}
+     */
+    async adminPersistAcmRankDirect(contestId) {
+        const cid = parseInt(String(contestId || 0), 10) || 0;
+        if (!cid || cid <= 0) throw new Error('contestId 参数不合法');
+
+        const url = `${this.apiBase}/problem/tracker/admin/acm/rank/persist-direct?contestId=${encodeURIComponent(cid)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json, text/plain, */*' },
+            cache: 'no-store',
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json().catch(() => null);
+        if (data == null || typeof data !== 'object') throw new Error('接口响应不是 JSON');
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '直调持久化榜单失败');
+    }
+
+    /**
+     * 管理员直调：直接执行 ACM rerating，不经过 event。
+     * POST /problem/tracker/admin/acm/rating/rerating-direct?contestId=xxx
+     *
+     * @param {number|string} contestId - 比赛ID（必填，>0）
+     * @returns {Promise<object>} 返回 data：{contestId, contestName, beforeRatingStatus, afterRatingStatus, finished, hint}
+     */
+    async adminReratingAcmDirect(contestId) {
+        const cid = parseInt(String(contestId || 0), 10) || 0;
+        if (!cid || cid <= 0) throw new Error('contestId 参数不合法');
+
+        const url = `${this.apiBase}/problem/tracker/admin/acm/rating/rerating-direct?contestId=${encodeURIComponent(cid)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Accept': 'application/json, text/plain, */*' },
+            cache: 'no-store',
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json().catch(() => null);
+        if (data == null || typeof data !== 'object') throw new Error('接口响应不是 JSON');
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '直调 rerating 失败');
     }
 }
 

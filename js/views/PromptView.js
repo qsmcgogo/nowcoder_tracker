@@ -15,8 +15,8 @@ export class PromptView {
         this.state = state;
         this.apiService = apiService;
 
-        // sub tab: traditional | code
-        this.subTab = localStorage.getItem('prompt_subtab') || 'traditional'; // traditional | code | rules
+        // sub tab: traditional | puzzle | code | rules
+        this.subTab = localStorage.getItem('prompt_subtab') || 'traditional'; // traditional | puzzle | code | rules
 
         this.challenges = [];
         this.selectedId = '';
@@ -40,6 +40,21 @@ export class PromptView {
 
         // Code problem selection
         this.selectedCodeProblemId = localStorage.getItem('prompt_code_problem_id') || 'reverse_output_10ints';
+
+        // AI 约束型解谜
+        this.aiPuzzles = [];
+        this.aiPuzzleTotal = 0;
+        this.aiPuzzlePage = 1;
+        this.aiPuzzlePageSize = 20;
+        this.aiPuzzleOrderBy = localStorage.getItem('ai_puzzle_order_by') || 'id';
+        this.aiPuzzleOrder = localStorage.getItem('ai_puzzle_order') || 'desc';
+        this.aiPuzzleSelectedId = localStorage.getItem('ai_puzzle_selected_id') || '';
+        this.aiPuzzleDetail = null;
+        this.aiPuzzleSubmitting = false;
+        this.aiPuzzleLastResult = null;
+        this.aiPuzzleHistory = [];
+        this.aiPuzzleLeaderboard = [];
+        this.aiPuzzleSideTab = localStorage.getItem('ai_puzzle_side_tab') || 'records';
     }
 
     render() {
@@ -61,7 +76,7 @@ export class PromptView {
             <div class="achv-overview-card" style="margin-top:8px;">
                 <div style="display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
                     <div style="font-size: 18px; font-weight: 900; color:#111827;">🧪 Prompt 评测</div>
-                    <div style="font-size: 12px; color:#6b7280;">传统 Prompt / AI 编程题</div>
+                    <div style="font-size: 12px; color:#6b7280;">传统 Prompt / 约束解谜 / AI 编程题</div>
                 </div>
 
                 <div style="margin-top: 12px; display:grid; grid-template-columns: 220px 1fr; gap: 12px; align-items:start;">
@@ -70,6 +85,7 @@ export class PromptView {
                         <div style="padding: 10px 12px; border-bottom:1px solid #f0f0f0; font-size: 13px; font-weight: 800; color:#111827;">导航</div>
                         <div style="padding: 10px 12px; display:flex; flex-direction:column; gap:8px;">
                             <button id="prompt-subtab-traditional" class="admin-btn ${this.subTab === 'traditional' ? '' : 'modal-secondary'}" type="button" style="width:100%; justify-content:center;">传统 Prompt 题</button>
+                            <button id="prompt-subtab-puzzle" class="admin-btn ${this.subTab === 'puzzle' ? '' : 'modal-secondary'}" type="button" style="width:100%; justify-content:center;">约束型解谜</button>
                             <button id="prompt-subtab-code" class="admin-btn ${this.subTab === 'code' ? '' : 'modal-secondary'}" type="button" style="width:100%; justify-content:center;">AI 编程题</button>
                             <button id="prompt-subtab-rules" class="admin-btn ${this.subTab === 'rules' ? '' : 'modal-secondary'}" type="button" style="width:100%; justify-content:center;">规则 / 提示</button>
                         </div>
@@ -125,6 +141,10 @@ export class PromptView {
                             ${this.renderCodeChallengePanel()}
                         </div>
 
+                        <div id="prompt-panel-puzzle" style="display:${this.subTab === 'puzzle' ? 'block' : 'none'};">
+                            ${this.renderAiPuzzlePanel()}
+                        </div>
+
                         <div id="prompt-panel-rules" style="display:${this.subTab === 'rules' ? 'block' : 'none'};">
                             ${this.renderRulesPanel()}
                         </div>
@@ -136,16 +156,26 @@ export class PromptView {
         this.bindEvents();
         // 传统题需要题库；AI 编程题目前是固定例题，不强依赖题库
         if (this.subTab === 'traditional') this.loadChallenges(true);
+        if (this.subTab === 'puzzle') {
+            this.bindAiPuzzleEvents();
+            this.loadAiPuzzles(true);
+        }
         this.bindCodeChallengeEvents();
+        this.bindRulesSubTabEvents();
     }
 
     bindEvents() {
         const btnTraditional = document.getElementById('prompt-subtab-traditional');
+        const btnPuzzle = document.getElementById('prompt-subtab-puzzle');
         const btnCode = document.getElementById('prompt-subtab-code');
         const btnRules = document.getElementById('prompt-subtab-rules');
         if (btnTraditional && !btnTraditional._bound) {
             btnTraditional._bound = true;
             btnTraditional.addEventListener('click', () => this.switchSubTab('traditional'));
+        }
+        if (btnPuzzle && !btnPuzzle._bound) {
+            btnPuzzle._bound = true;
+            btnPuzzle.addEventListener('click', () => this.switchSubTab('puzzle'));
         }
         if (btnCode && !btnCode._bound) {
             btnCode._bound = true;
@@ -179,6 +209,7 @@ export class PromptView {
 
     switchSubTab(tab) {
         if (tab === 'code') this.subTab = 'code';
+        else if (tab === 'puzzle') this.subTab = 'puzzle';
         else if (tab === 'rules') this.subTab = 'rules';
         else this.subTab = 'traditional';
         localStorage.setItem('prompt_subtab', this.subTab);
@@ -186,53 +217,126 @@ export class PromptView {
         this.render();
     }
 
+    bindRulesSubTabEvents() {
+        const puzzleBtn = document.getElementById('rules-subtab-puzzle');
+        const aiScoreBtn = document.getElementById('rules-subtab-ai-score');
+        const switchRulesTab = (tab) => {
+            this._rulesSubTab = tab;
+            const puzzlePanel = document.getElementById('rules-panel-puzzle');
+            const aiScorePanel = document.getElementById('rules-panel-ai-score');
+            if (puzzlePanel) puzzlePanel.style.display = tab === 'puzzle' ? 'block' : 'none';
+            if (aiScorePanel) aiScorePanel.style.display = tab === 'ai-score' ? 'block' : 'none';
+            if (puzzleBtn) { puzzleBtn.style.background = tab === 'puzzle' ? '#111827' : 'transparent'; puzzleBtn.style.color = tab === 'puzzle' ? '#fff' : '#6b7280'; }
+            if (aiScoreBtn) { aiScoreBtn.style.background = tab === 'ai-score' ? '#111827' : 'transparent'; aiScoreBtn.style.color = tab === 'ai-score' ? '#fff' : '#6b7280'; }
+        };
+        if (puzzleBtn && !puzzleBtn._bound) { puzzleBtn._bound = true; puzzleBtn.addEventListener('click', () => switchRulesTab('puzzle')); }
+        if (aiScoreBtn && !aiScoreBtn._bound) { aiScoreBtn._bound = true; aiScoreBtn.addEventListener('click', () => switchRulesTab('ai-score')); }
+    }
+
     renderRulesPanel() {
+        const rulesSubTab = this._rulesSubTab || 'puzzle';
+        const tabStyle = (active) => `padding:7px 16px; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; transition:all .15s; ${active ? 'background:#111827; color:#fff;' : 'background:transparent; color:#6b7280;'}`;
         return `
-            <div style="border:1px solid #f0f0f0; border-radius: 12px; background:#fff; overflow:hidden;">
-                <div style="padding: 12px; border-bottom:1px solid #f0f0f0; display:flex; gap:10px; align-items:center;">
-                    <div style="font-size: 14px; font-weight: 900; color:#111827;">规则 / 提示</div>
+            <div style=”border:1px solid #e5e7eb; border-radius:14px; background:#fff; overflow:hidden;”>
+                <div style=”padding:12px 16px; border-bottom:1px solid #f3f4f6; display:flex; gap:6px; align-items:center;”>
+                    <div style=”font-size:14px; font-weight:900; color:#111827; margin-right:8px;”>规则 / 提示</div>
+                    <button id=”rules-subtab-puzzle” style=”${tabStyle(rulesSubTab === 'puzzle')}” type=”button”>Puzzle 约束题</button>
+                    <button id=”rules-subtab-ai-score” style=”${tabStyle(rulesSubTab === 'ai-score')}” type=”button”>AI 打分题</button>
                 </div>
-                <div style="padding: 12px; font-size: 13px; color:#374151; line-height:1.8;">
-                    <div style="font-weight:900; color:#111827;">总分公式</div>
-                    <div style="margin-top:4px;">
-                        最终得分 = <b>用例通过得分</b> × <b>Prompt 质量分（quality_coeff）</b> × <b>原创质量分（originality_coeff）</b>。
-                        所以别只追求“能做出来”，还要让 Prompt 稳定、可复现、少歧义、强约束，并避免粘贴题面/样例原文导致原创分被扣。
+
+                <!-- Puzzle 约束题 -->
+                <div id=”rules-panel-puzzle” style=”display:${rulesSubTab === 'puzzle' ? 'block' : 'none'}; padding:16px; font-size:13px; color:#374151; line-height:1.8;”>
+                    <div style=”font-weight:900; color:#111827; font-size:15px;”>Prompt Puzzle（约束型解谜）</div>
+                    <div style=”margin-top:6px; color:#6b7280;”>
+                        你需要写一条满足<b>输入约束</b>的 prompt，发给 AI，让 AI 的输出也满足<b>输出约束</b>。系统会多次采样考察稳定性。
                     </div>
 
-                    <div style="margin-top:12px; font-weight:900; color:#111827;">1) 传统 Prompt Challenge（分类/抽取/格式化输出）</div>
-                    <div style="margin-top:6px; color:#111827; font-weight:800;">✅ 加分写法</div>
-                    <ul style="margin:6px 0 0 0; padding-left: 18px;">
+                    <div style=”margin-top:14px; font-weight:900; color:#111827;”>判题流程</div>
+                    <div style=”margin-top:6px; display:flex; gap:8px; align-items:center; flex-wrap:wrap;”>
+                        <span style=”padding:4px 12px; border-radius:8px; background:#f0f7ff; color:#1d4ed8; font-size:12px; font-weight:700;”>1. 校验输入</span>
+                        <span style=”color:#d1d5db;”>→</span>
+                        <span style=”padding:4px 12px; border-radius:8px; background:#fefce8; color:#a16207; font-size:12px; font-weight:700;”>2. 调 LLM × N 次</span>
+                        <span style=”color:#d1d5db;”>→</span>
+                        <span style=”padding:4px 12px; border-radius:8px; background:#f0fdf4; color:#15803d; font-size:12px; font-weight:700;”>3. 校验每次输出</span>
+                        <span style=”color:#d1d5db;”>→</span>
+                        <span style=”padding:4px 12px; border-radius:8px; background:#faf5ff; color:#7c3aed; font-size:12px; font-weight:700;”>4. 汇总得分</span>
+                    </div>
+
+                    <div style=”margin-top:14px; font-weight:900; color:#111827;”>评分规则</div>
+                    <ul style=”margin:6px 0 0 0; padding-left:18px;”>
+                        <li><b>AC 条件</b>：所有采样全部通过（pass_rate = 100%）</li>
+                        <li><b>得分公式</b>：final_score = base_score × pass_rate - token_penalty</li>
+                        <li><b>token 惩罚</b>：消耗越少分越高，排行榜同分按 token 升序</li>
+                        <li><b>PARTIAL</b>：部分通过有分但不算 AC</li>
+                    </ul>
+
+                    <div style=”margin-top:14px; font-weight:900; color:#111827;”>攻略提示</div>
+                    <div style=”margin-top:6px; color:#111827; font-weight:800;”>✅ 有效策略</div>
+                    <ul style=”margin:6px 0 0 0; padding-left:18px;”>
+                        <li>仔细阅读输入/输出约束，先想好哪些内容能同时满足两端</li>
+                        <li>prompt 要简洁、明确，避免模型产生多余输出</li>
+                        <li>利用模型的确定性：低 temperature + 短 prompt → 输出更稳定</li>
+                        <li>先试一次看结果，再针对失败 case 调整</li>
+                    </ul>
+                    <div style=”margin-top:8px; color:#111827; font-weight:800;”>❌ 常见误区</div>
+                    <ul style=”margin:6px 0 0 0; padding-left:18px;”>
+                        <li>只关注输出约束，忘了 prompt 本身也有约束</li>
+                        <li>prompt 太长 → token 惩罚拉低分数</li>
+                        <li>依赖模型”碰运气” → 采样 3 次里容易有 1 次失败</li>
+                    </ul>
+
+                    <div style=”margin-top:14px; font-weight:900; color:#111827;”>示例：双回文</div>
+                    <div style=”margin-top:6px; padding:12px; background:#f9fafb; border-radius:10px; border:1px solid #f3f4f6;”>
+                        <div style=”font-size:12px; color:#6b7280; margin-bottom:4px;”>输入约束：2~20 个 CJK 汉字、回文串</div>
+                        <div style=”font-size:12px; color:#6b7280; margin-bottom:8px;”>输出约束：2~16 个 CJK 汉字、回文串、不能与输入相同</div>
+                        <div style=”font-size:12px; color:#111827; font-weight:700;”>思路：输入一个中文回文，同时暗示模型也输出一个不同的回文</div>
+                        <pre style=”margin:6px 0 0 0; background:#0f172a; color:#e2e8f0; padding:10px; border-radius:8px; font-size:12px;”>我爱你爱我</pre>
+                        <div style=”margin-top:4px; font-size:11px; color:#9ca3af;”>→ 模型可能输出”人上人”等不同的回文串</div>
+                    </div>
+                </div>
+
+                <!-- AI 打分题 -->
+                <div id=”rules-panel-ai-score” style=”display:${rulesSubTab === 'ai-score' ? 'block' : 'none'}; padding:16px; font-size:13px; color:#374151; line-height:1.8;”>
+                    <div style=”font-weight:900; color:#111827;”>总分公式</div>
+                    <div style=”margin-top:4px;”>
+                        最终得分 = <b>用例通过得分</b> × <b>Prompt 质量分（quality_coeff）</b> × <b>原创质量分（originality_coeff）</b>。
+                        所以别只追求”能做出来”，还要让 Prompt 稳定、可复现、少歧义、强约束，并避免粘贴题面/样例原文导致原创分被扣。
+                    </div>
+
+                    <div style=”margin-top:12px; font-weight:900; color:#111827;”>1) 传统 Prompt Challenge（分类/抽取/格式化输出）</div>
+                    <div style=”margin-top:6px; color:#111827; font-weight:800;”>✅ 加分写法</div>
+                    <ul style=”margin:6px 0 0 0; padding-left:18px;”>
                         <li>明确输出格式：仅输出 JSON / 仅输出 POS|NEG|NEU；不要解释、不要多余字符</li>
                         <li>字段与约束写清楚：缺失信息怎么填、格式错误怎么处理</li>
                         <li>规则可执行：给判定规则/优先级（冲突时如何选）</li>
                         <li>结构化表达：分点/步骤写流程</li>
                         <li>自造小样例：给 1 个你自己造的 输入→输出（不要抄平台样例）</li>
                     </ul>
-                    <div style="margin-top:8px; color:#111827; font-weight:800;">❌ 扣分雷区</div>
-                    <ul style="margin:6px 0 0 0; padding-left: 18px;">
+                    <div style=”margin-top:8px; color:#111827; font-weight:800;”>❌ 扣分雷区</div>
+                    <ul style=”margin:6px 0 0 0; padding-left:18px;”>
                         <li>粘贴题面或平台样例原文（尤其样例输入输出）→ 原创分可能扣</li>
-                        <li>只写一句“帮我判断/抽取”，没有输出格式/约束/错误处理 → 质量分低</li>
+                        <li>只写一句”帮我判断/抽取”，没有输出格式/约束/错误处理 → 质量分低</li>
                         <li>输出要求自相矛盾（又要解释又要 JSON）→ 质量分低</li>
                     </ul>
-                    <div style="margin-top:8px; font-weight:800; color:#111827;">推荐模板（简版）</div>
-                    <pre style="margin:6px 0 0 0; white-space:pre-wrap; word-break:break-word; background:#0b1020; color:#e6edf3; padding: 10px; border-radius: 10px;">你是严格的文本处理器。任务：{一句话说明要做什么}\n输出要求：仅输出 {JSON/标签}，不要解释/不要多余字符\n字段/约束：{字段名/类型/缺失如何填}\n判定规则：1) ... 2) ...\n边界：输入为空/信息缺失/格式错误如何处理\n示例（自造）：输入：... 输出：...</pre>
+                    <div style=”margin-top:8px; font-weight:800; color:#111827;”>推荐模板（简版）</div>
+                    <pre style=”margin:6px 0 0 0; white-space:pre-wrap; word-break:break-word; background:#0f172a; color:#e2e8f0; padding:10px; border-radius:10px; font-size:12px;”>你是严格的文本处理器。任务：{一句话说明要做什么}\n输出要求：仅输出 {JSON/标签}，不要解释/不要多余字符\n字段/约束：{字段名/类型/缺失如何填}\n判定规则：1) ... 2) ...\n边界：输入为空/信息缺失/格式错误如何处理\n示例（自造）：输入：... 输出：...</pre>
 
-                    <div style="margin-top:14px; font-weight:900; color:#111827;">2) 编程题（AI 负责质量分+原创分，AC 走判题系统）</div>
-                    <div style="margin-top:6px; color:#111827; font-weight:800;">✅ 加分写法</div>
-                    <ul style="margin:6px 0 0 0; padding-left: 18px;">
+                    <div style=”margin-top:14px; font-weight:900; color:#111827;”>2) 编程题（AI 负责质量分+原创分，AC 走判题系统）</div>
+                    <div style=”margin-top:6px; color:#111827; font-weight:800;”>✅ 加分写法</div>
+                    <ul style=”margin:6px 0 0 0; padding-left:18px;”>
                         <li>给思路/做法（算法/数据结构/关键步骤），不要复述题面</li>
                         <li>写清边界值与特判（空输入、极值、溢出、格式异常等）</li>
                         <li>给复杂度目标（如时间 O(n log n)、空间 O(n)）</li>
                         <li>明确输出要求：只输出代码、C++17、stdin/stdout、不要 markdown</li>
                         <li>结构化：分点步骤或伪代码</li>
                     </ul>
-                    <div style="margin-top:8px; color:#111827; font-weight:800;">❌ 扣分雷区</div>
-                    <ul style="margin:6px 0 0 0; padding-left: 18px;">
+                    <div style=”margin-top:8px; color:#111827; font-weight:800;”>❌ 扣分雷区</div>
+                    <ul style=”margin:6px 0 0 0; padding-left:18px;”>
                         <li>直接粘贴题面/输入输出/样例原文 → 原创分风险极高</li>
-                        <li>只说“给我一份能 AC 的代码”但不给任何可执行约束/边界 → 质量分低</li>
+                        <li>只说”给我一份能 AC 的代码”但不给任何可执行约束/边界 → 质量分低</li>
                     </ul>
-                    <div style="margin-top:8px; font-weight:800; color:#111827;">推荐模板（简版）</div>
-                    <pre style="margin:6px 0 0 0; white-space:pre-wrap; word-break:break-word; background:#0b1020; color:#e6edf3; padding: 10px; border-radius: 10px;">请生成 C++17 代码（stdin/stdout），只输出代码，不要解释/不要 markdown。\n解题思路：1) ... 2) ...\n关键细节/特判：...\n复杂度目标：时间 O(...), 空间 O(...)\n实现要求：long long/注意溢出/输出格式...</pre>
+                    <div style=”margin-top:8px; font-weight:800; color:#111827;”>推荐模板（简版）</div>
+                    <pre style=”margin:6px 0 0 0; white-space:pre-wrap; word-break:break-word; background:#0f172a; color:#e2e8f0; padding:10px; border-radius:10px; font-size:12px;”>请生成 C++17 代码（stdin/stdout），只输出代码，不要解释/不要 markdown。\n解题思路：1) ... 2) ...\n关键细节/特判：...\n复杂度目标：时间 O(...), 空间 O(...)\n实现要求：long long/注意溢出/输出格式...</pre>
                 </div>
             </div>
         `;
@@ -440,6 +544,546 @@ export class PromptView {
             </div>
         `).join('');
         failsEl.innerHTML = `<div style="border-radius: 12px; overflow:hidden;">${cards}</div>`;
+    }
+
+    // ==================== AI 约束型解谜 ====================
+
+    renderAiPuzzlePanel() {
+        return `
+            <div style="display:flex; flex-direction:column; gap:12px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <div style="font-size:15px; font-weight:900; color:#111827;">Prompt Puzzle 题库</div>
+                    <div style="font-size:12px; color:#9ca3af;">写出满足约束的 prompt，让 AI 给出合法输出</div>
+                    <div style="flex:1;"></div>
+                    <select id="ai-puzzle-sort" style="padding:6px 10px; border:1px solid #e5e7eb; border-radius:8px; font-size:12px; color:#374151; background:#fff;">
+                        <option value="id-desc" ${this.aiPuzzleOrderBy === 'id' && this.aiPuzzleOrder === 'desc' ? 'selected' : ''}>最新</option>
+                        <option value="id-asc" ${this.aiPuzzleOrderBy === 'id' && this.aiPuzzleOrder === 'asc' ? 'selected' : ''}>最早</option>
+                        <option value="passTotal-desc" ${this.aiPuzzleOrderBy === 'passTotal' ? 'selected' : ''}>通过最多</option>
+                        <option value="personTotal-desc" ${this.aiPuzzleOrderBy === 'personTotal' ? 'selected' : ''}>提交最多</option>
+                        <option value="difficulty-asc" ${this.aiPuzzleOrderBy === 'difficulty' && this.aiPuzzleOrder === 'asc' ? 'selected' : ''}>难度升序</option>
+                        <option value="difficulty-desc" ${this.aiPuzzleOrderBy === 'difficulty' && this.aiPuzzleOrder === 'desc' ? 'selected' : ''}>难度降序</option>
+                    </select>
+                    <button id="ai-puzzle-refresh-btn" style="padding:6px 14px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#6b7280; cursor:pointer; font-size:12px; font-weight:600;" type="button">刷新</button>
+                </div>
+                <div id="ai-puzzle-list" style="border:1px solid #e5e7eb; border-radius:14px; background:#fff; overflow:hidden;">
+                    <div style="padding:20px; text-align:center; color:#9ca3af; font-size:13px;">加载中...</div>
+                </div>
+            </div>
+            <!-- 做题弹窗 -->
+            <div id="ai-puzzle-modal-overlay" style="display:none; position:fixed; inset:0; z-index:9999; background:rgba(0,0,0,.45); backdrop-filter:blur(2px);">
+                <div id="ai-puzzle-modal" style="position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); width:min(1100px,94vw); max-height:90vh; background:#fff; border-radius:20px; box-shadow:0 20px 60px rgba(0,0,0,.2); display:flex; flex-direction:column; overflow:hidden;">
+                    <!-- 弹窗头 -->
+                    <div style="padding:16px 20px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; gap:12px; flex-shrink:0;">
+                        <div id="ai-puzzle-modal-title" style="font-size:17px; font-weight:900; color:#111827;">题目</div>
+                        <div id="ai-puzzle-modal-badges" style="display:flex; gap:6px; flex-wrap:wrap;"></div>
+                        <div style="flex:1;"></div>
+                        <button id="ai-puzzle-modal-close" style="width:32px; height:32px; border:none; border-radius:8px; background:#f3f4f6; color:#6b7280; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center;" type="button">&times;</button>
+                    </div>
+                    <!-- 弹窗体 -->
+                    <div style="flex:1; overflow-y:auto; padding:20px; display:grid; grid-template-columns:1fr 1fr; gap:20px; align-items:start;">
+                        <!-- 左：题面 + 排行榜 -->
+                        <div style="display:flex; flex-direction:column; gap:16px;">
+                            <div id="ai-puzzle-modal-desc" style="font-size:13px; color:#374151; line-height:1.8;"></div>
+                            <div style="border-top:1px solid #f3f4f6; padding-top:14px;">
+                                <div style="display:flex; gap:4px; margin-bottom:10px;">
+                                    <button id="ai-puzzle-side-tab-records" style="padding:5px 12px; border-radius:8px; border:none; font-size:12px; font-weight:700; cursor:pointer; background:#111827; color:#fff;" type="button">我的记录</button>
+                                    <button id="ai-puzzle-side-tab-leaderboard" style="padding:5px 12px; border-radius:8px; border:none; font-size:12px; font-weight:700; cursor:pointer; background:transparent; color:#6b7280;" type="button">排行榜</button>
+                                </div>
+                                <div id="ai-puzzle-history-panel"><div id="ai-puzzle-history" style="max-height:260px; overflow:auto; color:#9ca3af; font-size:13px;">（加载中...）</div></div>
+                                <div id="ai-puzzle-leaderboard-panel" style="display:none;"><div id="ai-puzzle-leaderboard" style="max-height:260px; overflow:auto; color:#9ca3af; font-size:13px;">（加载中...）</div></div>
+                            </div>
+                        </div>
+                        <!-- 右：提交 + 结果 -->
+                        <div style="display:flex; flex-direction:column; gap:14px;">
+                            <div>
+                                <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+                                    <div style="font-size:13px; font-weight:800; color:#111827;">你的 Prompt</div>
+                                    <div style="flex:1;"></div>
+                                    <select id="ai-puzzle-visibility" style="padding:5px 8px; border:1px solid #e5e7eb; border-radius:6px; font-size:11px; color:#374151;">
+                                        <option value="public">公开</option>
+                                        <option value="private">私密</option>
+                                        <option value="ac_only">AC 后公开</option>
+                                    </select>
+                                    <label style="font-size:11px; color:#6b7280; display:flex; align-items:center; gap:3px; cursor:pointer;">
+                                        <input id="ai-puzzle-anonymous" type="checkbox" style="accent-color:#111827;" />匿名
+                                    </label>
+                                </div>
+                                <textarea id="ai-puzzle-prompt" rows="6" placeholder="在这里写 prompt..."
+                                    style="width:100%; padding:12px; border:1px solid #e5e7eb; border-radius:12px; font-size:13px; resize:vertical; font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace; line-height:1.5; background:#fafafa;"></textarea>
+                                <div style="margin-top:10px; display:flex; gap:10px; align-items:center;">
+                                    <button id="ai-puzzle-run-btn" style="padding:9px 24px; border:none; border-radius:10px; background:#111827; color:#fff; font-size:13px; font-weight:800; cursor:pointer;" type="button">提交评测</button>
+                                    <div id="ai-puzzle-error" style="font-size:12px; color:#ef4444; display:none;"></div>
+                                </div>
+                            </div>
+                            <div id="ai-puzzle-result-wrap" style="display:none;">
+                                <div id="ai-puzzle-result" style="padding:12px; border:1px solid #e5e7eb; border-radius:12px; background:#fafafa;"></div>
+                            </div>
+                            <div>
+                                <div style="font-size:13px; font-weight:800; color:#111827; margin-bottom:6px;">采样明细</div>
+                                <div id="ai-puzzle-runs" style="border:1px solid #e5e7eb; border-radius:12px; overflow:hidden;">
+                                    <div style="padding:16px; text-align:center; color:#9ca3af; font-size:12px;">（尚未评测）</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
+    bindAiPuzzleEvents() {
+        if (this.subTab !== 'puzzle') return;
+        const refreshBtn = document.getElementById('ai-puzzle-refresh-btn');
+        const closeBtn = document.getElementById('ai-puzzle-modal-close');
+        const overlay = document.getElementById('ai-puzzle-modal-overlay');
+        const runBtn = document.getElementById('ai-puzzle-run-btn');
+        const tabRecordsBtn = document.getElementById('ai-puzzle-side-tab-records');
+        const tabLeaderboardBtn = document.getElementById('ai-puzzle-side-tab-leaderboard');
+
+        if (refreshBtn && !refreshBtn._bound) {
+            refreshBtn._bound = true;
+            refreshBtn.addEventListener('click', () => { this.aiPuzzlePage = 1; this.loadAiPuzzles(true); });
+        }
+        const sortEl = document.getElementById('ai-puzzle-sort');
+        if (sortEl && !sortEl._bound) {
+            sortEl._bound = true;
+            sortEl.addEventListener('change', () => {
+                const [ob, od] = String(sortEl.value).split('-');
+                this.aiPuzzleOrderBy = ob || 'id';
+                this.aiPuzzleOrder = od || 'desc';
+                this.aiPuzzlePage = 1;
+                localStorage.setItem('ai_puzzle_order_by', this.aiPuzzleOrderBy);
+                localStorage.setItem('ai_puzzle_order', this.aiPuzzleOrder);
+                this.loadAiPuzzles(true);
+            });
+        }
+        if (closeBtn && !closeBtn._bound) {
+            closeBtn._bound = true;
+            closeBtn.addEventListener('click', () => this.closeAiPuzzleModal());
+        }
+        if (overlay && !overlay._bound) {
+            overlay._bound = true;
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) this.closeAiPuzzleModal(); });
+        }
+        if (runBtn && !runBtn._bound) {
+            runBtn._bound = true;
+            runBtn.addEventListener('click', () => this.runAiPuzzleSubmit());
+        }
+        if (tabRecordsBtn && !tabRecordsBtn._bound) {
+            tabRecordsBtn._bound = true;
+            tabRecordsBtn.addEventListener('click', () => this.switchAiPuzzleSideTab('records'));
+        }
+        if (tabLeaderboardBtn && !tabLeaderboardBtn._bound) {
+            tabLeaderboardBtn._bound = true;
+            tabLeaderboardBtn.addEventListener('click', () => this.switchAiPuzzleSideTab('leaderboard'));
+        }
+        // prompt input auto-save
+        const promptEl = document.getElementById('ai-puzzle-prompt');
+        if (promptEl && !promptEl._bound) {
+            promptEl._bound = true;
+            promptEl.addEventListener('input', () => {
+                if (this.aiPuzzleSelectedId) localStorage.setItem(`ai_puzzle_prompt_${this.aiPuzzleSelectedId}`, String(promptEl.value || ''));
+            });
+        }
+        const visibilityEl = document.getElementById('ai-puzzle-visibility');
+        if (visibilityEl && !visibilityEl._bound) {
+            visibilityEl._bound = true;
+            visibilityEl.addEventListener('change', () => localStorage.setItem('ai_puzzle_visibility', String(visibilityEl.value || 'public')));
+        }
+        const anonymousEl = document.getElementById('ai-puzzle-anonymous');
+        if (anonymousEl && !anonymousEl._bound) {
+            anonymousEl._bound = true;
+            anonymousEl.addEventListener('change', () => localStorage.setItem('ai_puzzle_anonymous', anonymousEl.checked ? 'true' : 'false'));
+        }
+    }
+
+    async loadAiPuzzles(force = false) {
+        const listEl = document.getElementById('ai-puzzle-list');
+        try {
+            if (!force && Array.isArray(this.aiPuzzles) && this.aiPuzzles.length) {
+                this.renderAiPuzzleOptions();
+                return;
+            }
+            const resp = await this.apiService.promptPuzzleProblems({
+                page: this.aiPuzzlePage,
+                pageSize: this.aiPuzzlePageSize,
+                orderBy: this.aiPuzzleOrderBy,
+                order: this.aiPuzzleOrder
+            }).catch(() => null);
+            if (resp && Array.isArray(resp.problems)) {
+                this.aiPuzzles = resp.problems;
+                this.aiPuzzleTotal = Number(resp.total || 0);
+            } else {
+                // fallback 旧接口
+                const list = await this.apiService.aiPuzzleList().catch(() => []);
+                this.aiPuzzles = Array.isArray(list) ? list : [];
+                this.aiPuzzleTotal = this.aiPuzzles.length;
+            }
+            this.renderAiPuzzleOptions();
+        } catch (e) {
+            if (listEl) listEl.innerHTML = `<div style="padding:20px; text-align:center; color:#ef4444; font-size:13px;">加载失败：${this.escapeHtml(e?.message || 'unknown')}</div>`;
+        }
+    }
+
+    renderAiPuzzleOptions() {
+        const listEl = document.getElementById('ai-puzzle-list');
+        if (!listEl) return;
+        if (!this.aiPuzzles.length) {
+            listEl.innerHTML = `<div style="padding:20px; text-align:center; color:#9ca3af; font-size:13px;">暂无题目</div>`;
+            return;
+        }
+        // 表头
+        let html = `<div style="display:grid; grid-template-columns:70px 1fr 80px 80px 100px; padding:10px 16px; border-bottom:1px solid #f3f4f6; font-size:11px; font-weight:700; color:#9ca3af; text-transform:uppercase; letter-spacing:.5px;">
+            <div>ID</div><div>题目</div><div style="text-align:center;">通过</div><div style="text-align:center;">提交</div><div></div>
+        </div>`;
+        for (const item of this.aiPuzzles) {
+            const id = String(item.id || '');
+            const title = String(item.title || item.name || id);
+            const pass = Number(item.passTotal || item.pass_total || 0);
+            const total = Number(item.personTotal || item.person_total || 0);
+            const diff = item.difficulty ? Number(item.difficulty) : 0;
+            const diffLabel = diff ? (['', '简单', '较易', '中等', '较难', '困难'][diff] || `Lv${diff}`) : '';
+            const diffColor = diff <= 2 ? '#15803d' : (diff <= 3 ? '#a16207' : '#dc2626');
+            html += `
+                <div style="display:grid; grid-template-columns:70px 1fr 80px 80px 100px; align-items:center; padding:12px 16px; border-bottom:1px solid #f9fafb; transition:background .15s;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''">
+                    <div style="font-size:12px; color:#9ca3af; font-family:ui-monospace,monospace;">${this.escapeHtml(id)}</div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <div style="font-size:13px; font-weight:700; color:#111827;">${this.escapeHtml(title)}</div>
+                        ${diffLabel ? `<span style="font-size:10px; font-weight:700; color:${diffColor};">${diffLabel}</span>` : ''}
+                    </div>
+                    <div style="text-align:center; font-size:13px; color:#15803d; font-weight:700;">${pass}</div>
+                    <div style="text-align:center; font-size:13px; color:#6b7280;">${total}</div>
+                    <div style="text-align:right;">
+                        <button class="ai-puzzle-open-btn" data-id="${this.escapeHtml(id)}" style="padding:6px 16px; border:none; border-radius:8px; background:#111827; color:#fff; font-size:12px; font-weight:700; cursor:pointer; transition:opacity .15s;" type="button">做题</button>
+                    </div>
+                </div>
+            `;
+        }
+        // 分页
+        const totalPages = Math.max(1, Math.ceil(this.aiPuzzleTotal / this.aiPuzzlePageSize));
+        const page = this.aiPuzzlePage;
+        if (this.aiPuzzleTotal > this.aiPuzzlePageSize) {
+            html += `
+                <div style="padding:12px 16px; border-top:1px solid #f3f4f6; display:flex; align-items:center; justify-content:center; gap:8px;">
+                    <button class="ai-puzzle-page-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''} style="padding:5px 12px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; color:${page <= 1 ? '#d1d5db' : '#374151'}; cursor:${page <= 1 ? 'default' : 'pointer'}; font-size:12px;" type="button">上一页</button>
+                    <span style="font-size:12px; color:#6b7280;">${page} / ${totalPages}</span>
+                    <button class="ai-puzzle-page-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''} style="padding:5px 12px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; color:${page >= totalPages ? '#d1d5db' : '#374151'}; cursor:${page >= totalPages ? 'default' : 'pointer'}; font-size:12px;" type="button">下一页</button>
+                    <span style="font-size:11px; color:#9ca3af; margin-left:8px;">共 ${this.aiPuzzleTotal} 题</span>
+                </div>
+            `;
+        }
+
+        listEl.innerHTML = html;
+        // 绑定做题按钮
+        listEl.querySelectorAll('.ai-puzzle-open-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const pid = btn.getAttribute('data-id');
+                if (pid) this.openAiPuzzleModal(pid);
+            });
+        });
+        // 绑定分页
+        listEl.querySelectorAll('.ai-puzzle-page-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const p = Number(btn.getAttribute('data-page'));
+                if (p >= 1 && p <= totalPages && p !== this.aiPuzzlePage) {
+                    this.aiPuzzlePage = p;
+                    this.loadAiPuzzles(true);
+                }
+            });
+        });
+    }
+
+    openAiPuzzleModal(puzzleId) {
+        this.aiPuzzleSelectedId = String(puzzleId);
+        localStorage.setItem('ai_puzzle_selected_id', this.aiPuzzleSelectedId);
+        this.aiPuzzleSideTab = 'records';
+        this.resetAiPuzzleTransientState();
+        // 恢复已保存的 prompt
+        const promptEl = document.getElementById('ai-puzzle-prompt');
+        if (promptEl) promptEl.value = localStorage.getItem(`ai_puzzle_prompt_${this.aiPuzzleSelectedId}`) || '';
+        // 恢复 visibility
+        const visibilityEl = document.getElementById('ai-puzzle-visibility');
+        if (visibilityEl) visibilityEl.value = localStorage.getItem('ai_puzzle_visibility') || 'public';
+        const anonymousEl = document.getElementById('ai-puzzle-anonymous');
+        if (anonymousEl) anonymousEl.checked = localStorage.getItem('ai_puzzle_anonymous') === 'true';
+        // 显示弹窗
+        const overlay = document.getElementById('ai-puzzle-modal-overlay');
+        if (overlay) overlay.style.display = 'block';
+        document.body.style.overflow = 'hidden';
+        this.loadSelectedAiPuzzle();
+    }
+
+    closeAiPuzzleModal() {
+        const overlay = document.getElementById('ai-puzzle-modal-overlay');
+        if (overlay) overlay.style.display = 'none';
+        document.body.style.overflow = '';
+    }
+
+    resetAiPuzzleTransientState() {
+        this.aiPuzzleLastResult = null;
+        this.aiPuzzleHistory = [];
+        this.aiPuzzleLeaderboard = [];
+        const errEl = document.getElementById('ai-puzzle-error');
+        const wrapEl = document.getElementById('ai-puzzle-result-wrap');
+        const resultEl = document.getElementById('ai-puzzle-result');
+        const runsEl = document.getElementById('ai-puzzle-runs');
+        const historyEl = document.getElementById('ai-puzzle-history');
+        const leaderboardEl = document.getElementById('ai-puzzle-leaderboard');
+        if (errEl) { errEl.textContent = ''; errEl.style.display = 'none'; }
+        if (wrapEl) wrapEl.style.display = 'none';
+        if (resultEl) resultEl.innerHTML = '';
+        if (runsEl) runsEl.innerHTML = `<div style="padding:20px; text-align:center; color:#9ca3af; font-size:13px;">（尚未评测）</div>`;
+        if (historyEl) historyEl.innerHTML = `<div style="color:#9ca3af; text-align:center; padding:8px 0;">（加载中...）</div>`;
+        if (leaderboardEl) leaderboardEl.innerHTML = `<div style="color:#9ca3af; text-align:center; padding:8px 0;">（加载中...）</div>`;
+    }
+
+    switchAiPuzzleSideTab(tab) {
+        this.aiPuzzleSideTab = (tab === 'leaderboard') ? 'leaderboard' : 'records';
+        localStorage.setItem('ai_puzzle_side_tab', this.aiPuzzleSideTab);
+        const recordsBtn = document.getElementById('ai-puzzle-side-tab-records');
+        const leaderboardBtn = document.getElementById('ai-puzzle-side-tab-leaderboard');
+        const recordsPanel = document.getElementById('ai-puzzle-history-panel');
+        const leaderboardPanel = document.getElementById('ai-puzzle-leaderboard-panel');
+        if (recordsBtn) recordsBtn.className = `admin-btn ${this.aiPuzzleSideTab === 'records' ? '' : 'modal-secondary'}`;
+        if (leaderboardBtn) leaderboardBtn.className = `admin-btn ${this.aiPuzzleSideTab === 'leaderboard' ? '' : 'modal-secondary'}`;
+        if (recordsPanel) recordsPanel.style.display = this.aiPuzzleSideTab === 'records' ? 'block' : 'none';
+        if (leaderboardPanel) leaderboardPanel.style.display = this.aiPuzzleSideTab === 'leaderboard' ? 'block' : 'none';
+    }
+
+    async loadSelectedAiPuzzle() {
+        if (!this.aiPuzzleSelectedId) {
+            this.aiPuzzleDetail = null;
+            return;
+        }
+        try {
+            const detail = await this.apiService.promptPuzzleDetail(this.aiPuzzleSelectedId).catch(() => null)
+                || await this.apiService.aiPuzzleGet(this.aiPuzzleSelectedId).catch(() => null);
+            this.aiPuzzleDetail = detail || null;
+            this.renderSelectedAiPuzzle();
+            this.renderAiPuzzleSavedPrompt();
+            await this.refreshAiPuzzleSideData();
+        } catch (e) {
+            const errEl = document.getElementById('ai-puzzle-error');
+            if (errEl) {
+                errEl.textContent = e?.message || '加载题目详情失败';
+                errEl.style.display = 'block';
+            }
+        }
+    }
+
+    renderSelectedAiPuzzle() {
+        const detail = this.aiPuzzleDetail || {};
+        const titleEl = document.getElementById('ai-puzzle-modal-title');
+        const badgesEl = document.getElementById('ai-puzzle-modal-badges');
+        const descEl = document.getElementById('ai-puzzle-modal-desc');
+        const judgeConfig = detail.judgeConfig || {};
+        if (titleEl) titleEl.textContent = String(detail.title || detail.name || '题目');
+        if (badgesEl) {
+            const badges = [];
+            if (judgeConfig.run_count) badges.push(`<span style="padding:3px 10px; border-radius:999px; background:#f0f7ff; color:#1d4ed8; font-size:10px; font-weight:700;">采样 ${judgeConfig.run_count} 次</span>`);
+            if (judgeConfig.base_score) badges.push(`<span style="padding:3px 10px; border-radius:999px; background:#f0fdf4; color:#15803d; font-size:10px; font-weight:700;">满分 ${judgeConfig.base_score}</span>`);
+            if (judgeConfig.max_tokens) badges.push(`<span style="padding:3px 10px; border-radius:999px; background:#fefce8; color:#a16207; font-size:10px; font-weight:700;">max_tokens ${judgeConfig.max_tokens}</span>`);
+            badgesEl.innerHTML = badges.join('');
+        }
+        if (descEl) descEl.innerHTML = detail.content || this.renderSimpleMarkdown(String(detail.statement_md || detail.description || '（暂无说明）'));
+    }
+
+    renderAiPuzzleSavedPrompt() {
+        // prompt 已在 openAiPuzzleModal 中恢复
+    }
+
+    async refreshAiPuzzleSideData() {
+        if (!this.aiPuzzleSelectedId) return;
+        const [history, leaderboard] = await Promise.all([
+            this.apiService.promptPuzzleHistory({ questionId: this.aiPuzzleSelectedId, limit: 10 }).catch(() => []),
+            this.apiService.promptPuzzleLeaderboard({ questionId: this.aiPuzzleSelectedId, limit: 10 }).catch(() => [])
+        ]);
+        this.aiPuzzleHistory = Array.isArray(history) ? history : [];
+        this.aiPuzzleLeaderboard = Array.isArray(leaderboard) ? leaderboard : [];
+        this.renderAiPuzzleHistory();
+        this.renderAiPuzzleLeaderboard();
+    }
+
+    renderAiPuzzleHistory() {
+        const el = document.getElementById('ai-puzzle-history');
+        if (!el) return;
+        if (!this.aiPuzzleHistory.length) {
+            el.innerHTML = `<div style="color:#9ca3af; text-align:center; padding:8px 0;">暂无提交记录</div>`;
+            return;
+        }
+        el.innerHTML = this.aiPuzzleHistory.map(item => {
+            const status = String(item.finalStatus || item.final_status || '');
+            const score = Number(item.finalScore || item.final_score || 0);
+            const passRate = Number(item.passRate || item.pass_rate || 0);
+            const prompt = String(item.userPrompt || item.user_prompt || '');
+            const time = String(item.createdAt || item.created_at || '');
+            const isAC = status === 'AC';
+            const statusColor = isAC ? '#15803d' : (status === 'PARTIAL' ? '#a16207' : '#6b7280');
+            const statusBg = isAC ? '#f0fdf4' : (status === 'PARTIAL' ? '#fefce8' : '#f9fafb');
+            return `
+                <div style="padding:10px 0; border-bottom:1px solid #f3f4f6;">
+                    <div style="display:flex; gap:8px; align-items:center;">
+                        <span style="padding:2px 8px; border-radius:6px; background:${statusBg}; color:${statusColor}; font-size:11px; font-weight:800;">${this.escapeHtml(status)}</span>
+                        <span style="font-size:12px; font-weight:700; color:#111827;">${score.toFixed(1)}</span>
+                        <span style="font-size:11px; color:#9ca3af;">${(passRate * 100).toFixed(0)}% pass</span>
+                        <span style="flex:1;"></span>
+                        <span style="font-size:11px; color:#9ca3af;">${this.escapeHtml(time.replace('T', ' ').slice(0, 19))}</span>
+                    </div>
+                    <pre style="margin:6px 0 0 0; white-space:pre-wrap; word-break:break-word; background:#f9fafb; color:#374151; padding:8px; border-radius:8px; max-height:60px; overflow:auto; font-size:12px; line-height:1.4;">${this.escapeHtml(prompt)}</pre>
+                </div>
+            `;
+        }).join('');
+    }
+
+    renderAiPuzzleLeaderboard() {
+        const el = document.getElementById('ai-puzzle-leaderboard');
+        if (!el) return;
+        if (!this.aiPuzzleLeaderboard.length) {
+            el.innerHTML = `<div style="color:#9ca3af; text-align:center; padding:8px 0;">暂无排名</div>`;
+            return;
+        }
+        el.innerHTML = this.aiPuzzleLeaderboard.map((item, i) => {
+            const rank = Number(item.rank || (i + 1));
+            const userId = String(item.userId || item.user_id || 'guest');
+            const score = Number(item.finalScore || item.final_score || 0);
+            const token = Number(item.tokenTotal || item.token_total || 0);
+            const medalColors = ['#f59e0b', '#9ca3af', '#cd7f32'];
+            const rankStyle = rank <= 3 ? `color:${medalColors[rank - 1]}; font-weight:900;` : 'color:#6b7280; font-weight:700;';
+            return `
+                <div style="display:flex; gap:10px; align-items:center; padding:8px 0; border-bottom:1px solid #f3f4f6; font-size:13px;">
+                    <div style="width:28px; text-align:center; ${rankStyle}">${rank <= 3 ? ['🥇','🥈','🥉'][rank-1] : '#' + rank}</div>
+                    <div style="flex:1; color:#111827; font-weight:600;">${this.escapeHtml(userId)}</div>
+                    <div style="font-weight:800; color:#111827;">${score.toFixed(1)}</div>
+                    <div style="color:#9ca3af; font-size:11px; min-width:60px; text-align:right;">${token} tok</div>
+                </div>
+            `;
+        }).join('');
+    }
+
+    async runAiPuzzleSubmit() {
+        if (this.aiPuzzleSubmitting) return;
+        const promptEl = document.getElementById('ai-puzzle-prompt');
+        const errEl = document.getElementById('ai-puzzle-error');
+        const resultEl = document.getElementById('ai-puzzle-result');
+        const runsEl = document.getElementById('ai-puzzle-runs');
+        const runBtn = document.getElementById('ai-puzzle-run-btn');
+        const visibilityEl = document.getElementById('ai-puzzle-visibility');
+        const anonymousEl = document.getElementById('ai-puzzle-anonymous');
+        if (!promptEl || !resultEl || !runsEl) return;
+        if (errEl) errEl.style.display = 'none';
+        resultEl.style.display = 'none';
+        runsEl.innerHTML = `<div style="padding: 14px; text-align:center; color:#999;">评测中...</div>`;
+
+        const userPrompt = String(promptEl.value || '');
+        if (!this.aiPuzzleSelectedId) {
+            if (errEl) { errEl.textContent = '请先选择题目'; errEl.style.display = 'block'; }
+            return;
+        }
+        if (!userPrompt.trim()) {
+            if (errEl) { errEl.textContent = '请填写 Prompt'; errEl.style.display = 'block'; }
+            return;
+        }
+        localStorage.setItem(`ai_puzzle_prompt_${this.aiPuzzleSelectedId}`, userPrompt);
+        localStorage.setItem('ai_puzzle_visibility', String(visibilityEl?.value || 'public'));
+        localStorage.setItem('ai_puzzle_anonymous', anonymousEl?.checked ? 'true' : 'false');
+
+        this.aiPuzzleSubmitting = true;
+        if (runBtn) { runBtn.disabled = true; runBtn.textContent = '评测中...'; }
+        try {
+            const res = await this.apiService.promptPuzzleSubmit({
+                questionId: this.aiPuzzleSelectedId,
+                userPrompt: userPrompt,
+                visibility: visibilityEl ? String(visibilityEl.value || 'public') : 'public',
+                anonymous: !!(anonymousEl && anonymousEl.checked)
+            });
+            this.aiPuzzleLastResult = res;
+            this.renderAiPuzzleResult(res);
+            await this.refreshAiPuzzleSideData();
+        } catch (e) {
+            if (errEl) { errEl.textContent = e?.message || '评测失败'; errEl.style.display = 'block'; }
+            runsEl.innerHTML = `<div style="padding: 14px; text-align:center; color:#ff4d4f;">失败：${this.escapeHtml(e?.message || 'unknown')}</div>`;
+        } finally {
+            this.aiPuzzleSubmitting = false;
+            if (runBtn) { runBtn.disabled = false; runBtn.textContent = '提交评测'; }
+        }
+    }
+
+    renderAiPuzzleResult(res) {
+        const wrapEl = document.getElementById('ai-puzzle-result-wrap');
+        const resultEl = document.getElementById('ai-puzzle-result');
+        const runsEl = document.getElementById('ai-puzzle-runs');
+        if (!resultEl || !runsEl) return;
+        const submission = res.submission || {};
+        const promptViolations = Array.isArray(res.prompt_violations) ? res.prompt_violations : [];
+        const status = String(submission.final_status || submission.finalStatus || '—');
+        const score = Number(submission.final_score || submission.finalScore || 0);
+        const passRate = Number(submission.pass_rate || submission.passRate || 0);
+        const passCount = Number(submission.pass_count || submission.passCount || 0);
+        const runCount = Number(submission.run_count || submission.runCount || 0);
+        const tokenTotal = Number(submission.token_total || submission.tokenTotal || 0);
+        const isAC = status === 'AC';
+        const statusColor = isAC ? '#15803d' : (status === 'PARTIAL' ? '#a16207' : (status === 'INVALID_PROMPT' ? '#dc2626' : '#6b7280'));
+        const statusBg = isAC ? '#f0fdf4' : (status === 'PARTIAL' ? '#fefce8' : (status === 'INVALID_PROMPT' ? '#fef2f2' : '#f9fafb'));
+        resultEl.innerHTML = `
+            <div style="display:flex; gap:16px; flex-wrap:wrap; align-items:center;">
+                <div style="padding:8px 16px; border-radius:12px; background:${statusBg};">
+                    <div style="font-size:11px; color:#9ca3af; font-weight:600;">状态</div>
+                    <div style="font-size:20px; font-weight:900; color:${statusColor};">${this.escapeHtml(status)}</div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:#9ca3af; font-weight:600;">得分</div>
+                    <div style="font-size:20px; font-weight:900; color:#111827;">${score.toFixed(1)}</div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:#9ca3af; font-weight:600;">通过率</div>
+                    <div style="font-size:20px; font-weight:900; color:#111827;">${(passRate * 100).toFixed(0)}%</div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:#9ca3af; font-weight:600;">采样</div>
+                    <div style="font-size:20px; font-weight:900; color:#111827;">${passCount}/${runCount}</div>
+                </div>
+                <div>
+                    <div style="font-size:11px; color:#9ca3af; font-weight:600;">token</div>
+                    <div style="font-size:20px; font-weight:900; color:#111827;">${tokenTotal}</div>
+                </div>
+            </div>
+            ${promptViolations.length ? `
+                <div style="margin-top:12px; padding:10px 14px; border-radius:10px; background:#fef2f2; border:1px solid #fecaca;">
+                    <div style="font-size:12px; font-weight:800; color:#dc2626; margin-bottom:4px;">输入不合法</div>
+                    <ul style="margin:0; padding-left:16px; color:#7f1d1d; font-size:12px; line-height:1.6;">
+                        ${promptViolations.map(x => `<li>${this.escapeHtml(String(x))}</li>`).join('')}
+                    </ul>
+                </div>
+            ` : ''}
+        `;
+        if (wrapEl) wrapEl.style.display = 'block';
+
+        const runs = Array.isArray(res.runs) ? res.runs : [];
+        if (!runs.length) {
+            runsEl.innerHTML = `<div style="padding:20px; text-align:center; color:#9ca3af; font-size:13px;">（无采样明细）</div>`;
+            return;
+        }
+        runsEl.innerHTML = runs.map(run => {
+            const valid = run.output_valid;
+            const violations = Array.isArray(run.output_violations) ? run.output_violations : [];
+            return `
+                <div style="padding:14px 16px; border-top:1px solid #f3f4f6;">
+                    <div style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <span style="font-size:13px; font-weight:800; color:#111827;">Run ${this.escapeHtml(String(run.run_index || ''))}</span>
+                        <span style="padding:2px 10px; border-radius:6px; font-size:11px; font-weight:800; ${valid
+                            ? 'background:#f0fdf4; color:#15803d;'
+                            : 'background:#fef2f2; color:#dc2626;'}">${valid ? 'PASS' : 'FAIL'}</span>
+                        <span style="font-size:11px; color:#9ca3af;">${Number(run.token_output || 0)} tok · ${Number(run.latency_ms || 0)}ms${run.finish_reason && run.finish_reason !== 'stop' ? ` · ${run.finish_reason}` : ''}</span>
+                    </div>
+                    <pre style="margin:8px 0 0 0; white-space:pre-wrap; word-break:break-word; background:#0f172a; color:#e2e8f0; padding:12px; border-radius:10px; max-height:100px; overflow:auto; font-size:12px; line-height:1.5;">${this.escapeHtml(String(run.raw_output || run.normalized_output || '（空）'))}</pre>
+                    ${violations.length ? `
+                        <div style="margin-top:6px; padding:6px 10px; border-radius:8px; background:#fef2f2;">
+                            ${violations.map(x => `<div style="font-size:11px; color:#991b1b;">· ${this.escapeHtml(String(x))}</div>`).join('')}
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }).join('');
     }
 
     // ==================== AI 编程题（前端先做 UI，后端接口待接入） ====================
@@ -1327,6 +1971,54 @@ export class PromptView {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
+    }
+
+    renderSimpleMarkdown(md) {
+        const lines = String(md || '').replace(/\r/g, '').split('\n');
+        const html = [];
+        let listBuffer = [];
+        const flushList = () => {
+            if (!listBuffer.length) return;
+            html.push(`<ul style="margin:8px 0; padding-left: 20px; color:#374151; line-height:1.7;">${listBuffer.join('')}</ul>`);
+            listBuffer = [];
+        };
+        const inlineFormat = (text) => {
+            let out = this.escapeHtml(text);
+            out = out.replace(/\*\*(.+?)\*\*/g, '<strong style="color:#111827;">$1</strong>');
+            out = out.replace(/`([^`]+)`/g, '<code style="background:#f3f4f6; color:#111827; padding:1px 4px; border-radius:4px;">$1</code>');
+            return out;
+        };
+        for (const rawLine of lines) {
+            const line = String(rawLine || '');
+            const trimmed = line.trim();
+            if (!trimmed) {
+                flushList();
+                html.push('<div style="height:8px;"></div>');
+                continue;
+            }
+            if (trimmed.startsWith('- ')) {
+                listBuffer.push(`<li>${inlineFormat(trimmed.slice(2))}</li>`);
+                continue;
+            }
+            flushList();
+            if (trimmed.startsWith('## ')) {
+                html.push(`<div style="margin-top:6px; font-size:14px; font-weight:900; color:#111827;">${inlineFormat(trimmed.slice(3))}</div>`);
+                continue;
+            }
+            if (trimmed.startsWith('# ')) {
+                html.push(`<div style="margin-top:6px; font-size:15px; font-weight:900; color:#111827;">${inlineFormat(trimmed.slice(2))}</div>`);
+                continue;
+            }
+            html.push(`<div style="color:#374151; line-height:1.7;">${inlineFormat(trimmed)}</div>`);
+        }
+        flushList();
+        return html.join('');
+    }
+
+    formatCompactNumber(v) {
+        const n = Number(v);
+        if (!Number.isFinite(n)) return '0';
+        return n.toFixed(2).replace(/\.?0+$/, '');
     }
 }
 
