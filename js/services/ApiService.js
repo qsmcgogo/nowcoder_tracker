@@ -3317,6 +3317,57 @@ export class ApiService {
         return [];
     }
 
+    async promptPuzzleSubmissionDetail(submissionId) {
+        if (!submissionId) throw new Error('submissionId is required');
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/submission/detail?submissionId=${encodeURIComponent(submissionId)}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && data.code === 0 && data.data) return data.data;
+        throw new Error((data && data.message) || '获取详情失败');
+    }
+
+    // ==================== Prompt Puzzle 配额 & 分享 ====================
+
+    async promptPuzzleQuota(questionId) {
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/quota?questionId=${encodeURIComponent(questionId)}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && data.code === 0 && data.data) return data.data;
+        throw new Error((data && data.message) || '查询配额失败');
+    }
+
+    async promptPuzzleShareGenerate(questionId) {
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/share/generate`;
+        const body = questionId ? `questionId=${encodeURIComponent(questionId)}` : '';
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body,
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && data.code === 0 && data.data) return data.data;
+        throw new Error((data && data.message) || '生成分享链接失败');
+    }
+
+    async promptPuzzleShareCallback(shareCode, questionId) {
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/share/callback`;
+        const body = `shareCode=${encodeURIComponent(shareCode)}&questionId=${encodeURIComponent(questionId)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body,
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return await res.json().catch(() => ({}));
+    }
+
     // ==================== Prompt Code Challenge（AI 编程题） ====================
     // 注意：后端接口待接入；前端会先做 UI，并在接口不可用时给出友好提示/占位 demo。
 
