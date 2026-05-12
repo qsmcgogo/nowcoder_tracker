@@ -11,15 +11,15 @@ const CARD_PRESENTATION_CONFIG = {
             subtitle: '灯牌亮起，倒计时归零。把那些解出题目的瞬间，收进这本热闹的赛场纪念册。',
             expectedTotal: 12,
             coverImage: '',
-            rewardCollect: '',
-            rewardFullUr: ''
+            rewardCollect: '集齐全部 12 张卡牌，可获得 300 牛币奖励，达成后自动发放。',
+            rewardFullUr: '全部卡牌满级后，可获得限定实体卡奖励，请联系工作人员领取。'
         },
         default: {
             subtitle: '每张卡都记录一次小小的高光时刻，慢慢翻，总会凑成属于你的题场回忆。',
             expectedTotal: 0,
             coverImage: './牛客娘/笑.png',
-            rewardCollect: '',
-            rewardFullUr: ''
+            rewardCollect: '全收集奖励：300 牛币，达成后自动发放。',
+            rewardFullUr: '全满级奖励：限定实体卡奖励，请联系工作人员领取。'
         }
     }
 };
@@ -358,6 +358,7 @@ export class CardView {
         const rewardCollect = this.normalizeConfigText(detail.rewardCollect || CARD_PRESENTATION_CONFIG.albums.default.rewardCollect);
         const rewardFullUr = this.normalizeConfigText(detail.rewardFullUr || CARD_PRESENTATION_CONFIG.albums.default.rewardFullUr);
         const ownedCards = detail.cards.filter(card => card.isUnlocked);
+        const isFullMaxed = Number(detail.totalCount || 0) > 0 && Number(detail.maxedCount || 0) >= Number(detail.totalCount || 0);
         return `
             <div class="battle-s1-page">
                 <section class="battle-s1-hero battle-s1-hero--compact">
@@ -401,7 +402,7 @@ export class CardView {
                             ` : ''}
                             ${rewardFullUr ? `
                                 <div class="battle-s1-reward-item">
-                                    <div class="battle-s1-reward-label">全 UR 奖励</div>
+                                    <div class="battle-s1-reward-label">全满级奖励</div>
                                     <div class="battle-s1-reward-value">${rewardFullUr}</div>
                                 </div>
                             ` : ''}
@@ -409,6 +410,11 @@ export class CardView {
                                 <div class="battle-s1-panel__desc" style="margin-top: 0;">
                                     卡册奖励将在后续配置完成后开放展示。
                                 </div>
+                            ` : ''}
+                            ${isFullMaxed ? `
+                                <button class="battle-s1-btn battle-s1-btn--primary battle-s1-reward-contact" data-card-full-max-contact>
+                                    联系工作人员领取
+                                </button>
                             ` : ''}
                             <div class="battle-s1-fragment__tip">重复卡会优先推进成长；卡牌满级后，再次获得才会自动转为同稀有度碎片。</div>
                         </div>
@@ -504,6 +510,12 @@ export class CardView {
                 this.renderCurrentView();
             });
         }
+
+        this.container.querySelectorAll('[data-card-full-max-contact]').forEach(button => {
+            button.addEventListener('click', () => {
+                alert('请加入 QQ 群 659028468 联系工作人员领取实体卡奖励。');
+            });
+        });
 
         this.container.querySelectorAll('[data-preview-card-id]').forEach(cardEl => {
             const open = () => {

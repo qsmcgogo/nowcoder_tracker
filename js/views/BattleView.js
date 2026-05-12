@@ -65,6 +65,15 @@ export class BattleView {
         return s;
     }
 
+    escapeHtml(value) {
+        return String(value ?? '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     // 解析 hash：支持 #/battle/record?userId=xxx&type=1|2
     parseBattleRecordRoute() {
         try {
@@ -151,8 +160,8 @@ export class BattleView {
             console.error('加载对战信息失败:', error);
             // 使用默认值
             this.battleInfo = {
-                battle1v1: { levelScore: 1000, winCount: 0, totalCount: 0, type: 2 },
-                battleAI: { levelScore: 1000, winCount: 0, totalCount: 0, type: 1 }
+                battle1v1: { levelScore: 500, winCount: 0, totalCount: 0, type: 2, seasonHistory: [] },
+                battleAI: { levelScore: 500, winCount: 0, totalCount: 0, type: 1, seasonHistory: [] }
             };
             this.templateInfo = { templateCode: {}, level: 1, exp: 0, maxLength: 10000 };
         }
@@ -680,12 +689,12 @@ export class BattleView {
         if (!viewEl) return;
         
         const battleInfo = this.battleInfo || {
-            battle1v1: { levelScore: 1000, winCount: 0, totalCount: 0, type: 2 },
-            battleAI: { levelScore: 1000, winCount: 0, totalCount: 0, type: 1 }
+            battle1v1: { levelScore: 500, winCount: 0, totalCount: 0, type: 2, seasonHistory: [] },
+            battleAI: { levelScore: 500, winCount: 0, totalCount: 0, type: 1, seasonHistory: [] }
         };
         
-        const info1v1 = battleInfo.battle1v1 || { levelScore: 1000, winCount: 0, totalCount: 0 };
-        const infoAI = battleInfo.battleAI || { levelScore: 1000, winCount: 0, totalCount: 0 };
+        const info1v1 = battleInfo.battle1v1 || { levelScore: 500, winCount: 0, totalCount: 0, seasonHistory: [] };
+        const infoAI = battleInfo.battleAI || { levelScore: 500, winCount: 0, totalCount: 0, seasonHistory: [] };
         
         const templateInfo = this.templateInfo || { level: 1, exp: 0, maxLength: 10000 };
         
@@ -706,6 +715,15 @@ export class BattleView {
         const expToNext = Math.max(0, expRequired - currentLevelExp);
 
         viewEl.innerHTML = `
+            <div class="battle-season-hero">
+                <div>
+                    <div class="battle-season-hero__eyebrow">NOWCODER TRACKER BATTLE</div>
+                    <div class="battle-season-hero__title">第一赛季：赛场狂想曲</div>
+                    <div class="battle-season-hero__desc">封榜已翻篇，新榜单正在等待下一次漂亮的 AC。</div>
+                </div>
+                <div class="battle-season-hero__tag">SEASON 1</div>
+            </div>
+
             <!-- 顶部通栏：对战等级 -->
             <div style="margin-bottom: 24px;">
                 <div style="background: ${helpers.getBattleLevelColor(currentLevel).gradient}; color: #fff; padding: 24px; border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.15); position: relative; overflow: hidden;">
@@ -773,11 +791,11 @@ export class BattleView {
                         </button>
                 </div>
                 
-                    <!-- 内测赛季说明 -->
-                    <div style="background: linear-gradient(135deg, #fff7e6 0%, #fff1b8 100%); border: 2px solid #faad14; padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 2px 8px rgba(250,173,20,0.1);">
-                        <div style="display: flex; align-items: center; gap: 10px; color: #d46b08; font-weight: 600; font-size: 15px;">
-                            <span style="font-size: 20px;">⚠️</span>
-                            <span>当前为内测赛季，第一赛季会重置 rating 至 500（可继承部分rating），但不会重置对战等级</span>
+                    <!-- 第一赛季说明 -->
+                    <div style="background: linear-gradient(135deg, #eef6ff 0%, #f4edff 52%, #fff7e6 100%); border: 1px solid rgba(102,126,234,0.25); padding: 16px 20px; border-radius: 12px; margin-bottom: 20px; box-shadow: 0 8px 26px rgba(102,126,234,0.08);">
+                        <div style="display: flex; align-items: center; gap: 10px; color: #1f2937; font-weight: 700; font-size: 15px;">
+                            <span style="font-size: 20px;">🏁</span>
+                            <span>第一赛季已开启：赛场狂想曲。内测赛季 rating 已归档，可在右侧“赛季rating一览”查看。</span>
                     </div>
                 </div>
                 
@@ -2010,6 +2028,7 @@ export class BattleView {
                 <div style="color: #666; line-height: 1.8;">
                     <div style="margin-bottom: 6px;">• 如果没有进行过对战，等级分将初始化为 <span style="color: #1890ff; font-weight: 600;">500 分</span></div>
                     <div style="margin-bottom: 6px;">• 每个赛季开始时，所有玩家的等级分将重置，但可以继承部分上赛季分数</div>
+                    <div style="margin-bottom: 6px;">• 内测赛季重置时，参与过 1v1 对战的玩家会按历史 rating 获得牛币奖励：<span style="color: #1890ff; font-weight: 600;">10 × max(1, rating / 100 - 8)</span></div>
                     <div style="margin-bottom: 6px;">• 对战等级不会重置</div>
                 </div>
             </div>
@@ -4426,45 +4445,92 @@ ${trackerUrl}
             if (e.target === modal) closeModal();
         });
         
-        // 加载赛季数据
-        try {
-            // 尝试调用API获取赛季数据（如果后端有的话）
-            // const seasonData = await this.api.battleSeasonRating();
-            // 暂时模拟：没有赛季数据
-            const seasonData = null;
-            
-            if (!seasonData || (Array.isArray(seasonData) && seasonData.length === 0)) {
-                contentEl.innerHTML = `
-                    <div style="font-size: 16px; color: #999;">
-                        <div style="font-size: 48px; margin-bottom: 16px;">📅</div>
-                        <div>暂无赛季数据</div>
-                    </div>
-                `;
-            } else {
-                // 如果有数据，渲染赛季列表
-                contentEl.innerHTML = this.renderSeasonRatingContent(seasonData);
+        const info1v1 = (this.battleInfo && this.battleInfo.battle1v1) ? this.battleInfo.battle1v1 : {};
+        const seasonData = this.normalizeSeasonHistory(info1v1.seasonHistory);
+        contentEl.innerHTML = this.renderSeasonRatingContent(seasonData, info1v1);
+    }
+
+    normalizeSeasonHistory(history) {
+        if (Array.isArray(history)) return history;
+        if (typeof history === 'string' && history.trim()) {
+            try {
+                const parsed = JSON.parse(history);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (_) {
+                return [];
             }
-        } catch (error) {
-            console.error('加载赛季数据失败:', error);
-            contentEl.innerHTML = `
+        }
+        return [];
+    }
+    
+    /**
+     * 渲染赛季rating内容
+     */
+    renderSeasonRatingContent(seasonData, currentInfo = {}) {
+        const currentScore = Number(currentInfo.levelScore ?? 500) || 500;
+        const currentRank = helpers.getBattleRank(currentScore);
+        const currentWin = Number(currentInfo.winCount ?? 0) || 0;
+        const currentTotal = Number(currentInfo.totalCount ?? 0) || 0;
+        const currentLose = Math.max(0, currentTotal - currentWin);
+        const rows = [
+            {
+                seasonName: '第一赛季：赛场狂想曲',
+                levelScore: currentScore,
+                winCount: currentWin,
+                loseCount: currentLose,
+                totalCount: currentTotal,
+                current: true
+            },
+            ...seasonData
+        ];
+
+        if (!rows.length) {
+            return `
                 <div style="font-size: 16px; color: #999;">
                     <div style="font-size: 48px; margin-bottom: 16px;">📅</div>
                     <div>暂无赛季数据</div>
                 </div>
             `;
         }
-    }
-    
-    /**
-     * 渲染赛季rating内容
-     */
-    renderSeasonRatingContent(seasonData) {
-        // 如果有数据，可以在这里渲染表格或列表
-        // 目前暂时返回空数据提示
+
         return `
-            <div style="font-size: 16px; color: #999;">
-                <div style="font-size: 48px; margin-bottom: 16px;">📅</div>
-                <div>暂无赛季数据</div>
+            <div style="text-align:left;">
+                <div style="background:linear-gradient(135deg,#0f172a 0%,#312e81 52%,#7c2d12 100%); color:#fff; border-radius:16px; padding:18px 20px; margin-bottom:16px; box-shadow:0 16px 42px rgba(15,23,42,0.22);">
+                    <div style="font-size:12px; letter-spacing:.08em; opacity:.72; font-weight:800;">SEASON RATING</div>
+                    <div style="font-size:24px; font-weight:900; margin-top:4px;">赛季 rating 一览</div>
+                    <div style="font-size:13px; opacity:.78; margin-top:6px;">内测赛季的 rating 和胜负场已经归档；第一赛季的榜单，留给新的出手时刻。</div>
+                </div>
+                <div style="display:grid; gap:12px;">
+                    ${rows.map((season) => {
+                        const score = Number(season.levelScore ?? season.rating ?? 0) || 0;
+                        const rank = helpers.getBattleRank(score || 500);
+                        const win = Number(season.winCount ?? 0) || 0;
+                        const total = Number(season.totalCount ?? 0) || 0;
+                        const lose = Number(season.loseCount ?? Math.max(0, total - win)) || 0;
+                        const rate = total > 0 ? `${((win / total) * 100).toFixed(1)}%` : '-';
+                        const name = this.escapeHtml(String(season.seasonName || '历史赛季'));
+                        return `
+                            <div style="border:1px solid rgba(148,163,184,.35); border-left:4px solid ${rank.color}; border-radius:14px; padding:16px; background:${season.current ? 'linear-gradient(135deg,#f8fbff 0%,#fffaf0 100%)' : '#fff'};">
+                                <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px;">
+                                    <div>
+                                        <div style="font-size:16px; font-weight:900; color:#111827;">${name}</div>
+                                        <div style="font-size:12px; color:#64748b; margin-top:4px;">${season.current ? '当前赛季' : '已归档赛季'}</div>
+                                    </div>
+                                    <div style="text-align:right;">
+                                        <div style="font-size:12px; color:${rank.color}; font-weight:800;">${rank.name}</div>
+                                        <div style="font-size:24px; color:#111827; font-weight:900;">${score || '-'}</div>
+                                    </div>
+                                </div>
+                                <div style="display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px;">
+                                    <div style="background:#f8fafc; border-radius:10px; padding:10px; text-align:center;"><div style="font-size:12px;color:#64748b;">胜场</div><div style="font-size:18px;font-weight:900;color:#111827;">${win}</div></div>
+                                    <div style="background:#f8fafc; border-radius:10px; padding:10px; text-align:center;"><div style="font-size:12px;color:#64748b;">负场</div><div style="font-size:18px;font-weight:900;color:#111827;">${lose}</div></div>
+                                    <div style="background:#f8fafc; border-radius:10px; padding:10px; text-align:center;"><div style="font-size:12px;color:#64748b;">总场次</div><div style="font-size:18px;font-weight:900;color:#111827;">${total}</div></div>
+                                    <div style="background:#f8fafc; border-radius:10px; padding:10px; text-align:center;"><div style="font-size:12px;color:#64748b;">胜率</div><div style="font-size:18px;font-weight:900;color:#111827;">${rate}</div></div>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
             </div>
         `;
     }

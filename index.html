@@ -34,7 +34,7 @@
                         <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); if (window.app && typeof window.app.switchMainTab === 'function') { window.app.switchMainTab('cards'); }">卡牌</a>
                     </li>
                     <li class="tracker-nav-item">
-                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'battle\']').click();" style="position: relative;">对战<span style="position: absolute; top: -2px; right: -2px; background: #ff4d4f; color: #fff; font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: 600; line-height: 1.2;">BETA</span></a>
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'battle\']').click();">对战</a>
                     </li>
                     <li class="tracker-nav-item">
                         <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'team\']').click();">团队</a>
@@ -88,7 +88,7 @@
                 <button class="tab-btn" data-tab="skill-tree">技能树</button>
                 <button class="tab-btn" data-tab="achievements">成就</button>
                 <button class="tab-btn" data-tab="cards">卡牌</button>
-                <button class="tab-btn" data-tab="battle" style="position: relative;">对战<span style="position: absolute; top: -2px; right: -2px; background: #ff4d4f; color: #fff; font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: 600; line-height: 1.2;">BETA</span></button>
+                <button class="tab-btn" data-tab="battle">对战</button>
                 <button class="tab-btn" data-tab="team">团队</button>
                 <button class="tab-btn" data-tab="profile">我的</button>
                 <button class="tab-btn" data-tab="faq">常见问题</button>
@@ -856,6 +856,17 @@
             <section id="changelog" class="tab-content">
                 <div class="faq-container">
                     <div class="faq-content-wrapper">
+                        <div class="faq-item">
+                            <h3>2026.5.12 ver. 6.1</h3>
+                            <ul>
+                                <li>1. 新增卡牌系统，开放“赛场狂想曲”第一期卡册</li>
+                                <li>2. 新增抽卡玩法，可通过每日打卡、对战首胜与对战 AC 获取抽卡次数</li>
+                                <li>3. 新增卡牌成长与满级机制，重复卡会推进等级，满级后转化为碎片</li>
+                                <li>4. 新增碎片商店，支持指定卡兑换与相邻稀有度碎片转换</li>
+                                <li>5. 新增卡册奖励：全收集可获得 300 牛币，全满级可领取实体卡奖励</li>
+                                <li>6. 对战平台内测结束，开启第一赛季“赛场狂想曲”</li>
+                            </ul>
+                        </div>
                         <div class="faq-item">
                             <h3>2026.3.23 ver. 6.0</h3>
                             <ul>

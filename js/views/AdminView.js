@@ -1003,6 +1003,25 @@ export class AdminView {
                 </div>
             </div>
 
+            <div style="background:#fff; border: 1px solid #ffd6d6; border-radius: 12px; padding: 16px; margin-top: 16px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <div style="font-size: 16px; font-weight: 800; color:#333;">重置赛季（进入第一赛季）</div>
+                    <div style="font-size: 12px; color:#999;">接口：<code style="background:#fff1f0;color:#cf1322;padding:2px 4px;border-radius:4px;">POST /problem/tracker/battle/reset-season</code></div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-battle-reset-season-btn" style="background:#cf1322; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px; font-weight: 800;">
+                        重置赛季
+                    </button>
+                </div>
+                <div style="margin-top: 10px; font-size: 13px; color:#666; line-height: 1.7;">
+                    说明：这是<b>全量管理员操作</b>。后端会只处理 1v1 内测参与用户：保存内测赛季历史战绩，发放内测牛币与“内测先锋”彩蛋成就，然后将 1v1 当前胜场/场次清零并按继承公式进入第一赛季；人机分数保持不变。
+                </div>
+                <div id="admin-battle-reset-season-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 700; margin-bottom: 6px;">执行结果</div>
+                    <pre id="admin-battle-reset-season-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 10px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
+                </div>
+            </div>
+
             <div style="background:#fff; border: 1px solid #e8e8e8; border-radius: 12px; padding: 16px; margin-top: 16px;">
                 <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                     <div style="font-size: 16px; font-weight: 800; color:#333;">重建对战题 matchCount</div>
@@ -1844,6 +1863,25 @@ export class AdminView {
                     </div>
                 </div>
 
+                <div style="background:#fff; border:1px solid #f6d365; border-radius:12px; padding:16px;">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="font-size:16px; font-weight:800; color:#333;">上线日打卡抽卡券补发</div>
+                        <div style="font-size:12px; color:#999;">接口：<code style="background:#fff7e6;color:#ad6800;padding:2px 4px;border-radius:4px;">POST /problem/tracker/card/admin/reward/backfill-checkin</code></div>
+                        <div style="flex:1;"></div>
+                        <input id="admin-card-backfill-checkin-date" type="text" value="2026-05-12" placeholder="yyyy-MM-dd"
+                               style="padding:8px 12px; border:1px solid #f6d365; border-radius:6px; font-size:13px; width:130px;">
+                        <button id="admin-card-backfill-checkin-btn" style="background:#fa8c16; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:800;">补发 10 抽</button>
+                    </div>
+                    <div style="margin-top:10px; font-size:13px; color:#666; line-height:1.7;">
+                        说明：扫描指定日期已打卡用户，给未领取过每日打卡奖励的人补发 10 张抽卡券；已发过的用户会自动跳过。
+                    </div>
+                    <div id="admin-card-backfill-checkin-error" style="margin-top:10px; font-size:13px; color:#ff4d4f; display:none;"></div>
+                    <div style="margin-top:12px;">
+                        <div style="font-size:13px; color:#333; font-weight:700; margin-bottom:6px;">执行结果</div>
+                        <pre id="admin-card-backfill-checkin-result" style="margin:0; background:#0b1020; color:#e6edf3; padding:12px; border-radius:10px; overflow:auto; max-height:260px;">（尚未执行）</pre>
+                    </div>
+                </div>
+
                 <div style="display:grid; grid-template-columns:minmax(320px, 1fr) minmax(360px, 1fr); gap:16px;">
                     <div style="background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:16px;">
                         <div style="font-size:16px; font-weight:800; color:#333; margin-bottom:12px;">用户卡牌资产</div>
@@ -2611,6 +2649,60 @@ export class AdminView {
         } finally {
             btn.disabled = false;
             btn.textContent = oldText || '开始重建';
+        }
+    }
+
+    async adminBattleResetSeason() {
+        const btn = document.getElementById('admin-battle-reset-season-btn');
+        const errEl = document.getElementById('admin-battle-reset-season-error');
+        const resultEl = document.getElementById('admin-battle-reset-season-result');
+        if (!btn || !errEl || !resultEl) return;
+        errEl.style.display = 'none';
+
+        const ok = confirm(
+            `确认重置对战赛季并进入第一赛季吗？\n\n` +
+            `接口：POST /problem/tracker/battle/reset-season\n\n` +
+            `后端会保存内测赛季历史战绩，给 1v1 内测参与用户发放牛币和“内测先锋”成就，` +
+            `然后重置 1v1 当前胜场/场次与 rating。人机分数保持不变。\n\n` +
+            `这是全量操作，请确认已经完成备份和发布检查。`
+        );
+        if (!ok) return;
+
+        const secondOk = confirm('二次确认：现在真的执行“重置赛季（进入第一赛季）”？');
+        if (!secondOk) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '重置中...';
+        resultEl.textContent = `请求中...\n`;
+
+        try {
+            const data = await this.apiService.adminBattleResetSeason();
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            if (data && data.success === false) {
+                const msg = data.message || '重置失败';
+                errEl.textContent = msg;
+                errEl.style.display = 'block';
+                alert(msg);
+                return;
+            }
+            const coinReward = data && data.coinReward ? data.coinReward : {};
+            const badgeReward = data && data.badgeReward ? data.badgeReward : {};
+            alert(
+                `赛季重置完成\n` +
+                `历史写入：${data?.seasonHistorySaved ?? '-'}\n` +
+                `1v1重置：${data?.pvpUsersReset ?? '-'}\n` +
+                `牛币发放：${coinReward.successCount ?? '-'} 人，合计 ${coinReward.totalCoin ?? '-'}\n` +
+                `成就发放：${badgeReward.successCount ?? '-'} 人，跳过 ${badgeReward.skippedCount ?? '-'}`
+            );
+        } catch (e) {
+            const msg = e && e.message ? e.message : '重置赛季失败';
+            errEl.textContent = msg;
+            errEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '重置赛季';
         }
     }
 
@@ -4402,6 +4494,7 @@ export class AdminView {
         const cardResetBtn = document.getElementById('admin-card-reset-btn');
         const cardCreateBtn = document.getElementById('admin-card-create-btn');
         const cardBatchImportBtn = document.getElementById('admin-card-batch-import-btn');
+        const cardBackfillCheckinBtn = document.getElementById('admin-card-backfill-checkin-btn');
         if (cardSearchBtn) cardSearchBtn.addEventListener('click', () => this.loadCardAdminList());
         if (cardResetBtn) {
             cardResetBtn.addEventListener('click', () => {
@@ -4414,6 +4507,7 @@ export class AdminView {
         }
         if (cardCreateBtn) cardCreateBtn.addEventListener('click', () => this.showCardAdminModal());
         if (cardBatchImportBtn) cardBatchImportBtn.addEventListener('click', () => this.showCardBatchImportModal());
+        if (cardBackfillCheckinBtn) cardBackfillCheckinBtn.addEventListener('click', () => this.backfillCardCheckinReward());
 
         const cardAssetQueryBtn = document.getElementById('admin-card-asset-query-btn');
         const cardAssetUpdateBtn = document.getElementById('admin-card-asset-update-btn');
@@ -4548,6 +4642,10 @@ export class AdminView {
         // 对战运维：重建所有对战题 matchCount
         const rebuildMatchCountBtn = document.getElementById('admin-battle-rebuild-matchcount-btn');
         if (rebuildMatchCountBtn) rebuildMatchCountBtn.addEventListener('click', () => this.adminBattleRebuildMatchCount());
+
+        // 对战运维：重置赛季进入第一赛季
+        const resetSeasonBtn = document.getElementById('admin-battle-reset-season-btn');
+        if (resetSeasonBtn) resetSeasonBtn.addEventListener('click', () => this.adminBattleResetSeason());
 
         // 2026 第三期大转盘：增加抽奖次数（管理员测试）
         const spring2026ThirdAddBtn = document.getElementById('admin-spring2026-third-chances-add-btn');
@@ -4973,6 +5071,54 @@ export class AdminView {
             alert(`${isActive ? '上线' : '下线'}成功`);
         } catch (e) {
             alert(`${isActive ? '上线' : '下线'}失败：${e && e.message ? e.message : '未知错误'}`);
+        }
+    }
+
+    async backfillCardCheckinReward() {
+        const dateInput = document.getElementById('admin-card-backfill-checkin-date');
+        const btn = document.getElementById('admin-card-backfill-checkin-btn');
+        const errorEl = document.getElementById('admin-card-backfill-checkin-error');
+        const resultEl = document.getElementById('admin-card-backfill-checkin-result');
+        if (!dateInput || !btn || !errorEl || !resultEl) return;
+
+        const date = String(dateInput.value || '').trim() || '2026-05-12';
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            errorEl.textContent = '日期格式应为 yyyy-MM-dd';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        errorEl.style.display = 'none';
+        const ok = confirm(
+            `确认补发 ${date} 已打卡用户的每日打卡抽卡券吗？\n\n` +
+            `每个未领取过的用户补发 10 抽；已领取过的用户会被幂等跳过。`
+        );
+        if (!ok) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '补发中...';
+        resultEl.textContent = `请求中...\ndate=${date}\n`;
+
+        try {
+            const data = await this.apiService.adminTrackerCardBackfillCheckinReward(date);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            alert(
+                `补发完成\n` +
+                `候选用户：${data?.candidateCount ?? '-'}\n` +
+                `成功补发：${data?.successCount ?? '-'}\n` +
+                `已跳过：${data?.skippedCount ?? '-'}\n` +
+                `失败：${data?.failedCount ?? '-'}\n` +
+                `合计补发抽卡券：${data?.totalTicketGranted ?? '-'}`
+            );
+        } catch (e) {
+            const msg = e && e.message ? e.message : '补发打卡抽卡券失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '补发 10 抽';
         }
     }
 

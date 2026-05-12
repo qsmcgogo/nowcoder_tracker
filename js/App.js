@@ -733,6 +733,53 @@ export class NowcoderTracker {
         
         // 发布事件
         eventBus.emit(EVENTS.MAIN_TAB_CHANGED, normalized);
+
+        if (normalized === 'daily') {
+            this.maybeShowBattleSeasonLaunchModal();
+        }
+    }
+
+    maybeShowBattleSeasonLaunchModal() {
+        const key = 'tracker_battle_s1_launch_seen_v1';
+        try {
+            if (localStorage.getItem(key) === '1') return;
+        } catch (_) {}
+        if (document.getElementById('battle-season-launch-modal')) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = 'battle-season-launch-modal';
+        overlay.className = 'battle-season-launch-overlay';
+        overlay.innerHTML = `
+            <div class="battle-season-launch-modal" role="dialog" aria-modal="true" aria-label="第一赛季开启">
+                <div class="battle-season-launch-modal__eyebrow">NOWCODER TRACKER BATTLE</div>
+                <div class="battle-season-launch-modal__title">第一赛季：赛场狂想曲</div>
+                <div class="battle-season-launch-modal__desc">
+                    新赛季已经开启。内测赛季 rating 与胜负场已归档，1v1 当前战绩从第一赛季重新出发。
+                    现在可以前往对战页查看新赛季状态与历史 rating。
+                </div>
+                <div class="battle-season-launch-modal__actions">
+                    <button class="battle-season-launch-modal__ghost" data-season-close>稍后再看</button>
+                    <button class="battle-season-launch-modal__primary" data-season-battle>前往对战页</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        const markSeen = () => {
+            try { localStorage.setItem(key, '1'); } catch (_) {}
+        };
+        const close = () => {
+            markSeen();
+            overlay.remove();
+        };
+        overlay.querySelector('[data-season-close]')?.addEventListener('click', close);
+        overlay.querySelector('[data-season-battle]')?.addEventListener('click', () => {
+            close();
+            this.switchMainTab('battle');
+        });
+        overlay.addEventListener('click', (event) => {
+            if (event.target === overlay) close();
+        });
     }
 
     async handleRankTabChange(rankType) {

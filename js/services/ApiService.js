@@ -2115,7 +2115,7 @@ export class ApiService {
 
     /**
      * 获取用户对战信息
-     * @returns {Promise<{battle1v1: {levelScore, winCount, totalCount, type}, battleAI: {levelScore, winCount, totalCount, type}}>}
+     * @returns {Promise<{battle1v1: {levelScore, winCount, totalCount, type, seasonHistory}, battleAI: {levelScore, winCount, totalCount, type, seasonHistory}}>}
      */
     async battleInfo() {
         const url = `${this.apiBase}/problem/tracker/battle/info`;
@@ -2127,14 +2127,14 @@ export class ApiService {
         const data = await res.json();
         if (data && (data.code === 0 || data.code === 200)) {
             return data.data || {
-                battle1v1: { levelScore: 1000, winCount: 0, totalCount: 0, type: 2 },
-                battleAI: { levelScore: 1000, winCount: 0, totalCount: 0, type: 1 }
+                battle1v1: { levelScore: 500, winCount: 0, totalCount: 0, type: 2, seasonHistory: [] },
+                battleAI: { levelScore: 500, winCount: 0, totalCount: 0, type: 1, seasonHistory: [] }
             };
         }
         // 如果接口失败，返回默认值
         return {
-            battle1v1: { levelScore: 1000, winCount: 0, totalCount: 0, type: 2 },
-            battleAI: { levelScore: 1000, winCount: 0, totalCount: 0, type: 1 }
+            battle1v1: { levelScore: 500, winCount: 0, totalCount: 0, type: 2, seasonHistory: [] },
+            battleAI: { levelScore: 500, winCount: 0, totalCount: 0, type: 1, seasonHistory: [] }
         };
     }
 
@@ -2722,6 +2722,43 @@ export class ApiService {
             throw new Error((data && (data.msg || data.message)) || '清理用户镜像失败');
         } catch (error) {
             console.error('清理用户镜像失败:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * 管理员：重置对战赛季，进入第一赛季。
+     * POST /problem/tracker/battle/reset-season
+     *
+     * @returns {Promise<object>} 返回后端 data（含 coinReward/badgeReward/seasonHistorySaved/pvpUsersReset 等）
+     */
+    async adminBattleResetSeason() {
+        const url = `${this.apiBase}/problem/tracker/battle/reset-season`;
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'Accept': 'application/json, text/plain, */*'
+                },
+                body: '',
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) {
+                const t = await res.text().catch(() => '');
+                throw new Error(t || `HTTP ${res.status}`);
+            }
+            const contentType = (res.headers && res.headers.get) ? (res.headers.get('content-type') || '') : '';
+            if (contentType.includes('text/html')) {
+                const finalUrl = res.url || '';
+                throw new Error(`接口返回 HTML（疑似未登录/无权限/反代兜底）。finalUrl=${finalUrl || '(unknown)'}`);
+            }
+            const data = await res.json().catch(() => ({}));
+            if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+            throw new Error((data && (data.msg || data.message)) || '重置赛季失败');
+        } catch (error) {
+            console.error('重置赛季失败:', error);
             throw error;
         }
     }
@@ -4743,6 +4780,19 @@ export class ApiService {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json().catch(() => ({}));
         return this._unwrapCommon(data, '查询卡牌失败');
+    }
+
+    async adminTrackerCardBackfillCheckinReward(date = '2026-05-12') {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/reward/backfill-checkin`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({ date }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '补发打卡抽卡券失败');
     }
 
     async adminTrackerCardCreate(payload = {}) {
