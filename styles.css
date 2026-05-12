@@ -7006,11 +7006,43 @@ body.dark-theme .profile-avatar {
     border-radius: 16px;
     border: 2px solid #e8ebf0;
     background: #f8fafc;
+    position: relative;
 }
 
 .battle-s1-fragment-shop-item.is-dark .battle-s1-fragment-shop-item__art {
     border-color: rgba(255,255,255,0.12);
     background: rgba(255,255,255,0.08);
+}
+
+.battle-s1-fragment-shop-item.is-locked .battle-s1-fragment-shop-item__art img {
+    transform: scale(1.18);
+    filter: grayscale(1) blur(9px) brightness(0.48) contrast(0.42);
+    opacity: 0.45;
+}
+
+.battle-s1-fragment-shop-item.is-locked .battle-s1-fragment-shop-item__art::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    background:
+        repeating-linear-gradient(135deg, rgba(15,23,42,0.34) 0 8px, rgba(148,163,184,0.22) 8px 16px),
+        radial-gradient(circle at 50% 40%, rgba(255,255,255,0.12), rgba(15,23,42,0.72));
+    mix-blend-mode: multiply;
+}
+
+.battle-s1-fragment-shop-item__lock-mask {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(255,255,255,0.86);
+    font-size: 44px;
+    font-weight: 950;
+    text-shadow: 0 6px 22px rgba(0,0,0,0.55);
+    background: rgba(15,23,42,0.18);
 }
 
 .battle-s1-fragment-shop-item__body {

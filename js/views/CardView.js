@@ -43,7 +43,6 @@ export class CardView {
         this.api = api;
         this.container = this.elements.cardsContainer;
         this.pageMode = 'overview';
-        this.mode = 'api';
         this.activeAlbumCode = '';
         this.activeHomeTab = 'overview';
         this.overviewData = null;
@@ -59,7 +58,6 @@ export class CardView {
             rarity: 'all',
             ownership: 'all'
         };
-        this.mockData = this.buildMockData();
         this.bindEvents();
     }
 
@@ -89,7 +87,6 @@ export class CardView {
         try {
             const data = await this.api.getTrackerCardOverview();
             this.overviewData = this.normalizeOverviewData(data);
-            this.mode = 'api';
             if (!this.activeAlbumCode && this.overviewData.albums.length) {
                 this.activeAlbumCode = this.overviewData.albums[0].code;
             }
@@ -97,12 +94,8 @@ export class CardView {
                 delete this.albumDetailCache[this.activeAlbumCode];
             }
         } catch (e) {
-            this.mode = 'mock-fallback';
-            this.overviewData = this.buildOverviewFromMock();
-            this.errorMessage = e && e.message ? `接口异常，已回退到演示数据：${e.message}` : '接口异常，已回退到演示数据';
-            if (!this.activeAlbumCode) {
-                this.activeAlbumCode = this.overviewData.albums[0]?.code || '';
-            }
+            this.overviewData = null;
+            this.errorMessage = e && e.message ? e.message : '获取卡牌概览失败';
         } finally {
             this.loading = false;
             this.renderCurrentView();
@@ -117,16 +110,9 @@ export class CardView {
         try {
             const data = await this.api.getTrackerCardAlbumDetail(albumCode);
             this.albumDetailCache[albumCode] = this.normalizeAlbumDetail(data, albumCode);
-            this.mode = this.mode === 'mock-fallback' ? 'api+mock' : 'api';
         } catch (e) {
-            const fallback = this.getMockAlbumDetail(albumCode);
-            if (fallback) {
-                this.albumDetailCache[albumCode] = fallback;
-                this.mode = 'mock-fallback';
-                this.errorMessage = e && e.message ? `卡册详情接口异常，已回退到演示数据：${e.message}` : '卡册详情接口异常，已回退到演示数据';
-            } else {
-                this.errorMessage = e && e.message ? e.message : '获取卡册详情失败';
-            }
+            delete this.albumDetailCache[albumCode];
+            this.errorMessage = e && e.message ? e.message : '获取卡册详情失败';
         } finally {
             this.loading = false;
             this.renderCurrentView();
@@ -187,7 +173,7 @@ export class CardView {
             ['rank', '排行榜']
         ];
         const shopAlbumCode = CURRENT_CARD_SHOP_ALBUM_CODE;
-        const shopDetail = this.albumDetailCache[shopAlbumCode] || this.getMockAlbumDetail(shopAlbumCode);
+        const shopDetail = this.albumDetailCache[shopAlbumCode] || null;
         const drawCoverImage = CARD_DRAW_COVER_IMAGE;
         const drawAlbumName = CARD_PRESENTATION_CONFIG.albums[CURRENT_CARD_SHOP_ALBUM_CODE].name;
         return `
@@ -607,7 +593,8 @@ export class CardView {
         if (albumCode && !this.albumDetailCache[albumCode]) {
             await this.loadAlbumDetail(albumCode);
         }
-        const detail = this.albumDetailCache[albumCode] || this.getMockAlbumDetail(albumCode);
+        const detail = this.albumDetailCache[albumCode];
+        if (!detail) return;
         const fragments = this.overviewData?.system?.fragments || { n: 0, r: 0, sr: 0, ssr: 0, ur: 0 };
         this.closeFragmentShop();
         const overlay = document.createElement('div');
@@ -755,9 +742,10 @@ export class CardView {
         const statusText = isMaxed ? '已满级' : (isUnlocked ? '已拥有' : '未拥有');
         const disabledReason = isMaxed ? '已满级不可兑换' : (fragmentCount < 5 ? '碎片不足' : '兑换');
         return `
-            <div class="battle-s1-fragment-shop-item ${darkMode ? 'is-dark' : ''} ${isMaxed ? 'is-maxed' : ''}">
+            <div class="battle-s1-fragment-shop-item ${darkMode ? 'is-dark' : ''} ${isMaxed ? 'is-maxed' : ''} ${isUnlocked ? '' : 'is-locked'}">
                 <div class="battle-s1-fragment-shop-item__art">
                     <img src="${card.imageUrl || './牛客娘/笑.png'}" alt="${this.escapeHtml(card.cardName || '卡牌')}" style="width:100%; height:100%; object-fit:cover;">
+                    ${isUnlocked ? '' : '<div class="battle-s1-fragment-shop-item__lock-mask">?</div>'}
                 </div>
                 <div class="battle-s1-fragment-shop-item__body">
                     <div class="battle-s1-fragment-shop-item__head">
@@ -1109,7 +1097,7 @@ export class CardView {
                     maxed: Number(item.maxedCount || 0)
                 };
             }) : [];
-        const albums = apiAlbums.length ? apiAlbums : this.buildConfiguredAlbumPlaceholders();
+        const albums = apiAlbums;
         return {
             system: {
                 name: CARD_PRESENTATION_CONFIG.defaultSystem.name,
@@ -1190,90 +1178,6 @@ export class CardView {
         return Math.min(625, effectiveCopyCount * initialWeight);
     }
 
-    buildOverviewFromMock() {
-        const albums = this.mockData.albums.map(album => ({
-            code: album.code,
-            name: album.name,
-            subtitle: album.subtitle,
-            coverImage: album.cards.find(card => card.unlocked)?.image || album.cards[0]?.image || './牛客娘/笑.png',
-            collected: album.cards.filter(card => card.unlocked).length,
-            total: album.cards.length,
-            maxed: album.cards.filter(card => card.maxed).length
-        }));
-        const total = albums.reduce((sum, item) => sum + item.total, 0);
-        const collected = albums.reduce((sum, item) => sum + item.collected, 0);
-        const maxed = albums.reduce((sum, item) => sum + item.maxed, 0);
-        return {
-            system: {
-                name: this.mockData.system.name,
-                subtitle: this.mockData.system.subtitle,
-                tickets: this.mockData.system.tickets,
-                pityTen: this.mockData.system.pityTen,
-                pityHundred: this.mockData.system.pityHundred,
-                fragments: {
-                    n: this.mockData.system.fragments.N,
-                    r: this.mockData.system.fragments.R,
-                    sr: this.mockData.system.fragments.SR,
-                    ssr: this.mockData.system.fragments.SSR,
-                    ur: this.mockData.system.fragments.UR
-                },
-                collected,
-                total,
-                maxed
-            },
-            albums
-        };
-    }
-
-    getMockAlbumDetail(albumCode) {
-        const album = this.mockData.albums.find(item => item.code === albumCode);
-        if (!album) return null;
-        return {
-            albumCode: album.code,
-            albumName: album.name,
-            albumSubtitle: album.subtitle,
-            rewardCollect: album.rewardCollect,
-            rewardFullUr: album.rewardFullUr,
-            collectedCount: album.cards.filter(card => card.unlocked).length,
-            totalCount: album.cards.length,
-            maxedCount: album.cards.filter(card => card.maxed).length,
-            cards: album.cards.map(card => ({
-                cardId: card.code,
-                cardCode: card.code,
-                cardName: card.name,
-                albumCode: card.albumCode,
-                albumName: album.name,
-                initialRarity: this.labelToRarityCode(card.initialRarity),
-                currentRarity: this.labelToRarityCode(card.currentRarity),
-                imageUrl: card.image,
-                isUnlocked: !!card.unlocked,
-                isMaxed: !!card.maxed,
-                progressCount: card.maxed ? 0 : card.owned,
-                progressNeed: card.maxed ? 0 : card.required,
-                effectiveCopyCount: card.owned,
-                obtainedTotalCount: card.owned
-            }))
-        };
-    }
-
-    labelToRarityCode(label) {
-        return { N: 1, R: 2, SR: 3, SSR: 4, UR: 5 }[String(label || '').toUpperCase()] || 0;
-    }
-
-    buildConfiguredAlbumPlaceholders() {
-        return Object.entries(CARD_PRESENTATION_CONFIG.albums)
-            .filter(([code]) => code !== 'default')
-            .map(([code, cfg]) => ({
-                code,
-                name: cfg.name || code,
-                subtitle: cfg.subtitle || CARD_PRESENTATION_CONFIG.albums.default.subtitle,
-                coverImage: cfg.coverImage || './牛客娘/笑.png',
-                collected: 0,
-                total: Number(cfg.expectedTotal || 0),
-                maxed: 0
-            }));
-    }
-
     normalizeConfigText(value) {
         const text = String(value == null ? '' : value).trim();
         if (!text || text === '待配置') return '';
@@ -1287,63 +1191,6 @@ export class CardView {
             .replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;')
             .replace(/'/g, '&#39;');
-    }
-
-    buildMockData() {
-        const images = [
-            './牛客娘/笑.png',
-            './牛客娘/自信.png',
-            './牛客娘/打气.png',
-            './牛客娘/码字.png',
-            './牛客娘/脸红.png',
-            './牛客娘/哭.png',
-            './牛客娘/面无表情.png'
-        ];
-        const makeCard = (albumCode, idx, name, initialRarity, currentRarity, owned, required, image, unlocked = true) => ({
-            code: `${albumCode}_${idx}`,
-            name,
-            albumCode,
-            image,
-            initialRarity,
-            currentRarity,
-            owned,
-            required,
-            unlocked,
-            maxed: currentRarity === 'UR' && owned >= required
-        });
-        return {
-            system: {
-                name: '牛客娘卡册',
-                subtitle: '做题、对战、打卡，都会慢慢变成一张张会发光的收藏。',
-                tickets: 128,
-                pityTen: 7,
-                pityHundred: 64,
-                fragments: { N: 22, R: 11, SR: 4, SSR: 1, UR: 0 }
-            },
-            albums: [
-                {
-                    code: 'saichang_kuangxiangqu',
-                    name: '赛场狂想曲',
-                    subtitle: '灯牌亮起，倒计时归零。把那些解出题目的瞬间，收进这本热闹的赛场纪念册。',
-                    rewardCollect: '',
-                    rewardFullUr: '',
-                    cards: [
-                        makeCard('saichang_kuangxiangqu', 1, '微笑日报', 'N', 'R', 4, 5, images[0], true),
-                        makeCard('saichang_kuangxiangqu', 2, '午后码字', 'N', 'N', 3, 5, images[3], true),
-                        makeCard('saichang_kuangxiangqu', 3, '脸红鼓励', 'R', 'SR', 1, 5, images[4], true),
-                        makeCard('saichang_kuangxiangqu', 4, '打气瞬间', 'R', 'R', 2, 5, images[2], true),
-                        makeCard('saichang_kuangxiangqu', 5, '面无表情审题', 'SR', 'SR', 1, 5, images[6], true),
-                        makeCard('saichang_kuangxiangqu', 6, '自信出击', 'SR', 'SSR', 3, 5, images[1], true),
-                        makeCard('saichang_kuangxiangqu', 7, '夜读落泪', 'N', 'N', 0, 5, images[5], false),
-                        makeCard('saichang_kuangxiangqu', 8, '清晨第一题', 'N', 'N', 1, 5, images[0], true),
-                        makeCard('saichang_kuangxiangqu', 9, '满分反馈', 'SSR', 'SSR', 2, 5, images[1], true),
-                        makeCard('saichang_kuangxiangqu', 10, '晨星祝福', 'UR', 'UR', 1, 1, images[2], true),
-                        makeCard('saichang_kuangxiangqu', 11, '赛点回响', 'R', 'R', 1, 5, images[4], true),
-                        makeCard('saichang_kuangxiangqu', 12, '终局宣言', 'SR', 'SR', 0, 5, images[6], false)
-                    ]
-                }
-            ]
-        };
     }
 
     hide() {
