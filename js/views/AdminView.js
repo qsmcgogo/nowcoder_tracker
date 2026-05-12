@@ -11,7 +11,7 @@ export class AdminView {
         // 旧结构：currentTab 用于顶层 tab 切换（保留兼容）
         this.currentTab = 'clock'; // 'clock' | 'battle' | 'import' | 'yearReport' | 'tag' | 'contestDifficulty' | 'promptChallenge' | 'qmsDraft'
         // 新结构：按业务域（顶部）+ 子栏目（左侧）组织
-        this.adminDomain = 'course';   // course | library | battle | contest | data | ai | activity | record
+        this.adminDomain = 'course';   // course | library | battle | card | contest | data | ai | activity | record
         this.adminSection = 'daily';   // depends on domain
         this.clockPage = 1;
         this.battlePage = 1;
@@ -35,6 +35,14 @@ export class AdminView {
         this.aiPuzzleAdminStatsLast = null;
         // QMS 录题测试：保留最近一次响应（便于排查）
         this.qmsDraftLastResult = null;
+        // 卡牌管理
+        this.cardAdminKeyword = '';
+        this.cardAdminAlbumCode = '';
+        this.cardAdminInitialRarity = '';
+        this.cardAdminActive = '';
+        this.cardAdminListLast = [];
+        this.cardAdminUserAssetLast = null;
+        this.cardAdminUserInventoryLast = [];
     }
 
     /**
@@ -113,6 +121,11 @@ export class AdminView {
                             ${this.renderBattleOpsPanel()}
                         </div>
 
+                        <!-- 卡牌 -->
+                        <div id="admin-card-panel" class="admin-panel" style="display:none;">
+                            ${this.renderCardAdminPanel()}
+                        </div>
+
                         <!-- 竞赛 -->
                         <div id="admin-contest-difficulty-panel" class="admin-panel" style="display:none;">
                             ${this.renderContestDifficultyPanel()}
@@ -146,6 +159,9 @@ export class AdminView {
                         </div>
 
                         <!-- 成就 -->
+                        <div id="admin-achv-manage-panel" class="admin-panel" style="display:none;">
+                            ${this.renderAchvManagePanel()}
+                        </div>
                         <div id="admin-achv-skill-panel" class="admin-panel" style="display:none;">
                             ${this.renderAchvSkillPanel()}
                         </div>
@@ -189,6 +205,9 @@ export class AdminView {
                 { id: 'pool', label: '题目池', panelId: 'admin-battle-panel' },
                 { id: 'ops', label: '运维', panelId: 'admin-battle-ops-panel' },
             ] },
+            { id: 'card', label: '卡牌', sections: [
+                { id: 'manage', label: '卡牌管理', panelId: 'admin-card-panel' },
+            ] },
             { id: 'contest', label: '竞赛', sections: [
                 { id: 'difficulty', label: '比赛管理', panelId: 'admin-contest-difficulty-panel' },
             ] },
@@ -206,6 +225,7 @@ export class AdminView {
                 { id: 'teamStats', label: '团队活动', panelId: 'admin-activity-team-stats-panel' },
             ] },
             { id: 'achv', label: '成就', sections: [
+                { id: 'manage', label: '成就管理', panelId: 'admin-achv-manage-panel' },
                 { id: 'skill', label: '补发技能树', panelId: 'admin-achv-skill-panel' },
             ] },
             { id: 'record', label: '录题', sections: [
@@ -279,9 +299,11 @@ export class AdminView {
         try {
             if (pid === 'admin-clock-panel') this.loadClockList();
             if (pid === 'admin-battle-panel') this.loadBattleList();
+            if (pid === 'admin-card-panel') this.loadCardAdminList();
             if (pid === 'admin-tag-panel') this.loadTagList();
             if (pid === 'admin-prompt-challenge-panel') this.loadPromptChallengeList(false);
             if (pid === 'admin-ai-puzzle-panel') this.loadAiPuzzleAdminOverview();
+            if (pid === 'admin-achv-manage-panel') this.loadAchvManageList();
         } catch (_) {}
     }
 
@@ -1260,6 +1282,263 @@ export class AdminView {
         `;
     }
 
+    // ===== 成就管理 =====
+
+    static BADGE_TYPE_MAP = {
+        1: '累计打卡', 2: '连续打卡', 3: '打卡其他', 4: '累计过题',
+        5: '牛客系列赛', 6: '技能树', 7: '彩蛋成就',
+    };
+
+    renderAchvManagePanel() {
+        const typeOptions = Object.entries(AdminView.BADGE_TYPE_MAP)
+            .map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+        return `
+            <div style="background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:16px;">
+                <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:14px;">
+                    <div style="font-size:16px; font-weight:800; color:#333;">成就管理</div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <select id="achv-manage-type-filter" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                            <option value="">全部类型</option>
+                            ${typeOptions}
+                        </select>
+                        <input id="achv-manage-search" type="text" placeholder="搜索名称…" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:140px;">
+                        <button id="achv-manage-add-btn" style="background:#1890ff; color:#fff; border:none; padding:7px 14px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;">+ 新增</button>
+                    </div>
+                </div>
+
+                <!-- 编辑表单（默认隐藏） -->
+                <div id="achv-manage-form" style="display:none; background:#fafafa; border:1px solid #e8e8e8; border-radius:8px; padding:14px; margin-bottom:14px;">
+                    <div style="font-size:14px; font-weight:700; color:#333; margin-bottom:10px;" id="achv-manage-form-title">新增成就</div>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <label style="font-size:13px; color:#666; min-width:24px;">ID:</label>
+                            <input id="achv-manage-form-id" type="number" min="1" placeholder="自增" style="width:80px; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <label style="font-size:13px; color:#666; min-width:40px;">名称:</label>
+                            <input id="achv-manage-form-name" type="text" style="width:150px; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <label style="font-size:13px; color:#666; min-width:40px;">类型:</label>
+                            <select id="achv-manage-form-type" style="padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                                ${typeOptions}
+                            </select>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <label style="font-size:13px; color:#666; min-width:40px;">分值:</label>
+                            <input id="achv-manage-form-score" type="number" min="0" value="0" style="width:80px; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px;">
+                            <label style="font-size:13px; color:#666; min-width:60px;">条件数值:</label>
+                            <input id="achv-manage-form-acquirement" type="number" min="0" value="0" style="width:80px; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:10px;">
+                        <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:200px;">
+                            <label style="font-size:13px; color:#666; min-width:40px;">描述:</label>
+                            <input id="achv-manage-form-detail" type="text" style="flex:1; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; margin-bottom:12px;">
+                        <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:200px;">
+                            <label style="font-size:13px; color:#666; min-width:60px;">彩色图URL:</label>
+                            <input id="achv-manage-form-colorUrl" type="text" style="flex:1; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;" placeholder="https://...">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; flex:1; min-width:200px;">
+                            <label style="font-size:13px; color:#666; min-width:60px;">灰色图URL:</label>
+                            <input id="achv-manage-form-grayUrl" type="text" style="flex:1; padding:6px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;" placeholder="https://...">
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:8px; justify-content:flex-end;">
+                        <button id="achv-manage-form-cancel" style="background:#fff; color:#666; border:1px solid #ddd; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px;">取消</button>
+                        <button id="achv-manage-form-save" style="background:#1890ff; color:#fff; border:none; padding:6px 14px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:600;">保存</button>
+                    </div>
+                    <div id="achv-manage-form-msg" style="margin-top:8px; font-size:13px; display:none;"></div>
+                </div>
+
+                <!-- 列表 -->
+                <div id="achv-manage-table-wrap" style="overflow-x:auto;">
+                    <div style="text-align:center; padding:30px; color:#999; font-size:13px;">加载中…</div>
+                </div>
+            </div>
+        `;
+    }
+
+    renderAchvManageTable(badges) {
+        const TM = AdminView.BADGE_TYPE_MAP;
+        if (!badges || badges.length === 0) {
+            return `<div style="text-align:center; padding:30px; color:#999; font-size:13px;">暂无成就数据</div>`;
+        }
+        const imgStyle = 'width:32px; height:32px; object-fit:contain; border-radius:4px; background:#f5f5f5;';
+        const rows = badges.map(b => `
+            <tr style="border-bottom:1px solid #f0f0f0;">
+                <td style="padding:8px 6px; font-size:13px; color:#999;">${b.id}</td>
+                <td style="padding:8px 6px;">${b.colorUrl ? `<img src="${b.colorUrl}" style="${imgStyle}" title="彩色图">` : '<span style="color:#ccc;font-size:12px;">无</span>'}</td>
+                <td style="padding:8px 6px;">${b.grayUrl ? `<img src="${b.grayUrl}" style="${imgStyle}" title="灰色图">` : '<span style="color:#ccc;font-size:12px;">无</span>'}</td>
+                <td style="padding:8px 6px; font-size:13px; font-weight:600;">${b.name || ''}</td>
+                <td style="padding:8px 6px; font-size:12px;"><span style="background:#f0f7ff; color:#1890ff; padding:2px 8px; border-radius:4px;">${TM[b.type] || b.type}</span></td>
+                <td style="padding:8px 6px; font-size:13px; text-align:center;">${b.score ?? 0}</td>
+                <td style="padding:8px 6px; font-size:13px; text-align:center;">${b.acquirement ?? 0}</td>
+                <td style="padding:8px 6px; font-size:12px; color:#999; max-width:160px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${(b.detail || '').replace(/"/g, '&quot;')}">${b.detail || '-'}</td>
+                <td style="padding:8px 6px;">
+                    <div style="display:flex; gap:6px;">
+                        <button class="achv-manage-edit-btn" data-id="${b.id}" style="background:none; border:1px solid #d9d9d9; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:12px; color:#1890ff;">编辑</button>
+                        <button class="achv-manage-del-btn" data-id="${b.id}" data-name="${(b.name || '').replace(/"/g, '&quot;')}" style="background:none; border:1px solid #d9d9d9; padding:3px 8px; border-radius:4px; cursor:pointer; font-size:12px; color:#ff4d4f;">删除</button>
+                    </div>
+                </td>
+            </tr>
+        `).join('');
+
+        return `
+            <table style="width:100%; border-collapse:collapse;">
+                <thead>
+                    <tr style="border-bottom:2px solid #f0f0f0;">
+                        <th style="padding:8px 6px; font-size:12px; color:#999; text-align:left; font-weight:600;">ID</th>
+                        <th style="padding:8px 6px; font-size:12px; color:#999; text-align:left; font-weight:600;">彩色图</th>
+                        <th style="padding:8px 6px; font-size:12px; color:#999; text-align:left; font-weight:600;">灰色图</th>
+                        <th style="padding:8px 6px; font-size:12px; color:#999; text-align:left; font-weight:600;">名称</th>
+                        <th style="padding:8px 6px; font-size:12px; color:#999; text-align:left; font-weight:600;">类型</th>
+                        <th style="padding:8px 6px; font-size:12px; color:#999; text-align:center; font-weight:600;">分值</th>
+                        <th style="padding:8px 6px; font-size:12px; color:#999; text-align:center; font-weight:600;">条件</th>
+                        <th style="padding:8px 6px; font-size:12px; color:#999; text-align:left; font-weight:600;">描述</th>
+                        <th style="padding:8px 6px; font-size:12px; color:#999; text-align:left; font-weight:600;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>${rows}</tbody>
+            </table>
+            <div style="margin-top:8px; font-size:12px; color:#999;">共 ${badges.length} 条</div>
+        `;
+    }
+
+    // --- 成就管理：数据加载与事件 ---
+
+    async loadAchvManageList() {
+        const wrap = document.getElementById('achv-manage-table-wrap');
+        if (!wrap) return;
+        try {
+            const list = await this.apiService.adminBadgeListAll();
+            this._achvManageAllBadges = list || [];
+            this.applyAchvManageFilter();
+        } catch (e) {
+            wrap.innerHTML = `<div style="color:#ff4d4f; font-size:13px; padding:12px;">加载失败: ${e.message}</div>`;
+        }
+    }
+
+    applyAchvManageFilter() {
+        const wrap = document.getElementById('achv-manage-table-wrap');
+        if (!wrap) return;
+        const typeFilter = document.getElementById('achv-manage-type-filter')?.value || '';
+        const keyword = (document.getElementById('achv-manage-search')?.value || '').trim().toLowerCase();
+        let list = this._achvManageAllBadges || [];
+        if (typeFilter) list = list.filter(b => String(b.type) === typeFilter);
+        if (keyword) list = list.filter(b => (b.name || '').toLowerCase().includes(keyword));
+        wrap.innerHTML = this.renderAchvManageTable(list);
+        this.bindAchvManageTableEvents();
+    }
+
+    bindAchvManageEvents() {
+        const addBtn = document.getElementById('achv-manage-add-btn');
+        if (addBtn) addBtn.addEventListener('click', () => this.showAchvManageForm(null));
+        const cancelBtn = document.getElementById('achv-manage-form-cancel');
+        if (cancelBtn) cancelBtn.addEventListener('click', () => this.hideAchvManageForm());
+        const saveBtn = document.getElementById('achv-manage-form-save');
+        if (saveBtn) saveBtn.addEventListener('click', () => this.saveAchvManageForm());
+        const typeFilter = document.getElementById('achv-manage-type-filter');
+        if (typeFilter) typeFilter.addEventListener('change', () => this.applyAchvManageFilter());
+        const searchInput = document.getElementById('achv-manage-search');
+        if (searchInput) searchInput.addEventListener('input', () => this.applyAchvManageFilter());
+    }
+
+    bindAchvManageTableEvents() {
+        document.querySelectorAll('.achv-manage-edit-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = Number(btn.dataset.id);
+                const badge = (this._achvManageAllBadges || []).find(b => b.id === id);
+                if (badge) this.showAchvManageForm(badge);
+            });
+        });
+        document.querySelectorAll('.achv-manage-del-btn').forEach(btn => {
+            btn.addEventListener('click', async () => {
+                const id = Number(btn.dataset.id);
+                const name = btn.dataset.name || id;
+                if (!confirm(`确认删除成就「${name}」(ID: ${id})？`)) return;
+                try {
+                    await this.apiService.adminBadgeDelete(id);
+                    await this.loadAchvManageList();
+                } catch (e) {
+                    alert('删除失败: ' + e.message);
+                }
+            });
+        });
+    }
+
+    showAchvManageForm(badge) {
+        const form = document.getElementById('achv-manage-form');
+        if (!form) return;
+        const title = document.getElementById('achv-manage-form-title');
+        const isEdit = badge && badge.id;
+        if (title) title.textContent = isEdit ? `编辑成就 (ID: ${badge.id})` : '新增成就';
+        const idEl = document.getElementById('achv-manage-form-id');
+        idEl.value = isEdit ? badge.id : '';
+        idEl.disabled = !!isEdit;
+        document.getElementById('achv-manage-form-name').value = isEdit ? (badge.name || '') : '';
+        document.getElementById('achv-manage-form-type').value = isEdit ? (badge.type || 1) : 1;
+        document.getElementById('achv-manage-form-score').value = isEdit ? (badge.score ?? 0) : 0;
+        document.getElementById('achv-manage-form-acquirement').value = isEdit ? (badge.acquirement ?? 0) : 0;
+        document.getElementById('achv-manage-form-detail').value = isEdit ? (badge.detail || '') : '';
+        document.getElementById('achv-manage-form-colorUrl').value = isEdit ? (badge.colorUrl || '') : '';
+        document.getElementById('achv-manage-form-grayUrl').value = isEdit ? (badge.grayUrl || '') : '';
+        const msgEl = document.getElementById('achv-manage-form-msg');
+        if (msgEl) { msgEl.style.display = 'none'; msgEl.textContent = ''; }
+        form.style.display = 'block';
+    }
+
+    hideAchvManageForm() {
+        const form = document.getElementById('achv-manage-form');
+        if (form) form.style.display = 'none';
+    }
+
+    async saveAchvManageForm() {
+        const msgEl = document.getElementById('achv-manage-form-msg');
+        const showMsg = (text, ok) => {
+            if (!msgEl) return;
+            msgEl.style.display = 'block';
+            msgEl.style.color = ok ? '#52c41a' : '#ff4d4f';
+            msgEl.textContent = text;
+        };
+
+        const idEl = document.getElementById('achv-manage-form-id');
+        const id = idEl.value.trim();
+        const isEdit = idEl.disabled; // disabled 表示编辑模式
+        const name = document.getElementById('achv-manage-form-name').value.trim();
+        const type = document.getElementById('achv-manage-form-type').value;
+        const score = document.getElementById('achv-manage-form-score').value;
+        const acquirement = document.getElementById('achv-manage-form-acquirement').value;
+        const detail = document.getElementById('achv-manage-form-detail').value.trim();
+        const colorUrl = document.getElementById('achv-manage-form-colorUrl').value.trim();
+        const grayUrl = document.getElementById('achv-manage-form-grayUrl').value.trim();
+
+        if (!name) { showMsg('名称不能为空', false); return; }
+        if (!type) { showMsg('请选择类型', false); return; }
+
+        const params = { name, type, score, acquirement, detail, colorUrl, grayUrl };
+        if (id) params.id = id;
+
+        try {
+            if (isEdit) {
+                await this.apiService.adminBadgeEdit(params);
+                showMsg('编辑成功', true);
+            } else {
+                await this.apiService.adminBadgeAdd(params);
+                showMsg('新增成功', true);
+            }
+            setTimeout(() => this.hideAchvManageForm(), 600);
+            await this.loadAchvManageList();
+        } catch (e) {
+            showMsg('保存失败: ' + e.message, false);
+        }
+    }
+
     /**
      * 成就：补发技能树
      */
@@ -1529,6 +1808,82 @@ export class AdminView {
         `;
     }
 
+    renderCardAdminPanel() {
+        const rarityOptions = `
+            <option value="">全部稀有度</option>
+            <option value="1" ${this.cardAdminInitialRarity === '1' ? 'selected' : ''}>N</option>
+            <option value="2" ${this.cardAdminInitialRarity === '2' ? 'selected' : ''}>R</option>
+            <option value="3" ${this.cardAdminInitialRarity === '3' ? 'selected' : ''}>SR</option>
+            <option value="4" ${this.cardAdminInitialRarity === '4' ? 'selected' : ''}>SSR</option>
+            <option value="5" ${this.cardAdminInitialRarity === '5' ? 'selected' : ''}>UR</option>
+        `;
+        return `
+            <div style="display:flex; flex-direction:column; gap:16px;">
+                <div style="background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:16px;">
+                    <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:14px;">
+                        <button id="admin-card-create-btn" style="background:#52c41a; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:14px;">➕ 新增卡牌</button>
+                        <button id="admin-card-batch-import-btn" style="background:#722ed1; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:14px;">批量导入</button>
+                        <div style="flex:1;"></div>
+                        <input id="admin-card-album-code" type="text" value="${this.escapeHtml(this.cardAdminAlbumCode || '')}" placeholder="albumCode"
+                               style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:140px;">
+                        <select id="admin-card-initial-rarity" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                            ${rarityOptions}
+                        </select>
+                        <select id="admin-card-active" style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                            <option value="" ${this.cardAdminActive === '' ? 'selected' : ''}>全部状态</option>
+                            <option value="1" ${this.cardAdminActive === '1' ? 'selected' : ''}>已上线</option>
+                            <option value="0" ${this.cardAdminActive === '0' ? 'selected' : ''}>已下线</option>
+                        </select>
+                        <input id="admin-card-keyword" type="text" value="${this.escapeHtml(this.cardAdminKeyword || '')}" placeholder="搜索 cardCode / 名称"
+                               style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:220px;">
+                        <button id="admin-card-search-btn" style="background:#1890ff; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px;">查询</button>
+                        <button id="admin-card-reset-btn" style="background:#999; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px;">重置</button>
+                    </div>
+                    <div id="admin-card-list" style="border:1px solid #f0f0f0; border-radius:10px; overflow:hidden; background:#fff;">
+                        <div style="padding:20px; text-align:center; color:#999;">加载中...</div>
+                    </div>
+                </div>
+
+                <div style="display:grid; grid-template-columns:minmax(320px, 1fr) minmax(360px, 1fr); gap:16px;">
+                    <div style="background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:16px;">
+                        <div style="font-size:16px; font-weight:800; color:#333; margin-bottom:12px;">用户卡牌资产</div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+                            <input id="admin-card-asset-user-id" type="number" min="1" placeholder="用户 UID"
+                                   style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:140px;">
+                            <button id="admin-card-asset-query-btn" style="background:#1890ff; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px;">查询资产</button>
+                        </div>
+                        <div id="admin-card-user-asset-result" style="background:#fafafa; border:1px solid #f0f0f0; border-radius:10px; padding:12px; min-height:120px; margin-bottom:12px; color:#666;">请输入 UID 后查询。</div>
+                        <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:10px;">
+                            <input id="admin-card-asset-ticket-delta" type="number" value="0" placeholder="抽卡券增量" style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                            <input id="admin-card-asset-fragment-n-delta" type="number" value="0" placeholder="N 碎片增量" style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                            <input id="admin-card-asset-fragment-r-delta" type="number" value="0" placeholder="R 碎片增量" style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                            <input id="admin-card-asset-fragment-sr-delta" type="number" value="0" placeholder="SR 碎片增量" style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                            <input id="admin-card-asset-fragment-ssr-delta" type="number" value="0" placeholder="SSR 碎片增量" style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                            <input id="admin-card-asset-fragment-ur-delta" type="number" value="0" placeholder="UR 碎片增量" style="padding:8px 10px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                        </div>
+                        <div style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+                            <input id="admin-card-asset-reason" type="text" placeholder="原因，例如：补偿 / 联调测试"
+                                   style="flex:1; min-width:0; padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px;">
+                            <button id="admin-card-asset-update-btn" style="background:#52c41a; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px;">提交修改</button>
+                        </div>
+                    </div>
+
+                    <div style="background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:16px;">
+                        <div style="font-size:16px; font-weight:800; color:#333; margin-bottom:12px;">用户卡牌库存</div>
+                        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px;">
+                            <input id="admin-card-inventory-user-id" type="number" min="1" placeholder="用户 UID"
+                                   style="padding:8px 12px; border:1px solid #ddd; border-radius:6px; font-size:13px; width:140px;">
+                            <button id="admin-card-inventory-query-btn" style="background:#1890ff; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px;">查询库存</button>
+                        </div>
+                        <div id="admin-card-user-inventory-result" style="border:1px solid #f0f0f0; border-radius:10px; overflow:hidden; background:#fff;">
+                            <div style="padding:20px; text-align:center; color:#999;">请输入 UID 后查询。</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }
+
     renderAdminYearReportPanel() {
         const savedUid = localStorage.getItem('admin_year_report_uid') || '';
         const savedYear = localStorage.getItem('admin_year_report_year') || '0';
@@ -1661,6 +2016,8 @@ export class AdminView {
         const savedContestId = localStorage.getItem('contest_difficulty_contest_id') || '';
         const savedAcRateMax = localStorage.getItem('contest_difficulty_ac_rate_max') || '85';
         const savedDirectContestId = localStorage.getItem('admin_contest_direct_contest_id') || savedContestId;
+        const savedDeleteContestId = localStorage.getItem('admin_contest_delete_contest_id') || savedDirectContestId || savedContestId;
+        const savedDeleteUserId = localStorage.getItem('admin_contest_delete_user_id') || '';
 
         return `
             <div style="display:flex; flex-direction:column; gap:16px;">
@@ -1695,6 +2052,41 @@ export class AdminView {
                     <div style="margin-top: 12px;">
                         <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
                         <pre id="admin-contest-direct-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
+                    </div>
+                </div>
+
+                <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
+                    <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
+                        ACM 提交管理：按比赛 + 用户批量删除提交
+                    </div>
+                    <div style="font-size: 13px; color: #666; margin-bottom: 12px; line-height: 1.7;">
+                        用于管理员批量删除某个用户在某场比赛下的提交记录，适合清理脏数据、误导入数据或回滚单用户比赛提交。<br>
+                        接口：<code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/acm/submission/delete-by-contest-user</code>
+                    </div>
+
+                    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-bottom: 12px;">
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size: 13px; color:#666;">contestId:</label>
+                            <input id="admin-contest-delete-contest-id" type="number" value="${savedDeleteContestId}" placeholder="必填：比赛ID"
+                                   style="width: 180px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <label style="font-size: 13px; color:#666;">userId:</label>
+                            <input id="admin-contest-delete-user-id" type="number" value="${savedDeleteUserId}" placeholder="必填：用户ID"
+                                   style="width: 180px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                        </div>
+                        <div style="flex:1;"></div>
+                        <button id="admin-contest-delete-submission-btn" style="background:#cf1322; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px;">
+                            批量删除提交
+                        </button>
+                    </div>
+
+                    <div id="admin-contest-delete-error" style="margin-top: 8px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                    <div id="admin-contest-delete-summary" style="margin-top: 12px; padding: 12px; background: #f5f5f5; border-radius: 6px; font-size: 13px; display:none;"></div>
+
+                    <div style="margin-top: 12px;">
+                        <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
+                        <pre id="admin-contest-delete-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
                     </div>
                 </div>
 
@@ -2875,10 +3267,12 @@ export class AdminView {
             // 重新绑定按钮事件（因为 innerHTML 重新注入会丢失事件）
             const contestRankPersistBtn = document.getElementById('admin-contest-rank-persist-direct-btn');
             const contestReratingBtn = document.getElementById('admin-contest-rerating-direct-btn');
+            const contestDeleteSubmissionBtn = document.getElementById('admin-contest-delete-submission-btn');
             const contestPreviewBtn = document.getElementById('admin-contest-difficulty-preview-btn');
             const contestSubmitBtn = document.getElementById('admin-contest-difficulty-submit-btn');
             if (contestRankPersistBtn) contestRankPersistBtn.addEventListener('click', () => this.handleContestRankPersistDirect());
             if (contestReratingBtn) contestReratingBtn.addEventListener('click', () => this.handleContestReratingDirect());
+            if (contestDeleteSubmissionBtn) contestDeleteSubmissionBtn.addEventListener('click', () => this.handleContestDeleteSubmissionByContestUser());
             if (contestPreviewBtn) contestPreviewBtn.addEventListener('click', () => this.handleContestDifficultyPreview());
             if (contestSubmitBtn) contestSubmitBtn.addEventListener('click', () => this.handleContestDifficultySubmit());
 
@@ -4003,6 +4397,71 @@ export class AdminView {
         const battleSearchByIdBtn = document.getElementById('admin-battle-search-by-id-btn');
         if (battleSearchByIdBtn) battleSearchByIdBtn.addEventListener('click', () => this.searchBattleByProblemId());
 
+        // 卡牌管理
+        const cardSearchBtn = document.getElementById('admin-card-search-btn');
+        const cardResetBtn = document.getElementById('admin-card-reset-btn');
+        const cardCreateBtn = document.getElementById('admin-card-create-btn');
+        const cardBatchImportBtn = document.getElementById('admin-card-batch-import-btn');
+        if (cardSearchBtn) cardSearchBtn.addEventListener('click', () => this.loadCardAdminList());
+        if (cardResetBtn) {
+            cardResetBtn.addEventListener('click', () => {
+                this.cardAdminKeyword = '';
+                this.cardAdminAlbumCode = '';
+                this.cardAdminInitialRarity = '';
+                this.cardAdminActive = '';
+                this.render();
+            });
+        }
+        if (cardCreateBtn) cardCreateBtn.addEventListener('click', () => this.showCardAdminModal());
+        if (cardBatchImportBtn) cardBatchImportBtn.addEventListener('click', () => this.showCardBatchImportModal());
+
+        const cardAssetQueryBtn = document.getElementById('admin-card-asset-query-btn');
+        const cardAssetUpdateBtn = document.getElementById('admin-card-asset-update-btn');
+        const cardInventoryQueryBtn = document.getElementById('admin-card-inventory-query-btn');
+        if (cardAssetQueryBtn) cardAssetQueryBtn.addEventListener('click', () => this.queryCardUserAsset());
+        if (cardAssetUpdateBtn) cardAssetUpdateBtn.addEventListener('click', () => this.updateCardUserAsset());
+        if (cardInventoryQueryBtn) cardInventoryQueryBtn.addEventListener('click', () => this.queryCardUserInventory());
+
+        const cardListContainer = document.getElementById('admin-card-list');
+        if (cardListContainer) {
+            cardListContainer.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-card-action]');
+                if (!btn) return;
+                const action = btn.dataset.cardAction;
+                const id = Number(btn.dataset.cardId || 0);
+                if (action === 'edit') {
+                    const item = this.cardAdminListLast.find(x => Number(x.id || x.cardId || 0) === id);
+                    if (item) this.showCardAdminModal(item);
+                }
+                if (action === 'toggle') {
+                    const active = String(btn.dataset.cardActive || '0') === '1';
+                    this.toggleTrackerCard(id, !active);
+                }
+            });
+        }
+
+        const cardInventoryContainer = document.getElementById('admin-card-user-inventory-result');
+        if (cardInventoryContainer) {
+            cardInventoryContainer.addEventListener('click', (e) => {
+                const btn = e.target.closest('button[data-card-inventory-action]');
+                if (!btn) return;
+                const action = btn.dataset.cardInventoryAction;
+                const cardId = Number(btn.dataset.cardId || 0);
+                if (action === 'edit-copy') {
+                    const item = this.cardAdminUserInventoryLast.find(x => Number(x.cardId || x.id || 0) === cardId);
+                    if (!item) return;
+                    const raw = prompt(`请输入 cardId=${cardId} 的 effectiveCopyCount`, String(item.effectiveCopyCount || 0));
+                    if (raw === null) return;
+                    const value = Number(raw);
+                    if (!Number.isFinite(value) || value < 0) {
+                        alert('请输入非负整数');
+                        return;
+                    }
+                    this.updateCardUserInventory(cardId, Math.floor(value));
+                }
+            });
+        }
+
         // 对战二级页签
         const battleManageBtn = document.getElementById('admin-battle-subtab-manage');
         const battleHistBtn = document.getElementById('admin-battle-subtab-histogram');
@@ -4078,6 +4537,9 @@ export class AdminView {
         if (badgeRunBtn) badgeRunBtn.addEventListener('click', () => this.adminBadgeBackfillRun());
         const badgeStopBtn = document.getElementById('admin-badge-backfill-stop-btn');
         if (badgeStopBtn) badgeStopBtn.addEventListener('click', () => { this._adminBadgeBackfillStop = true; });
+
+        // 成就管理 CRUD
+        this.bindAchvManageEvents();
 
         // 对战运维：清理某用户镜像
         const clearMirrorsBtn = document.getElementById('admin-clear-user-mirrors-btn');
@@ -4165,10 +4627,12 @@ export class AdminView {
         // 比赛题目难度更新
         const contestRankPersistBtn = document.getElementById('admin-contest-rank-persist-direct-btn');
         const contestReratingBtn = document.getElementById('admin-contest-rerating-direct-btn');
+        const contestDeleteSubmissionBtn = document.getElementById('admin-contest-delete-submission-btn');
         const contestPreviewBtn = document.getElementById('admin-contest-difficulty-preview-btn');
         const contestSubmitBtn = document.getElementById('admin-contest-difficulty-submit-btn');
         if (contestRankPersistBtn) contestRankPersistBtn.addEventListener('click', () => this.handleContestRankPersistDirect());
         if (contestReratingBtn) contestReratingBtn.addEventListener('click', () => this.handleContestReratingDirect());
+        if (contestDeleteSubmissionBtn) contestDeleteSubmissionBtn.addEventListener('click', () => this.handleContestDeleteSubmissionByContestUser());
         if (contestPreviewBtn) contestPreviewBtn.addEventListener('click', () => this.handleContestDifficultyPreview());
         if (contestSubmitBtn) contestSubmitBtn.addEventListener('click', () => this.handleContestDifficultySubmit());
 
@@ -4199,6 +4663,478 @@ export class AdminView {
         this.bindDifyPanelEventsIfPresent();
         this.bindQmsPanelEventsIfPresent();
         this.bindPuzzleRecordEventsIfPresent();
+    }
+
+    async loadCardAdminList() {
+        const keywordEl = document.getElementById('admin-card-keyword');
+        const albumCodeEl = document.getElementById('admin-card-album-code');
+        const rarityEl = document.getElementById('admin-card-initial-rarity');
+        const activeEl = document.getElementById('admin-card-active');
+        if (keywordEl) this.cardAdminKeyword = keywordEl.value.trim();
+        if (albumCodeEl) this.cardAdminAlbumCode = albumCodeEl.value.trim();
+        if (rarityEl) this.cardAdminInitialRarity = rarityEl.value;
+        if (activeEl) this.cardAdminActive = activeEl.value;
+
+        const container = document.getElementById('admin-card-list');
+        if (container) container.innerHTML = `<div style="padding:20px; text-align:center; color:#999;">加载中...</div>`;
+        try {
+            const data = await this.apiService.adminTrackerCardList({
+                keyword: this.cardAdminKeyword,
+                albumCode: this.cardAdminAlbumCode,
+                initialRarity: this.cardAdminInitialRarity,
+                isActive: this.cardAdminActive
+            });
+            const list = Array.isArray(data) ? data : (data.list || data.items || data.records || []);
+            this.cardAdminListLast = Array.isArray(list) ? list : [];
+            this.renderCardAdminList(this.cardAdminListLast);
+        } catch (e) {
+            if (container) container.innerHTML = `<div style="padding:20px; text-align:center; color:#ff4d4f;">加载失败：${this.escapeHtml(e && e.message ? e.message : '未知错误')}</div>`;
+        }
+    }
+
+    renderCardAdminList(list) {
+        const container = document.getElementById('admin-card-list');
+        if (!container) return;
+        if (!Array.isArray(list) || !list.length) {
+            container.innerHTML = `<div style="padding:20px; text-align:center; color:#999;">暂无卡牌数据</div>`;
+            return;
+        }
+        container.innerHTML = `
+            <div style="overflow:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                    <thead>
+                        <tr style="background:#fafafa; color:#666;">
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">ID</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">卡牌</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">卡册</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">初始稀有度</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">排序</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">状态</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:right;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${list.map(item => {
+                            const id = Number(item.id || item.cardId || 0);
+                            const active = Number(item.isActive ?? item.active ?? 0) === 1;
+                            const rarity = this.rarityLabelFromValue(item.initialRarity);
+                            return `
+                                <tr>
+                                    <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5; color:#666;">${id}</td>
+                                    <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5;">
+                                        <div style="font-weight:700; color:#333;">${this.escapeHtml(item.cardName || '-')}</div>
+                                        <div style="font-size:12px; color:#999; margin-top:4px;">${this.escapeHtml(item.cardCode || '-')}</div>
+                                    </td>
+                                    <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5;">
+                                        <div>${this.escapeHtml(item.albumName || '-')}</div>
+                                        <div style="font-size:12px; color:#999; margin-top:4px;">${this.escapeHtml(item.albumCode || '-')}</div>
+                                    </td>
+                                    <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5;">${rarity}</td>
+                                    <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5;">${Number(item.cardOrder || 0)}</td>
+                                    <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5;">
+                                        <span style="display:inline-block; padding:4px 10px; border-radius:999px; background:${active ? '#f6ffed' : '#fff1f0'}; color:${active ? '#389e0d' : '#cf1322'}; border:1px solid ${active ? '#b7eb8f' : '#ffa39e'};">
+                                            ${active ? '已上线' : '已下线'}
+                                        </span>
+                                    </td>
+                                    <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5; text-align:right;">
+                                        <button data-card-action="edit" data-card-id="${id}" style="border:none; background:#1890ff; color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer; margin-left:8px;">编辑</button>
+                                        <button data-card-action="toggle" data-card-id="${id}" data-card-active="${active ? 1 : 0}" style="border:none; background:${active ? '#fa541c' : '#52c41a'}; color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer; margin-left:8px;">
+                                            ${active ? '下线' : '上线'}
+                                        </button>
+                                    </td>
+                                </tr>
+                            `;
+                        }).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    showCardAdminModal(item = null) {
+        const isEdit = !!item;
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        const esc = (value) => this.escapeHtml(value == null ? '' : String(value));
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width:720px;">
+                <div class="modal-header">
+                    <h3>${isEdit ? '编辑卡牌' : '新增卡牌'}</h3>
+                    <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding:20px;">
+                    <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:12px;">
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-weight:600;">cardCode *</label>
+                            <input id="card-admin-form-card-code" type="text" value="${esc(item?.cardCode)}" ${isEdit ? 'readonly' : ''}
+                                   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-weight:600;">cardName *</label>
+                            <input id="card-admin-form-card-name" type="text" value="${esc(item?.cardName)}"
+                                   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-weight:600;">albumCode *</label>
+                            <input id="card-admin-form-album-code" type="text" value="${esc(item?.albumCode)}"
+                                   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-weight:600;">albumName *</label>
+                            <input id="card-admin-form-album-name" type="text" value="${esc(item?.albumName)}"
+                                   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-weight:600;">initialRarity *</label>
+                            <select id="card-admin-form-rarity" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                                <option value="1" ${Number(item?.initialRarity || 1) === 1 ? 'selected' : ''}>N</option>
+                                <option value="2" ${Number(item?.initialRarity || 0) === 2 ? 'selected' : ''}>R</option>
+                                <option value="3" ${Number(item?.initialRarity || 0) === 3 ? 'selected' : ''}>SR</option>
+                                <option value="4" ${Number(item?.initialRarity || 0) === 4 ? 'selected' : ''}>SSR</option>
+                                <option value="5" ${Number(item?.initialRarity || 0) === 5 ? 'selected' : ''}>UR</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label style="display:block; margin-bottom:6px; font-weight:600;">cardOrder</label>
+                            <input id="card-admin-form-card-order" type="number" value="${esc(item?.cardOrder || 0)}"
+                                   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        </div>
+                        <div style="grid-column:1 / span 2;">
+                            <label style="display:block; margin-bottom:6px; font-weight:600;">imageUrl *</label>
+                            <input id="card-admin-form-image-url" type="text" value="${esc(item?.imageUrl)}"
+                                   style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">
+                        </div>
+                        <div style="grid-column:1 / span 2;">
+                            <label style="display:block; margin-bottom:6px; font-weight:600;">flavorText</label>
+                            <textarea id="card-admin-form-flavor-text" rows="4" style="width:100%; padding:8px; border:1px solid #ddd; border-radius:4px;">${esc(item?.flavorText)}</textarea>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <input id="card-admin-form-active" type="checkbox" ${Number(item?.isActive ?? 1) === 1 ? 'checked' : ''}>
+                            <label for="card-admin-form-active" style="font-weight:600;">启用</label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="this.closest('.modal').remove()" style="padding:8px 16px; border:1px solid #ddd; background:#fff; border-radius:4px; cursor:pointer;">取消</button>
+                    <button id="card-admin-form-submit" style="padding:8px 16px; border:none; background:#1890ff; color:#fff; border-radius:4px; cursor:pointer;">${isEdit ? '更新' : '新增'}</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        const submitBtn = modal.querySelector('#card-admin-form-submit');
+        if (!submitBtn) return;
+        submitBtn.addEventListener('click', async () => {
+            const payload = {
+                cardCode: modal.querySelector('#card-admin-form-card-code')?.value.trim(),
+                cardName: modal.querySelector('#card-admin-form-card-name')?.value.trim(),
+                albumCode: modal.querySelector('#card-admin-form-album-code')?.value.trim(),
+                albumName: modal.querySelector('#card-admin-form-album-name')?.value.trim(),
+                initialRarity: modal.querySelector('#card-admin-form-rarity')?.value,
+                imageUrl: modal.querySelector('#card-admin-form-image-url')?.value.trim(),
+                cardOrder: modal.querySelector('#card-admin-form-card-order')?.value,
+                flavorText: modal.querySelector('#card-admin-form-flavor-text')?.value.trim(),
+                isActive: modal.querySelector('#card-admin-form-active')?.checked ? 1 : 0
+            };
+            if (!payload.cardCode || !payload.cardName || !payload.albumCode || !payload.albumName || !payload.imageUrl) {
+                alert('请填写完整的必填项');
+                return;
+            }
+            try {
+                submitBtn.disabled = true;
+                submitBtn.textContent = isEdit ? '更新中...' : '创建中...';
+                if (isEdit) {
+                    payload.id = item.id || item.cardId;
+                    await this.apiService.adminTrackerCardUpdate(payload);
+                } else {
+                    await this.apiService.adminTrackerCardCreate(payload);
+                }
+                modal.remove();
+                await this.loadCardAdminList();
+                alert(isEdit ? '更新成功' : '创建成功');
+            } catch (e) {
+                alert((isEdit ? '更新失败：' : '创建失败：') + (e && e.message ? e.message : '未知错误'));
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = isEdit ? '更新' : '新增';
+            }
+        });
+    }
+
+    showCardBatchImportModal() {
+        const modal = document.createElement('div');
+        modal.className = 'modal';
+        modal.style.display = 'flex';
+        const sample = JSON.stringify([
+            {
+                cardCode: 'saichang_kuangxiangqu_001',
+                cardName: '初见',
+                albumCode: 'saichang_kuangxiangqu',
+                albumName: '赛场狂想曲',
+                initialRarity: 1,
+                imageUrl: 'https://...',
+                cardOrder: 1,
+                flavorText: ''
+            }
+        ], null, 2);
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width:900px;">
+                <div class="modal-header">
+                    <h3>批量导入卡牌</h3>
+                    <button class="modal-close" onclick="this.closest('.modal').remove()">&times;</button>
+                </div>
+                <div class="modal-body" style="padding:20px;">
+                    <div style="margin-bottom:10px; color:#666; line-height:1.7;">
+                        粘贴 JSON 数组，前端会按顺序逐张调用现有“新增卡牌”接口。字段同单张新增：cardCode、cardName、albumCode、albumName、initialRarity、imageUrl、cardOrder、flavorText。
+                    </div>
+                    <textarea id="card-admin-batch-json" rows="18" spellcheck="false"
+                              style="width:100%; font-family:Consolas, monospace; font-size:13px; line-height:1.5; padding:12px; border:1px solid #ddd; border-radius:6px;">${this.escapeHtml(sample)}</textarea>
+                    <div id="card-admin-batch-result" style="margin-top:12px; padding:10px 12px; border-radius:6px; background:#fafafa; color:#666; min-height:40px;">
+                        等待导入。
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button onclick="this.closest('.modal').remove()" style="padding:8px 16px; border:1px solid #ddd; background:#fff; border-radius:4px; cursor:pointer;">取消</button>
+                    <button id="card-admin-batch-submit" style="padding:8px 16px; border:none; background:#722ed1; color:#fff; border-radius:4px; cursor:pointer;">开始导入</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+        const textarea = modal.querySelector('#card-admin-batch-json');
+        const resultBox = modal.querySelector('#card-admin-batch-result');
+        const submitBtn = modal.querySelector('#card-admin-batch-submit');
+        submitBtn?.addEventListener('click', async () => {
+            let items;
+            try {
+                items = JSON.parse(textarea?.value || '[]');
+            } catch (e) {
+                alert('JSON 解析失败：' + (e && e.message ? e.message : '格式错误'));
+                return;
+            }
+            if (!Array.isArray(items) || !items.length) {
+                alert('请提供非空 JSON 数组');
+                return;
+            }
+            const invalidIndex = items.findIndex(item => !item || !item.cardCode || !item.cardName || !item.albumCode || !item.albumName || !item.initialRarity || !item.imageUrl);
+            if (invalidIndex >= 0) {
+                alert(`第 ${invalidIndex + 1} 条缺少必填字段`);
+                return;
+            }
+            const ok = confirm(`确认导入 ${items.length} 张卡牌吗？\n\n会逐条调用新增接口；已存在的 cardCode 会在结果里显示失败。`);
+            if (!ok) return;
+            submitBtn.disabled = true;
+            submitBtn.textContent = '导入中...';
+            const success = [];
+            const failed = [];
+            for (let i = 0; i < items.length; i++) {
+                const item = items[i];
+                if (resultBox) {
+                    resultBox.innerHTML = `正在导入 ${i + 1}/${items.length}：${this.escapeHtml(item.cardCode || '')}`;
+                }
+                try {
+                    await this.apiService.adminTrackerCardCreate({
+                        cardCode: String(item.cardCode || '').trim(),
+                        cardName: String(item.cardName || '').trim(),
+                        albumCode: String(item.albumCode || '').trim(),
+                        albumName: String(item.albumName || '').trim(),
+                        initialRarity: Number(item.initialRarity || 1),
+                        imageUrl: String(item.imageUrl || '').trim(),
+                        cardOrder: Number(item.cardOrder || i + 1),
+                        flavorText: String(item.flavorText || '').trim()
+                    });
+                    success.push(item.cardCode);
+                } catch (e) {
+                    failed.push({
+                        cardCode: item.cardCode,
+                        message: e && e.message ? e.message : '未知错误'
+                    });
+                }
+            }
+            if (resultBox) {
+                resultBox.innerHTML = `
+                    <div style="color:#389e0d; font-weight:700;">成功：${success.length} 张</div>
+                    <div style="color:${failed.length ? '#cf1322' : '#666'}; margin-top:6px;">失败：${failed.length} 张</div>
+                    ${failed.length ? `<pre style="white-space:pre-wrap; margin:8px 0 0; color:#cf1322;">${this.escapeHtml(failed.map(item => `${item.cardCode}: ${item.message}`).join('\n'))}</pre>` : ''}
+                `;
+            }
+            submitBtn.disabled = false;
+            submitBtn.textContent = '开始导入';
+            await this.loadCardAdminList();
+        });
+    }
+
+    async toggleTrackerCard(id, isActive) {
+        if (!id) return;
+        const ok = confirm(`确认要${isActive ? '上线' : '下线'}这张卡牌吗？\n\ncardId=${id}`);
+        if (!ok) return;
+        try {
+            await this.apiService.adminTrackerCardToggle(id, isActive ? 1 : 0);
+            await this.loadCardAdminList();
+            alert(`${isActive ? '上线' : '下线'}成功`);
+        } catch (e) {
+            alert(`${isActive ? '上线' : '下线'}失败：${e && e.message ? e.message : '未知错误'}`);
+        }
+    }
+
+    async queryCardUserAsset() {
+        const uid = Number(document.getElementById('admin-card-asset-user-id')?.value || 0);
+        if (!uid) {
+            alert('请输入有效的用户 UID');
+            return;
+        }
+        const resultEl = document.getElementById('admin-card-user-asset-result');
+        if (resultEl) resultEl.innerHTML = '加载中...';
+        try {
+            const data = await this.apiService.adminTrackerCardUserAsset(uid);
+            this.cardAdminUserAssetLast = data || {};
+            if (resultEl) {
+                resultEl.innerHTML = `
+                    <div style="display:grid; grid-template-columns:repeat(2, minmax(0, 1fr)); gap:8px; font-size:13px; color:#333;">
+                        <div><b>UID：</b>${uid}</div>
+                        <div><b>抽卡次数：</b>${Number(data.drawTicketCount || 0)}</div>
+                        <div><b>十连保底：</b>${Number(data.pityTenProgress || 0)}</div>
+                        <div><b>百抽保底：</b>${Number(data.pityHundredProgress || 0)}</div>
+                        <div><b>N 碎片：</b>${Number(data.fragmentN || data.fragments?.n || 0)}</div>
+                        <div><b>R 碎片：</b>${Number(data.fragmentR || data.fragments?.r || 0)}</div>
+                        <div><b>SR 碎片：</b>${Number(data.fragmentSR || data.fragmentSr || data.fragments?.sr || 0)}</div>
+                        <div><b>SSR 碎片：</b>${Number(data.fragmentSSR || data.fragmentSsr || data.fragments?.ssr || 0)}</div>
+                        <div><b>UR 碎片：</b>${Number(data.fragmentUR || data.fragmentUr || data.fragments?.ur || 0)}</div>
+                        <div><b>历史总抽：</b>${Number(data.totalDrawCount || 0)}</div>
+                    </div>
+                `;
+            }
+        } catch (e) {
+            if (resultEl) resultEl.innerHTML = `<span style="color:#ff4d4f;">查询失败：${this.escapeHtml(e && e.message ? e.message : '未知错误')}</span>`;
+        }
+    }
+
+    async updateCardUserAsset() {
+        const userId = Number(document.getElementById('admin-card-asset-user-id')?.value || 0);
+        if (!userId) {
+            alert('请输入有效的用户 UID');
+            return;
+        }
+        const payload = {
+            userId,
+            drawTicketDelta: Number(document.getElementById('admin-card-asset-ticket-delta')?.value || 0),
+            fragmentNDelta: Number(document.getElementById('admin-card-asset-fragment-n-delta')?.value || 0),
+            fragmentRDelta: Number(document.getElementById('admin-card-asset-fragment-r-delta')?.value || 0),
+            fragmentSRDelta: Number(document.getElementById('admin-card-asset-fragment-sr-delta')?.value || 0),
+            fragmentSSRDelta: Number(document.getElementById('admin-card-asset-fragment-ssr-delta')?.value || 0),
+            fragmentURDelta: Number(document.getElementById('admin-card-asset-fragment-ur-delta')?.value || 0),
+            reason: document.getElementById('admin-card-asset-reason')?.value.trim() || 'admin update'
+        };
+        const hasDelta = ['drawTicketDelta', 'fragmentNDelta', 'fragmentRDelta', 'fragmentSRDelta', 'fragmentSSRDelta', 'fragmentURDelta']
+            .some(key => Number(payload[key] || 0) !== 0);
+        if (!hasDelta) {
+            alert('至少填写一个非 0 增量');
+            return;
+        }
+        try {
+            await this.apiService.adminTrackerCardUserAssetUpdate(payload);
+            await this.queryCardUserAsset();
+            ['admin-card-asset-ticket-delta', 'admin-card-asset-fragment-n-delta', 'admin-card-asset-fragment-r-delta', 'admin-card-asset-fragment-sr-delta', 'admin-card-asset-fragment-ssr-delta', 'admin-card-asset-fragment-ur-delta']
+                .forEach(id => {
+                    const el = document.getElementById(id);
+                    if (el) el.value = '0';
+                });
+            alert('用户资产更新成功');
+        } catch (e) {
+            alert('用户资产更新失败：' + (e && e.message ? e.message : '未知错误'));
+        }
+    }
+
+    async queryCardUserInventory() {
+        const uid = Number(document.getElementById('admin-card-inventory-user-id')?.value || 0);
+        if (!uid) {
+            alert('请输入有效的用户 UID');
+            return;
+        }
+        const container = document.getElementById('admin-card-user-inventory-result');
+        if (container) container.innerHTML = `<div style="padding:20px; text-align:center; color:#999;">加载中...</div>`;
+        try {
+            const data = await this.apiService.adminTrackerCardUserInventory(uid);
+            const list = Array.isArray(data) ? data : (data.list || data.items || data.records || []);
+            this.cardAdminUserInventoryLast = Array.isArray(list) ? list : [];
+            this.renderCardUserInventory(this.cardAdminUserInventoryLast);
+        } catch (e) {
+            if (container) container.innerHTML = `<div style="padding:20px; text-align:center; color:#ff4d4f;">查询失败：${this.escapeHtml(e && e.message ? e.message : '未知错误')}</div>`;
+        }
+    }
+
+    renderCardUserInventory(list) {
+        const container = document.getElementById('admin-card-user-inventory-result');
+        if (!container) return;
+        if (!Array.isArray(list) || !list.length) {
+            container.innerHTML = `<div style="padding:20px; text-align:center; color:#999;">该用户暂无卡牌数据</div>`;
+            return;
+        }
+        container.innerHTML = `
+            <div style="overflow:auto;">
+                <table style="width:100%; border-collapse:collapse; font-size:13px;">
+                    <thead>
+                        <tr style="background:#fafafa; color:#666;">
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">卡牌</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">当前档位</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">有效副本</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">进度</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:left;">状态</th>
+                            <th style="padding:12px 10px; border-bottom:1px solid #f0f0f0; text-align:right;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${list.map(item => `
+                            <tr>
+                                <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5;">
+                                    <div style="font-weight:700; color:#333;">${this.escapeHtml(item.cardName || item.cardCode || '-')}</div>
+                                    <div style="font-size:12px; color:#999; margin-top:4px;">cardId=${Number(item.cardId || item.id || 0)}</div>
+                                </td>
+                                <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5;">${this.rarityLabelFromValue(item.currentRarity)}</td>
+                                <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5;">${Number(item.effectiveCopyCount || 0)}</td>
+                                <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5;">${Number(item.progressCount || 0)} / ${Number(item.progressNeed || 0)}</td>
+                                <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5;">${Number(item.isMaxed || 0) === 1 ? '已满级' : (Number(item.isUnlocked || 0) === 1 ? '已解锁' : '未解锁')}</td>
+                                <td style="padding:12px 10px; border-bottom:1px solid #f5f5f5; text-align:right;">
+                                    <button data-card-inventory-action="edit-copy" data-card-id="${Number(item.cardId || item.id || 0)}" style="border:none; background:#1890ff; color:#fff; padding:6px 12px; border-radius:6px; cursor:pointer;">改副本数</button>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+
+    async updateCardUserInventory(cardId, effectiveCopyCount) {
+        const userId = Number(document.getElementById('admin-card-inventory-user-id')?.value || 0);
+        if (!userId || !cardId) {
+            alert('缺少 userId 或 cardId');
+            return;
+        }
+        const reason = prompt('请输入修改原因', 'admin update');
+        if (reason === null) return;
+        try {
+            await this.apiService.adminTrackerCardUserInventoryUpdate({
+                userId,
+                cardId,
+                effectiveCopyCount,
+                reason: reason || 'admin update'
+            });
+            await this.queryCardUserInventory();
+            alert('用户卡牌更新成功');
+        } catch (e) {
+            alert('用户卡牌更新失败：' + (e && e.message ? e.message : '未知错误'));
+        }
+    }
+
+    rarityLabelFromValue(value) {
+        switch (Number(value || 0)) {
+            case 1: return 'N';
+            case 2: return 'R';
+            case 3: return 'SR';
+            case 4: return 'SSR';
+            case 5: return 'UR';
+            default: return '-';
+        }
     }
 
     async fetchAdminRedisDebugKey() {
@@ -4803,6 +5739,18 @@ export class AdminView {
                     <div style="padding:10px 12px; border-bottom:1px solid #f0f0f0; font-size:13px; font-weight:800; color:#111827;">执行日志</div>
                     <pre id="puzzle-record-log" style="margin:0; padding:12px; font-size:12px; color:#374151; line-height:1.6; max-height:300px; overflow:auto; white-space:pre-wrap; background:#fafafa;">（点击"一键录题"开始）</pre>
                 </div>
+
+                <!-- 批量私密提交 -->
+                <div style="border:1px solid #f0f0f0; border-radius:12px; background:#fff; overflow:hidden;">
+                    <div style="padding:10px 12px; border-bottom:1px solid #f0f0f0; font-size:13px; font-weight:800; color:#111827;">批量私密提交</div>
+                    <div style="padding:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+                        <label style="font-size:12px; color:#666;">questionId:</label>
+                        <input id="puzzle-set-private-qid" type="number" placeholder="题目ID"
+                            style="width:140px; padding:8px 10px; border:1px solid #ddd; border-radius:10px; font-size:13px;" />
+                        <button id="puzzle-set-private-btn" class="admin-btn" style="padding:8px 16px; font-weight:900; background:#ff4d4f; color:#fff;" type="button">设为私密</button>
+                        <span id="puzzle-set-private-result" style="font-size:12px; color:#666;"></span>
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -4827,6 +5775,36 @@ export class AdminView {
                     try { localStorage.setItem(key, el.value); } catch (_) {}
                 });
             }
+        }
+        // 批量私密
+        const privBtn = document.getElementById('puzzle-set-private-btn');
+        if (privBtn && !privBtn._bound) {
+            privBtn._bound = true;
+            privBtn.addEventListener('click', async () => {
+                const qidEl = document.getElementById('puzzle-set-private-qid');
+                const resultEl = document.getElementById('puzzle-set-private-result');
+                const qid = qidEl && qidEl.value.trim();
+                if (!qid) { resultEl.textContent = '请输入 questionId'; resultEl.style.color = '#ff4d4f'; return; }
+                if (!confirm(`确认将题目 ${qid} 的所有提交设为私密？`)) return;
+                privBtn.disabled = true;
+                resultEl.textContent = '处理中...'; resultEl.style.color = '#666';
+                try {
+                    const resp = await this.apiService.promptPuzzleAdminSetPrivate(qid);
+                    if (resp && resp.code === 0) {
+                        const count = resp.data != null ? resp.data : '?';
+                        resultEl.textContent = `成功，影响 ${count} 条提交`;
+                        resultEl.style.color = '#52c41a';
+                    } else {
+                        resultEl.textContent = (resp && resp.message) || '操作失败';
+                        resultEl.style.color = '#ff4d4f';
+                    }
+                } catch (e) {
+                    resultEl.textContent = e.message || '请求失败';
+                    resultEl.style.color = '#ff4d4f';
+                } finally {
+                    privBtn.disabled = false;
+                }
+            });
         }
     }
 
@@ -5472,7 +6450,7 @@ export class AdminView {
     }
 
     escapeHtml(s) {
-        return String(s || '')
+        return String(s == null ? '' : s)
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;')
@@ -6070,6 +7048,57 @@ export class AdminView {
     }
 
     /**
+     * 读取竞赛提交删除面板参数
+     */
+    getContestDeleteSubmissionParams() {
+        const contestIdInput = document.getElementById('admin-contest-delete-contest-id');
+        const userIdInput = document.getElementById('admin-contest-delete-user-id');
+        const errorEl = document.getElementById('admin-contest-delete-error');
+        const contestId = parseInt(String(contestIdInput && contestIdInput.value ? contestIdInput.value : '').trim(), 10);
+        const userId = parseInt(String(userIdInput && userIdInput.value ? userIdInput.value : '').trim(), 10);
+
+        if (!contestId || contestId <= 0) {
+            if (errorEl) {
+                errorEl.textContent = '请填写有效的 contestId（正整数）';
+                errorEl.style.display = 'block';
+            }
+            return null;
+        }
+        if (!userId || userId <= 0) {
+            if (errorEl) {
+                errorEl.textContent = '请填写有效的 userId（正整数）';
+                errorEl.style.display = 'block';
+            }
+            return null;
+        }
+
+        try {
+            localStorage.setItem('admin_contest_delete_contest_id', String(contestId));
+            localStorage.setItem('admin_contest_delete_user_id', String(userId));
+        } catch (_) {}
+
+        return { contestId, userId };
+    }
+
+    /**
+     * 渲染按比赛 + 用户批量删除提交结果摘要
+     */
+    renderContestDeleteSubmissionSummary(data) {
+        const summaryEl = document.getElementById('admin-contest-delete-summary');
+        if (!summaryEl) return;
+
+        summaryEl.innerHTML = `
+            <div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap:12px;">
+                <div><strong>比赛ID:</strong> ${data?.contestId ?? '-'}</div>
+                <div><strong>比赛名称:</strong> ${data?.contestName || '-'}</div>
+                <div><strong>用户ID:</strong> ${data?.userId ?? '-'}</div>
+                <div><strong>删除条数:</strong> <span style="color:#cf1322; font-weight:700;">${data?.deletedCount ?? 0}</span></div>
+            </div>
+        `;
+        summaryEl.style.display = 'block';
+    }
+
+    /**
      * ACM 榜单直调持久化
      */
     async handleContestRankPersistDirect() {
@@ -6152,6 +7181,51 @@ export class AdminView {
         } finally {
             btn.disabled = false;
             btn.textContent = oldText || '执行 ACM rerating';
+        }
+    }
+
+    /**
+     * 按比赛 + 用户批量删除提交
+     */
+    async handleContestDeleteSubmissionByContestUser() {
+        const errorEl = document.getElementById('admin-contest-delete-error');
+        const summaryEl = document.getElementById('admin-contest-delete-summary');
+        const resultEl = document.getElementById('admin-contest-delete-result');
+        const btn = document.getElementById('admin-contest-delete-submission-btn');
+        if (!errorEl || !summaryEl || !resultEl || !btn) return;
+
+        errorEl.style.display = 'none';
+        summaryEl.style.display = 'none';
+        const params = this.getContestDeleteSubmissionParams();
+        if (!params) return;
+
+        const { contestId, userId } = params;
+        const confirmed = confirm(
+            `确认删除用户 ${userId} 在比赛 ${contestId} 下的所有提交吗？\n\n` +
+            `接口：POST /problem/tracker/admin/acm/submission/delete-by-contest-user\n` +
+            `参数：contestId=${contestId}, userId=${userId}\n\n` +
+            `该操作不可撤销，请确认比赛和用户都填写正确。`
+        );
+        if (!confirmed) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '删除中...';
+        resultEl.textContent = `请求中...\ncontestId=${contestId}\nuserId=${userId}\nmode=delete-by-contest-user\n`;
+
+        try {
+            const data = await this.apiService.adminDeleteAcmSubmissionByContestUser(contestId, userId);
+            this.renderContestDeleteSubmissionSummary(data);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            alert(`删除完成：contestId=${data?.contestId ?? contestId}，userId=${data?.userId ?? userId}，deletedCount=${data?.deletedCount ?? 0}`);
+        } catch (e) {
+            const msg = e && e.message ? e.message : '批量删除提交失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '批量删除提交';
         }
     }
 
@@ -8768,4 +9842,3 @@ export class AdminView {
         // 可以在这里添加清理逻辑
     }
 }
-    

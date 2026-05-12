@@ -20,6 +20,7 @@ import { ProfileView } from './views/ProfileView.js';
 import { AchievementsView } from './views/AchievementsView.js';
 import { TeamView } from './views/TeamView.js';
 import { BattleView } from './views/BattleView.js';
+import { CardView } from './views/CardView.js';
 import { ActivityView } from './views/ActivityView.js';
 import { AdminView } from './views/AdminView.js';
 import { PromptView } from './views/PromptView.js';
@@ -102,6 +103,8 @@ export class NowcoderTracker {
             faq: document.getElementById('faq'),
             // battle container
             battleContainer: document.getElementById('battle-container'),
+            // cards container
+            cardsContainer: document.getElementById('cards-container'),
             // activity container
             activityContainer: document.getElementById('activity-view'),
             // admin container
@@ -124,6 +127,7 @@ export class NowcoderTracker {
             achievements: new AchievementsView(this.elements, this.state, this.apiService),
             team: new TeamView(this.elements, this.state, this.apiService),
             battle: new BattleView(this.elements, this.state, this.apiService),
+            cards: new CardView(this.elements, this.state, this.apiService),
             activity: new ActivityView(this.elements, this.state, this.apiService),
             profile: new ProfileView(this.elements, this.state, this.apiService),
             admin: new AdminView(this.elements, this.state, this.apiService),
@@ -704,6 +708,9 @@ export class NowcoderTracker {
             case 'battle':
                 this.views.battle.render();
                 break;
+            case 'cards':
+                this.views.cards.render();
+                break;
             case 'activity':
                 this.views.activity.render();
                 break;
@@ -841,7 +848,7 @@ export class NowcoderTracker {
 
     normalizeTabName(name) {
         const key = String(name || '').toLowerCase();
-        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','battle','activity','team','profile','faq','changelog','admin','prompt','dify']);
+        const allowed = new Set(['problems','rankings','daily','skill-tree','achievements','battle','cards','activity','team','profile','faq','changelog','admin','prompt','dify']);
         if (key.startsWith('team/')) return 'team';
         if (key.startsWith('invitet') || key.startsWith('inviteTeam'.toLowerCase())) return 'team';
         if (key.startsWith('profile')) return 'profile'; // 支持 profile?userId=xxx 或 profile/123
@@ -1226,18 +1233,19 @@ export class NowcoderTracker {
         });
         
         // 根据tabName映射到导航栏项
-        // 导航栏顺序：首页(0), 题库(1), 排行榜(2), 技能树(3), 成就(4), 对战(5), 团队(6), 竞赛(7), 活动(8), 我的(9), AI(10), 管理员(11)
+        // 导航栏顺序：首页(0), 题库(1), 排行榜(2), 技能树(3), 成就(4), 卡牌(5), 对战(6), 团队(7), 竞赛(8), 活动(9), 我的(10), AI(11), 管理员(12)
         const navMap = {
             'daily': 0,         // 首页
             'problems': 1,      // 题库
             'rankings': 2,      // 排行榜
             'skill-tree': 3,    // 技能树
             'achievements': 4,  // 成就
-            'battle': 5,        // 对战
-            'team': 6,          // 团队
-            'activity': 8,      // 活动（在竞赛后面）
-            'profile': 9,       // 我的
-            'dify': 10          // AI
+            'cards': 5,         // 卡牌
+            'battle': 6,        // 对战
+            'team': 7,          // 团队
+            'activity': 9,      // 活动（在竞赛后面）
+            'profile': 10,      // 我的
+            'dify': 11          // AI
         };
         
         const navIndex = navMap[tabName];

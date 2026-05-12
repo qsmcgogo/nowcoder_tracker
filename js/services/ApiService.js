@@ -1987,6 +1987,56 @@ export class ApiService {
         throw new Error((data && data.msg) || 'update all topic badges failed');
     }
 
+    // 管理员：新增成就
+    async adminBadgeAdd(params) {
+        const url = `${this.apiBase}/problem/tracker/badge/admin/add`;
+        const body = Object.entries(params).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && data.msg) || 'badge add failed');
+    }
+
+    // 管理员：编辑成就
+    async adminBadgeEdit(params) {
+        if (!params.id) throw new Error('id required');
+        const url = `${this.apiBase}/problem/tracker/badge/admin/edit`;
+        const body = Object.entries(params).filter(([, v]) => v !== undefined && v !== '').map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && data.msg) || 'badge edit failed');
+    }
+
+    // 管理员：删除成就
+    async adminBadgeDelete(id) {
+        if (!id) throw new Error('id required');
+        const url = `${this.apiBase}/problem/tracker/badge/admin/delete`;
+        const body = `id=${encodeURIComponent(id)}`;
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' }, body });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && data.msg) || 'badge delete failed');
+    }
+
+    // 管理员：获取全部成就列表（admin 专用接口，无需 typeList）
+    async adminBadgeListAll() {
+        const url = `${this.apiBase}/problem/tracker/badge/admin/list?_=${Date.now()}`;
+        const res = await fetch(url, { cache: 'no-store' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && (data.code === 0 || data.code === 200)) {
+            const d = data.data;
+            if (d && Array.isArray(d.list)) return d.list;
+            if (Array.isArray(d)) return d;
+            return [];
+        }
+        return [];
+    }
+
     // ===== 对战平台 =====
     /**
      * 发起匹配
@@ -3245,6 +3295,24 @@ export class ApiService {
         return await res.json().catch(() => ({}));
     }
 
+    /**
+     * 批量私密某题所有提交
+     * POST /problem/tracker/prompt/puzzle/admin/set-private?questionId=xxx
+     */
+    async promptPuzzleAdminSetPrivate(questionId) {
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/admin/set-private?questionId=${encodeURIComponent(questionId)}`;
+        const res = await fetch(url, {
+            method: 'POST',
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        return await res.json().catch(() => ({}));
+    }
+
     // ==================== Prompt Puzzle 用户端 ====================
 
     async promptPuzzleProblems(params = {}) {
@@ -3315,6 +3383,19 @@ export class ApiService {
         const data = await res.json().catch(() => ({}));
         if (data && data.code === 0 && data.data) return data.data.items || [];
         return [];
+    }
+
+    async promptPuzzleGlobalLeaderboard(params = {}) {
+        const qs = new URLSearchParams();
+        if (params.page) qs.set('page', String(params.page));
+        if (params.pageSize) qs.set('pageSize', String(params.pageSize));
+        const url = `${this.apiBase}/problem/tracker/prompt/puzzle/leaderboard/global${qs.toString() ? `?${qs}` : ''}`;
+        const res = await fetch(url, { cache: 'no-store', credentials: 'include' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && data.code === 0 && data.data) return data.data;
+        if (data && Array.isArray(data.items)) return data;
+        throw new Error((data && data.message) || '获取总榜失败');
     }
 
     async promptPuzzleSubmissionDetail(submissionId) {
@@ -4533,5 +4614,219 @@ export class ApiService {
         if (data && (data.code === 0 || data.code === 200)) return data.data || {};
         throw new Error((data && (data.msg || data.message)) || '直调 rerating 失败');
     }
-}
 
+    /**
+     * 管理员直调：按比赛 + 用户批量删除 ACM 提交。
+     * POST /problem/tracker/admin/acm/submission/delete-by-contest-user
+     *
+     * @param {number|string} contestId - 比赛ID（必填，>0）
+     * @param {number|string} userId - 用户ID（必填，>0）
+     * @returns {Promise<object>} 返回 data：{contestId, contestName, userId, deletedCount}
+     */
+    async adminDeleteAcmSubmissionByContestUser(contestId, userId) {
+        const cid = parseInt(String(contestId || 0), 10) || 0;
+        const uid = parseInt(String(userId || 0), 10) || 0;
+        if (!cid || cid <= 0) throw new Error('contestId 参数不合法');
+        if (!uid || uid <= 0) throw new Error('userId 参数不合法');
+
+        const url = `${this.apiBase}/problem/tracker/admin/acm/submission/delete-by-contest-user`;
+        const body = new URLSearchParams();
+        body.append('contestId', String(cid));
+        body.append('userId', String(uid));
+
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Accept': 'application/json, text/plain, */*',
+                'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8'
+            },
+            body: body.toString(),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+
+        const data = await res.json().catch(() => null);
+        if (data == null || typeof data !== 'object') throw new Error('接口响应不是 JSON');
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '批量删除提交失败');
+    }
+
+    async getTrackerCardOverview() {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/overview`, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '获取卡牌概览失败');
+    }
+
+    async getTrackerCardAlbumDetail(albumCode) {
+        const qs = new URLSearchParams();
+        qs.append('albumCode', String(albumCode || ''));
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/album/detail?${qs.toString()}`, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '获取卡册详情失败');
+    }
+
+    async trackerCardDraw(drawType) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/draw`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({ drawType }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '抽卡失败');
+    }
+
+    async trackerCardFragmentExchange(cardId, fragmentRarity) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/fragment/exchange`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({ cardId, fragmentRarity }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '碎片兑换失败');
+    }
+
+    async trackerCardFragmentConvert(fromFragmentRarity, toFragmentRarity) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/fragment/convert`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({ fromFragmentRarity, toFragmentRarity }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '碎片转换失败');
+    }
+
+    async trackerCardRewardClaim(eventType, sourceKey) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/reward/claim`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({ eventType, sourceKey }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '领取奖励失败');
+    }
+
+    async adminTrackerCardList(params = {}) {
+        const qs = new URLSearchParams();
+        Object.entries(params || {}).forEach(([k, v]) => {
+            if (v === undefined || v === null || v === '') return;
+            qs.append(k, String(v));
+        });
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/card/list?${qs.toString()}`, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '查询卡牌失败');
+    }
+
+    async adminTrackerCardCreate(payload = {}) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/card/create`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody(payload),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '创建卡牌失败');
+    }
+
+    async adminTrackerCardUpdate(payload = {}) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/card/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody(payload),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '更新卡牌失败');
+    }
+
+    async adminTrackerCardToggle(id, isActive) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/card/toggle`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({ id, isActive }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '更新卡牌状态失败');
+    }
+
+    async adminTrackerCardUserAsset(userId) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/user/asset?userId=${encodeURIComponent(userId)}`, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '查询用户卡牌资产失败');
+    }
+
+    async adminTrackerCardUserAssetUpdate(payload = {}) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/user/asset/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody(payload),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '更新用户卡牌资产失败');
+    }
+
+    async adminTrackerCardUserInventory(userId) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/user/inventory?userId=${encodeURIComponent(userId)}`, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '查询用户卡牌失败');
+    }
+
+    async adminTrackerCardUserInventoryUpdate(payload = {}) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/user/inventory/update`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody(payload),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '更新用户卡牌失败');
+    }
+}

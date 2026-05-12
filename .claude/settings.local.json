@@ -3,8 +3,21 @@
     "allow": [
       "Bash(*)",
       "WebFetch(domain:www.nowcoder.com)",
-      "WebFetch(domain:m.nowcoder.com)"
+      "WebFetch(domain:m.nowcoder.com)",
+      "Read(//c/Users/nowcoder/.claude/skills/兰子码风/**)",
+      "Edit(~/.claude/skills/写笔试题解/**)",
+      "Read(//c/Users/nowcoder/.claude/skills/写笔试题解/**)",
+      "Edit(~/.claude/skills/牛客交编程题/**)",
+      "Read(//c/Users/nowcoder/.claude/skills/**)",
+      "Edit(~/.claude/skills/批量公开题目/**)",
+      "Edit(~/.claude/skills/查牛客数据库/**)",
+      "Edit(~/.claude/skills/skill-creator/**)",
+      "Edit(~/.claude/skills/_tmp_lanzi/**)",
+      "Edit(~/.claude/skills/兰子码风/**)"
     ],
-    "defaultMode": "bypassPermissions"
+    "defaultMode": "bypassPermissions",
+    "additionalDirectories": [
+      "C:\\Users\\nowcoder\\.claude\\skills"
+    ]
   }
 }

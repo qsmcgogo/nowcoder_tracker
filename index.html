@@ -31,6 +31,9 @@
                         <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'achievements\']').click();">成就</a>
                     </li>
                     <li class="tracker-nav-item">
+                        <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); if (window.app && typeof window.app.switchMainTab === 'function') { window.app.switchMainTab('cards'); }">卡牌</a>
+                    </li>
+                    <li class="tracker-nav-item">
                         <a href="#" class="tracker-nav-link" onclick="event.preventDefault(); document.querySelector('[data-tab=\'battle\']').click();" style="position: relative;">对战<span style="position: absolute; top: -2px; right: -2px; background: #ff4d4f; color: #fff; font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: 600; line-height: 1.2;">BETA</span></a>
                     </li>
                     <li class="tracker-nav-item">
@@ -84,6 +87,7 @@
                 <button class="tab-btn active" data-tab="daily">打卡</button>
                 <button class="tab-btn" data-tab="skill-tree">技能树</button>
                 <button class="tab-btn" data-tab="achievements">成就</button>
+                <button class="tab-btn" data-tab="cards">卡牌</button>
                 <button class="tab-btn" data-tab="battle" style="position: relative;">对战<span style="position: absolute; top: -2px; right: -2px; background: #ff4d4f; color: #fff; font-size: 10px; padding: 1px 4px; border-radius: 3px; font-weight: 600; line-height: 1.2;">BETA</span></button>
                 <button class="tab-btn" data-tab="team">团队</button>
                 <button class="tab-btn" data-tab="profile">我的</button>
@@ -405,6 +409,13 @@
             <section id="battle" class="tab-content">
                 <div id="battle-container" class="battle-container">
                     <!-- Content will be rendered by BattleView.js -->
+                </div>
+            </section>
+
+            <!-- Cards Tab -->
+            <section id="cards" class="tab-content">
+                <div id="cards-container" class="cards-container">
+                    <!-- Content will be rendered by CardView.js -->
                 </div>
             </section>
 
@@ -1436,4 +1447,3 @@ for d in [0..up]:
     </script>
 </body>
 </html>
-

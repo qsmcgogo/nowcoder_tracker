@@ -55,6 +55,12 @@ export class PromptView {
         this.aiPuzzleHistory = [];
         this.aiPuzzleLeaderboard = [];
         this.aiPuzzleSideTab = localStorage.getItem('ai_puzzle_side_tab') || 'records';
+        this.aiPuzzleMainTab = localStorage.getItem('ai_puzzle_main_tab') || 'problems';
+        this.aiPuzzleGlobalLeaderboard = [];
+        this.aiPuzzleGlobalTotal = 0;
+        this.aiPuzzleGlobalPage = 1;
+        this.aiPuzzleGlobalPageSize = 50;
+        this.aiPuzzleGlobalTotalPage = 1;
     }
 
     render() {
@@ -147,7 +153,8 @@ export class PromptView {
         if (this.subTab === 'traditional') this.loadChallenges(true);
         if (this.subTab === 'puzzle') {
             this.bindAiPuzzleEvents();
-            this.loadAiPuzzles(true);
+            if (this.aiPuzzleMainTab === 'leaderboard') this.loadAiPuzzleGlobalLeaderboard(true);
+            else this.loadAiPuzzles(true);
             this.handleShareCallbackFromUrl();
         }
         this.bindCodeChallengeEvents();
@@ -542,13 +549,16 @@ export class PromptView {
     // ==================== AI 约束型解谜 ====================
 
     renderAiPuzzlePanel() {
+        const isLeaderboardTab = this.aiPuzzleMainTab === 'leaderboard';
         return `
             <div style="display:flex; flex-direction:column; gap:12px;">
                 <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                    <div style="font-size:15px; font-weight:900; color:#111827;">Prompt Puzzle 题库</div>
+                    <div style="font-size:15px; font-weight:900; color:#111827;">Prompt Puzzle</div>
                     <div style="font-size:12px; color:#9ca3af;">写出满足约束的 prompt，让 AI 给出合法输出</div>
                     <div style="flex:1;"></div>
-                    <select id="ai-puzzle-sort" style="padding:6px 10px; border:1px solid #e5e7eb; border-radius:8px; font-size:12px; color:#374151; background:#fff;">
+                    <button id="ai-puzzle-main-tab-problems" style="padding:6px 14px; border:1px solid ${isLeaderboardTab ? '#e5e7eb' : '#111827'}; border-radius:8px; background:${isLeaderboardTab ? '#fff' : '#111827'}; color:${isLeaderboardTab ? '#6b7280' : '#fff'}; cursor:pointer; font-size:12px; font-weight:700;" type="button">题库</button>
+                    <button id="ai-puzzle-main-tab-leaderboard" style="padding:6px 14px; border:1px solid ${isLeaderboardTab ? '#111827' : '#e5e7eb'}; border-radius:8px; background:${isLeaderboardTab ? '#111827' : '#fff'}; color:${isLeaderboardTab ? '#fff' : '#6b7280'}; cursor:pointer; font-size:12px; font-weight:700;" type="button">排行榜</button>
+                    <select id="ai-puzzle-sort" style="display:${isLeaderboardTab ? 'none' : ''}; padding:6px 10px; border:1px solid #e5e7eb; border-radius:8px; font-size:12px; color:#374151; background:#fff;">
                         <option value="id-desc" ${this.aiPuzzleOrderBy === 'id' && this.aiPuzzleOrder === 'desc' ? 'selected' : ''}>最新</option>
                         <option value="id-asc" ${this.aiPuzzleOrderBy === 'id' && this.aiPuzzleOrder === 'asc' ? 'selected' : ''}>最早</option>
                         <option value="passTotal-desc" ${this.aiPuzzleOrderBy === 'passTotal' ? 'selected' : ''}>通过最多</option>
@@ -556,9 +566,13 @@ export class PromptView {
                         <option value="difficulty-asc" ${this.aiPuzzleOrderBy === 'difficulty' && this.aiPuzzleOrder === 'asc' ? 'selected' : ''}>难度升序</option>
                         <option value="difficulty-desc" ${this.aiPuzzleOrderBy === 'difficulty' && this.aiPuzzleOrder === 'desc' ? 'selected' : ''}>难度降序</option>
                     </select>
-                    <button id="ai-puzzle-refresh-btn" style="padding:6px 14px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#6b7280; cursor:pointer; font-size:12px; font-weight:600;" type="button">刷新</button>
+                    <button id="ai-puzzle-refresh-btn" style="display:${isLeaderboardTab ? 'none' : ''}; padding:6px 14px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#6b7280; cursor:pointer; font-size:12px; font-weight:600;" type="button">刷新</button>
+                    <button id="ai-puzzle-global-refresh-btn" style="display:${isLeaderboardTab ? '' : 'none'}; padding:6px 14px; border:1px solid #e5e7eb; border-radius:8px; background:#fff; color:#6b7280; cursor:pointer; font-size:12px; font-weight:600;" type="button">刷新</button>
                 </div>
-                <div id="ai-puzzle-list" style="border:1px solid #e5e7eb; border-radius:14px; background:#fff; overflow:hidden;">
+                <div id="ai-puzzle-list" style="display:${isLeaderboardTab ? 'none' : ''}; border:1px solid #e5e7eb; border-radius:14px; background:#fff; overflow:hidden;">
+                    <div style="padding:20px; text-align:center; color:#9ca3af; font-size:13px;">加载中...</div>
+                </div>
+                <div id="ai-puzzle-global-leaderboard" style="display:${isLeaderboardTab ? '' : 'none'}; border:1px solid #e5e7eb; border-radius:14px; background:#fff; overflow:hidden;">
                     <div style="padding:20px; text-align:center; color:#9ca3af; font-size:13px;">加载中...</div>
                 </div>
             </div>
@@ -674,6 +688,9 @@ export class PromptView {
 
     bindAiPuzzleEvents() {
         if (this.subTab !== 'puzzle') return;
+        const mainProblemsBtn = document.getElementById('ai-puzzle-main-tab-problems');
+        const mainLeaderboardBtn = document.getElementById('ai-puzzle-main-tab-leaderboard');
+        const globalRefreshBtn = document.getElementById('ai-puzzle-global-refresh-btn');
         const refreshBtn = document.getElementById('ai-puzzle-refresh-btn');
         const closeBtn = document.getElementById('ai-puzzle-modal-close');
         const overlay = document.getElementById('ai-puzzle-modal-overlay');
@@ -681,6 +698,18 @@ export class PromptView {
         const tabRecordsBtn = document.getElementById('ai-puzzle-side-tab-records');
         const tabLeaderboardBtn = document.getElementById('ai-puzzle-side-tab-leaderboard');
 
+        if (mainProblemsBtn && !mainProblemsBtn._bound) {
+            mainProblemsBtn._bound = true;
+            mainProblemsBtn.addEventListener('click', () => this.switchAiPuzzleMainTab('problems'));
+        }
+        if (mainLeaderboardBtn && !mainLeaderboardBtn._bound) {
+            mainLeaderboardBtn._bound = true;
+            mainLeaderboardBtn.addEventListener('click', () => this.switchAiPuzzleMainTab('leaderboard'));
+        }
+        if (globalRefreshBtn && !globalRefreshBtn._bound) {
+            globalRefreshBtn._bound = true;
+            globalRefreshBtn.addEventListener('click', () => { this.aiPuzzleGlobalPage = 1; this.loadAiPuzzleGlobalLeaderboard(true); });
+        }
         if (refreshBtn && !refreshBtn._bound) {
             refreshBtn._bound = true;
             refreshBtn.addEventListener('click', () => { this.aiPuzzlePage = 1; this.loadAiPuzzles(true); });
@@ -790,6 +819,12 @@ export class PromptView {
         }
     }
 
+    switchAiPuzzleMainTab(tab) {
+        this.aiPuzzleMainTab = tab === 'leaderboard' ? 'leaderboard' : 'problems';
+        localStorage.setItem('ai_puzzle_main_tab', this.aiPuzzleMainTab);
+        this.render();
+    }
+
     async loadAiPuzzles(force = false) {
         const listEl = document.getElementById('ai-puzzle-list');
         try {
@@ -894,6 +929,105 @@ export class PromptView {
         });
     }
 
+    async loadAiPuzzleGlobalLeaderboard(force = false) {
+        const el = document.getElementById('ai-puzzle-global-leaderboard');
+        try {
+            if (!force && Array.isArray(this.aiPuzzleGlobalLeaderboard) && this.aiPuzzleGlobalLeaderboard.length) {
+                this.renderAiPuzzleGlobalLeaderboard();
+                return;
+            }
+            if (el) el.innerHTML = `<div style="padding:20px; text-align:center; color:#9ca3af; font-size:13px;">加载中...</div>`;
+            const resp = await this.apiService.promptPuzzleGlobalLeaderboard({
+                page: this.aiPuzzleGlobalPage,
+                pageSize: this.aiPuzzleGlobalPageSize
+            });
+            this.aiPuzzleGlobalLeaderboard = Array.isArray(resp.items) ? resp.items : [];
+            this.aiPuzzleGlobalTotal = Number(resp.total || this.aiPuzzleGlobalLeaderboard.length || 0);
+            this.aiPuzzleGlobalPage = Number(resp.page || this.aiPuzzleGlobalPage || 1);
+            this.aiPuzzleGlobalPageSize = Number(resp.pageSize || this.aiPuzzleGlobalPageSize || 50);
+            this.aiPuzzleGlobalTotalPage = Math.max(1, Number(resp.totalPage || Math.ceil(this.aiPuzzleGlobalTotal / this.aiPuzzleGlobalPageSize) || 1));
+            this.renderAiPuzzleGlobalLeaderboard();
+        } catch (e) {
+            if (el) el.innerHTML = `<div style="padding:20px; text-align:center; color:#ef4444; font-size:13px;">加载失败：${this.escapeHtml(e?.message || 'unknown')}</div>`;
+        }
+    }
+
+    renderAiPuzzleGlobalLeaderboard() {
+        const el = document.getElementById('ai-puzzle-global-leaderboard');
+        if (!el) return;
+        if (!this.aiPuzzleGlobalLeaderboard.length) {
+            el.innerHTML = `<div style="padding:20px; text-align:center; color:#9ca3af; font-size:13px;">暂无排名</div>`;
+            return;
+        }
+        let html = `
+            <div style="padding:14px 16px; border-bottom:1px solid #f3f4f6; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                <div style="font-size:14px; font-weight:900; color:#111827;">Puzzle 排行总榜</div>
+                <div style="font-size:12px; color:#9ca3af;">按去重通题数排序，同通题数按最近 AC 时间更早优先</div>
+                <div style="flex:1;"></div>
+                <div style="font-size:12px; color:#6b7280;">共 ${this.aiPuzzleGlobalTotal} 人</div>
+            </div>
+            <div style="display:grid; grid-template-columns:80px minmax(180px,1fr) 110px 120px 180px; padding:10px 16px; border-bottom:1px solid #f3f4f6; font-size:11px; font-weight:700; color:#9ca3af;">
+                <div>排名</div><div>用户</div><div style="text-align:center;">通题数</div><div style="text-align:center;">AC 数</div><div style="text-align:right;">最近 AC</div>
+            </div>
+        `;
+        for (const item of this.aiPuzzleGlobalLeaderboard) {
+            const rank = Number(item.rank || 0);
+            const userId = item.userId || item.user_id || '';
+            const nickname = String(item.nickname || (userId ? `用户 ${userId}` : '匿名用户'));
+            const headerUrl = String(item.headerUrl || item.header_url || '');
+            const profileUrl = String(item.profileUrl || item.profile_url || (userId ? `/profile/${userId}` : ''));
+            const passCount = Number(item.passCount || item.pass_count || item.solvedCount || item.solved_count || 0);
+            const acceptedCount = Number(item.acceptedCount || item.accepted_count || passCount);
+            const solvedCount = Number(item.solvedCount || item.solved_count || passCount);
+            const latestAcTime = String(item.latestAcTime || item.latest_ac_time || '');
+            const timeText = latestAcTime ? latestAcTime.replace('T', ' ').slice(0, 19) : '-';
+            const medalColors = ['#f59e0b', '#9ca3af', '#cd7f32'];
+            const rankStyle = rank >= 1 && rank <= 3 ? `color:${medalColors[rank - 1]}; font-weight:900;` : 'color:#6b7280; font-weight:800;';
+            const rankText = rank >= 1 && rank <= 3 ? ['#1', '#2', '#3'][rank - 1] : `#${rank || '-'}`;
+            const avatarHtml = headerUrl
+                ? `<img src="${this.escapeHtml(headerUrl)}" style="width:30px; height:30px; border-radius:50%; object-fit:cover; flex-shrink:0;" />`
+                : `<div style="width:30px; height:30px; border-radius:50%; background:#e5e7eb; flex-shrink:0;"></div>`;
+            const nameHtml = profileUrl
+                ? `<a href="${this.escapeHtml(profileUrl)}" target="_blank" rel="noopener" style="color:#111827; text-decoration:none; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${this.escapeHtml(nickname)}</a>`
+                : `<span style="color:#111827; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${this.escapeHtml(nickname)}</span>`;
+            html += `
+                <div style="display:grid; grid-template-columns:80px minmax(180px,1fr) 110px 120px 180px; align-items:center; padding:12px 16px; border-bottom:1px solid #f9fafb; transition:background .15s;" onmouseenter="this.style.background='#f9fafb'" onmouseleave="this.style.background=''">
+                    <div style="${rankStyle}">${rankText}</div>
+                    <div style="display:flex; align-items:center; gap:10px; min-width:0;">
+                        ${avatarHtml}
+                        <div style="min-width:0; display:flex; flex-direction:column; gap:2px;">
+                            ${nameHtml}
+                            <span style="font-size:11px; color:#9ca3af;">UID ${this.escapeHtml(String(userId || '-'))}</span>
+                        </div>
+                    </div>
+                    <div style="text-align:center; color:#15803d; font-size:15px; font-weight:900;">${passCount}</div>
+                    <div style="text-align:center; color:#6b7280; font-size:13px;">${acceptedCount}<span style="color:#d1d5db;"> / </span>${solvedCount}</div>
+                    <div style="text-align:right; color:#6b7280; font-size:12px;">${this.escapeHtml(timeText)}</div>
+                </div>
+            `;
+        }
+        const page = this.aiPuzzleGlobalPage;
+        const totalPages = this.aiPuzzleGlobalTotalPage;
+        html += `
+            <div style="padding:12px 16px; border-top:1px solid #f3f4f6; display:flex; align-items:center; justify-content:center; gap:8px;">
+                <button class="ai-puzzle-global-page-btn" data-page="${page - 1}" ${page <= 1 ? 'disabled' : ''} style="padding:5px 12px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; color:${page <= 1 ? '#d1d5db' : '#374151'}; cursor:${page <= 1 ? 'default' : 'pointer'}; font-size:12px;" type="button">上一页</button>
+                <span style="font-size:12px; color:#6b7280;">${page} / ${totalPages}</span>
+                <button class="ai-puzzle-global-page-btn" data-page="${page + 1}" ${page >= totalPages ? 'disabled' : ''} style="padding:5px 12px; border:1px solid #e5e7eb; border-radius:6px; background:#fff; color:${page >= totalPages ? '#d1d5db' : '#374151'}; cursor:${page >= totalPages ? 'default' : 'pointer'}; font-size:12px;" type="button">下一页</button>
+                <span style="font-size:11px; color:#9ca3af; margin-left:8px;">每页 ${this.aiPuzzleGlobalPageSize}</span>
+            </div>
+        `;
+        el.innerHTML = html;
+        el.querySelectorAll('.ai-puzzle-global-page-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const p = Number(btn.getAttribute('data-page'));
+                if (p >= 1 && p <= this.aiPuzzleGlobalTotalPage && p !== this.aiPuzzleGlobalPage) {
+                    this.aiPuzzleGlobalPage = p;
+                    this.loadAiPuzzleGlobalLeaderboard(true);
+                }
+            });
+        });
+    }
+
     openAiPuzzleModal(puzzleId) {
         this.aiPuzzleSelectedId = String(puzzleId);
         localStorage.setItem('ai_puzzle_selected_id', this.aiPuzzleSelectedId);
@@ -977,6 +1111,12 @@ export class PromptView {
         const quotaEl = document.getElementById('ai-puzzle-quota');
         const shareBar = document.getElementById('ai-puzzle-share-bar');
         const runBtn = document.getElementById('ai-puzzle-run-btn');
+        if (!this.state.isLoggedIn()) {
+            if (quotaEl) quotaEl.textContent = '登录后可提交评测';
+            if (shareBar) shareBar.style.display = 'none';
+            if (runBtn) runBtn.disabled = false;
+            return;
+        }
         try {
             const q = await this.apiService.promptPuzzleQuota(this.aiPuzzleSelectedId);
             this._aiPuzzleQuota = q;
@@ -984,13 +1124,13 @@ export class PromptView {
             if (shareBar) shareBar.style.display = q.remaining <= 0 ? 'block' : 'none';
             if (runBtn) runBtn.disabled = q.remaining <= 0;
         } catch (_) {
-            // 接口不可用时不阻塞，隐藏配额显示
             if (quotaEl) quotaEl.textContent = '';
             if (shareBar) shareBar.style.display = 'none';
         }
     }
 
     async handleAiPuzzleShare() {
+        if (this._requireLogin('请先登录后再分享')) return;
         const msgEl = document.getElementById('ai-puzzle-share-msg');
         const shareBtn = document.getElementById('ai-puzzle-share-btn');
         if (!this.aiPuzzleSelectedId) return;
@@ -998,13 +1138,15 @@ export class PromptView {
         try {
             const resp = await this.apiService.promptPuzzleShareGenerate(this.aiPuzzleSelectedId);
             const fullUrl = `${window.location.origin}/problem/tracker?share=${encodeURIComponent(resp.shareCode)}&qid=${encodeURIComponent(this.aiPuzzleSelectedId)}#/prompt`;
+            const title = this.aiPuzzleDetail?.title || 'Prompt Puzzle';
+            const shareText = `我被「${title}」难住了，你也来试试吧：${fullUrl}`;
             // 复制到剪贴板
             try {
-                await navigator.clipboard.writeText(fullUrl);
+                await navigator.clipboard.writeText(shareText);
                 if (msgEl) msgEl.textContent = '链接已复制到剪贴板，分享给好友即可获得 +3 次';
             } catch (_) {
                 // fallback: 显示链接让用户手动复制
-                if (msgEl) msgEl.innerHTML = `复制链接：<input type="text" value="${this.escapeHtml(fullUrl)}" readonly onclick="this.select()" style="width:300px; padding:4px 8px; border:1px solid #e5e7eb; border-radius:6px; font-size:11px;" />`;
+                if (msgEl) msgEl.innerHTML = `复制链接：<input type="text" value="${this.escapeHtml(shareText)}" readonly onclick="this.select()" style="width:100%; padding:4px 8px; border:1px solid #e5e7eb; border-radius:6px; font-size:11px;" />`;
             }
         } catch (e) {
             if (msgEl) msgEl.textContent = e?.message || '生成失败';
@@ -1020,6 +1162,14 @@ export class PromptView {
             const shareCode = params.get('share');
             const qid = params.get('qid') || '';
             if (!shareCode) return;
+
+            // 未登录时跳登录页，callBack 保留 share 参数
+            if (!this.state.isLoggedIn()) {
+                const cb = encodeURIComponent(window.location.href);
+                alert('登录后自动为好友助力');
+                window.location.href = `https://ac.nowcoder.com/login?callBack=${cb}`;
+                return;
+            }
 
             // 清除 URL 中的 share 参数（避免刷新重复触发）
             params.delete('share');
@@ -1353,8 +1503,17 @@ export class PromptView {
         }).join('');
     }
 
+    _requireLogin(hint) {
+        if (this.state.isLoggedIn()) return false;
+        const cb = encodeURIComponent(window.location.href);
+        if (hint) alert(hint);
+        window.location.href = `https://ac.nowcoder.com/login?callBack=${cb}`;
+        return true;
+    }
+
     async runAiPuzzleSubmit() {
         if (this.aiPuzzleSubmitting) return;
+        if (this._requireLogin('请先登录后再提交评测')) return;
         const promptEl = document.getElementById('ai-puzzle-prompt');
         const errEl = document.getElementById('ai-puzzle-error');
         const resultEl = document.getElementById('ai-puzzle-result');
@@ -2418,5 +2577,4 @@ export class PromptView {
         return n.toFixed(2).replace(/\.?0+$/, '');
     }
 }
-
 
