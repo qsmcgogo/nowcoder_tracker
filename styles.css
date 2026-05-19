@@ -4396,8 +4396,9 @@ body .problems-table tbody tr td.status-none {
 }
 
 .profile-stats {
-    display: flex;
-    justify-content: space-around;
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: 28px 18px;
     padding: 25px 0;
     background-color: var(--background-color); /* Changed to var(--background-color) for dark mode */
 }
@@ -4405,6 +4406,13 @@ body .problems-table tbody tr td.status-none {
 .profile-stats .stat-item {
     display: flex;
     flex-direction: column;
+    align-items: center;
+    grid-column: span 2;
+    min-width: 0;
+}
+
+.profile-stats .profile-card-stat {
+    grid-column: span 3;
 }
 
 .stat-value {
@@ -5563,6 +5571,123 @@ body.dark-theme .profile-avatar {
 
 .battle-s1-rank-placeholder {
     min-height: 220px;
+}
+
+.battle-s1-card-rank {
+    min-height: 360px;
+}
+
+.battle-s1-card-rank__head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.battle-s1-card-rank__table {
+    margin-top: 18px;
+    overflow: hidden;
+    border: 1px solid #e5e7eb;
+    border-radius: 14px;
+    background: #fff;
+}
+
+.battle-s1-card-rank__row {
+    display: grid;
+    grid-template-columns: 80px minmax(180px, 1fr) 120px 120px 120px;
+    align-items: center;
+    gap: 14px;
+    min-height: 64px;
+    padding: 10px 16px;
+    border-bottom: 1px solid #eef2f7;
+    color: #334155;
+    font-size: 14px;
+}
+
+.battle-s1-card-rank__row:last-child {
+    border-bottom: 0;
+}
+
+.battle-s1-card-rank__row--head {
+    min-height: 44px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.battle-s1-card-rank__row.is-top-1 {
+    background: linear-gradient(90deg, rgba(255, 247, 237, 0.95), #fff);
+}
+
+.battle-s1-card-rank__row.is-top-2 {
+    background: linear-gradient(90deg, rgba(239, 246, 255, 0.95), #fff);
+}
+
+.battle-s1-card-rank__row.is-top-3 {
+    background: linear-gradient(90deg, rgba(240, 253, 244, 0.95), #fff);
+}
+
+.battle-s1-card-rank__rank {
+    font-weight: 900;
+    color: #0f172a;
+}
+
+.battle-s1-card-rank__user {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+    color: inherit;
+    text-decoration: none;
+}
+
+.battle-s1-card-rank__user img {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    object-fit: cover;
+    background: #f1f5f9;
+    border: 1px solid #e2e8f0;
+}
+
+.battle-s1-card-rank__user strong {
+    overflow: hidden;
+    color: #111827;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.battle-s1-card-rank__user:hover img {
+    border-color: #60a5fa;
+    box-shadow: 0 8px 18px rgba(37, 99, 235, 0.18);
+}
+
+.battle-s1-card-rank__user:hover strong {
+    color: #2563eb;
+}
+
+.battle-s1-card-rank__score {
+    color: #2563eb;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.battle-s1-card-rank__empty {
+    padding: 36px 16px;
+    color: #64748b;
+    text-align: center;
+}
+
+.battle-s1-card-rank__pager {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 14px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 800;
 }
 
 .battle-s1-album-list {
@@ -7496,6 +7621,15 @@ body.dark-theme .profile-avatar {
     .battle-s1-album-showcase__footer {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .battle-s1-card-rank__table {
+        overflow-x: auto;
+    }
+
+    .battle-s1-card-rank__row {
+        grid-template-columns: 70px 190px 100px 100px 100px;
+        min-width: 610px;
     }
 }
 

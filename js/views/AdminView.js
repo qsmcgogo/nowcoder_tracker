@@ -29,6 +29,7 @@ export class AdminView {
         this.adminRedisDebugLast = null;
         // 管理员验数：春季AI体验站抽奖记录
         this.adminSpring2026AiLotteryLast = null;
+        this.adminAiCodingContestDashboardLast = null;
         // Prompt Challenge demo
         this.promptChallengeListCache = null;
         this.aiPuzzleAdminSchemaLast = null;
@@ -157,6 +158,9 @@ export class AdminView {
                         <div id="admin-activity-team-stats-panel" class="admin-panel" style="display:none;">
                             ${this.renderActivityTeamStatsPanel()}
                         </div>
+                        <div id="admin-activity-aicoding-contest-panel" class="admin-panel" style="display:none;">
+                            ${this.renderAiCodingContestDashboardPanel()}
+                        </div>
 
                         <!-- 成就 -->
                         <div id="admin-achv-manage-panel" class="admin-panel" style="display:none;">
@@ -216,6 +220,7 @@ export class AdminView {
                 { id: 'redisDebug', label: 'Redis Debug', panelId: 'admin-data-redis-debug-panel' },
             ] },
             { id: 'ai', label: 'AI', sections: [
+                { id: 'aicodingContest', label: 'AI Coding看板', panelId: 'admin-activity-aicoding-contest-panel' },
                 { id: 'prompt', label: 'Prompt 挑战', panelId: 'admin-prompt-challenge-panel' },
                 { id: 'puzzle', label: '约束解谜', panelId: 'admin-ai-puzzle-panel' },
                 { id: 'dify', label: 'Dify', panelId: 'admin-dify-panel' },
@@ -304,6 +309,7 @@ export class AdminView {
             if (pid === 'admin-prompt-challenge-panel') this.loadPromptChallengeList(false);
             if (pid === 'admin-ai-puzzle-panel') this.loadAiPuzzleAdminOverview();
             if (pid === 'admin-achv-manage-panel') this.loadAchvManageList();
+            if (pid === 'admin-activity-aicoding-contest-panel') this.loadAiCodingContestDashboard();
         } catch (_) {}
     }
 
@@ -974,6 +980,7 @@ export class AdminView {
      */
     renderBattleOpsPanel() {
         const savedClearMirrorUid = localStorage.getItem('admin_clear_user_mirrors_uid') || '';
+        const savedDeleteCodingSubmissionQuestionId = localStorage.getItem('admin_delete_coding_submission_question_id') || '';
         return `
             <div style="background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 16px;">
                 <div style="font-size: 16px; font-weight: 700; color: #333; margin-bottom: 8px;">
@@ -1000,6 +1007,32 @@ export class AdminView {
                 <div style="margin-top: 12px;">
                     <div style="font-size: 13px; color:#333; font-weight: 600; margin-bottom: 6px;">返回 JSON</div>
                     <pre id="admin-clear-user-mirrors-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 260px;">（尚未执行）</pre>
+                </div>
+            </div>
+
+            <div style="background:#fff; border: 1px solid #ffd6d6; border-radius: 12px; padding: 16px; margin-top: 16px;">
+                <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                    <div style="font-size: 16px; font-weight: 800; color:#333;">清理主站题目提交记录</div>
+                    <div style="font-size: 12px; color:#999;">接口：<code style="background:#fff1f0;color:#cf1322;padding:2px 4px;border-radius:4px;">POST /problem/tracker/admin/coding/submission/delete-by-question</code></div>
+                    <div style="flex:1;"></div>
+                    <button id="admin-delete-coding-submission-btn" style="background:#cf1322; color:#fff; border:none; padding: 8px 14px; border-radius: 6px; cursor:pointer; font-size: 13px; font-weight: 800;">
+                        删除提交
+                    </button>
+                </div>
+                <div style="margin-top: 10px; font-size: 13px; color:#666; line-height: 1.7;">
+                    说明：这里填写的是主站 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">problemId</code>。后端会删除 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">coding_submission</code> 和 <code style="background:#f5f5f5;padding:2px 4px;border-radius:4px;">coding_submission_ranking</code> 中该 problemId 的记录。不会删除竞赛站 <code>acm_coding_submission</code>，也不会自动重建用户统计。
+                </div>
+                <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; margin-top: 12px;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                        <label style="font-size: 13px; color:#666;">problemId:</label>
+                        <input id="admin-delete-coding-submission-question-id" type="number" value="${savedDeleteCodingSubmissionQuestionId}" placeholder="填写 coding_submission.problem_id"
+                               style="width: 180px; padding: 8px 10px; border:1px solid #ddd; border-radius: 6px; font-size: 13px;">
+                    </div>
+                </div>
+                <div id="admin-delete-coding-submission-error" style="margin-top: 10px; font-size: 13px; color:#ff4d4f; display:none;"></div>
+                <div style="margin-top: 12px;">
+                    <div style="font-size: 13px; color:#333; font-weight: 700; margin-bottom: 6px;">执行结果</div>
+                    <pre id="admin-delete-coding-submission-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 10px; overflow:auto; max-height: 280px;">（尚未执行）</pre>
                 </div>
             </div>
 
@@ -1245,6 +1278,128 @@ export class AdminView {
                         <pre id="admin-batch-clear-spring2026-fortune-redis-result" style="margin:0; background:#0b1020; color:#e6edf3; padding: 12px; border-radius: 8px; overflow:auto; max-height: 320px;">（尚未执行）</pre>
                     </div>
                 </div>
+            </div>
+        `;
+    }
+
+    renderAiCodingContestDashboardPanel() {
+        return `
+            <div style="background:#fff; border-radius:12px; padding:18px; border:1px solid #f0f0f0;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;">
+                    <div>
+                        <h3 style="margin:0 0 6px; color:#333;">AI Coding 挑战赛看板</h3>
+                        <div style="font-size:13px;color:#999;">数据来自活动 Redis，包含渠道、赛道、投递编号、邀请奖励和最近事件。</div>
+                    </div>
+                    <button id="admin-aicoding-contest-refresh-btn" class="admin-btn" type="button">刷新数据</button>
+                </div>
+                <div id="admin-aicoding-contest-dashboard-content">
+                    ${this.renderAiCodingContestDashboardContent(this.adminAiCodingContestDashboardLast)}
+                </div>
+                <div style="margin-top:16px;">
+                    ${this.renderAiCodingContestSignupTool()}
+                </div>
+            </div>
+        `;
+    }
+
+    renderAiCodingContestSignupTool() {
+        return `
+            <div style="border:1px solid #e8edf7;border-radius:12px;padding:16px;background:#fbfcff;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+                    <div>
+                        <div style="font-size:16px;font-weight:900;color:#1f2a44;">报名信息管理</div>
+                        <div style="font-size:12px;color:#8c8c8c;margin-top:4px;">按 uid 查询、修改或清理用户报名信息；清理不会删除投递编号和作答记录。</div>
+                    </div>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <input id="admin-aicoding-signup-uid" type="number" placeholder="uid" style="width:150px;padding:8px 10px;border:1px solid #d9e2f2;border-radius:8px;">
+                        <button id="admin-aicoding-signup-fetch-btn" class="admin-btn" type="button">查询</button>
+                    </div>
+                </div>
+                <div id="admin-aicoding-signup-error" style="display:none;margin-bottom:10px;padding:9px 10px;border:1px solid #ffccc7;border-radius:8px;background:#fff2f0;color:#cf1322;font-size:13px;"></div>
+                <div id="admin-aicoding-signup-editor" style="display:none;">
+                    <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:10px;">
+                        <label style="font-size:12px;color:#667085;">姓名<input id="admin-aicoding-signup-real-name" type="text" style="box-sizing:border-box;width:100%;margin-top:5px;padding:8px 10px;border:1px solid #d9e2f2;border-radius:8px;"></label>
+                        <label style="font-size:12px;color:#667085;">学校<input id="admin-aicoding-signup-school" type="text" style="box-sizing:border-box;width:100%;margin-top:5px;padding:8px 10px;border:1px solid #d9e2f2;border-radius:8px;"></label>
+                        <label style="font-size:12px;color:#667085;">状态<select id="admin-aicoding-signup-status" style="box-sizing:border-box;width:100%;margin-top:5px;padding:8px 10px;border:1px solid #d9e2f2;border-radius:8px;background:#fff;">
+                            <option value="在校">在校</option>
+                            <option value="已毕业">已毕业</option>
+                            <option value="实习中">实习中</option>
+                            <option value="已在职">已在职</option>
+                        </select></label>
+                        <label style="font-size:12px;color:#667085;">清理原因<input id="admin-aicoding-signup-clear-reason" type="text" placeholder="可选" style="box-sizing:border-box;width:100%;margin-top:5px;padding:8px 10px;border:1px solid #d9e2f2;border-radius:8px;"></label>
+                    </div>
+                    <label style="display:block;font-size:12px;color:#667085;margin-bottom:10px;">项目/实习/获奖经历
+                        <textarea id="admin-aicoding-signup-experience" style="box-sizing:border-box;width:100%;min-height:72px;margin-top:5px;padding:8px 10px;border:1px solid #d9e2f2;border-radius:8px;resize:vertical;"></textarea>
+                    </label>
+                    <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
+                        <button id="admin-aicoding-signup-update-btn" class="admin-btn" type="button">保存修改</button>
+                        <button id="admin-aicoding-signup-clear-btn" class="admin-btn modal-secondary" type="button" style="color:#cf1322;border-color:#ffccc7;background:#fff2f0;">清理报名</button>
+                        <span id="admin-aicoding-signup-status-text" style="font-size:13px;color:#667085;"></span>
+                    </div>
+                    <pre id="admin-aicoding-signup-result" style="margin:0;background:#0b1020;color:#e6edf3;padding:12px;border-radius:8px;overflow:auto;max-height:260px;font-size:12px;">（尚未查询）</pre>
+                </div>
+                <div id="admin-aicoding-signup-empty" style="padding:18px;text-align:center;color:#98a2b3;border:1px dashed #d9e2f2;border-radius:10px;background:#fff;">输入 uid 后查询报名信息</div>
+            </div>
+        `;
+    }
+
+    renderAiCodingContestDashboardContent(data) {
+        if (!data) {
+            return `<div style="padding:24px; color:#999; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:10px;">尚未加载</div>`;
+        }
+        const overview = data.overview || {};
+        const metric = (label, value) => `
+            <div style="padding:14px;border:1px solid #eef0f5;border-radius:10px;background:#fbfcff;">
+                <div style="font-size:12px;color:#8c8c8c;margin-bottom:8px;">${this.escapeHtml(label)}</div>
+                <div style="font-size:24px;font-weight:800;color:#1f2a44;">${this.escapeHtml(String(value ?? 0))}</div>
+            </div>
+        `;
+        const channelRows = (data.channels || []).map(row => `
+            <tr><td>${this.escapeHtml(row.channel || '')}</td><td>${Number(row.visitPv || 0)}</td><td>${Number(row.visitUsers || 0)}</td><td>${Number(row.claimPv || 0)}</td><td>${Number(row.claimUsers || 0)}</td><td>${Number(row.techClaimUsers || 0)}</td><td>${Number(row.productClaimUsers || 0)}</td></tr>
+        `).join('');
+        const trackRows = (data.tracks || []).map(row => `
+            <tr><td>${this.escapeHtml(row.name || row.track || '')}</td><td>${Number(row.claimUsers || 0)}</td><td>${Number(row.rankUsersPreliminary || 0)}</td><td>${Number(row.rankUsersFinal || 0)}</td></tr>
+        `).join('');
+        const inviteRows = (data.inviteRank || []).map(row => `
+            <tr><td>${Number(row.rank || 0)}</td><td>${Number(row.uid || 0)}</td><td>${this.escapeHtml(row.nickname || '')}</td><td>${Number(row.rewardCount || 0)}</td></tr>
+        `).join('');
+        const eventRows = (data.recentEvents || []).slice(0, 30).map(row => `
+            <tr><td>${this.escapeHtml(row.event || '')}</td><td>${Number(row.uid || 0)}</td><td>${this.escapeHtml(row.track || '')}</td><td>${this.escapeHtml(row.channel || '')}</td><td>${this.escapeHtml(row.deliveryCode || '')}</td><td>${row.time ? new Date(Number(row.time)).toLocaleString() : ''}</td></tr>
+        `).join('');
+        const tableStyle = 'width:100%;border-collapse:collapse;font-size:13px;';
+        return `
+            <style>
+                #admin-aicoding-contest-dashboard-content th { text-align:left;padding:10px;border-bottom:1px solid #eee;background:#fafafa;color:#666; }
+                #admin-aicoding-contest-dashboard-content td { padding:9px 10px;border-bottom:1px solid #f2f2f2;color:#333; }
+                @media (max-width: 900px) { #admin-aicoding-contest-metrics { grid-template-columns:repeat(2,minmax(0,1fr)) !important; } }
+            </style>
+            <div id="admin-aicoding-contest-metrics" style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:18px;">
+                ${metric('访问用户', overview.visitUsers)}
+                ${metric('报名用户', overview.signupUsers)}
+                ${metric('领取用户', overview.claimUsers)}
+                ${metric('投递编号', overview.deliveryCodes)}
+                ${metric('渠道数', overview.channels)}
+                ${metric('事件数', overview.eventLogs)}
+                ${metric('被邀请用户', overview.invitedUsers)}
+                ${metric('邀请奖励', overview.inviteRewards)}
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+                <div style="border:1px solid #f0f0f0;border-radius:10px;overflow:hidden;">
+                    <div style="padding:12px 14px;font-weight:800;background:#fbfcff;">赛道概览</div>
+                    <table style="${tableStyle}"><thead><tr><th>赛道</th><th>领取用户</th><th>海选榜人数</th><th>决赛榜人数</th></tr></thead><tbody>${trackRows || '<tr><td colspan="4">暂无数据</td></tr>'}</tbody></table>
+                </div>
+                <div style="border:1px solid #f0f0f0;border-radius:10px;overflow:hidden;">
+                    <div style="padding:12px 14px;font-weight:800;background:#fbfcff;">邀请奖励 Top</div>
+                    <table style="${tableStyle}"><thead><tr><th>排名</th><th>UID</th><th>昵称</th><th>奖励次数</th></tr></thead><tbody>${inviteRows || '<tr><td colspan="4">暂无数据</td></tr>'}</tbody></table>
+                </div>
+            </div>
+            <div style="border:1px solid #f0f0f0;border-radius:10px;overflow:hidden;margin-bottom:16px;">
+                <div style="padding:12px 14px;font-weight:800;background:#fbfcff;">渠道转化</div>
+                <table style="${tableStyle}"><thead><tr><th>渠道</th><th>访问PV</th><th>访问用户</th><th>领取PV</th><th>领取用户</th><th>技术领取</th><th>产品领取</th></tr></thead><tbody>${channelRows || '<tr><td colspan="7">暂无数据</td></tr>'}</tbody></table>
+            </div>
+            <div style="border:1px solid #f0f0f0;border-radius:10px;overflow:hidden;">
+                <div style="padding:12px 14px;font-weight:800;background:#fbfcff;">最近事件</div>
+                <table style="${tableStyle}"><thead><tr><th>事件</th><th>UID</th><th>赛道</th><th>渠道</th><th>投递编号</th><th>时间</th></tr></thead><tbody>${eventRows || '<tr><td colspan="6">暂无数据</td></tr>'}</tbody></table>
             </div>
         `;
     }
@@ -1882,6 +2037,65 @@ export class AdminView {
                     </div>
                 </div>
 
+                <div style="background:#fff; border:1px solid #91caff; border-radius:12px; padding:16px;">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="font-size:16px; font-weight:800; color:#333;">抽卡券奖励对账补发</div>
+                        <div style="font-size:12px; color:#999;">接口：<code style="background:#e6f4ff;color:#0958d9;padding:2px 4px;border-radius:4px;">POST /problem/tracker/card/admin/reward/reconcile-tickets</code></div>
+                        <div style="flex:1;"></div>
+                        <input id="admin-card-reconcile-start-date" type="text" value="2026-05-12" placeholder="开始 yyyy-MM-dd"
+                               style="padding:8px 12px; border:1px solid #91caff; border-radius:6px; font-size:13px; width:140px;">
+                        <input id="admin-card-reconcile-end-date" type="text" value="${this.getTodayDateString()}" placeholder="结束 yyyy-MM-dd"
+                               style="padding:8px 12px; border:1px solid #91caff; border-radius:6px; font-size:13px; width:140px;">
+                        <button id="admin-card-reconcile-preview-btn" style="background:#1677ff; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:800;">预览对账</button>
+                        <button id="admin-card-reconcile-run-btn" style="background:#ff4d4f; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:800;">执行补发</button>
+                    </div>
+                    <div style="margin-top:10px; font-size:13px; color:#666; line-height:1.7;">
+                        说明：统计日期范围内的每日打卡、对战每日首胜、对战 AC 胜负奖励；用 <code>total_draw_count + draw_ticket_count</code> 反推已获得抽卡券，只补差额。建议先点预览，确认补发人数和总券数后再执行。
+                    </div>
+                    <div id="admin-card-reconcile-error" style="margin-top:10px; font-size:13px; color:#ff4d4f; display:none;"></div>
+                    <div id="admin-card-reconcile-summary" style="margin-top:12px; display:grid; grid-template-columns:repeat(5, minmax(120px, 1fr)); gap:10px;"></div>
+                    <div style="margin-top:12px;">
+                        <div style="font-size:13px; color:#333; font-weight:700; margin-bottom:6px;">执行结果</div>
+                        <pre id="admin-card-reconcile-result" style="margin:0; background:#0b1020; color:#e6edf3; padding:12px; border-radius:10px; overflow:auto; max-height:320px;">（尚未执行）</pre>
+                    </div>
+                </div>
+
+                <div style="background:#fff; border:1px solid #b7eb8f; border-radius:12px; padding:16px;">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="font-size:16px; font-weight:800; color:#333;">卡牌排行榜重建</div>
+                        <div style="font-size:12px; color:#999;">接口：<code style="background:#f6ffed;color:#237804;padding:2px 4px;border-radius:4px;">POST /problem/tracker/card/admin/rank/rebuild</code></div>
+                        <div style="flex:1;"></div>
+                        <button id="admin-card-rank-rebuild-btn" style="background:#52c41a; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:800;">重建排行榜</button>
+                    </div>
+                    <div style="margin-top:10px; font-size:13px; color:#666; line-height:1.7;">
+                        说明：按当前已开放卡牌库存重新计算每个用户的收集度，并写入 Redis 排行榜。不会修改用户库存。
+                    </div>
+                    <div id="admin-card-rank-rebuild-error" style="margin-top:10px; font-size:13px; color:#ff4d4f; display:none;"></div>
+                    <div style="margin-top:12px;">
+                        <div style="font-size:13px; color:#333; font-weight:700; margin-bottom:6px;">执行结果</div>
+                        <pre id="admin-card-rank-rebuild-result" style="margin:0; background:#0b1020; color:#e6edf3; padding:12px; border-radius:10px; overflow:auto; max-height:260px;">（尚未执行）</pre>
+                    </div>
+                </div>
+
+                <div style="background:#fff; border:1px solid #ffccc7; border-radius:12px; padding:16px;">
+                    <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+                        <div style="font-size:16px; font-weight:800; color:#333;">清除用户卡牌数据</div>
+                        <div style="font-size:12px; color:#999;">接口：<code style="background:#fff1f0;color:#cf1322;padding:2px 4px;border-radius:4px;">POST /problem/tracker/card/admin/user/clear</code></div>
+                        <div style="flex:1;"></div>
+                        <input id="admin-card-clear-user-id" type="number" min="1" placeholder="测试用户 UID"
+                               style="padding:8px 12px; border:1px solid #ffccc7; border-radius:6px; font-size:13px; width:150px;">
+                        <button id="admin-card-clear-user-btn" style="background:#cf1322; color:#fff; border:none; padding:8px 16px; border-radius:6px; cursor:pointer; font-size:13px; font-weight:800;">清除数据</button>
+                    </div>
+                    <div style="margin-top:10px; font-size:13px; color:#666; line-height:1.7;">
+                        说明：删除该用户全部卡牌库存，资产归零，并从卡牌排行榜移除。用于清理测试号，避免污染正式排行榜。
+                    </div>
+                    <div id="admin-card-clear-user-error" style="margin-top:10px; font-size:13px; color:#ff4d4f; display:none;"></div>
+                    <div style="margin-top:12px;">
+                        <div style="font-size:13px; color:#333; font-weight:700; margin-bottom:6px;">执行结果</div>
+                        <pre id="admin-card-clear-user-result" style="margin:0; background:#0b1020; color:#e6edf3; padding:12px; border-radius:10px; overflow:auto; max-height:260px;">（尚未执行）</pre>
+                    </div>
+                </div>
+
                 <div style="display:grid; grid-template-columns:minmax(320px, 1fr) minmax(360px, 1fr); gap:16px;">
                     <div style="background:#fff; border:1px solid #e8e8e8; border-radius:12px; padding:16px;">
                         <div style="font-size:16px; font-weight:800; color:#333; margin-bottom:12px;">用户卡牌资产</div>
@@ -2255,6 +2469,9 @@ export class AdminView {
                     <button id="admin-battle-batch-delete-btn" style="background: #ff4d4f; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
                         🗑️ 批量删除
                     </button>
+                    <button id="admin-battle-sync-acm-open-btn" style="background: #13c2c2; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        同步公开题
+                    </button>
                     <div style="flex: 1;"></div>
                     <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
                         <label style="font-size: 14px; color: #666;">题目ID:</label>
@@ -2614,6 +2831,58 @@ export class AdminView {
         } finally {
             btn.disabled = false;
             btn.textContent = oldText || '执行清理';
+        }
+    }
+
+    async adminDeleteCodingSubmissionsByQuestion() {
+        const questionInput = document.getElementById('admin-delete-coding-submission-question-id');
+        const errorEl = document.getElementById('admin-delete-coding-submission-error');
+        const resultEl = document.getElementById('admin-delete-coding-submission-result');
+        const btn = document.getElementById('admin-delete-coding-submission-btn');
+
+        if (!questionInput || !errorEl || !resultEl || !btn) return;
+        errorEl.style.display = 'none';
+
+        const questionId = parseInt(String(questionInput.value || '').trim(), 10);
+        if (!questionId || questionId <= 0) {
+            errorEl.textContent = '请填写有效的 problemId（正整数，对应 coding_submission.problem_id）';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        localStorage.setItem('admin_delete_coding_submission_question_id', String(questionId));
+
+        const ok = confirm(
+            `确认删除主站 coding_submission 中该题的全部提交记录？\n\n` +
+            `problemId=${questionId}\n\n` +
+            `注意：不会删除竞赛站提交，也不会自动重建统计/排行榜。`
+        );
+        if (!ok) return;
+
+        const secondOk = confirm(`二次确认：现在真的删除 problemId=${questionId} 的主站提交记录？`);
+        if (!secondOk) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '删除中...';
+        resultEl.textContent = `请求中...\nproblemId=${questionId}\n`;
+
+        try {
+            const data = await this.apiService.adminDeleteCodingSubmissionsByQuestion(questionId);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            alert(
+                `删除完成\n` +
+                `coding_submission：before=${data?.beforeCount ?? '-'}，deleted=${data?.deletedCount ?? '-'}，after=${data?.afterCount ?? '-'}\n` +
+                `coding_submission_ranking：before=${data?.rankingBeforeCount ?? '-'}，deleted=${data?.rankingDeletedCount ?? '-'}，after=${data?.rankingAfterCount ?? '-'}`
+            );
+        } catch (e) {
+            const msg = e && e.message ? e.message : '删除主站提交记录失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '删除提交';
         }
     }
 
@@ -4484,6 +4753,8 @@ export class AdminView {
         if (battleBatchAddBtn) battleBatchAddBtn.addEventListener('click', () => this.showBattleBatchAddModal());
         const battleBatchDelBtn = document.getElementById('admin-battle-batch-delete-btn');
         if (battleBatchDelBtn) battleBatchDelBtn.addEventListener('click', () => this.handleBatchDelete());
+        const battleSyncAcmOpenBtn = document.getElementById('admin-battle-sync-acm-open-btn');
+        if (battleSyncAcmOpenBtn) battleSyncAcmOpenBtn.addEventListener('click', () => this.syncBattleProblemsFromAcmOpen());
         const battleSearchBtn = document.getElementById('admin-battle-search-btn');
         if (battleSearchBtn) battleSearchBtn.addEventListener('click', () => this.loadBattleList());
         const battleSearchByIdBtn = document.getElementById('admin-battle-search-by-id-btn');
@@ -4495,6 +4766,10 @@ export class AdminView {
         const cardCreateBtn = document.getElementById('admin-card-create-btn');
         const cardBatchImportBtn = document.getElementById('admin-card-batch-import-btn');
         const cardBackfillCheckinBtn = document.getElementById('admin-card-backfill-checkin-btn');
+        const cardReconcilePreviewBtn = document.getElementById('admin-card-reconcile-preview-btn');
+        const cardReconcileRunBtn = document.getElementById('admin-card-reconcile-run-btn');
+        const cardRankRebuildBtn = document.getElementById('admin-card-rank-rebuild-btn');
+        const cardClearUserBtn = document.getElementById('admin-card-clear-user-btn');
         if (cardSearchBtn) cardSearchBtn.addEventListener('click', () => this.loadCardAdminList());
         if (cardResetBtn) {
             cardResetBtn.addEventListener('click', () => {
@@ -4508,6 +4783,10 @@ export class AdminView {
         if (cardCreateBtn) cardCreateBtn.addEventListener('click', () => this.showCardAdminModal());
         if (cardBatchImportBtn) cardBatchImportBtn.addEventListener('click', () => this.showCardBatchImportModal());
         if (cardBackfillCheckinBtn) cardBackfillCheckinBtn.addEventListener('click', () => this.backfillCardCheckinReward());
+        if (cardReconcilePreviewBtn) cardReconcilePreviewBtn.addEventListener('click', () => this.reconcileCardRewardTickets(true));
+        if (cardReconcileRunBtn) cardReconcileRunBtn.addEventListener('click', () => this.reconcileCardRewardTickets(false));
+        if (cardRankRebuildBtn) cardRankRebuildBtn.addEventListener('click', () => this.rebuildCardRank());
+        if (cardClearUserBtn) cardClearUserBtn.addEventListener('click', () => this.clearCardUserData());
 
         const cardAssetQueryBtn = document.getElementById('admin-card-asset-query-btn');
         const cardAssetUpdateBtn = document.getElementById('admin-card-asset-update-btn');
@@ -4586,6 +4865,15 @@ export class AdminView {
         const yrBtn = document.getElementById('admin-year-report-fetch-btn');
         if (yrBtn) yrBtn.addEventListener('click', () => this.fetchAdminYearReport());
 
+        const aiCodingContestRefreshBtn = document.getElementById('admin-aicoding-contest-refresh-btn');
+        if (aiCodingContestRefreshBtn) aiCodingContestRefreshBtn.addEventListener('click', () => this.loadAiCodingContestDashboard(true));
+        const aiCodingSignupFetchBtn = document.getElementById('admin-aicoding-signup-fetch-btn');
+        if (aiCodingSignupFetchBtn) aiCodingSignupFetchBtn.addEventListener('click', () => this.fetchAiCodingContestSignup());
+        const aiCodingSignupUpdateBtn = document.getElementById('admin-aicoding-signup-update-btn');
+        if (aiCodingSignupUpdateBtn) aiCodingSignupUpdateBtn.addEventListener('click', () => this.updateAiCodingContestSignup());
+        const aiCodingSignupClearBtn = document.getElementById('admin-aicoding-signup-clear-btn');
+        if (aiCodingSignupClearBtn) aiCodingSignupClearBtn.addEventListener('click', () => this.clearAiCodingContestSignup());
+
         // Redis Debug：查 key
         const redisDebugBtn = document.getElementById('admin-redis-debug-fetch-btn');
         if (redisDebugBtn) redisDebugBtn.addEventListener('click', () => this.fetchAdminRedisDebugKey());
@@ -4638,6 +4926,10 @@ export class AdminView {
         // 对战运维：清理某用户镜像
         const clearMirrorsBtn = document.getElementById('admin-clear-user-mirrors-btn');
         if (clearMirrorsBtn) clearMirrorsBtn.addEventListener('click', () => this.adminClearUserMirrors());
+
+        // 对战运维：清理主站题目提交记录
+        const deleteCodingSubmissionBtn = document.getElementById('admin-delete-coding-submission-btn');
+        if (deleteCodingSubmissionBtn) deleteCodingSubmissionBtn.addEventListener('click', () => this.adminDeleteCodingSubmissionsByQuestion());
 
         // 对战运维：重建所有对战题 matchCount
         const rebuildMatchCountBtn = document.getElementById('admin-battle-rebuild-matchcount-btn');
@@ -5119,6 +5411,171 @@ export class AdminView {
         } finally {
             btn.disabled = false;
             btn.textContent = oldText || '补发 10 抽';
+        }
+    }
+
+    async reconcileCardRewardTickets(dryRun = true) {
+        const startDateInput = document.getElementById('admin-card-reconcile-start-date');
+        const endDateInput = document.getElementById('admin-card-reconcile-end-date');
+        const previewBtn = document.getElementById('admin-card-reconcile-preview-btn');
+        const runBtn = document.getElementById('admin-card-reconcile-run-btn');
+        const errorEl = document.getElementById('admin-card-reconcile-error');
+        const resultEl = document.getElementById('admin-card-reconcile-result');
+        const summaryEl = document.getElementById('admin-card-reconcile-summary');
+        if (!startDateInput || !endDateInput || !errorEl || !resultEl) return;
+
+        const startDate = String(startDateInput.value || '').trim() || '2026-05-12';
+        const endDate = String(endDateInput.value || '').trim() || this.getTodayDateString();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+            errorEl.textContent = '日期格式应为 yyyy-MM-dd';
+            errorEl.style.display = 'block';
+            return;
+        }
+        if (endDate < startDate) {
+            errorEl.textContent = '结束日期不能早于开始日期';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        errorEl.style.display = 'none';
+        if (!dryRun) {
+            const ok = confirm(
+                `确认执行抽卡券奖励补发吗？\n\n` +
+                `范围：${startDate} 至 ${endDate}\n` +
+                `本操作会按后端对账结果把差额直接加到用户抽卡券余额。建议已经先执行过“预览对账”。`
+            );
+            if (!ok) return;
+        }
+
+        const targetBtn = dryRun ? previewBtn : runBtn;
+        const oldText = targetBtn?.textContent || '';
+        if (previewBtn) previewBtn.disabled = true;
+        if (runBtn) runBtn.disabled = true;
+        if (targetBtn) targetBtn.textContent = dryRun ? '预览中...' : '补发中...';
+        resultEl.textContent = `请求中...\nstartDate=${startDate}\nendDate=${endDate}\ndryRun=${dryRun ? 1 : 0}\n`;
+        if (summaryEl) summaryEl.innerHTML = '';
+
+        try {
+            const data = await this.apiService.adminTrackerCardReconcileTickets({ startDate, endDate, dryRun });
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            this.renderCardRewardReconcileSummary(data);
+            alert(
+                `${dryRun ? '预览完成' : '补发完成'}\n` +
+                `统计用户：${data?.userCount ?? '-'}\n` +
+                `需补发用户：${data?.supplementUserCount ?? '-'}\n` +
+                `应得抽卡券：${data?.expectedTicketTotal ?? '-'}\n` +
+                `已得抽卡券：${data?.actualEarnedTicketTotal ?? '-'}\n` +
+                `补发抽卡券：${data?.supplementTicketTotal ?? '-'}`
+            );
+        } catch (e) {
+            const msg = e && e.message ? e.message : '对账补发抽卡券失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            if (previewBtn) previewBtn.disabled = false;
+            if (runBtn) runBtn.disabled = false;
+            if (targetBtn) targetBtn.textContent = oldText || (dryRun ? '预览对账' : '执行补发');
+        }
+    }
+
+    renderCardRewardReconcileSummary(data) {
+        const summaryEl = document.getElementById('admin-card-reconcile-summary');
+        if (!summaryEl) return;
+        const items = [
+            ['统计用户', data?.userCount ?? '-'],
+            ['需补发用户', data?.supplementUserCount ?? '-'],
+            ['应得抽卡券', data?.expectedTicketTotal ?? '-'],
+            ['已得抽卡券', data?.actualEarnedTicketTotal ?? '-'],
+            ['补发抽卡券', data?.supplementTicketTotal ?? '-']
+        ];
+        summaryEl.innerHTML = items.map(([label, value]) => `
+            <div style="background:#f8fbff; border:1px solid #d6e4ff; border-radius:10px; padding:12px;">
+                <div style="font-size:12px; color:#667085; margin-bottom:6px;">${this.escapeHtml(label)}</div>
+                <div style="font-size:22px; line-height:1; font-weight:900; color:#102a56;">${this.escapeHtml(String(value))}</div>
+            </div>
+        `).join('');
+    }
+
+    async rebuildCardRank() {
+        const btn = document.getElementById('admin-card-rank-rebuild-btn');
+        const errorEl = document.getElementById('admin-card-rank-rebuild-error');
+        const resultEl = document.getElementById('admin-card-rank-rebuild-result');
+        if (!btn || !errorEl || !resultEl) return;
+
+        errorEl.style.display = 'none';
+        const ok = confirm('确认重建卡牌排行榜吗？\n\n会清空并重建 Redis 中的卡牌排行榜，不会修改用户卡牌库存。');
+        if (!ok) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '重建中...';
+        resultEl.textContent = '请求中...';
+        try {
+            const data = await this.apiService.adminTrackerCardRebuildRank();
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            alert(
+                `卡牌排行榜重建完成\n` +
+                `候选用户：${data?.candidateCount ?? '-'}\n` +
+                `写入用户：${data?.updatedCount ?? '-'}\n` +
+                `开放卡牌：${data?.totalCardCount ?? '-'}`
+            );
+        } catch (e) {
+            const msg = e && e.message ? e.message : '重建卡牌排行榜失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '重建排行榜';
+        }
+    }
+
+    async clearCardUserData() {
+        const input = document.getElementById('admin-card-clear-user-id');
+        const btn = document.getElementById('admin-card-clear-user-btn');
+        const errorEl = document.getElementById('admin-card-clear-user-error');
+        const resultEl = document.getElementById('admin-card-clear-user-result');
+        if (!input || !btn || !errorEl || !resultEl) return;
+
+        const userId = Number(input.value || 0);
+        if (!userId || userId <= 0) {
+            errorEl.textContent = '请输入有效的用户 UID';
+            errorEl.style.display = 'block';
+            return;
+        }
+
+        errorEl.style.display = 'none';
+        const ok = confirm(
+            `确认清除该用户全部卡牌数据吗？\n\n` +
+            `userId=${userId}\n\n` +
+            `会删除卡牌库存、资产归零，并从卡牌排行榜移除。`
+        );
+        if (!ok) return;
+        const second = prompt(`二次确认：请输入“清空”以继续清除 userId=${userId} 的卡牌数据`);
+        if (second !== '清空') return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '清除中...';
+        resultEl.textContent = `请求中...\nuserId=${userId}`;
+        try {
+            const data = await this.apiService.adminTrackerCardClearUser(userId);
+            resultEl.textContent = JSON.stringify(data, null, 2);
+            alert(
+                `用户卡牌数据已清除\n` +
+                `userId=${data?.userId ?? userId}\n` +
+                `删除库存：${data?.deletedInventoryCount ?? '-'} / ${data?.inventoryBeforeCount ?? '-'}\n` +
+                `资产归零：${data?.resetAssetCount ?? '-'}`
+            );
+        } catch (e) {
+            const msg = e && e.message ? e.message : '清除用户卡牌数据失败';
+            errorEl.textContent = msg;
+            errorEl.style.display = 'block';
+            resultEl.textContent = `失败：${msg}`;
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '清除数据';
         }
     }
 
@@ -7139,6 +7596,165 @@ export class AdminView {
         }
     }
 
+    async loadAiCodingContestDashboard(force = false) {
+        const contentEl = document.getElementById('admin-aicoding-contest-dashboard-content');
+        const btn = document.getElementById('admin-aicoding-contest-refresh-btn');
+        if (!force && this.adminAiCodingContestDashboardLast && contentEl) {
+            contentEl.innerHTML = this.renderAiCodingContestDashboardContent(this.adminAiCodingContestDashboardLast);
+            return;
+        }
+        const oldText = btn ? btn.textContent : '';
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '加载中...';
+            }
+            if (contentEl) {
+                contentEl.innerHTML = `<div style="padding:24px; color:#999; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:10px;">加载中...</div>`;
+            }
+            const data = await this.apiService.adminAiCodingContestDashboard();
+            this.adminAiCodingContestDashboardLast = data;
+            if (contentEl) {
+                contentEl.innerHTML = this.renderAiCodingContestDashboardContent(data);
+            }
+        } catch (e) {
+            if (contentEl) {
+                contentEl.innerHTML = `<div style="padding:24px;color:#ff4d4f;background:#fff2f0;border:1px solid #ffccc7;border-radius:10px;">${this.escapeHtml(e && e.message ? e.message : '加载失败')}</div>`;
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = oldText || '刷新数据';
+            }
+        }
+    }
+
+    getAiCodingSignupUid() {
+        const input = document.getElementById('admin-aicoding-signup-uid');
+        const uid = parseInt(String(input && input.value ? input.value : '').trim(), 10);
+        if (!uid || uid <= 0) {
+            this.setAiCodingSignupError('请填写有效 uid');
+            return 0;
+        }
+        return uid;
+    }
+
+    setAiCodingSignupError(message) {
+        const el = document.getElementById('admin-aicoding-signup-error');
+        if (!el) return;
+        if (!message) {
+            el.textContent = '';
+            el.style.display = 'none';
+            return;
+        }
+        el.textContent = message;
+        el.style.display = 'block';
+    }
+
+    setAiCodingSignupLoading(loading, btnId, text) {
+        const btn = document.getElementById(btnId);
+        if (!btn) return;
+        if (loading) {
+            btn.dataset.oldText = btn.textContent || '';
+            btn.disabled = true;
+            btn.textContent = text || '处理中...';
+        } else {
+            btn.disabled = false;
+            btn.textContent = btn.dataset.oldText || btn.textContent || '确定';
+        }
+    }
+
+    fillAiCodingSignupEditor(data) {
+        const editor = document.getElementById('admin-aicoding-signup-editor');
+        const empty = document.getElementById('admin-aicoding-signup-empty');
+        const result = document.getElementById('admin-aicoding-signup-result');
+        if (editor) editor.style.display = 'block';
+        if (empty) empty.style.display = 'none';
+        const setVal = (id, value) => {
+            const el = document.getElementById(id);
+            if (el) el.value = value || '';
+        };
+        setVal('admin-aicoding-signup-real-name', data.realName);
+        setVal('admin-aicoding-signup-school', data.school);
+        setVal('admin-aicoding-signup-status', data.studentStatus || '在校');
+        setVal('admin-aicoding-signup-experience', data.experience);
+        const statusText = document.getElementById('admin-aicoding-signup-status-text');
+        if (statusText) {
+            statusText.textContent = `uid=${data.uid || '-'}，报名状态：${data.signed ? '已报名' : '未报名'}，昵称：${data.nickname || '-'}`;
+        }
+        if (result) result.textContent = JSON.stringify(data || {}, null, 2);
+    }
+
+    async fetchAiCodingContestSignup() {
+        const uid = this.getAiCodingSignupUid();
+        if (!uid) return;
+        this.setAiCodingSignupError('');
+        this.setAiCodingSignupLoading(true, 'admin-aicoding-signup-fetch-btn', '查询中...');
+        try {
+            const data = await this.apiService.adminAiCodingContestSignup(uid);
+            this.fillAiCodingSignupEditor(data);
+        } catch (e) {
+            this.setAiCodingSignupError(e && e.message ? e.message : '查询失败');
+        } finally {
+            this.setAiCodingSignupLoading(false, 'admin-aicoding-signup-fetch-btn');
+        }
+    }
+
+    async updateAiCodingContestSignup() {
+        const uid = this.getAiCodingSignupUid();
+        if (!uid) return;
+        const getVal = id => {
+            const el = document.getElementById(id);
+            return el ? String(el.value || '').trim() : '';
+        };
+        const payload = {
+            uid,
+            realName: getVal('admin-aicoding-signup-real-name'),
+            school: getVal('admin-aicoding-signup-school'),
+            studentStatus: getVal('admin-aicoding-signup-status'),
+            experience: getVal('admin-aicoding-signup-experience')
+        };
+        if (!payload.realName || !payload.school || !payload.studentStatus) {
+            this.setAiCodingSignupError('姓名、学校、状态不能为空');
+            return;
+        }
+        this.setAiCodingSignupError('');
+        this.setAiCodingSignupLoading(true, 'admin-aicoding-signup-update-btn', '保存中...');
+        try {
+            const data = await this.apiService.adminUpdateAiCodingContestSignup(payload);
+            this.fillAiCodingSignupEditor(data);
+            await this.loadAiCodingContestDashboard(true);
+        } catch (e) {
+            this.setAiCodingSignupError(e && e.message ? e.message : '保存失败');
+        } finally {
+            this.setAiCodingSignupLoading(false, 'admin-aicoding-signup-update-btn');
+        }
+    }
+
+    async clearAiCodingContestSignup() {
+        const uid = this.getAiCodingSignupUid();
+        if (!uid) return;
+        if (!window.confirm(`确认清理 uid=${uid} 的 AI Coding 报名信息？不会删除投递编号和作答记录。`)) {
+            return;
+        }
+        const reasonEl = document.getElementById('admin-aicoding-signup-clear-reason');
+        const reason = reasonEl ? String(reasonEl.value || '').trim() : '';
+        this.setAiCodingSignupError('');
+        this.setAiCodingSignupLoading(true, 'admin-aicoding-signup-clear-btn', '清理中...');
+        try {
+            const data = await this.apiService.adminClearAiCodingContestSignup(uid, reason);
+            const after = data && data.after ? data.after : {};
+            this.fillAiCodingSignupEditor(after);
+            const result = document.getElementById('admin-aicoding-signup-result');
+            if (result) result.textContent = JSON.stringify(data || {}, null, 2);
+            await this.loadAiCodingContestDashboard(true);
+        } catch (e) {
+            this.setAiCodingSignupError(e && e.message ? e.message : '清理失败');
+        } finally {
+            this.setAiCodingSignupLoading(false, 'admin-aicoding-signup-clear-btn');
+        }
+    }
+
     /**
      * 读取竞赛管理面板中的 contestId
      */
@@ -8760,6 +9376,14 @@ export class AdminView {
         return '';
     }
 
+    getTodayDateString() {
+        const d = new Date();
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     /**
      * 显示每日一题新增/编辑模态框
      */
@@ -9979,6 +10603,49 @@ export class AdminView {
             }
         `;
         document.head.appendChild(style);
+    }
+
+    /**
+     * 从 acm_problem_open 同步公开且已标难度的题到对战题库
+     */
+    async syncBattleProblemsFromAcmOpen() {
+        const btn = document.getElementById('admin-battle-sync-acm-open-btn');
+        if (!btn) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '预览中...';
+
+        try {
+            const preview = await this.apiService.adminBattleProblemSyncFromAcmOpen(true);
+            const ok = confirm(
+                `确认从公开题库同步对战题目吗？\n\n` +
+                `候选题目：${preview.eligibleCount || 0}\n` +
+                `已在对战题库：${preview.existingCount || 0}\n` +
+                `待新增：${preview.missingCount || 0}\n\n` +
+                `执行后：已有AC记录的题只更新难度；0 AC题会补初始1 AC和初始用时。`
+            );
+            if (!ok) return;
+
+            btn.textContent = '同步中...';
+            const result = await this.apiService.adminBattleProblemSyncFromAcmOpen(false);
+            alert(
+                `同步完成\n\n` +
+                `候选题目：${result.eligibleCount || 0}\n` +
+                `原已存在：${result.existingCount || 0}\n` +
+                `新增题目：${result.insertedCount || 0}\n` +
+                `更新/初始化：${result.updatedCount || 0}`
+            );
+            await this.loadBattleList(1);
+            if (this.battleSubTab === 'histogram') {
+                await this.loadBattleDifficultyHistogram();
+            }
+        } catch (e) {
+            alert(e && e.message ? e.message : '同步失败');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '同步公开题';
+        }
     }
 
     /**

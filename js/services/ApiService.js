@@ -2764,6 +2764,47 @@ export class ApiService {
     }
 
     /**
+     * 管理员：删除某道题在主站 coding_submission 表中的全部提交。
+     * POST /problem/tracker/admin/coding/submission/delete-by-question?questionId=xxx
+     *
+     * @param {number|string} questionId
+     * @returns {Promise<object>} 返回 {questionId, table, beforeCount, deletedCount, afterCount}
+     */
+    async adminDeleteCodingSubmissionsByQuestion(questionId) {
+        const qid = Number(questionId);
+        if (!qid || qid <= 0) throw new Error('questionId 参数不合法');
+        const url = `${this.apiBase}/problem/tracker/admin/coding/submission/delete-by-question`;
+        const body = `questionId=${encodeURIComponent(String(qid))}`;
+        try {
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
+                    'Accept': 'application/json, text/plain, */*'
+                },
+                body,
+                cache: 'no-store',
+                credentials: 'include'
+            });
+            if (!res.ok) {
+                const t = await res.text().catch(() => '');
+                throw new Error(t || `HTTP ${res.status}`);
+            }
+            const contentType = (res.headers && res.headers.get) ? (res.headers.get('content-type') || '') : '';
+            if (contentType.includes('text/html')) {
+                const finalUrl = res.url || '';
+                throw new Error(`接口返回 HTML（疑似未登录/无权限/反代兜底）。finalUrl=${finalUrl || '(unknown)'}`);
+            }
+            const data = await res.json().catch(() => ({}));
+            if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+            throw new Error((data && (data.msg || data.message)) || '删除主站提交记录失败');
+        } catch (error) {
+            console.error('删除主站提交记录失败:', error);
+            throw error;
+        }
+    }
+
+    /**
      * 获取"我的"页面所需的所有信息（整合接口）
      * @returns {Promise<object>} 包含用户信息、打卡信息、技能树进度、成就信息、对战信息
      */
@@ -2965,6 +3006,65 @@ export class ApiService {
         const data = await res.json().catch(() => ({}));
         if (data && (data.code === 0 || data.code === 200)) return data.data || {};
         throw new Error((data && (data.msg || data.message)) || '获取年度报告失败');
+    }
+
+    async adminAiCodingContestDashboard() {
+        const url = `${this.apiBase}/problem/tracker/admin/aicoding-contest/dashboard`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '获取 AI Coding 看板失败');
+    }
+
+    async adminAiCodingContestSignup(uid) {
+        const uidNum = Number(uid);
+        if (!uidNum || uidNum <= 0) throw new Error('uid 参数不合法');
+        const url = `${this.apiBase}/problem/tracker/admin/aicoding-contest/signup?uid=${encodeURIComponent(uidNum)}`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '查询 AI Coding 报名信息失败') || {};
+    }
+
+    async adminUpdateAiCodingContestSignup(payload = {}) {
+        const url = `${this.apiBase}/problem/tracker/admin/aicoding-contest/signup/update`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({
+                uid: payload.uid,
+                realName: payload.realName,
+                school: payload.school,
+                studentStatus: payload.studentStatus,
+                experience: payload.experience
+            }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '修改 AI Coding 报名信息失败') || {};
+    }
+
+    async adminClearAiCodingContestSignup(uid, reason = '') {
+        const url = `${this.apiBase}/problem/tracker/admin/aicoding-contest/signup/clear`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({ uid, reason }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '清理 AI Coding 报名信息失败') || {};
     }
 
     /**
@@ -4138,6 +4238,36 @@ export class ApiService {
     }
 
     /**
+     * 管理员：从 acm_problem_open 同步公开且已标难度的题到对战题库
+     *
+     * POST /problem/tracker/battle/problem/admin/sync-from-acm-open
+     */
+    async adminBattleProblemSyncFromAcmOpen(dryRun = false) {
+        const body = new URLSearchParams();
+        body.append('dryRun', dryRun ? 'true' : 'false');
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/sync-from-acm-open`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'Accept': 'application/json, text/plain, */*' },
+            body: body.toString(),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const contentType = (res.headers && res.headers.get) ? (res.headers.get('content-type') || '') : '';
+        if (contentType.includes('text/html')) {
+            const finalUrl = res.url || '';
+            throw new Error(`接口返回 HTML（疑似未登录/无权限/反代兜底）。finalUrl=${finalUrl || '(unknown)'}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '同步公开题失败');
+    }
+
+    /**
      * 对战：难度分布直方图（50桶，bucketSize=100，range=1~5000）
      * GET /problem/tracker/battle/problem-difficulty-histogram
      *
@@ -4767,6 +4897,20 @@ export class ApiService {
         return this._unwrapCommon(data, '领取奖励失败');
     }
 
+    async getTrackerCardLeaderboard(page = 1, limit = 20) {
+        const qs = new URLSearchParams({
+            page: String(page),
+            limit: String(limit)
+        });
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/leaderboard?${qs.toString()}`, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '获取卡牌排行榜失败');
+    }
+
     async adminTrackerCardList(params = {}) {
         const qs = new URLSearchParams();
         Object.entries(params || {}).forEach(([k, v]) => {
@@ -4793,6 +4937,48 @@ export class ApiService {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const data = await res.json().catch(() => ({}));
         return this._unwrapCommon(data, '补发打卡抽卡券失败');
+    }
+
+    async adminTrackerCardReconcileTickets({ startDate = '2026-05-12', endDate = '', dryRun = true } = {}) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/reward/reconcile-tickets`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({
+                startDate,
+                endDate,
+                dryRun: dryRun ? 1 : 0
+            }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '对账补发抽卡券失败');
+    }
+
+    async adminTrackerCardRebuildRank() {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/rank/rebuild`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '重建卡牌排行榜失败');
+    }
+
+    async adminTrackerCardClearUser(userId) {
+        const res = await fetch(`${this.apiBase}/problem/tracker/card/admin/user/clear`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({ userId }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '清除用户卡牌数据失败');
     }
 
     async adminTrackerCardCreate(payload = {}) {

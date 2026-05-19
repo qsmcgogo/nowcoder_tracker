@@ -74,6 +74,39 @@ export class BattleView {
             .replace(/'/g, '&#39;');
     }
 
+    _countHanChars(text) {
+        return Array.from(String(text || '')).filter(ch => ch >= '\u4e00' && ch <= '\u9fff').length;
+    }
+
+    _looksLikeMojibake(text) {
+        const s = String(text || '');
+        if (!s) return false;
+        const suspicious = /[ÃÂÅÆÇÐÑØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöøùúûüýþÿ]/;
+        return suspicious.test(s) || /[\u0080-\u009f]/.test(s);
+    }
+
+    _tryDecodeUtf8Mojibake(text) {
+        const s = String(text || '');
+        if (!s || !this._looksLikeMojibake(s) || typeof TextDecoder === 'undefined') return s;
+        try {
+            const bytes = Uint8Array.from(Array.from(s), ch => ch.charCodeAt(0) & 0xff);
+            const decoded = new TextDecoder('utf-8', { fatal: true }).decode(bytes).trim();
+            if (!decoded || decoded === s) return s;
+            const srcHan = this._countHanChars(s);
+            const dstHan = this._countHanChars(decoded);
+            if (dstHan > srcHan && !this._looksLikeMojibake(decoded)) return decoded;
+        } catch (_) {
+            // ignore broken candidates
+        }
+        return s;
+    }
+
+    _normalizeSeasonName(name) {
+        const raw = String(name || '').trim();
+        if (!raw) return '历史赛季';
+        return this._tryDecodeUtf8Mojibake(raw);
+    }
+
     // 解析 hash：支持 #/battle/record?userId=xxx&type=1|2
     parseBattleRecordRoute() {
         try {
@@ -4508,7 +4541,7 @@ ${trackerUrl}
                         const total = Number(season.totalCount ?? 0) || 0;
                         const lose = Number(season.loseCount ?? Math.max(0, total - win)) || 0;
                         const rate = total > 0 ? `${((win / total) * 100).toFixed(1)}%` : '-';
-                        const name = this.escapeHtml(String(season.seasonName || '历史赛季'));
+                        const name = this.escapeHtml(this._normalizeSeasonName(season.seasonName));
                         return `
                             <div style="border:1px solid rgba(148,163,184,.35); border-left:4px solid ${rank.color}; border-radius:14px; padding:16px; background:${season.current ? 'linear-gradient(135deg,#f8fbff 0%,#fffaf0 100%)' : '#fff'};">
                                 <div style="display:flex; justify-content:space-between; gap:12px; align-items:center; margin-bottom:12px;">

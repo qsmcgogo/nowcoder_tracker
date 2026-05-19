@@ -45,6 +45,11 @@ export class CardView {
         this.pageMode = 'overview';
         this.activeAlbumCode = '';
         this.activeHomeTab = 'overview';
+        this.rankPage = 1;
+        this.rankLimit = 20;
+        this.rankData = null;
+        this.rankLoading = false;
+        this.rankError = '';
         this.overviewData = null;
         this.albumDetailCache = {};
         this.loading = false;
@@ -75,6 +80,10 @@ export class CardView {
         }
         if (this.pageMode === 'detail' && this.activeAlbumCode && !this.albumDetailCache[this.activeAlbumCode]) {
             await this.loadAlbumDetail(this.activeAlbumCode, forceRefresh);
+            return;
+        }
+        if (this.pageMode === 'overview' && this.activeHomeTab === 'rank' && !this.rankData && !this.rankLoading) {
+            await this.loadCardLeaderboard(this.rankPage);
             return;
         }
         this.renderCurrentView();
@@ -115,6 +124,22 @@ export class CardView {
             this.errorMessage = e && e.message ? e.message : '获取卡册详情失败';
         } finally {
             this.loading = false;
+            this.renderCurrentView();
+        }
+    }
+
+    async loadCardLeaderboard(page = this.rankPage) {
+        this.rankLoading = true;
+        this.rankError = '';
+        this.renderCurrentView();
+        try {
+            const data = await this.api.getTrackerCardLeaderboard(page, this.rankLimit);
+            this.rankData = this.normalizeRankData(data);
+            this.rankPage = this.rankData.page;
+        } catch (e) {
+            this.rankError = e && e.message ? e.message : '获取卡牌排行榜失败';
+        } finally {
+            this.rankLoading = false;
             this.renderCurrentView();
         }
     }
@@ -278,10 +303,7 @@ export class CardView {
                 ` : ''}
 
                 ${this.activeHomeTab === 'rank' ? `
-                    <section class="battle-s1-panel battle-s1-rank-placeholder">
-                        <div class="battle-s1-panel__headline">排行榜</div>
-                        <div class="battle-s1-panel__desc">卡片排行榜还在准备中，之后会在这里展示收集进度、满级数量和稀有卡持有情况。</div>
-                    </section>
+                    ${this.renderCardRankPanel()}
                 ` : ''}
 
                 ${this.activeHomeTab === 'shop' ? `
@@ -337,6 +359,76 @@ export class CardView {
                     </div>
                 </div>
             </button>
+        `;
+    }
+
+    renderCardRankPanel() {
+        if (this.rankLoading && !this.rankData) {
+            return `
+                <section class="battle-s1-panel">
+                    <div class="battle-s1-panel__headline">排行榜加载中...</div>
+                </section>
+            `;
+        }
+        if (this.rankError && !this.rankData) {
+            return `
+                <section class="battle-s1-panel">
+                    <div class="battle-s1-panel__headline" style="color:#ef4444;">排行榜加载失败</div>
+                    <div class="battle-s1-panel__desc">${this.escapeHtml(this.rankError)}</div>
+                    <button class="battle-s1-btn battle-s1-btn--primary" data-card-rank-retry>重试</button>
+                </section>
+            `;
+        }
+        const data = this.rankData || { list: [], page: 1, limit: this.rankLimit, total: 0, totalCardCount: this.overviewData?.system?.total || 0 };
+        const totalPages = Math.max(1, Math.ceil(Number(data.total || 0) / Number(data.limit || this.rankLimit || 20)));
+        return `
+            <section class="battle-s1-panel battle-s1-card-rank">
+                <div class="battle-s1-card-rank__head">
+                    <div>
+                        <div class="battle-s1-panel__headline">卡片排行榜</div>
+                        <div class="battle-s1-panel__desc">按所有卡片等级之和排序，同时展示已拥有和已满级数量。</div>
+                    </div>
+                    <button class="battle-s1-btn battle-s1-btn--ghost" data-card-rank-refresh ${this.rankLoading ? 'disabled' : ''}>刷新</button>
+                </div>
+                ${this.rankError ? `<div class="battle-s1-panel__desc" style="color:#d46b08; margin-top:10px;">${this.escapeHtml(this.rankError)}</div>` : ''}
+                <div class="battle-s1-card-rank__table">
+                    <div class="battle-s1-card-rank__row battle-s1-card-rank__row--head">
+                        <span>排名</span>
+                        <span>用户</span>
+                        <span>收集度</span>
+                        <span>已拥有</span>
+                        <span>已满级</span>
+                    </div>
+                    ${data.list.length ? data.list.map(item => this.renderCardRankRow(item, data.totalCardCount)).join('') : `
+                        <div class="battle-s1-card-rank__empty">暂无排行榜数据，抽到第一张卡后就会出现在这里。</div>
+                    `}
+                </div>
+                <div class="battle-s1-card-rank__pager">
+                    <button class="battle-s1-btn battle-s1-btn--ghost" data-card-rank-page="${Math.max(1, data.page - 1)}" ${data.page <= 1 || this.rankLoading ? 'disabled' : ''}>上一页</button>
+                    <span>${data.page} / ${totalPages}</span>
+                    <button class="battle-s1-btn battle-s1-btn--ghost" data-card-rank-page="${Math.min(totalPages, data.page + 1)}" ${data.page >= totalPages || this.rankLoading ? 'disabled' : ''}>下一页</button>
+                </div>
+            </section>
+        `;
+    }
+
+    renderCardRankRow(item, totalCardCount) {
+        const rank = Number(item.rank || 0);
+        const rankClass = rank <= 3 ? ` is-top-${rank}` : '';
+        const avatar = item.avatar || './牛客娘/笑.png';
+        const profileUrl = item.userId ? `#/profile?userId=${encodeURIComponent(String(item.userId))}` : '#/profile';
+        const total = Math.max(Number(totalCardCount || 0), Number(this.overviewData?.system?.total || 0));
+        return `
+            <div class="battle-s1-card-rank__row${rankClass}">
+                <span class="battle-s1-card-rank__rank">#${rank}</span>
+                <a class="battle-s1-card-rank__user" href="${this.escapeHtml(profileUrl)}" title="查看用户名片">
+                    <img src="${this.escapeHtml(avatar)}" alt="">
+                    <strong>${this.escapeHtml(item.nickname || `用户${item.userId || ''}`)}</strong>
+                </a>
+                <span class="battle-s1-card-rank__score">${Number(item.collectionScore || 0)}</span>
+                <span>${Number(item.collectedCount || 0)} / ${total}</span>
+                <span>${Number(item.maxedCount || 0)} / ${total}</span>
+            </div>
         `;
     }
 
@@ -483,9 +575,22 @@ export class CardView {
                 this.activeHomeTab = button.dataset.cardHomeTab || 'overview';
                 if (this.activeHomeTab === 'shop') {
                     this.ensureShopAlbumDetail().then(() => this.renderCurrentView());
+                } else if (this.activeHomeTab === 'rank' && !this.rankData) {
+                    this.loadCardLeaderboard(1);
                 } else {
                     this.renderCurrentView();
                 }
+            });
+        });
+
+        const rankRefresh = this.container.querySelector('[data-card-rank-refresh]');
+        if (rankRefresh) rankRefresh.addEventListener('click', () => this.loadCardLeaderboard(this.rankPage));
+        const rankRetry = this.container.querySelector('[data-card-rank-retry]');
+        if (rankRetry) rankRetry.addEventListener('click', () => this.loadCardLeaderboard(this.rankPage));
+        this.container.querySelectorAll('[data-card-rank-page]').forEach(button => {
+            button.addEventListener('click', () => {
+                const page = Number(button.dataset.cardRankPage || 1);
+                this.loadCardLeaderboard(page);
             });
         });
 
@@ -525,6 +630,7 @@ export class CardView {
             const results = (data.results || []).map(item => this.normalizeDrawResult(item));
             this.openDrawOverlay(results, drawType === 'ten' ? 10 : 1);
             this.patchOverviewByDrawResponse(data);
+            this.rankData = null;
             if (this.pageMode === 'detail' && this.activeAlbumCode) {
                 delete this.albumDetailCache[this.activeAlbumCode];
                 await this.loadAlbumDetail(this.activeAlbumCode, true);
@@ -1022,6 +1128,7 @@ export class CardView {
         try {
             const data = await this.api.trackerCardFragmentExchange(cardId, fragmentRarity);
             this.patchOverviewByFragmentExchangeResponse(data);
+            this.rankData = null;
             await this.refreshAfterFragmentMutation(source);
         } catch (e) {
             alert(e && e.message ? e.message : '碎片兑换失败');
@@ -1135,6 +1242,24 @@ export class CardView {
                 ...item,
                 isUnlocked: !!item.isUnlocked,
                 isMaxed: !!item.isMaxed
+            })) : []
+        };
+    }
+
+    normalizeRankData(data) {
+        return {
+            page: Number(data.page || 1),
+            limit: Number(data.limit || this.rankLimit || 20),
+            total: Number(data.total || 0),
+            totalCardCount: Number(data.totalCardCount || this.overviewData?.system?.total || 0),
+            list: Array.isArray(data.list) ? data.list.map(item => ({
+                rank: Number(item.rank || 0),
+                userId: Number(item.userId || 0),
+                nickname: item.nickname || '',
+                avatar: item.avatar || '',
+                collectionScore: Number(item.collectionScore || 0),
+                collectedCount: Number(item.collectedCount || 0),
+                maxedCount: Number(item.maxedCount || 0)
             })) : []
         };
     }

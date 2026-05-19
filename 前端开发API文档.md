@@ -825,6 +825,43 @@ GET /problem/tracker/battle/problem/admin/check-delete?id=1
 
 ---
 
+### 11. 从公开题库同步对战题目
+
+**接口**: `POST /battle/problem/admin/sync-from-acm-open`
+
+**实际路径**: `POST /problem/tracker/battle/problem/admin/sync-from-acm-open`
+
+**功能**: 从 `acm_problem_open` 找到已公开且已标难度的题，同步到 `tracker_battle_problem`。
+
+**请求参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| dryRun | boolean | 否 | 是否只预览不写库，默认 `false` |
+
+**同步规则**:
+- 只同步 `status=ONLINE(2)` 且 `difficulty>100` 的题目
+- 已存在于对战题库的题目只更新 `levelScore`
+- 不覆盖 `matchCount`、`acCount`、`avgSeconds` 等对战统计
+- 不存在的题目会新增到对战题库
+
+**响应示例**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "dryRun": false,
+    "eligibleCount": 1200,
+    "existingCount": 800,
+    "missingCount": 400,
+    "updatedCount": 50,
+    "insertedCount": 400
+  }
+}
+```
+
+---
+
 ## 通用说明
 
 ### 权限要求

@@ -99,6 +99,7 @@ export class ProfileView {
             const skillTree = myInfo.skillTree || {};
             const badge = myInfo.badge || {};
             const follow = myInfo.follow || {};
+            const card = myInfo.card || {};
             
             // 处理技能树数据
             const skillTreeTotalProgress = skillTree.totalProgress || 0;
@@ -166,6 +167,12 @@ export class ProfileView {
                 battle1v1TotalCount: Number(myInfo.battle1v1TotalCount ?? 0) || 0,
                 battleAiWinCount: Number(myInfo.battleAiWinCount ?? 0) || 0,
                 battleAiTotalCount: Number(myInfo.battleAiTotalCount ?? 0) || 0,
+                card: {
+                    collectionScore: Number(card.collectionScore ?? 0) || 0,
+                    collectedCount: Number(card.collectedCount ?? 0) || 0,
+                    maxedCount: Number(card.maxedCount ?? 0) || 0,
+                    totalCardCount: Number(card.totalCardCount ?? 0) || 0
+                },
                 follow,
                 __viewingOther: viewingOther
             };
@@ -471,8 +478,21 @@ export class ProfileView {
                         <span class="stat-value">${Number(user.achievements?.totalPoints) || 0}</span>
                         <span class="stat-label">成就点数</span>
                     </div>
+                    <div class="stat-item profile-card-stat">
+                        <span class="stat-value">${Number(user.card?.collectionScore) || 0}</span>
+                        <span class="stat-label">卡片收集度</span>
+                    </div>
+                    <div class="stat-item profile-card-stat">
+                        <span class="stat-value">${Number(user.card?.maxedCount) || 0} / ${Number(user.card?.totalCardCount) || 0}</span>
+                        <span class="stat-label">满级卡片</span>
+                    </div>
                 </div>
                 <div class="profile-details">
+                    <div class="detail-item">
+                        <span class="detail-icon">🎴</span>
+                        <span class="detail-label">已拥有卡片</span>
+                        <span class="detail-value">${Number(user.card?.collectedCount) || 0} / ${Number(user.card?.totalCardCount) || 0}</span>
+                    </div>
                     <div class="detail-item">
                         <span class="detail-icon">📅</span>
                         <span class="detail-label">累积打卡</span>

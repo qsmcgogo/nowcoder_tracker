@@ -399,6 +399,7 @@ app.use('/problem/tracker/battle/problem/admin/batch-add', manualProxyHandler('/
 app.use('/problem/tracker/battle/problem/admin/batch-delete', manualProxyHandler('/problem/tracker/battle/problem/admin/batch-delete'));
 app.use('/problem/tracker/battle/problem/admin/check-delete', manualProxyHandler('/problem/tracker/battle/problem/admin/check-delete'));
 app.use('/problem/tracker/battle/problem/admin/reset-stats', manualProxyHandler('/problem/tracker/battle/problem/admin/reset-stats'));
+app.use('/problem/tracker/battle/problem/admin/sync-from-acm-open', manualProxyHandler('/problem/tracker/battle/problem/admin/sync-from-acm-open'));
 // Battle: Problem difficulty histogram (no admin required, but used in admin tools)
 app.use('/problem/tracker/battle/problem-difficulty-histogram', manualProxyHandler('/problem/tracker/battle/problem-difficulty-histogram'));
 
@@ -412,6 +413,10 @@ app.use('/problem/tracker/acm-problem-open/batch-import-tracker', manualProxyHan
 app.use('/problem/tracker/admin/check', manualProxyHandler('/problem/tracker/admin/check'));
 // Admin: Year report (验数，不走缓存)
 app.use('/problem/tracker/admin/year-report', manualProxyHandler('/problem/tracker/admin/year-report'));
+app.use('/problem/tracker/admin/aicoding-contest/dashboard', manualProxyHandler('/problem/tracker/admin/aicoding-contest/dashboard'));
+app.use('/problem/tracker/admin/aicoding-contest/signup', manualProxyHandler('/problem/tracker/admin/aicoding-contest/signup'));
+app.use('/problem/tracker/admin/aicoding-contest/signup/update', manualProxyHandler('/problem/tracker/admin/aicoding-contest/signup/update'));
+app.use('/problem/tracker/admin/aicoding-contest/signup/clear', manualProxyHandler('/problem/tracker/admin/aicoding-contest/signup/clear'));
 app.use('/problem/tracker/admin/spring2026-fortune/redis/clear', manualProxyHandler('/problem/tracker/admin/spring2026-fortune/redis/clear'));
 app.use('/problem/tracker/admin/spring2026-third/chances/add', manualProxyHandler('/problem/tracker/admin/spring2026-third/chances/add'));
 app.use('/problem/tracker/admin/spring2026-third/task/share/claimed/clear', manualProxyHandler('/problem/tracker/admin/spring2026-third/task/share/claimed/clear'));
