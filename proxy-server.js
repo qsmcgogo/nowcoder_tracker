@@ -275,6 +275,9 @@ const localForwardHandler = (targetBaseUrl) => (clientReq, clientRes) => {
 // Apply the manual proxy handler with the correct, hardcoded base path for each route
 // Sparta search (gw-c) - to bypass CORS in local dev
 app.use('/api/sparta/pc', judgeTokenProxyHandler('/api/sparta/pc'));
+// Compatibility: some deployed/static configs prefix tracker APIs with /api.
+// Strip that prefix and forward to the same Nowcoder tracker backend.
+app.use('/api/problem/tracker', manualProxyHandler('/problem/tracker'));
 app.use('/problem/tracker/list', manualProxyHandler('/problem/tracker/list'));
 app.use('/problem/tracker/diff', manualProxyHandler('/problem/tracker/diff'));
 app.use('/problem/tracker/ranks/problem', manualProxyHandler('/problem/tracker/ranks/problem'));
@@ -400,6 +403,8 @@ app.use('/problem/tracker/battle/problem/admin/batch-delete', manualProxyHandler
 app.use('/problem/tracker/battle/problem/admin/check-delete', manualProxyHandler('/problem/tracker/battle/problem/admin/check-delete'));
 app.use('/problem/tracker/battle/problem/admin/reset-stats', manualProxyHandler('/problem/tracker/battle/problem/admin/reset-stats'));
 app.use('/problem/tracker/battle/problem/admin/sync-from-acm-open', manualProxyHandler('/problem/tracker/battle/problem/admin/sync-from-acm-open'));
+app.use('/problem/tracker/battle/problem/admin/clean-core-mode', manualProxyHandler('/problem/tracker/battle/problem/admin/clean-core-mode'));
+app.use('/problem/tracker/battle/problem/admin/rebuild-initial-avg-seconds', manualProxyHandler('/problem/tracker/battle/problem/admin/rebuild-initial-avg-seconds'));
 // Battle: Problem difficulty histogram (no admin required, but used in admin tools)
 app.use('/problem/tracker/battle/problem-difficulty-histogram', manualProxyHandler('/problem/tracker/battle/problem-difficulty-histogram'));
 
@@ -414,6 +419,8 @@ app.use('/problem/tracker/admin/check', manualProxyHandler('/problem/tracker/adm
 // Admin: Year report (验数，不走缓存)
 app.use('/problem/tracker/admin/year-report', manualProxyHandler('/problem/tracker/admin/year-report'));
 app.use('/problem/tracker/admin/aicoding-contest/dashboard', manualProxyHandler('/problem/tracker/admin/aicoding-contest/dashboard'));
+app.use('/problem/tracker/admin/aicoding-contest/lottery/stock/update', manualProxyHandler('/problem/tracker/admin/aicoding-contest/lottery/stock/update'));
+app.use('/problem/tracker/admin/aicoding-contest/lottery/stock', manualProxyHandler('/problem/tracker/admin/aicoding-contest/lottery/stock'));
 app.use('/problem/tracker/admin/aicoding-contest/signup', manualProxyHandler('/problem/tracker/admin/aicoding-contest/signup'));
 app.use('/problem/tracker/admin/aicoding-contest/signup/update', manualProxyHandler('/problem/tracker/admin/aicoding-contest/signup/update'));
 app.use('/problem/tracker/admin/aicoding-contest/signup/clear', manualProxyHandler('/problem/tracker/admin/aicoding-contest/signup/clear'));

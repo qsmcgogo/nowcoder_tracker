@@ -29,6 +29,7 @@ export class AdminView {
         this.adminRedisDebugLast = null;
         // 管理员验数：春季AI体验站抽奖记录
         this.adminSpring2026AiLotteryLast = null;
+        this.adminAiPageDashboardLast = null;
         this.adminAiCodingContestDashboardLast = null;
         // Prompt Challenge demo
         this.promptChallengeListCache = null;
@@ -141,6 +142,9 @@ export class AdminView {
                         </div>
 
                         <!-- AI -->
+                        <div id="admin-ai-page-dashboard-panel" class="admin-panel" style="display:none;">
+                            ${this.renderAiPageDashboardPanel()}
+                        </div>
                         <div id="admin-prompt-challenge-panel" class="admin-panel" style="display:none;">
                             ${this.renderPromptChallengePanel()}
                         </div>
@@ -220,6 +224,7 @@ export class AdminView {
                 { id: 'redisDebug', label: 'Redis Debug', panelId: 'admin-data-redis-debug-panel' },
             ] },
             { id: 'ai', label: 'AI', sections: [
+                { id: 'aiPageDashboard', label: 'AI 页面浏览', panelId: 'admin-ai-page-dashboard-panel' },
                 { id: 'aicodingContest', label: 'AI Coding看板', panelId: 'admin-activity-aicoding-contest-panel' },
                 { id: 'prompt', label: 'Prompt 挑战', panelId: 'admin-prompt-challenge-panel' },
                 { id: 'puzzle', label: '约束解谜', panelId: 'admin-ai-puzzle-panel' },
@@ -306,6 +311,7 @@ export class AdminView {
             if (pid === 'admin-battle-panel') this.loadBattleList();
             if (pid === 'admin-card-panel') this.loadCardAdminList();
             if (pid === 'admin-tag-panel') this.loadTagList();
+            if (pid === 'admin-ai-page-dashboard-panel') this.loadAiPageDashboard();
             if (pid === 'admin-prompt-challenge-panel') this.loadPromptChallengeList(false);
             if (pid === 'admin-ai-puzzle-panel') this.loadAiPuzzleAdminOverview();
             if (pid === 'admin-achv-manage-panel') this.loadAchvManageList();
@@ -1298,6 +1304,105 @@ export class AdminView {
                 <div style="margin-top:16px;">
                     ${this.renderAiCodingContestSignupTool()}
                 </div>
+                <div id="admin-aicoding-lottery-tool-wrap" style="margin-top:16px;">
+                    ${this.renderAiCodingContestLotteryTool(this.adminAiCodingContestDashboardLast && this.adminAiCodingContestDashboardLast.lottery)}
+                </div>
+            </div>
+        `;
+    }
+
+    renderAiPageDashboardPanel() {
+        return `
+            <div style="background:#fff; border-radius:12px; padding:18px; border:1px solid #f0f0f0;">
+                <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px;">
+                    <div>
+                        <h3 style="margin:0 0 6px; color:#333;">AI 页面浏览看板</h3>
+                        <div style="font-size:13px;color:#999;">统计 /problem/ai 和 /problem/aicoding 的累计 PV、日 PV 和日 UV；UV 按用户或 clientTicket 在自然日内去重。</div>
+                    </div>
+                    <button id="admin-ai-page-refresh-btn" class="admin-btn" type="button">刷新数据</button>
+                </div>
+                <div id="admin-ai-page-dashboard-content">
+                    ${this.renderAiPageDashboardContent(this.adminAiPageDashboardLast)}
+                </div>
+            </div>
+        `;
+    }
+
+    renderAiPageDashboardContent(data) {
+        if (!data) {
+            return `<div style="padding:24px; color:#999; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:10px;">尚未加载</div>`;
+        }
+        const pages = Array.isArray(data.pages) ? data.pages : [];
+        const daily = Array.isArray(data.daily) ? data.daily : [];
+        const totalPv = Number(data.totalPv || 0);
+        const todayPv = Number(data.todayPv || 0);
+        const todayUv = Number(data.todayUv || 0);
+        const updatedAt = data.updatedAt ? new Date(Number(data.updatedAt)).toLocaleString() : '';
+        const rows = pages.map(row => {
+            const pv = Number(row.pv || 0);
+            const percent = totalPv > 0 ? Math.round(pv * 1000 / totalPv) / 10 : 0;
+            return `
+                <tr>
+                    <td style="font-weight:800;color:#1f2a44;">${this.escapeHtml(row.name || '')}</td>
+                    <td><code style="background:#f5f7fb;padding:2px 6px;border-radius:6px;">${this.escapeHtml(row.path || '')}</code></td>
+                    <td style="font-size:20px;font-weight:900;color:#0958d9;">${pv.toLocaleString()}</td>
+                    <td style="font-weight:800;color:#135200;">${Number(row.todayPv || 0).toLocaleString()}</td>
+                    <td style="font-weight:800;color:#ad4e00;">${Number(row.todayUv || 0).toLocaleString()}</td>
+                    <td>${percent}%</td>
+                    <td style="line-height:1.8;">
+                        <div><code style="background:#f5f7fb;padding:2px 6px;border-radius:6px;">${this.escapeHtml(row.redisKey || '')}</code></div>
+                        <div><code style="background:#f6ffed;padding:2px 6px;border-radius:6px;">${this.escapeHtml(row.dailyPvKey || '')}</code></div>
+                        <div><code style="background:#fff7e6;padding:2px 6px;border-radius:6px;">${this.escapeHtml(row.dailyUvKey || '')}</code></div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        const dailyRows = daily.map(row => `
+            <tr>
+                <td style="font-weight:800;color:#1f2a44;">${this.escapeHtml(row.date || '')}</td>
+                <td>${Number(row.totalPv || 0).toLocaleString()}</td>
+                <td>${Number(row.totalUv || 0).toLocaleString()}</td>
+                <td>${Number(row.aiHubPv || 0).toLocaleString()}</td>
+                <td>${Number(row.aiHubUv || 0).toLocaleString()}</td>
+                <td>${Number(row.aiCodingHomePv || 0).toLocaleString()}</td>
+                <td>${Number(row.aiCodingHomeUv || 0).toLocaleString()}</td>
+            </tr>
+        `).join('');
+        return `
+            <style>
+                #admin-ai-page-dashboard-content th { text-align:left;padding:10px;border-bottom:1px solid #eee;background:#fafafa;color:#666; }
+                #admin-ai-page-dashboard-content td { padding:10px;border-bottom:1px solid #f2f2f2;color:#333; vertical-align:middle; }
+            </style>
+            <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:16px;">
+                <div style="padding:16px;border:1px solid #e8edf7;border-radius:12px;background:#fbfcff;">
+                    <div style="font-size:12px;color:#8c8c8c;margin-bottom:8px;">总 PV</div>
+                    <div style="font-size:28px;font-weight:900;color:#1f2a44;">${totalPv.toLocaleString()}</div>
+                </div>
+                <div style="padding:16px;border:1px solid #e8edf7;border-radius:12px;background:#fbfcff;">
+                    <div style="font-size:12px;color:#8c8c8c;margin-bottom:8px;">今日 PV</div>
+                    <div style="font-size:28px;font-weight:900;color:#135200;">${todayPv.toLocaleString()}</div>
+                </div>
+                <div style="padding:16px;border:1px solid #e8edf7;border-radius:12px;background:#fbfcff;">
+                    <div style="font-size:12px;color:#8c8c8c;margin-bottom:8px;">今日 UV</div>
+                    <div style="font-size:28px;font-weight:900;color:#ad4e00;">${todayUv.toLocaleString()}</div>
+                </div>
+            </div>
+            <div style="display:flex;justify-content:space-between;gap:12px;align-items:center;margin:-4px 0 12px;color:#8c8c8c;font-size:12px;">
+                <span>今日：${this.escapeHtml(data.today || '-')} · 刷新时间：${this.escapeHtml(updatedAt || '-')}</span>
+                <span>统计页面数：${pages.length}</span>
+            </div>
+            <div style="border:1px solid #f0f0f0;border-radius:10px;overflow:auto;margin-bottom:16px;">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:760px;">
+                    <thead><tr><th>页面</th><th>路径</th><th>累计 PV</th><th>今日 PV</th><th>今日 UV</th><th>累计占比</th><th>Redis key</th></tr></thead>
+                    <tbody>${rows || '<tr><td colspan="7">暂无数据</td></tr>'}</tbody>
+                </table>
+            </div>
+            <div style="border:1px solid #f0f0f0;border-radius:10px;overflow:auto;">
+                <div style="padding:12px 14px;font-weight:900;background:#fbfcff;border-bottom:1px solid #f0f0f0;">近 7 日 PV / UV</div>
+                <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:760px;">
+                    <thead><tr><th>日期</th><th>总 PV</th><th>总 UV</th><th>AI 题型中心 PV</th><th>AI 题型中心 UV</th><th>AI Coding PV</th><th>AI Coding UV</th></tr></thead>
+                    <tbody>${dailyRows || '<tr><td colspan="7">暂无数据</td></tr>'}</tbody>
+                </table>
             </div>
         `;
     }
@@ -1308,7 +1413,7 @@ export class AdminView {
                 <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
                     <div>
                         <div style="font-size:16px;font-weight:900;color:#1f2a44;">报名信息管理</div>
-                        <div style="font-size:12px;color:#8c8c8c;margin-top:4px;">按 uid 查询、修改或清理用户报名信息；清理不会删除投递编号和作答记录。</div>
+                        <div style="font-size:12px;color:#8c8c8c;margin-top:4px;">按 uid 查询、修改或重置用户报名信息；清理会同步删除 Redis 投递编号、作答 session、机会和榜单缓存。</div>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;">
                         <input id="admin-aicoding-signup-uid" type="number" placeholder="uid" style="width:150px;padding:8px 10px;border:1px solid #d9e2f2;border-radius:8px;">
@@ -1333,12 +1438,81 @@ export class AdminView {
                     </label>
                     <div style="display:flex;gap:10px;align-items:center;margin-bottom:10px;">
                         <button id="admin-aicoding-signup-update-btn" class="admin-btn" type="button">保存修改</button>
-                        <button id="admin-aicoding-signup-clear-btn" class="admin-btn modal-secondary" type="button" style="color:#cf1322;border-color:#ffccc7;background:#fff2f0;">清理报名</button>
+                        <button id="admin-aicoding-signup-clear-btn" class="admin-btn modal-secondary" type="button" style="color:#cf1322;border-color:#ffccc7;background:#fff2f0;">清理报名与投递编号</button>
                         <span id="admin-aicoding-signup-status-text" style="font-size:13px;color:#667085;"></span>
                     </div>
                     <pre id="admin-aicoding-signup-result" style="margin:0;background:#0b1020;color:#e6edf3;padding:12px;border-radius:8px;overflow:auto;max-height:260px;font-size:12px;">（尚未查询）</pre>
                 </div>
                 <div id="admin-aicoding-signup-empty" style="padding:18px;text-align:center;color:#98a2b3;border:1px dashed #d9e2f2;border-radius:10px;background:#fff;">输入 uid 后查询报名信息</div>
+            </div>
+        `;
+    }
+
+    renderAiCodingContestLotteryTool(lottery) {
+        const prizes = lottery && Array.isArray(lottery.prizes) ? lottery.prizes : [];
+        const rows = prizes.map(p => {
+            const limited = p.limited !== false && Number(p.defaultStock || 0) >= 0;
+            const stockText = limited ? Number(p.stock || 0) : '不限';
+            const gateText = p.gated ? (p.gateText || '有门槛') : '始终开放';
+            return `
+                <tr>
+                    <td style="font-weight:900;color:#1f2a44;">${this.escapeHtml(p.name || '')}<br><code style="font-weight:400;color:#667085;">${this.escapeHtml(p.id || '')}</code></td>
+                    <td>${this.escapeHtml(String(p.weight ?? '-'))}</td>
+                    <td>${this.escapeHtml(String(p.defaultStock ?? '-'))}</td>
+                    <td style="font-size:18px;font-weight:900;color:${limited ? '#0958d9' : '#667085'};">${this.escapeHtml(String(stockText))}</td>
+                    <td>${this.escapeHtml(gateText)}</td>
+                    <td>
+                        ${limited ? `
+                            <div style="display:flex;gap:8px;align-items:center;">
+                                <input class="admin-aicoding-lottery-stock-input" data-prize-id="${this.escapeHtml(p.id || '')}" type="number" min="0" value="${Number(p.stock || 0)}" style="width:90px;padding:7px 8px;border:1px solid #d9e2f2;border-radius:8px;">
+                                <button class="admin-btn admin-aicoding-lottery-stock-save" data-prize-id="${this.escapeHtml(p.id || '')}" type="button">保存</button>
+                            </div>
+                        ` : '<span style="color:#98a2b3;">无需设置</span>'}
+                    </td>
+                </tr>
+            `;
+        }).join('');
+        const midText = lottery && lottery.midOpenAt ? new Date(Number(lottery.midOpenAt)).toLocaleString() : '-';
+        const winnerRecords = lottery && Array.isArray(lottery.winnerRecords) ? lottery.winnerRecords : [];
+        const winnerRows = winnerRecords.map(row => `
+            <tr>
+                <td>${row.time ? this.escapeHtml(new Date(Number(row.time)).toLocaleString()) : this.escapeHtml(row.timeText || '')}</td>
+                <td>${Number(row.uid || 0)}</td>
+                <td>${this.escapeHtml(row.nickname || '')}</td>
+                <td>${this.escapeHtml(row.realName || '')}</td>
+                <td>${this.escapeHtml(row.phone || '')}<br><span style="color:#98a2b3;">${this.escapeHtml(row.email || '')}</span></td>
+                <td>${this.escapeHtml(row.prizeName || '')}<br><code style="font-weight:400;color:#667085;">${this.escapeHtml(row.prizeId || '')}</code></td>
+                <td>${this.escapeHtml(row.statusText || row.status || '')}</td>
+                <td>${this.escapeHtml(row.coinOrderId || '')}</td>
+            </tr>
+        `).join('');
+        return `
+            <div style="border:1px solid #e8edf7;border-radius:12px;padding:16px;background:#fbfcff;">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:12px;">
+                    <div>
+                        <div style="font-size:16px;font-weight:900;color:#1f2a44;">抽奖库存管理</div>
+                        <div style="font-size:12px;color:#8c8c8c;margin-top:4px;">概率写死在活动逻辑中；这里仅设置 Redis 剩余库存。稀缺奖默认在 ${this.escapeHtml(midText)} 或用户有效邀请数达到 ${Number(lottery && lottery.inviteGateCount || 3)} 后开放。</div>
+                    </div>
+                    <button id="admin-aicoding-lottery-refresh-btn" class="admin-btn modal-secondary" type="button">刷新库存</button>
+                </div>
+                <div id="admin-aicoding-lottery-error" style="display:none;margin-bottom:10px;padding:9px 10px;border:1px solid #ffccc7;border-radius:8px;background:#fff2f0;color:#cf1322;font-size:13px;"></div>
+                <div style="border:1px solid #f0f0f0;border-radius:10px;overflow:auto;background:#fff;">
+                    <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:760px;">
+                        <thead><tr><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">奖品</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">权重</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">默认库存</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">当前剩余</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">开放条件</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">设置剩余数量</th></tr></thead>
+                        <tbody>${rows || '<tr><td colspan="6" style="padding:16px;color:#98a2b3;text-align:center;">暂无库存数据，点击刷新库存</td></tr>'}</tbody>
+                    </table>
+                </div>
+                <div id="admin-aicoding-lottery-status" style="margin-top:10px;font-size:13px;color:#667085;"></div>
+                <div style="margin-top:16px;">
+                    <div style="font-size:15px;font-weight:900;color:#1f2a44;margin-bottom:8px;">中奖名单</div>
+                    <div style="font-size:12px;color:#8c8c8c;margin-bottom:8px;">包含牛币、现金、实物、会员等奖励；牛币奖会记录订单号，非牛币奖用于后续联系发放。</div>
+                    <div style="border:1px solid #f0f0f0;border-radius:10px;overflow:auto;background:#fff;">
+                        <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:960px;">
+                            <thead><tr><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">时间</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">UID</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">昵称</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">姓名</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">联系方式</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">奖品</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">状态</th><th style="text-align:left;padding:10px;background:#fafafa;border-bottom:1px solid #eee;">牛币订单</th></tr></thead>
+                            <tbody>${winnerRows || '<tr><td colspan="8" style="padding:16px;color:#98a2b3;text-align:center;">暂无中奖记录</td></tr>'}</tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         `;
     }
@@ -2471,6 +2645,12 @@ export class AdminView {
                     </button>
                     <button id="admin-battle-sync-acm-open-btn" style="background: #13c2c2; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
                         同步公开题
+                    </button>
+                    <button id="admin-battle-clean-core-btn" style="background: #fa8c16; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        清理核心题
+                    </button>
+                    <button id="admin-battle-rebuild-initial-time-btn" style="background: #722ed1; color: #fff; border: none; padding: 8px 16px; border-radius: 4px; cursor: pointer; font-size: 14px;">
+                        重算初始时间
                     </button>
                     <div style="flex: 1;"></div>
                     <div style="display: flex; align-items: center; gap: 8px; margin-right: 12px;">
@@ -4755,6 +4935,10 @@ export class AdminView {
         if (battleBatchDelBtn) battleBatchDelBtn.addEventListener('click', () => this.handleBatchDelete());
         const battleSyncAcmOpenBtn = document.getElementById('admin-battle-sync-acm-open-btn');
         if (battleSyncAcmOpenBtn) battleSyncAcmOpenBtn.addEventListener('click', () => this.syncBattleProblemsFromAcmOpen());
+        const battleCleanCoreBtn = document.getElementById('admin-battle-clean-core-btn');
+        if (battleCleanCoreBtn) battleCleanCoreBtn.addEventListener('click', () => this.cleanCoreModeBattleProblems());
+        const battleRebuildInitialTimeBtn = document.getElementById('admin-battle-rebuild-initial-time-btn');
+        if (battleRebuildInitialTimeBtn) battleRebuildInitialTimeBtn.addEventListener('click', () => this.rebuildInitialBattleProblemTime());
         const battleSearchBtn = document.getElementById('admin-battle-search-btn');
         if (battleSearchBtn) battleSearchBtn.addEventListener('click', () => this.loadBattleList());
         const battleSearchByIdBtn = document.getElementById('admin-battle-search-by-id-btn');
@@ -4865,6 +5049,9 @@ export class AdminView {
         const yrBtn = document.getElementById('admin-year-report-fetch-btn');
         if (yrBtn) yrBtn.addEventListener('click', () => this.fetchAdminYearReport());
 
+        const aiPageRefreshBtn = document.getElementById('admin-ai-page-refresh-btn');
+        if (aiPageRefreshBtn) aiPageRefreshBtn.addEventListener('click', () => this.loadAiPageDashboard(true));
+
         const aiCodingContestRefreshBtn = document.getElementById('admin-aicoding-contest-refresh-btn');
         if (aiCodingContestRefreshBtn) aiCodingContestRefreshBtn.addEventListener('click', () => this.loadAiCodingContestDashboard(true));
         const aiCodingSignupFetchBtn = document.getElementById('admin-aicoding-signup-fetch-btn');
@@ -4873,6 +5060,7 @@ export class AdminView {
         if (aiCodingSignupUpdateBtn) aiCodingSignupUpdateBtn.addEventListener('click', () => this.updateAiCodingContestSignup());
         const aiCodingSignupClearBtn = document.getElementById('admin-aicoding-signup-clear-btn');
         if (aiCodingSignupClearBtn) aiCodingSignupClearBtn.addEventListener('click', () => this.clearAiCodingContestSignup());
+        this.bindAiCodingContestLotteryEvents();
 
         // Redis Debug：查 key
         const redisDebugBtn = document.getElementById('admin-redis-debug-fetch-btn');
@@ -7617,6 +7805,11 @@ export class AdminView {
             if (contentEl) {
                 contentEl.innerHTML = this.renderAiCodingContestDashboardContent(data);
             }
+            const lotteryWrap = document.getElementById('admin-aicoding-lottery-tool-wrap');
+            if (lotteryWrap) {
+                lotteryWrap.innerHTML = this.renderAiCodingContestLotteryTool(data && data.lottery);
+                this.bindAiCodingContestLotteryEvents();
+            }
         } catch (e) {
             if (contentEl) {
                 contentEl.innerHTML = `<div style="padding:24px;color:#ff4d4f;background:#fff2f0;border:1px solid #ffccc7;border-radius:10px;">${this.escapeHtml(e && e.message ? e.message : '加载失败')}</div>`;
@@ -7626,6 +7819,123 @@ export class AdminView {
                 btn.disabled = false;
                 btn.textContent = oldText || '刷新数据';
             }
+        }
+    }
+
+    async loadAiPageDashboard(force = false) {
+        const contentEl = document.getElementById('admin-ai-page-dashboard-content');
+        const btn = document.getElementById('admin-ai-page-refresh-btn');
+        if (!force && this.adminAiPageDashboardLast && contentEl) {
+            contentEl.innerHTML = this.renderAiPageDashboardContent(this.adminAiPageDashboardLast);
+            return;
+        }
+        const oldText = btn ? btn.textContent : '';
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '加载中...';
+            }
+            if (contentEl) {
+                contentEl.innerHTML = `<div style="padding:24px; color:#999; text-align:center; background:#fafafa; border:1px dashed #ddd; border-radius:10px;">加载中...</div>`;
+            }
+            const data = await this.apiService.adminAiPageDashboard();
+            this.adminAiPageDashboardLast = data;
+            if (contentEl) {
+                contentEl.innerHTML = this.renderAiPageDashboardContent(data);
+            }
+        } catch (e) {
+            if (contentEl) {
+                contentEl.innerHTML = `<div style="padding:24px;color:#ff4d4f;background:#fff2f0;border:1px solid #ffccc7;border-radius:10px;">${this.escapeHtml(e && e.message ? e.message : '加载失败')}</div>`;
+            }
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = oldText || '刷新数据';
+            }
+        }
+    }
+
+    bindAiCodingContestLotteryEvents() {
+        const aiCodingLotteryRefreshBtn = document.getElementById('admin-aicoding-lottery-refresh-btn');
+        if (aiCodingLotteryRefreshBtn) {
+            aiCodingLotteryRefreshBtn.addEventListener('click', () => this.loadAiCodingContestLotteryStock(true));
+        }
+        document.querySelectorAll('.admin-aicoding-lottery-stock-save').forEach(btn => {
+            btn.addEventListener('click', () => this.updateAiCodingContestLotteryStock(btn.getAttribute('data-prize-id') || ''));
+        });
+    }
+
+    setAiCodingLotteryError(message) {
+        const el = document.getElementById('admin-aicoding-lottery-error');
+        if (!el) return;
+        if (!message) {
+            el.textContent = '';
+            el.style.display = 'none';
+            return;
+        }
+        el.textContent = message;
+        el.style.display = 'block';
+    }
+
+    async loadAiCodingContestLotteryStock(force = false) {
+        const wrap = document.getElementById('admin-aicoding-lottery-tool-wrap');
+        const btn = document.getElementById('admin-aicoding-lottery-refresh-btn');
+        const oldText = btn ? btn.textContent : '';
+        try {
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = '刷新中...';
+            }
+            const lottery = await this.apiService.adminAiCodingContestLotteryStock();
+            if (!this.adminAiCodingContestDashboardLast) this.adminAiCodingContestDashboardLast = {};
+            this.adminAiCodingContestDashboardLast.lottery = lottery;
+            if (wrap) {
+                wrap.innerHTML = this.renderAiCodingContestLotteryTool(lottery);
+                this.bindAiCodingContestLotteryEvents();
+            }
+        } catch (e) {
+            this.setAiCodingLotteryError(e && e.message ? e.message : '刷新库存失败');
+        } finally {
+            if (btn) {
+                btn.disabled = false;
+                btn.textContent = oldText || '刷新库存';
+            }
+        }
+    }
+
+    async updateAiCodingContestLotteryStock(prizeId) {
+        const safePrizeId = String(prizeId || '').trim();
+        let input = null;
+        document.querySelectorAll('.admin-aicoding-lottery-stock-input').forEach(el => {
+            if (el.getAttribute('data-prize-id') === safePrizeId) input = el;
+        });
+        const statusEl = document.getElementById('admin-aicoding-lottery-status');
+        if (!safePrizeId || !input) {
+            this.setAiCodingLotteryError('未找到奖品库存输入框');
+            return;
+        }
+        const stock = parseInt(String(input.value || '').trim(), 10);
+        if (!Number.isFinite(stock) || stock < 0) {
+            this.setAiCodingLotteryError('库存必须是非负整数');
+            return;
+        }
+        this.setAiCodingLotteryError('');
+        try {
+            const lottery = await this.apiService.adminUpdateAiCodingContestLotteryStock(safePrizeId, stock);
+            if (!this.adminAiCodingContestDashboardLast) this.adminAiCodingContestDashboardLast = {};
+            this.adminAiCodingContestDashboardLast.lottery = lottery;
+            const wrap = document.getElementById('admin-aicoding-lottery-tool-wrap');
+            if (wrap) {
+                wrap.innerHTML = this.renderAiCodingContestLotteryTool(lottery);
+                this.bindAiCodingContestLotteryEvents();
+            }
+            const nextStatus = document.getElementById('admin-aicoding-lottery-status') || statusEl;
+            if (nextStatus) {
+                nextStatus.textContent = `已设置 ${safePrizeId} 剩余库存为 ${stock}`;
+                nextStatus.style.color = '#135200';
+            }
+        } catch (e) {
+            this.setAiCodingLotteryError(e && e.message ? e.message : '保存库存失败');
         }
     }
 
@@ -7681,6 +7991,7 @@ export class AdminView {
         const statusText = document.getElementById('admin-aicoding-signup-status-text');
         if (statusText) {
             statusText.textContent = `uid=${data.uid || '-'}，报名状态：${data.signed ? '已报名' : '未报名'}，昵称：${data.nickname || '-'}`;
+            statusText.style.color = '#667085';
         }
         if (result) result.textContent = JSON.stringify(data || {}, null, 2);
     }
@@ -7734,7 +8045,7 @@ export class AdminView {
     async clearAiCodingContestSignup() {
         const uid = this.getAiCodingSignupUid();
         if (!uid) return;
-        if (!window.confirm(`确认清理 uid=${uid} 的 AI Coding 报名信息？不会删除投递编号和作答记录。`)) {
+        if (!window.confirm(`确认清理 uid=${uid} 的 AI Coding 报名信息、投递编号、作答 session、机会和 Redis 榜单缓存？\n\n产品赛道已落库提交记录不会物理删除。`)) {
             return;
         }
         const reasonEl = document.getElementById('admin-aicoding-signup-clear-reason');
@@ -7745,6 +8056,12 @@ export class AdminView {
             const data = await this.apiService.adminClearAiCodingContestSignup(uid, reason);
             const after = data && data.after ? data.after : {};
             this.fillAiCodingSignupEditor(after);
+            const runtime = data && data.clearedRuntime ? data.clearedRuntime : {};
+            const statusText = document.getElementById('admin-aicoding-signup-status-text');
+            if (statusText) {
+                statusText.textContent = `已清理：投递编号 ${Number(runtime.deliveryCodeCount || 0)} 个，session ${Number(runtime.sessionCount || 0)} 个`;
+                statusText.style.color = '#cf1322';
+            }
             const result = document.getElementById('admin-aicoding-signup-result');
             if (result) result.textContent = JSON.stringify(data || {}, null, 2);
             await this.loadAiCodingContestDashboard(true);
@@ -10645,6 +10962,88 @@ export class AdminView {
         } finally {
             btn.disabled = false;
             btn.textContent = oldText || '同步公开题';
+        }
+    }
+
+    /**
+     * 从对战题库中清理核心代码模式题目
+     */
+    async cleanCoreModeBattleProblems() {
+        const btn = document.getElementById('admin-battle-clean-core-btn');
+        if (!btn) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '预览中...';
+
+        try {
+            const preview = await this.apiService.adminBattleProblemCleanCoreMode(true);
+            const ids = Array.isArray(preview.candidateProblemIds) ? preview.candidateProblemIds : [];
+            const sampleText = ids.slice(0, 20).join(', ');
+            const ok = confirm(
+                `确认从对战题库清理核心代码模式题目吗？\n\n` +
+                `候选数量：${preview.candidateCount || 0}\n` +
+                `${sampleText ? `示例 problemId：${sampleText}${ids.length > 20 ? ' ...' : ''}\n` : ''}\n` +
+                `本操作只删除 tracker_battle_problem 记录，不会删除 acm_problem_open，也不会删除 Tracker 标签。`
+            );
+            if (!ok) return;
+
+            btn.textContent = '清理中...';
+            const result = await this.apiService.adminBattleProblemCleanCoreMode(false);
+            alert(
+                `清理完成\n\n` +
+                `候选数量：${result.candidateCount || 0}\n` +
+                `删除数量：${result.deletedCount || 0}`
+            );
+            await this.loadBattleList(1);
+            if (this.battleSubTab === 'histogram') {
+                await this.loadBattleDifficultyHistogram();
+            }
+        } catch (e) {
+            alert(e && e.message ? e.message : '清理失败');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '清理核心题';
+        }
+    }
+
+    /**
+     * 根据当前难度重算初始平均用时
+     */
+    async rebuildInitialBattleProblemTime() {
+        const btn = document.getElementById('admin-battle-rebuild-initial-time-btn');
+        if (!btn) return;
+
+        const oldText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '预览中...';
+
+        try {
+            const preview = await this.apiService.adminBattleProblemRebuildInitialAvgSeconds(true);
+            const ids = Array.isArray(preview.candidateProblemIds) ? preview.candidateProblemIds : [];
+            const sampleText = ids.slice(0, 20).join(', ');
+            const ok = confirm(
+                `确认根据难度重算初始平均用时吗？\n\n` +
+                `候选数量：${preview.candidateCount || 0}\n` +
+                `${sampleText ? `示例 problemId：${sampleText}${ids.length > 20 ? ' ...' : ''}\n` : ''}\n` +
+                `仅处理 matchCount=0 且 acCount 为空/0/1 的初始态题目。\n` +
+                `执行后会设置 acCount=1，并按 10 + max(0, 难度 - 1000) / 100 分钟重算 avgSeconds。`
+            );
+            if (!ok) return;
+
+            btn.textContent = '重算中...';
+            const result = await this.apiService.adminBattleProblemRebuildInitialAvgSeconds(false);
+            alert(
+                `重算完成\n\n` +
+                `候选数量：${result.candidateCount || 0}\n` +
+                `更新数量：${result.updatedCount || 0}`
+            );
+            await this.loadBattleList(1);
+        } catch (e) {
+            alert(e && e.message ? e.message : '重算失败');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = oldText || '重算初始时间';
         }
     }
 

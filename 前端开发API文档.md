@@ -840,8 +840,9 @@ GET /problem/tracker/battle/problem/admin/check-delete?id=1
 
 **同步规则**:
 - 只同步 `status=ONLINE(2)` 且 `difficulty>100` 的题目
-- 已存在于对战题库的题目只更新 `levelScore`
-- 不覆盖 `matchCount`、`acCount`、`avgSeconds` 等对战统计
+- 已存在于对战题库的题目会更新 `levelScore`
+- 已有 AC 统计的题不覆盖 `matchCount`、`acCount`、`avgSeconds`
+- `acCount` 为空或 0 的题会补初始统计：`acCount=1`，`avgSeconds=600 + max(0, levelScore - 1000) * 60 / 100`
 - 不存在的题目会新增到对战题库
 
 **响应示例**:
@@ -856,6 +857,40 @@ GET /problem/tracker/battle/problem/admin/check-delete?id=1
     "missingCount": 400,
     "updatedCount": 50,
     "insertedCount": 400
+  }
+}
+```
+
+---
+
+### 12. 根据难度重算初始平均用时
+
+**接口**: `POST /battle/problem/admin/rebuild-initial-avg-seconds`
+
+**实际路径**: `POST /problem/tracker/battle/problem/admin/rebuild-initial-avg-seconds`
+
+**功能**: 根据 `tracker_battle_problem.level_score` 重算仍处于初始态题目的 `avg_seconds`，并补齐 `ac_count=1`。
+
+**请求参数**:
+| 参数名 | 类型 | 必填 | 说明 |
+|--------|------|------|------|
+| dryRun | boolean | 否 | 是否只预览不写库，默认 `true` |
+
+**处理规则**:
+- 只处理 `matchCount=0` 且 `acCount` 为空/0/1 的题目
+- 不处理已经有真实对战统计的题目
+- 公式：`avgSeconds = 600 + max(0, levelScore - 1000) * 60 / 100`
+
+**响应示例**:
+```json
+{
+  "code": 0,
+  "message": "success",
+  "data": {
+    "dryRun": false,
+    "candidateCount": 120,
+    "updatedCount": 120,
+    "candidateProblemIds": [1001, 1002]
   }
 }
 ```

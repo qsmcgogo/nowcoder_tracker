@@ -3020,6 +3020,43 @@ export class ApiService {
         throw new Error((data && (data.msg || data.message)) || '获取 AI Coding 看板失败');
     }
 
+    async adminAiCodingContestLotteryStock() {
+        const url = `${this.apiBase}/problem/tracker/admin/aicoding-contest/lottery/stock`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '获取 AI Coding 抽奖库存失败') || {};
+    }
+
+    async adminUpdateAiCodingContestLotteryStock(prizeId, stock) {
+        const url = `${this.apiBase}/problem/tracker/admin/aicoding-contest/lottery/stock/update`;
+        const res = await fetch(url, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+            body: this._toFormBody({ prizeId, stock }),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        return this._unwrapCommon(data, '设置 AI Coding 抽奖库存失败') || {};
+    }
+
+    async adminAiPageDashboard() {
+        const url = `${this.apiBase}/problem/tracker/admin/ai-page/dashboard`;
+        const res = await fetch(url, {
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '获取 AI 页面浏览看板失败');
+    }
+
     async adminAiCodingContestSignup(uid) {
         const uidNum = Number(uid);
         if (!uidNum || uidNum <= 0) throw new Error('uid 参数不合法');
@@ -4265,6 +4302,66 @@ export class ApiService {
         const data = await res.json().catch(() => ({}));
         if (data && (data.code === 0 || data.code === 200)) return data.data || {};
         throw new Error((data && (data.msg || data.message)) || '同步公开题失败');
+    }
+
+    /**
+     * 管理员：清理对战题库中的核心代码模式题目
+     *
+     * POST /problem/tracker/battle/problem/admin/clean-core-mode
+     */
+    async adminBattleProblemCleanCoreMode(dryRun = true) {
+        const body = new URLSearchParams();
+        body.append('dryRun', dryRun ? 'true' : 'false');
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/clean-core-mode`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'Accept': 'application/json, text/plain, */*' },
+            body: body.toString(),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const contentType = (res.headers && res.headers.get) ? (res.headers.get('content-type') || '') : '';
+        if (contentType.includes('text/html')) {
+            const finalUrl = res.url || '';
+            throw new Error(`接口返回 HTML（疑似未登录/无权限/反代兜底）。finalUrl=${finalUrl || '(unknown)'}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '清理核心模式对战题失败');
+    }
+
+    /**
+     * 管理员：根据当前难度重算初始平均用时
+     *
+     * POST /problem/tracker/battle/problem/admin/rebuild-initial-avg-seconds
+     */
+    async adminBattleProblemRebuildInitialAvgSeconds(dryRun = true) {
+        const body = new URLSearchParams();
+        body.append('dryRun', dryRun ? 'true' : 'false');
+
+        const res = await fetch(`${this.apiBase}/problem/tracker/battle/problem/admin/rebuild-initial-avg-seconds`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8', 'Accept': 'application/json, text/plain, */*' },
+            body: body.toString(),
+            cache: 'no-store',
+            credentials: 'include'
+        });
+        if (!res.ok) {
+            const t = await res.text().catch(() => '');
+            throw new Error(t || `HTTP ${res.status}`);
+        }
+        const contentType = (res.headers && res.headers.get) ? (res.headers.get('content-type') || '') : '';
+        if (contentType.includes('text/html')) {
+            const finalUrl = res.url || '';
+            throw new Error(`接口返回 HTML（疑似未登录/无权限/反代兜底）。finalUrl=${finalUrl || '(unknown)'}`);
+        }
+        const data = await res.json().catch(() => ({}));
+        if (data && (data.code === 0 || data.code === 200)) return data.data || {};
+        throw new Error((data && (data.msg || data.message)) || '重算初始平均用时失败');
     }
 
     /**
